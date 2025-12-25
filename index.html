@@ -3,12 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fonekingdom Repair Tracker Pro</title>
+    <title>Fonekingdom Repair Management System v2.0</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --success: #4caf50;
+            --danger: #f44336;
+            --warning: #ff9800;
+            --info: #2196f3;
         }
         
         body {
@@ -18,54 +23,57 @@
             padding: 20px;
         }
         
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .auth-section {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            max-width: 500px;
+            margin: 100px auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
         }
+        
+        .auth-section h2 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .logo { text-align: center; font-size: 48px; margin-bottom: 20px; }
         
         .header {
             background: white;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-        
-        .header h1 {
-            color: #667eea;
-            margin-bottom: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
         .user-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 10px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
         }
         
-        .login-section {
-            background: white;
-            border-radius: 10px;
-            padding: 40px;
-            max-width: 400px;
-            margin: 100px auto;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        .user-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
         }
         
-        .login-section h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-            text-align: center;
-        }
+        .badge-admin { background: #e3f2fd; color: #1976d2; }
+        .badge-manager { background: #fff3e0; color: #f57c00; }
+        .badge-technician { background: #e8f5e9; color: #388e3c; }
+        .badge-cashier { background: #f3e5f5; color: #7b1fa2; }
         
-        input[type="text"],
-        input[type="email"],
-        input[type="password"],
-        input[type="tel"],
-        input[type="number"],
-        input[type="date"],
-        textarea,
-        select {
+        input, textarea, select {
             width: 100%;
             padding: 12px;
             margin: 8px 0;
@@ -76,11 +84,11 @@
         
         input:focus, textarea:focus, select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--primary);
         }
         
-        button {
-            background: #667eea;
+        button, .btn {
+            background: var(--primary);
             color: white;
             padding: 12px 24px;
             border: none;
@@ -88,25 +96,17 @@
             cursor: pointer;
             font-size: 14px;
             font-weight: bold;
-            transition: background 0.3s;
+            transition: all 0.3s;
         }
         
-        button:hover {
-            background: #5568d3;
-        }
+        button:hover { background: var(--primary-dark); }
+        button:disabled { background: #ccc; cursor: not-allowed; }
         
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .btn-logout {
-            background: #f44336;
-        }
-        
-        .btn-logout:hover {
-            background: #d32f2f;
-        }
+        .btn-logout { background: var(--danger); }
+        .btn-success { background: var(--success); }
+        .btn-warning { background: var(--warning); }
+        .btn-danger { background: var(--danger); }
+        .btn-small { padding: 8px 16px; font-size: 12px; }
         
         .tabs {
             display: flex;
@@ -121,67 +121,44 @@
             border-radius: 5px;
             cursor: pointer;
             transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         
-        .tab.active {
-            background: #667eea;
-            color: white;
-        }
+        .tab.active { background: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
         
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .form-section {
+        .card {
             background: white;
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
         
-        .form-section h3 {
-            color: #667eea;
-            margin-bottom: 15px;
-        }
-        
-        .form-row {
+        .stats {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 15px;
+            margin-bottom: 20px;
         }
         
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-            color: #333;
-        }
-        
-        .repairs-list {
+        .stat-card {
             background: white;
             border-radius: 10px;
             padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
+        
+        .stat-card h3 { font-size: 36px; color: var(--primary); margin-bottom: 5px; }
         
         .repair-card {
             background: #f5f5f5;
-            border-left: 4px solid #667eea;
+            border-left: 4px solid var(--primary);
             padding: 15px;
             margin-bottom: 15px;
             border-radius: 5px;
-        }
-        
-        .repair-card h4 {
-            color: #333;
-            margin-bottom: 10px;
         }
         
         .repair-info {
@@ -189,14 +166,6 @@
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 10px;
             margin: 10px 0;
-        }
-        
-        .repair-info-item {
-            padding: 5px 0;
-        }
-        
-        .repair-info-item strong {
-            color: #667eea;
         }
         
         .status-badge {
@@ -214,172 +183,20 @@
         .status-ready { background: #ba68c8; color: white; }
         .status-picked-up { background: #90a4ae; color: white; }
         
-        .payment-badge {
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
         .payment-unpaid { background: #ffcdd2; color: #c62828; }
-        .payment-partial { background: #fff9c4; color: #f57f17; }
-        .payment-paid { background: #c8e6c9; color: #2e7d32; }
-        
-        .repair-actions {
-            margin-top: 15px;
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-        
-        .btn-small {
-            padding: 8px 16px;
-            font-size: 12px;
-        }
-        
-        .btn-edit {
-            background: #ff9800;
-        }
-        
-        .btn-edit:hover {
-            background: #f57c00;
-        }
-        
-        .btn-delete {
-            background: #f44336;
-        }
-        
-        .btn-delete:hover {
-            background: #d32f2f;
-        }
-        
-        .btn-payment {
-            background: #4caf50;
-        }
-        
-        .btn-payment:hover {
-            background: #388e3c;
-        }
-        
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .stat-card h3 {
-            font-size: 36px;
-            color: #667eea;
-            margin-bottom: 5px;
-        }
-        
-        .stat-card p {
-            color: #666;
-        }
-        
-        .search-bar {
-            margin-bottom: 20px;
-        }
-        
-        .filter-bar {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .hidden {
-            display: none;
-        }
+        .payment-pending { background: #ffe082; color: #f57f17; }
+        .payment-verified { background: #c8e6c9; color: #2e7d32; }
         
         .alert {
             padding: 12px 20px;
             border-radius: 5px;
             margin-bottom: 15px;
+            border-left: 4px solid;
         }
         
-        .alert-error {
-            background: #ffebee;
-            color: #c62828;
-            border-left: 4px solid #c62828;
-        }
-        
-        .alert-success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            border-left: 4px solid #2e7d32;
-        }
-        
-        .payment-summary {
-            background: #f5f5f5;
-            padding: 15px;
-            border-radius: 5px;
-            margin: 15px 0;
-        }
-        
-        .payment-summary h4 {
-            color: #667eea;
-            margin-bottom: 10px;
-        }
-        
-        .payment-line {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #ddd;
-        }
-        
-        .payment-line.total {
-            font-weight: bold;
-            font-size: 18px;
-            border-top: 2px solid #667eea;
-            border-bottom: none;
-            margin-top: 10px;
-            padding-top: 10px;
-        }
-        
-        .cash-report {
-            background: white;
-            border-radius: 10px;
-            padding: 30px;
-            max-width: 800px;
-            margin: 0 auto;
-        }
-        
-        .cash-report h2 {
-            color: #667eea;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        
-        .report-section {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 5px;
-        }
-        
-        .report-section h3 {
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        .collector-summary {
-            background: white;
-            padding: 15px;
-            margin: 10px 0;
-            border-left: 4px solid #667eea;
-            border-radius: 5px;
-        }
+        .alert-error { background: #ffebee; color: #c62828; border-color: #c62828; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
+        .alert-info { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
         
         .modal {
             display: none;
@@ -398,1024 +215,1020 @@
             padding: 30px;
             border-radius: 10px;
             width: 90%;
-            max-width: 500px;
+            max-width: 600px;
             max-height: 80vh;
             overflow-y: auto;
         }
         
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        
-        .modal-header h3 {
-            color: #667eea;
-        }
-        
         .close {
             color: #aaa;
+            float: right;
             font-size: 28px;
             font-weight: bold;
             cursor: pointer;
         }
         
-        .close:hover {
-            color: #000;
+        .close:hover { color: #000; }
+        
+        .photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
         }
         
-        @media print {
-            body {
-                background: white;
-                padding: 0;
-            }
-            
-            .no-print {
-                display: none !important;
-            }
-            
-            .cash-report {
-                box-shadow: none;
-                max-width: 100%;
-            }
+        .photo-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid #e0e0e0;
         }
+        
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .hidden { display: none !important; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; }
         
         @media (max-width: 768px) {
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-            
-            .tabs {
-                flex-direction: column;
-            }
-            
-            .repair-actions {
-                flex-direction: column;
-            }
-            
-            .filter-bar {
-                flex-direction: column;
-            }
+            .form-row { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
-    <!-- Login Section -->
-    <div id="loginSection" class="login-section">
-        <h2>🔧 Fonekingdom Repair Tracker Pro</h2>
-        <p style="text-align: center; color: #666; margin-bottom: 20px;">Sign in to manage repairs</p>
-        
-        <div id="loginAlert"></div>
-        
-        <input type="email" id="loginEmail" placeholder="Email">
-        <input type="password" id="loginPassword" placeholder="Password">
-        <button onclick="handleLogin()" style="width: 100%; margin-top: 10px;">Sign In</button>
-        
-        <p style="text-align: center; margin: 15px 0; color: #666;">or</p>
-        
-        <button onclick="showRegister()" style="width: 100%; background: white; color: #667eea; border: 2px solid #667eea;">Create Account</button>
-    </div>
 
-    <!-- Registration Section -->
-    <div id="registerSection" class="login-section hidden">
-        <h2>Create Account</h2>
-        
-        <div id="registerAlert"></div>
-        
-        <input type="text" id="registerName" placeholder="Full Name">
-        <input type="email" id="registerEmail" placeholder="Email">
-        <input type="password" id="registerPassword" placeholder="Password (min 6 characters)">
-        <button onclick="handleRegister()" style="width: 100%; margin-top: 10px;">Create Account</button>
-        <button onclick="showLogin()" style="width: 100%; background: white; color: #667eea; border: 2px solid #667eea; margin-top: 10px;">Back to Login</button>
+<!-- Setup Section -->
+<div id="setupSection" class="auth-section hidden">
+    <div class="logo">🔧</div>
+    <h2>First Time Setup</h2>
+    <p style="text-align: center; color: #666; margin-bottom: 30px;">Create your admin account</p>
+    <div id="setupAlert"></div>
+    <div class="form-group">
+        <label>Your Full Name *</label>
+        <input type="text" id="setupName" placeholder="Juan Reyes">
     </div>
+    <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="setupEmail" placeholder="owner@fonekingdom.com">
+    </div>
+    <div class="form-group">
+        <label>Password * (min 8 characters)</label>
+        <input type="password" id="setupPassword" minlength="8">
+    </div>
+    <button onclick="initializeSystem()" style="width: 100%;">
+        🚀 Initialize System
+    </button>
+</div>
 
-    <!-- Main App Section -->
-    <div id="appSection" class="container hidden">
-        <div class="header">
-            <h1>🔧 Fonekingdom Repair Tracker Pro</h1>
-            <div class="user-info">
+<!-- Login Section -->
+<div id="loginSection" class="auth-section hidden">
+    <div class="logo">🔧</div>
+    <h2>Fonekingdom Repair Management</h2>
+    <p style="text-align: center; color: #666; margin-bottom: 30px;">Sign in to continue</p>
+    <div id="loginAlert"></div>
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="handleLogin()" style="width: 100%;">Sign In</button>
+</div>
+
+<!-- Main App -->
+<div id="appSection" class="container hidden">
+    <div class="header">
+        <h1>🔧 Fonekingdom Repair Management</h1>
+        <div class="user-info">
+            <div>
                 <span>Welcome, <strong id="userName"></strong></span>
-                <button class="btn-logout" onclick="handleLogout()">Logout</button>
+                <span id="userRole" class="user-badge"></span>
             </div>
+            <button class="btn-logout" onclick="handleLogout()">Logout</button>
         </div>
+    </div>
 
-        <!-- Statistics -->
-        <div class="stats">
-            <div class="stat-card">
-                <h3 id="statTotal">0</h3>
-                <p>Total Repairs</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="statInProgress">0</h3>
-                <p>In Progress</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="statCompleted">0</h3>
-                <p>Completed Today</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="statRevenue">₱0</h3>
-                <p>Today's Revenue</p>
-            </div>
-            <div class="stat-card">
-                <h3 id="statBalance">₱0</h3>
-                <p>Balance Due</p>
-            </div>
-        </div>
+    <div id="statsSection" class="stats"></div>
+    <div class="tabs" id="mainTabs"></div>
+    <div id="tabContents"></div>
+</div>
 
-        <!-- Tabs -->
-        <div class="tabs">
-            <div class="tab active" onclick="switchTab('new')">➕ New Repair</div>
-            <div class="tab" onclick="switchTab('list')">📋 All Repairs</div>
-            <div class="tab" onclick="switchTab('cash')">💰 Cash Report</div>
-            <div class="tab" onclick="switchTab('reports')">📊 Reports</div>
-        </div>
+<!-- Modals -->
+<div id="photoModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closePhotoModal()">&times;</span>
+        <img id="modalPhoto" style="width: 100%; border-radius: 8px;">
+    </div>
+</div>
 
-        <!-- New Repair Form -->
-        <div id="newRepairTab" class="tab-content active">
-            <form id="repairForm" onsubmit="handleSubmitRepair(event)">
-                <div class="form-section">
-                    <h3>Customer Information</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Customer Name *</label>
-                            <input type="text" name="customerName" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Contact Number *</label>
-                            <input type="tel" name="contactNumber" required>
-                        </div>
-                    </div>
-                </div>
+<div id="userModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeUserModal()">&times;</span>
+        <h3 id="userModalTitle">Add User</h3>
+        <div id="userModalContent"></div>
+    </div>
+</div>
 
-                <div class="form-section">
-                    <h3>Device Information</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Brand *</label>
-                            <input type="text" name="brand" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Model *</label>
-                            <input type="text" name="model" required>
-                        </div>
+<div id="paymentModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closePaymentModal()">&times;</span>
+        <h3>Record Payment</h3>
+        <div id="paymentModalContent"></div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<script>
+// REPLACE WITH YOUR FIREBASE CONFIG
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let currentUser = null;
+let currentUserData = null;
+let allRepairs = [];
+let allUsers = [];
+
+// Role permissions
+const PERMISSIONS = {
+    admin: {
+        canCreateUsers: true,
+        canViewAllRepairs: true,
+        canDeleteRepairs: true,
+        canProcessRefunds: true,
+        canViewFinancials: true,
+        canEditAnyRepair: true
+    },
+    manager: {
+        canCreateUsers: false,
+        canViewAllRepairs: true,
+        canDeleteRepairs: false,
+        canProcessRefunds: true,
+        canViewFinancials: true,
+        canEditAnyRepair: true
+    },
+    technician: {
+        canCreateUsers: false,
+        canViewAllRepairs: false,
+        canDeleteRepairs: false,
+        canProcessRefunds: false,
+        canViewFinancials: false,
+        canEditAnyRepair: false
+    },
+    cashier: {
+        canCreateUsers: false,
+        canViewAllRepairs: true,
+        canDeleteRepairs: false,
+        canProcessRefunds: false,
+        canViewFinancials: false,
+        canEditAnyRepair: false
+    }
+};
+
+// Initialize
+auth.onAuthStateChanged(async user => {
+    if (user) {
+        currentUser = user;
+        await loadUserData();
+        await checkIfSystemInitialized();
+    } else {
+        await checkIfSystemInitialized();
+    }
+});
+
+async function checkIfSystemInitialized() {
+    const snap = await db.ref('systemInitialized').once('value');
+    if (!snap.val() && !currentUser) {
+        showSetupScreen();
+    } else if (!currentUser) {
+        showLoginScreen();
+    } else {
+        await loadAppData();
+        showMainApp();
+    }
+}
+
+function showSetupScreen() {
+    document.getElementById('setupSection').classList.remove('hidden');
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('appSection').classList.add('hidden');
+}
+
+function showLoginScreen() {
+    document.getElementById('setupSection').classList.add('hidden');
+    document.getElementById('loginSection').classList.remove('hidden');
+    document.getElementById('appSection').classList.add('hidden');
+}
+
+function showMainApp() {
+    document.getElementById('setupSection').classList.add('hidden');
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('appSection').classList.remove('hidden');
+    buildInterface();
+}
+
+async function initializeSystem() {
+    const name = document.getElementById('setupName').value;
+    const email = document.getElementById('setupEmail').value;
+    const password = document.getElementById('setupPassword').value;
+    const alert = document.getElementById('setupAlert');
+    
+    if (!name || !email || !password) {
+        alert.innerHTML = '<div class="alert alert-error">Please fill all fields</div>';
+        return;
+    }
+    
+    if (password.length < 8) {
+        alert.innerHTML = '<div class="alert alert-error">Password must be at least 8 characters</div>';
+        return;
+    }
+    
+    try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = userCredential.user.uid;
+        
+        await db.ref(`users/${uid}`).set({
+            displayName: name,
+            email: email,
+            role: 'admin',
+            technicianName: 'Owner',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: uid
+        });
+        
+        await db.ref('systemInitialized').set(true);
+        
+        alert.innerHTML = '<div class="alert alert-success">System initialized! Loading...</div>';
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+        alert.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+    }
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const alert = document.getElementById('loginAlert');
+    
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+    } catch (error) {
+        alert.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+    }
+}
+
+function handleLogout() {
+    auth.signOut();
+}
+
+async function loadUserData() {
+    const snap = await db.ref(`users/${currentUser.uid}`).once('value');
+    currentUserData = snap.val();
+    
+    if (!currentUserData) {
+        alert('Your account has been deleted. Contact administrator.');
+        auth.signOut();
+        return;
+    }
+    
+    if (currentUserData.status !== 'active') {
+        alert('Your account has been deactivated. Contact administrator.');
+        auth.signOut();
+        return;
+    }
+    
+    await db.ref(`users/${currentUser.uid}/lastLogin`).set(new Date().toISOString());
+}
+
+async function loadAppData() {
+    // Load repairs
+    db.ref('repairs').on('value', snap => {
+        allRepairs = [];
+        snap.forEach(child => {
+            allRepairs.push({ id: child.key, ...child.val() });
+        });
+        allRepairs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        updateStats();
+        if (window.currentTabRefresh) window.currentTabRefresh();
+    });
+    
+    // Load users (if admin)
+    if (currentUserData.role === 'admin') {
+        db.ref('users').on('value', snap => {
+            allUsers = [];
+            snap.forEach(child => {
+                allUsers.push({ id: child.key, ...child.val() });
+            });
+        });
+    }
+}
+
+function buildInterface() {
+    document.getElementById('userName').textContent = currentUserData.displayName;
+    const roleSpan = document.getElementById('userRole');
+    roleSpan.textContent = currentUserData.role.toUpperCase();
+    roleSpan.className = `user-badge badge-${currentUserData.role}`;
+    
+    buildTabs();
+    buildStats();
+}
+
+function buildTabs() {
+    const tabsContainer = document.getElementById('mainTabs');
+    const contentsContainer = document.getElementById('tabContents');
+    const role = currentUserData.role;
+    
+    const tabs = [];
+    
+    // Define tabs based on role
+    if (role === 'admin' || role === 'manager' || role === 'technician') {
+        tabs.push({ id: 'new', label: '➕ New Repair', build: buildNewRepairTab });
+    }
+    
+    if (role === 'admin' || role === 'manager' || role === 'cashier') {
+        tabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
+    }
+    
+    if (role === 'technician') {
+        tabs.push({ id: 'my', label: '🔧 My Repairs', build: buildMyRepairsTab });
+    }
+    
+    if (role === 'admin' || role === 'manager' || role === 'cashier') {
+        tabs.push({ id: 'verify', label: '✅ Verify Payments', build: buildVerifyTab });
+    }
+    
+    if (role === 'admin' || role === 'manager' || role === 'cashier') {
+        tabs.push({ id: 'cash', label: '💰 Cash Report', build: buildCashReportTab });
+    }
+    
+    if (role === 'admin') {
+        tabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
+    }
+    
+    // Build tabs
+    tabsContainer.innerHTML = '';
+    contentsContainer.innerHTML = '';
+    
+    tabs.forEach((tab, index) => {
+        const tabEl = document.createElement('div');
+        tabEl.className = 'tab' + (index === 0 ? ' active' : '');
+        tabEl.textContent = tab.label;
+        tabEl.onclick = () => switchTab(tab.id);
+        tabsContainer.appendChild(tabEl);
+        
+        const contentEl = document.createElement('div');
+        contentEl.id = `${tab.id}Tab`;
+        contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
+        tab.build(contentEl);
+        contentsContainer.appendChild(contentEl);
+    });
+}
+
+function switchTab(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(`${tabId}Tab`).classList.add('active');
+}
+
+function buildStats() {
+    const today = new Date().toDateString();
+    const inProgress = allRepairs.filter(r => r.status === 'In Progress' || r.status === 'Received').length;
+    const todayRevenue = allRepairs
+        .filter(r => r.payments && r.payments.some(p => new Date(p.date).toDateString() === today && p.verified))
+        .reduce((sum, r) => sum + r.payments.filter(p => new Date(p.date).toDateString() === today && p.verified).reduce((s, p) => s + p.amount, 0), 0);
+    const pending = allRepairs.filter(r => r.payments && r.payments.some(p => !p.verified)).length;
+    
+    document.getElementById('statsSection').innerHTML = `
+        <div class="stat-card"><h3>${allRepairs.length}</h3><p>Total Repairs</p></div>
+        <div class="stat-card"><h3>${inProgress}</h3><p>In Progress</p></div>
+        <div class="stat-card"><h3>₱${todayRevenue.toFixed(0)}</h3><p>Today's Revenue</p></div>
+        <div class="stat-card"><h3>${pending}</h3><p>Pending Verification</p></div>
+    `;
+}
+
+function updateStats() {
+    buildStats();
+}
+
+// New Repair Tab
+function buildNewRepairTab(container) {
+    container.innerHTML = `
+        <div class="card">
+            <h3>Create New Repair</h3>
+            <form id="newRepairForm" onsubmit="submitRepair(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Customer Name *</label>
+                        <input type="text" name="customerName" required>
                     </div>
                     <div class="form-group">
-                        <label>IMEI/Serial</label>
-                        <input type="text" name="imei">
+                        <label>Contact Number *</label>
+                        <input type="tel" name="contactNumber" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Brand *</label>
+                        <input type="text" name="brand" required>
                     </div>
                     <div class="form-group">
-                        <label>Problem Description *</label>
-                        <textarea name="problem" rows="3" required></textarea>
+                        <label>Model *</label>
+                        <input type="text" name="model" required>
                     </div>
                 </div>
-
-                <div class="form-section">
-                    <h3>Repair Details</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Repair Type *</label>
-                            <select name="repairType" required>
-                                <option value="">Select Type</option>
-                                <option value="LCD">LCD Replacement</option>
-                                <option value="Battery">Battery Replacement</option>
-                                <option value="Charging Port">Charging Port</option>
-                                <option value="Flex Cable">Flex Cable</option>
-                                <option value="Microsoldering">Microsoldering</option>
-                                <option value="Water Damage">Water Damage</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Assigned To *</label>
-                            <select name="assignedTo" required>
-                                <option value="">Select Technician</option>
-                                <option value="Owner">Owner</option>
-                                <option value="Tech 1">Tech 1</option>
-                                <option value="New Tech">New Tech</option>
-                            </select>
-                        </div>
+                <div class="form-group">
+                    <label>Problem Description *</label>
+                    <textarea name="problem" rows="3" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Repair Type *</label>
+                        <select name="repairType" required>
+                            <option value="">Select</option>
+                            <option>LCD Replacement</option>
+                            <option>Battery Replacement</option>
+                            <option>Charging Port</option>
+                            <option>Microsoldering</option>
+                            <option>Water Damage</option>
+                            <option>Other</option>
+                        </select>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Priority *</label>
-                            <select name="priority" required>
-                                <option value="">Select Priority</option>
-                                <option value="Rush">Rush (Same Day)</option>
-                                <option value="Standard">Standard (2-3 Days)</option>
-                                <option value="Wait for Parts">Wait for Parts</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Status *</label>
-                            <select name="status" required>
-                                <option value="Received">Received</option>
-                                <option value="In Progress">In Progress</option>
-                                <option value="Completed">Completed</option>
-                                <option value="Ready for Pickup">Ready for Pickup</option>
-                                <option value="Picked Up">Picked Up</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label>Assigned To *</label>
+                        <select name="assignedTo" required id="assignedToSelect">
+                            <option value="">Select</option>
+                        </select>
                     </div>
                 </div>
-
-                <div class="form-section">
-                    <h3>Pricing & Payment</h3>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Parts Cost (₱) *</label>
-                            <input type="number" name="partsCost" min="0" step="0.01" required>
-                        </div>
-                        <div class="form-group">
-                            <label>Labor Cost (₱) *</label>
-                            <input type="number" name="laborCost" min="0" step="0.01" required>
-                        </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Parts Cost (₱) *</label>
+                        <input type="number" name="partsCost" min="0" step="0.01" value="0" required>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Total (₱)</label>
-                            <input type="number" name="total" readonly style="background: #f5f5f5; font-weight: bold; font-size: 16px;">
-                        </div>
-                        <div class="form-group">
-                            <label>Deposit Paid (₱)</label>
-                            <input type="number" name="depositAmount" min="0" step="0.01" value="0">
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Deposit Collected By</label>
-                            <select name="depositCollectedBy">
-                                <option value="">N/A</option>
-                                <option value="Owner">Owner</option>
-                                <option value="Tech 1">Tech 1</option>
-                                <option value="New Tech">New Tech</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Payment Method</label>
-                            <select name="depositPaymentMethod">
-                                <option value="Cash">Cash</option>
-                                <option value="GCash">GCash</option>
-                                <option value="Bank Transfer">Bank Transfer</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label>Labor Cost (₱) *</label>
+                        <input type="number" name="laborCost" min="0" step="0.01" value="0" required>
                     </div>
                 </div>
-
-                <button type="submit" style="width: 100%; padding: 15px; font-size: 16px;">💾 Save Repair</button>
+                <h4 style="margin: 20px 0 10px; color: var(--primary);">Device Photos (Optional - up to 3)</h4>
+                <div id="photoUpload">
+                    <input type="file" id="photo1" accept="image/*" onchange="previewPhoto(this, 'preview1')">
+                    <div id="preview1" class="photo-gallery" style="display:none;"></div>
+                    <input type="file" id="photo2" accept="image/*" onchange="previewPhoto(this, 'preview2')" style="display:none;">
+                    <div id="preview2" class="photo-gallery" style="display:none;"></div>
+                    <input type="file" id="photo3" accept="image/*" onchange="previewPhoto(this, 'preview3')" style="display:none;">
+                    <div id="preview3" class="photo-gallery" style="display:none;"></div>
+                </div>
+                <button type="submit" style="width: 100%; margin-top: 20px;">💾 Save Repair</button>
             </form>
         </div>
+    `;
+    
+    // Populate technicians
+    const techSelect = document.getElementById('assignedToSelect');
+    allUsers.filter(u => u.role === 'technician' || u.role === 'admin').forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.technicianName || u.displayName;
+        opt.textContent = u.technicianName || u.displayName;
+        techSelect.appendChild(opt);
+    });
+}
 
-        <!-- Repairs List -->
-        <div id="listRepairsTab" class="tab-content">
-            <div class="search-bar">
-                <input type="text" id="searchInput" placeholder="🔍 Search by customer name, phone, or device..." onkeyup="filterRepairs()">
-            </div>
+let photoData = [];
+
+function previewPhoto(input, previewId) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 800;
             
-            <div class="filter-bar">
-                <select id="statusFilter" onchange="filterRepairs()">
-                    <option value="">All Status</option>
-                    <option value="Received">Received</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Ready for Pickup">Ready for Pickup</option>
-                    <option value="Picked Up">Picked Up</option>
-                </select>
-                <select id="techFilter" onchange="filterRepairs()">
-                    <option value="">All Technicians</option>
-                    <option value="Owner">Owner</option>
-                    <option value="Tech 1">Tech 1</option>
-                    <option value="New Tech">New Tech</option>
-                </select>
-                <select id="paymentFilter" onchange="filterRepairs()">
-                    <option value="">All Payments</option>
-                    <option value="unpaid">Unpaid</option>
-                    <option value="partial">Partial</option>
-                    <option value="paid">Fully Paid</option>
-                </select>
-            </div>
+            if (width > height && width > maxSize) {
+                height *= maxSize / width;
+                width = maxSize;
+            } else if (height > maxSize) {
+                width *= maxSize / height;
+                height = maxSize;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            photoData.push({ data: compressed, timestamp: new Date().toISOString() });
+            
+            document.getElementById(previewId).innerHTML = `<div class="photo-item"><img src="${compressed}"></div>`;
+            document.getElementById(previewId).style.display = 'grid';
+            
+            if (photoData.length === 1) document.getElementById('photo2').style.display = 'block';
+            if (photoData.length === 2) document.getElementById('photo3').style.display = 'block';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
 
-            <div class="repairs-list" id="repairsList">
-                <p style="text-align: center; color: #666;">No repairs found. Add your first repair!</p>
-            </div>
+async function submitRepair(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    
+    const repair = {
+        customerName: data.get('customerName'),
+        contactNumber: data.get('contactNumber'),
+        brand: data.get('brand'),
+        model: data.get('model'),
+        problem: data.get('problem'),
+        repairType: data.get('repairType'),
+        assignedTo: data.get('assignedTo'),
+        partsCost: parseFloat(data.get('partsCost')),
+        laborCost: parseFloat(data.get('laborCost')),
+        total: parseFloat(data.get('partsCost')) + parseFloat(data.get('laborCost')),
+        status: 'Received',
+        photos: photoData,
+        payments: [],
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser.uid,
+        createdByName: currentUserData.displayName
+    };
+    
+    try {
+        await db.ref('repairs').push(repair);
+        alert('✅ Repair saved!');
+        form.reset();
+        photoData = [];
+        document.querySelectorAll('[id^="preview"]').forEach(el => {
+            el.innerHTML = '';
+            el.style.display = 'none';
+        });
+        document.getElementById('photo2').style.display = 'none';
+        document.getElementById('photo3').style.display = 'none';
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// All Repairs Tab
+function buildAllRepairsTab(container) {
+    window.currentTabRefresh = () => buildAllRepairsTab(container);
+    
+    const repairs = currentUserData.role === 'technician' 
+        ? allRepairs.filter(r => r.assignedTo === currentUserData.technicianName)
+        : allRepairs;
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>All Repairs</h3>
+            <input type="text" placeholder="🔍 Search..." onkeyup="filterRepairs(this.value)" style="margin-bottom: 15px;">
+            <div id="repairsList"></div>
         </div>
+    `;
+    
+    displayRepairs(repairs);
+}
 
-        <!-- Cash Report Tab -->
-        <div id="cashReportTab" class="tab-content">
-            <div class="cash-report">
-                <div class="no-print" style="text-align: right; margin-bottom: 20px;">
-                    <button onclick="window.print()">🖨️ Print Report</button>
-                    <button onclick="exportCashReport()">📥 Export to CSV</button>
+function buildMyRepairsTab(container) {
+    window.currentTabRefresh = () => buildMyRepairsTab(container);
+    
+    const myRepairs = allRepairs.filter(r => r.assignedTo === currentUserData.technicianName);
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>My Repairs</h3>
+            <div id="repairsList"></div>
+        </div>
+    `;
+    
+    displayRepairs(myRepairs);
+}
+
+function displayRepairs(repairs) {
+    const container = document.getElementById('repairsList');
+    if (!repairs.length) {
+        container.innerHTML = '<p style="text-align:center;color:#666;">No repairs found</p>';
+        return;
+    }
+    
+    const role = currentUserData.role;
+    const hidePayments = role === 'technician';
+    
+    container.innerHTML = repairs.map(r => {
+        const totalPaid = r.payments ? r.payments.reduce((sum, p) => sum + p.amount, 0) : 0;
+        const balance = r.total - totalPaid;
+        const statusClass = r.status.toLowerCase().replace(/ /g, '-');
+        
+        let paymentStatus = 'unpaid';
+        if (r.payments && r.payments.length > 0) {
+            const hasUnverified = r.payments.some(p => !p.verified);
+            if (hasUnverified) paymentStatus = 'pending';
+            else if (balance === 0) paymentStatus = 'verified';
+            else paymentStatus = 'pending';
+        }
+        
+        return `
+            <div class="repair-card">
+                <h4>${r.customerName} - ${r.brand} ${r.model}</h4>
+                <span class="status-badge status-${statusClass}">${r.status}</span>
+                ${!hidePayments ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending Verification' : 'Verified'}</span>` : ''}
+                
+                <div class="repair-info">
+                    <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                    <div><strong>Repair:</strong> ${r.repairType}</div>
+                    <div><strong>Assigned:</strong> ${r.assignedTo}</div>
+                    ${!hidePayments ? `
+                        <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
+                        <div><strong>Paid:</strong> ₱${totalPaid.toFixed(2)}</div>
+                        <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'}">₱${balance.toFixed(2)}</span></div>
+                    ` : '<div><strong>Amount:</strong> ***</div>'}
                 </div>
                 
-                <h2>💰 Daily Cash Report</h2>
-                <p style="text-align: center; color: #666; margin-bottom: 20px;" id="reportDate"></p>
+                <div><strong>Problem:</strong> ${r.problem}</div>
                 
-                <div id="cashReportContent">
-                    <!-- Will be populated by JavaScript -->
+                ${r.photos && r.photos.length > 0 ? `
+                    <div class="photo-gallery">
+                        ${r.photos.map((p, i) => `<div class="photo-item" onclick="viewPhoto('${p.data}')"><img src="${p.data}"></div>`).join('')}
+                    </div>
+                ` : ''}
+                
+                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    ${!hidePayments && balance > 0 ? `<button class="btn-small btn-success" onclick="openPaymentModal('${r.id}')">💰 Record Payment</button>` : ''}
+                    ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')">📝 Update Status</button>` : ''}
+                    ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
                 </div>
             </div>
-        </div>
+        `;
+    }).join('');
+}
 
-        <!-- Reports Tab -->
-        <div id="reportsTab" class="tab-content">
-            <div class="form-section">
-                <h3>📊 Daily Summary</h3>
-                <div id="dailySummary"></div>
-            </div>
-            
-            <div class="form-section">
-                <h3>👨‍🔧 Technician Performance</h3>
-                <div id="techPerformance"></div>
-            </div>
-            
-            <div class="form-section">
-                <h3>💰 Payment Summary</h3>
-                <div id="paymentSummary"></div>
-            </div>
-        </div>
-    </div>
+function viewPhoto(data) {
+    document.getElementById('modalPhoto').src = data;
+    document.getElementById('photoModal').style.display = 'block';
+}
 
-    <!-- Payment Modal -->
-    <div id="paymentModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Record Payment</h3>
-                <span class="close" onclick="closePaymentModal()">&times;</span>
+function closePhotoModal() {
+    document.getElementById('photoModal').style.display = 'none';
+}
+
+function openPaymentModal(repairId) {
+    const repair = allRepairs.find(r => r.id === repairId);
+    const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + p.amount, 0) : 0;
+    const balance = repair.total - totalPaid;
+    
+    const content = document.getElementById('paymentModalContent');
+    content.innerHTML = `
+        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Total:</span><span>₱${repair.total.toFixed(2)}</span>
             </div>
-            
-            <div id="paymentModalContent">
-                <!-- Will be populated dynamically -->
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Paid:</span><span>₱${totalPaid.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:10px 0;font-weight:bold;font-size:18px;border-top:2px solid #ccc;padding-top:10px;">
+                <span>Balance:</span><span style="color:red;">₱${balance.toFixed(2)}</span>
             </div>
         </div>
-    </div>
+        <div class="form-group">
+            <label>Amount (₱)</label>
+            <input type="number" id="paymentAmount" value="${balance}" max="${balance}" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label>Method</label>
+            <select id="paymentMethod">
+                <option>Cash</option>
+                <option>GCash</option>
+                <option>Bank Transfer</option>
+            </select>
+        </div>
+        <button onclick="recordPayment('${repairId}')" style="width:100%;">💾 Record Payment</button>
+    `;
+    document.getElementById('paymentModal').style.display = 'block';
+}
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+}
 
-    <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-              apiKey: "AIzaSyBC7UvoqwOHIf2Qjvi1YkxDtQzPJP3AGDM",
-              authDomain: "fkrepairs-a6360.firebaseapp.com",
-              databaseURL: "https://fkrepairs-a6360-default-rtdb.asia-southeast1.firebasedatabase.app",
-              projectId: "fkrepairs-a6360",
-              storageBucket: "fkrepairs-a6360.firebasestorage.app",
-              messagingSenderId: "84992727126",
-              appId: "1:84992727126:web:f761ec11c3ea6415e003f7",
-                measurementId: "G-NP4B6GXHBL"
-            };
+async function recordPayment(repairId) {
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const method = document.getElementById('paymentMethod').value;
+    
+    if (!amount || amount <= 0) {
+        alert('Invalid amount');
+        return;
+    }
+    
+    const repair = allRepairs.find(r => r.id === repairId);
+    const payments = repair.payments || [];
+    
+    const payment = {
+        amount: amount,
+        method: method,
+        date: new Date().toISOString(),
+        collectedBy: currentUserData.displayName,
+        verified: currentUserData.role === 'cashier', // Auto-verify if cashier collects directly
+        markedBy: currentUser.uid,
+        markedByName: currentUserData.displayName
+    };
+    
+    payments.push(payment);
+    
+    await db.ref(`repairs/${repairId}/payments`).set(payments);
+    alert('✅ Payment recorded!');
+    closePaymentModal();
+}
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const database = firebase.database();
-
-        let currentUser = null;
-        let allRepairs = [];
-        let currentRepairForPayment = null;
-
-        auth.onAuthStateChanged(user => {
-            if (user) {
-                currentUser = user;
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('registerSection').classList.add('hidden');
-                document.getElementById('appSection').classList.remove('hidden');
-                document.getElementById('userName').textContent = user.email;
-                loadRepairs();
-            } else {
-                currentUser = null;
-                document.getElementById('loginSection').classList.remove('hidden');
-                document.getElementById('appSection').classList.add('hidden');
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('repairForm');
-            ['partsCost', 'laborCost'].forEach(field => {
-                form.elements[field].addEventListener('input', calculateTotal);
-            });
-        });
-
-        function calculateTotal() {
-            const form = document.getElementById('repairForm');
-            const parts = parseFloat(form.elements['partsCost'].value) || 0;
-            const labor = parseFloat(form.elements['laborCost'].value) || 0;
-            form.elements['total'].value = (parts + labor).toFixed(2);
-        }
-
-        function showRegister() {
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('registerSection').classList.remove('hidden');
-        }
-
-        function showLogin() {
-            document.getElementById('registerSection').classList.add('hidden');
-            document.getElementById('loginSection').classList.remove('hidden');
-        }
-
-        async function handleLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const alertDiv = document.getElementById('loginAlert');
-
-            try {
-                await auth.signInWithEmailAndPassword(email, password);
-            } catch (error) {
-                alertDiv.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
-            }
-        }
-
-        async function handleRegister() {
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const alertDiv = document.getElementById('registerAlert');
-
-            if (password.length < 6) {
-                alertDiv.innerHTML = '<div class="alert alert-error">Password must be at least 6 characters</div>';
-                return;
-            }
-
-            try {
-                await auth.createUserWithEmailAndPassword(email, password);
-                alertDiv.innerHTML = '<div class="alert alert-success">Account created! Signing in...</div>';
-            } catch (error) {
-                alertDiv.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
-            }
-        }
-
-        function handleLogout() {
-            auth.signOut();
-        }
-
-        function switchTab(tab) {
-            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            
-            event.target.classList.add('active');
-            
-            if (tab === 'new') {
-                document.getElementById('newRepairTab').classList.add('active');
-            } else if (tab === 'list') {
-                document.getElementById('listRepairsTab').classList.add('active');
-            } else if (tab === 'cash') {
-                document.getElementById('cashReportTab').classList.add('active');
-                generateCashReport();
-            } else if (tab === 'reports') {
-                document.getElementById('reportsTab').classList.add('active');
-                generateReports();
-            }
-        }
-
-        async function handleSubmitRepair(event) {
-            event.preventDefault();
-            const form = event.target;
-            const formData = new FormData(form);
-            
-            const depositAmount = parseFloat(formData.get('depositAmount')) || 0;
-            const total = parseFloat(formData.get('total'));
-            
-            const repair = {
-                customerName: formData.get('customerName'),
-                contactNumber: formData.get('contactNumber'),
-                brand: formData.get('brand'),
-                model: formData.get('model'),
-                imei: formData.get('imei') || '',
-                problem: formData.get('problem'),
-                repairType: formData.get('repairType'),
-                assignedTo: formData.get('assignedTo'),
-                priority: formData.get('priority'),
-                status: formData.get('status'),
-                partsCost: parseFloat(formData.get('partsCost')),
-                laborCost: parseFloat(formData.get('laborCost')),
-                total: total,
-                payments: depositAmount > 0 ? [{
-                    amount: depositAmount,
-                    collectedBy: formData.get('depositCollectedBy') || 'N/A',
-                    paymentMethod: formData.get('depositPaymentMethod') || 'Cash',
-                    date: new Date().toISOString(),
-                    type: 'Deposit'
-                }] : [],
-                totalPaid: depositAmount,
-                balance: total - depositAmount,
-                createdAt: new Date().toISOString(),
-                createdBy: currentUser.email
-            };
-
-            try {
-                await database.ref('repairs').push(repair);
-                alert('✅ Repair saved successfully!');
-                form.reset();
-                switchTab('list');
-            } catch (error) {
-                alert('❌ Error saving repair: ' + error.message);
-            }
-        }
-
-        function loadRepairs() {
-            database.ref('repairs').on('value', snapshot => {
-                allRepairs = [];
-                snapshot.forEach(child => {
-                    allRepairs.push({
-                        id: child.key,
-                        ...child.val()
-                    });
-                });
-                allRepairs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-                displayRepairs(allRepairs);
-                updateStats();
-            });
-        }
-
-        function displayRepairs(repairs) {
-            const container = document.getElementById('repairsList');
-            
-            if (repairs.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #666;">No repairs found.</p>';
-                return;
-            }
-
-            container.innerHTML = repairs.map(repair => {
-                const statusClass = repair.status.toLowerCase().replace(/ /g, '-');
-                const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
-                const totalPaid = repair.totalPaid || 0;
-                const date = new Date(repair.createdAt).toLocaleString();
-                
-                let paymentStatus = 'unpaid';
-                let paymentBadge = 'Unpaid';
-                if (totalPaid === 0) {
-                    paymentStatus = 'unpaid';
-                    paymentBadge = 'Unpaid';
-                } else if (balance > 0) {
-                    paymentStatus = 'partial';
-                    paymentBadge = 'Partial';
-                } else {
-                    paymentStatus = 'paid';
-                    paymentBadge = 'Fully Paid';
+// Verify Payments Tab
+function buildVerifyTab(container) {
+    window.currentTabRefresh = () => buildVerifyTab(container);
+    
+    const pendingPayments = [];
+    allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach((payment, pIdx) => {
+                if (!payment.verified) {
+                    pendingPayments.push({ repair, payment, paymentIndex: pIdx });
                 }
-                
-                return `
-                    <div class="repair-card">
-                        <h4>${repair.customerName} - ${repair.brand} ${repair.model}</h4>
-                        <span class="status-badge status-${statusClass}">${repair.status}</span>
-                        <span class="payment-badge payment-${paymentStatus}">${paymentBadge}</span>
-                        
-                        <div class="repair-info">
-                            <div class="repair-info-item">
-                                <strong>Contact:</strong> ${repair.contactNumber}
-                            </div>
-                            <div class="repair-info-item">
-                                <strong>Repair:</strong> ${repair.repairType}
-                            </div>
-                            <div class="repair-info-item">
-                                <strong>Technician:</strong> ${repair.assignedTo}
-                            </div>
-                            <div class="repair-info-item">
-                                <strong>Priority:</strong> ${repair.priority}
-                            </div>
-                            <div class="repair-info-item">
-                                <strong>Total:</strong> ₱${repair.total.toFixed(2)}
-                            </div>
-                            <div class="repair-info-item">
-                                <strong>Paid:</strong> ₱${totalPaid.toFixed(2)}
-                            </div>
-                            <div class="repair-info-item">
-                                <strong>Balance:</strong> <span style="color: ${balance > 0 ? '#f44336' : '#4caf50'}; font-weight: bold;">₱${balance.toFixed(2)}</span>
-                            </div>
-                            <div class="repair-info-item">
-                                <strong>Date:</strong> ${date}
-                            </div>
-                        </div>
-                        
-                        <div class="repair-info-item">
-                            <strong>Problem:</strong> ${repair.problem}
-                        </div>
-                        
-                        ${getPaymentHistory(repair)}
-                        
-                        <div class="repair-actions">
-                            ${balance > 0 ? `<button class="btn-small btn-payment" onclick="openPaymentModal('${repair.id}')">💰 Record Payment</button>` : ''}
-                            <button class="btn-small" onclick="updateStatus('${repair.id}')">📝 Update Status</button>
-                            <button class="btn-small btn-delete" onclick="deleteRepair('${repair.id}')">🗑️ Delete</button>
+            });
+        }
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>Verify Payments</h3>
+            ${pendingPayments.length === 0 ? '<p style="text-align:center;color:#666;">No pending payments</p>' : ''}
+            <div id="pendingList">
+                ${pendingPayments.map(p => `
+                    <div style="background:#fff9c4;padding:15px;border-radius:8px;border-left:4px solid orange;margin-bottom:15px;">
+                        <h4>${p.repair.customerName} - ${p.repair.brand} ${p.repair.model}</h4>
+                        <p>Amount: <strong>₱${p.payment.amount.toFixed(2)}</strong> (${p.payment.method})</p>
+                        <p>Marked by: ${p.payment.markedByName} on ${new Date(p.payment.date).toLocaleString()}</p>
+                        <div style="margin-top:10px;display:flex;gap:10px;">
+                            <button class="btn-small btn-success" onclick="verifyPayment('${p.repair.id}', ${p.paymentIndex})">✅ Verify</button>
+                            <button class="btn-small btn-danger" onclick="rejectPayment('${p.repair.id}', ${p.paymentIndex})">❌ Reject</button>
                         </div>
                     </div>
-                `;
-            }).join('');
-        }
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
 
-        function getPaymentHistory(repair) {
-            if (!repair.payments || repair.payments.length === 0) {
-                return '<p style="margin-top: 10px; color: #999; font-style: italic;">No payments recorded yet</p>';
-            }
-            
-            let html = '<div class="payment-summary"><h4>Payment History:</h4>';
+async function verifyPayment(repairId, paymentIndex) {
+    const repair = allRepairs.find(r => r.id === repairId);
+    repair.payments[paymentIndex].verified = true;
+    repair.payments[paymentIndex].verifiedBy = currentUser.uid;
+    repair.payments[paymentIndex].verifiedByName = currentUserData.displayName;
+    repair.payments[paymentIndex].verifiedAt = new Date().toISOString();
+    
+    await db.ref(`repairs/${repairId}/payments`).set(repair.payments);
+    alert('✅ Payment verified!');
+}
+
+async function rejectPayment(repairId, paymentIndex) {
+    const reason = prompt('Reason for rejection:');
+    if (!reason) return;
+    
+    const repair = allRepairs.find(r => r.id === repairId);
+    repair.payments.splice(paymentIndex, 1);
+    
+    await db.ref(`repairs/${repairId}/payments`).set(repair.payments);
+    alert('❌ Payment rejected');
+}
+
+// Cash Report Tab
+function buildCashReportTab(container) {
+    const today = new Date().toDateString();
+    const cashPayments = [];
+    
+    allRepairs.forEach(repair => {
+        if (repair.payments) {
             repair.payments.forEach(payment => {
-                const date = new Date(payment.date).toLocaleString();
-                html += `
-                    <div class="payment-line">
-                        <span>${payment.type || 'Payment'} - ${date}</span>
-                        <span><strong>₱${payment.amount.toFixed(2)}</strong> (${payment.paymentMethod}) by ${payment.collectedBy}</span>
-                    </div>
-                `;
-            });
-            html += '</div>';
-            return html;
-        }
-
-        function openPaymentModal(repairId) {
-            const repair = allRepairs.find(r => r.id === repairId);
-            if (!repair) return;
-            
-            currentRepairForPayment = repair;
-            const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
-            
-            const modalContent = document.getElementById('paymentModalContent');
-            modalContent.innerHTML = `
-                <div class="payment-summary">
-                    <h4>${repair.customerName} - ${repair.brand} ${repair.model}</h4>
-                    <div class="payment-line">
-                        <span>Total Amount:</span>
-                        <span>₱${repair.total.toFixed(2)}</span>
-                    </div>
-                    <div class="payment-line">
-                        <span>Already Paid:</span>
-                        <span>₱${(repair.totalPaid || 0).toFixed(2)}</span>
-                    </div>
-                    <div class="payment-line total">
-                        <span>Balance Due:</span>
-                        <span style="color: #f44336;">₱${balance.toFixed(2)}</span>
-                    </div>
-                </div>
-                
-                <div class="form-group" style="margin-top: 20px;">
-                    <label>Payment Amount (₱) *</label>
-                    <input type="number" id="paymentAmount" min="0" max="${balance}" step="0.01" value="${balance}" required>
-                </div>
-                
-                <div class="form-group">
-                    <label>Collected By *</label>
-                    <select id="paymentCollectedBy" required>
-                        <option value="">Select Person</option>
-                        <option value="Owner">Owner</option>
-                        <option value="Tech 1">Tech 1</option>
-                        <option value="New Tech">New Tech</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label>Payment Method *</label>
-                    <select id="paymentMethod" required>
-                        <option value="Cash">Cash</option>
-                        <option value="GCash">GCash</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                    </select>
-                </div>
-                
-                <button onclick="recordPayment()" style="width: 100%; margin-top: 10px;">💾 Record Payment</button>
-            `;
-            
-            document.getElementById('paymentModal').style.display = 'block';
-        }
-
-        function closePaymentModal() {
-            document.getElementById('paymentModal').style.display = 'none';
-            currentRepairForPayment = null;
-        }
-
-        async function recordPayment() {
-            const amount = parseFloat(document.getElementById('paymentAmount').value);
-            const collectedBy = document.getElementById('paymentCollectedBy').value;
-            const paymentMethod = document.getElementById('paymentMethod').value;
-            
-            if (!amount || !collectedBy || !paymentMethod) {
-                alert('Please fill in all fields');
-                return;
-            }
-            
-            const repair = currentRepairForPayment;
-            const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
-            
-            if (amount > balance) {
-                alert('Payment amount cannot exceed balance due!');
-                return;
-            }
-            
-            const payments = repair.payments || [];
-            payments.push({
-                amount: amount,
-                collectedBy: collectedBy,
-                paymentMethod: paymentMethod,
-                date: new Date().toISOString(),
-                type: 'Payment'
-            });
-            
-            const newTotalPaid = (repair.totalPaid || 0) + amount;
-            const newBalance = repair.total - newTotalPaid;
-            
-            try {
-                await database.ref(`repairs/${repair.id}`).update({
-                    payments: payments,
-                    totalPaid: newTotalPaid,
-                    balance: newBalance
-                });
-                
-                alert('✅ Payment recorded successfully!');
-                closePaymentModal();
-            } catch (error) {
-                alert('❌ Error recording payment: ' + error.message);
-            }
-        }
-
-        function filterRepairs() {
-            const search = document.getElementById('searchInput').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value;
-            const techFilter = document.getElementById('techFilter').value;
-            const paymentFilter = document.getElementById('paymentFilter').value;
-
-            let filtered = allRepairs.filter(repair => {
-                const matchesSearch = 
-                    repair.customerName.toLowerCase().includes(search) ||
-                    repair.contactNumber.includes(search) ||
-                    repair.brand.toLowerCase().includes(search) ||
-                    repair.model.toLowerCase().includes(search);
-                
-                const matchesStatus = !statusFilter || repair.status === statusFilter;
-                const matchesTech = !techFilter || repair.assignedTo === techFilter;
-                
-                let matchesPayment = true;
-                if (paymentFilter) {
-                    const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
-                    const totalPaid = repair.totalPaid || 0;
-                    if (paymentFilter === 'unpaid') matchesPayment = totalPaid === 0;
-                    else if (paymentFilter === 'partial') matchesPayment = totalPaid > 0 && balance > 0;
-                    else if (paymentFilter === 'paid') matchesPayment = balance === 0;
-                }
-
-                return matchesSearch && matchesStatus && matchesTech && matchesPayment;
-            });
-
-            displayRepairs(filtered);
-        }
-
-        function updateStatus(repairId) {
-            const statuses = ['Received', 'In Progress', 'Completed', 'Ready for Pickup', 'Picked Up'];
-            const newStatus = prompt('Select new status:\n' + statuses.map((s, i) => `${i+1}. ${s}`).join('\n'));
-            
-            if (newStatus && newStatus >= 1 && newStatus <= 5) {
-                database.ref(`repairs/${repairId}`).update({
-                    status: statuses[newStatus - 1]
-                });
-            }
-        }
-
-        function deleteRepair(repairId) {
-            if (confirm('Are you sure you want to delete this repair?')) {
-                database.ref(`repairs/${repairId}`).remove();
-            }
-        }
-
-        function updateStats() {
-            const today = new Date().toDateString();
-            const todayRepairs = allRepairs.filter(r => 
-                new Date(r.createdAt).toDateString() === today
-            );
-            
-            const inProgress = allRepairs.filter(r => 
-                r.status === 'In Progress' || r.status === 'Received'
-            ).length;
-            
-            const todayCompleted = todayRepairs.filter(r => 
-                r.status === 'Completed' || r.status === 'Picked Up'
-            ).length;
-            
-            const todayRevenue = todayRepairs
-                .filter(r => r.status === 'Picked Up')
-                .reduce((sum, r) => sum + (r.totalPaid || 0), 0);
-            
-            const totalBalance = allRepairs
-                .filter(r => r.status !== 'Picked Up')
-                .reduce((sum, r) => sum + (r.balance || (r.total - (r.totalPaid || 0))), 0);
-
-            document.getElementById('statTotal').textContent = allRepairs.length;
-            document.getElementById('statInProgress').textContent = inProgress;
-            document.getElementById('statCompleted').textContent = todayCompleted;
-            document.getElementById('statRevenue').textContent = '₱' + todayRevenue.toFixed(2);
-            document.getElementById('statBalance').textContent = '₱' + totalBalance.toFixed(2);
-        }
-
-        function generateCashReport() {
-            const today = new Date();
-            document.getElementById('reportDate').textContent = today.toLocaleDateString('en-US', { 
-                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-            });
-            
-            const todayStr = today.toDateString();
-            const todayPayments = [];
-            
-            allRepairs.forEach(repair => {
-                if (repair.payments && repair.payments.length > 0) {
-                    repair.payments.forEach(payment => {
-                        const paymentDate = new Date(payment.date).toDateString();
-                        if (paymentDate === todayStr && payment.paymentMethod === 'Cash') {
-                            todayPayments.push({
-                                ...payment,
-                                customerName: repair.customerName,
-                                device: `${repair.brand} ${repair.model}`,
-                                repairType: repair.repairType
-                            });
-                        }
-                    });
+                if (payment.method === 'Cash' && payment.verified && new Date(payment.date).toDateString() === today) {
+                    cashPayments.push({ ...payment, repair });
                 }
             });
+        }
+    });
+    
+    const byCollector = {};
+    cashPayments.forEach(p => {
+        if (!byCollector[p.collectedBy]) byCollector[p.collectedBy] = [];
+        byCollector[p.collectedBy].push(p);
+    });
+    
+    const total = cashPayments.reduce((sum, p) => sum + p.amount, 0);
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>Daily Cash Report - ${new Date().toLocaleDateString()}</h3>
+            <button onclick="window.print()" class="no-print" style="margin-bottom:20px;">🖨️ Print</button>
             
-            const collectorSummary = {};
-            todayPayments.forEach(payment => {
-                if (!collectorSummary[payment.collectedBy]) {
-                    collectorSummary[payment.collectedBy] = {
-                        count: 0,
-                        total: 0,
-                        payments: []
-                    };
-                }
-                collectorSummary[payment.collectedBy].count++;
-                collectorSummary[payment.collectedBy].total += payment.amount;
-                collectorSummary[payment.collectedBy].payments.push(payment);
-            });
+            <div style="background:#f5f5f5;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h2 style="text-align:center;color:var(--primary);">Total Cash: ₱${total.toFixed(2)}</h2>
+                <p style="text-align:center;color:#666;">${cashPayments.length} transactions</p>
+            </div>
             
-            let html = '<div class="report-section">';
-            html += '<h3>Summary</h3>';
-            html += `<p><strong>Total Cash Collections Today:</strong> ₱${todayPayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</p>`;
-            html += `<p><strong>Number of Transactions:</strong> ${todayPayments.length}</p>`;
-            html += '</div>';
+            ${Object.entries(byCollector).map(([collector, payments]) => `
+                <div style="background:white;padding:15px;border-left:4px solid var(--primary);margin-bottom:15px;border-radius:5px;">
+                    <h4>${collector}</h4>
+                    <p><strong>Transactions:</strong> ${payments.length}</p>
+                    <p><strong>Total:</strong> ₱${payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</p>
+                    <details style="margin-top:10px;">
+                        <summary>View details</summary>
+                        ${payments.map(p => `
+                            <div style="padding:5px 0;border-bottom:1px solid #eee;">
+                                ${p.repair.customerName} - ₱${p.amount.toFixed(2)}
+                            </div>
+                        `).join('')}
+                    </details>
+                </div>
+            `).join('')}
             
-            html += '<div class="report-section">';
-            html += '<h3>Collections by Person</h3>';
-            Object.entries(collectorSummary).forEach(([collector, data]) => {
-                html += `
-                    <div class="collector-summary">
-                        <h4>${collector}</h4>
-                        <p><strong>Transactions:</strong> ${data.count}</p>
-                        <p><strong>Total Collected:</strong> ₱${data.total.toFixed(2)}</p>
-                        <div style="margin-top: 10px;">
-                `;
-                data.payments.forEach(payment => {
-                    html += `
-                        <div class="payment-line">
-                            <span>${payment.customerName} - ${payment.device}</span>
-                            <span>₱${payment.amount.toFixed(2)}</span>
+            <div style="margin-top:30px;padding:20px;background:#f9f9f9;border-radius:8px;">
+                <h4>Reconciliation</h4>
+                <p>Expected Cash: ₱${total.toFixed(2)}</p>
+                <p>Counted: ₱_______</p>
+                <p>Variance: ₱_______</p>
+                <br>
+                <p>Counted by: _______________ Date: _______</p>
+                <p>Verified by: _______________ Date: _______</p>
+            </div>
+        </div>
+    `;
+}
+
+// Users Tab (Admin only)
+function buildUsersTab(container) {
+    container.innerHTML = `
+        <div class="card">
+            <h3>User Management</h3>
+            <button onclick="openUserModal()" style="margin-bottom:20px;">➕ Add User</button>
+            <div id="usersList">
+                ${allUsers.map(u => `
+                    <div style="background:#f5f5f5;padding:20px;border-radius:8px;border-left:4px solid var(--primary);margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <h4>${u.displayName} <span class="user-badge badge-${u.role}">${u.role.toUpperCase()}</span></h4>
+                                <p style="color:#666;margin:5px 0;">📧 ${u.email}</p>
+                                <p style="color:#666;margin:5px 0;">Status: ${u.status}</p>
+                                ${u.lastLogin ? `<p style="color:#666;font-size:12px;">Last login: ${new Date(u.lastLogin).toLocaleString()}</p>` : ''}
+                            </div>
+                            <div>
+                                ${u.id !== currentUser.uid ? `
+                                    <button class="btn-small ${u.status === 'active' ? 'btn-warning' : 'btn-success'}" 
+                                            onclick="toggleUserStatus('${u.id}', '${u.status}')">
+                                        ${u.status === 'active' ? '🚫 Deactivate' : '✅ Activate'}
+                                    </button>
+                                ` : '<span style="color:green;">✓ You</span>'}
+                            </div>
                         </div>
-                    `;
-                });
-                html += '</div></div>';
-            });
-            html += '</div>';
-            
-            html += '<div class="report-section">';
-            html += '<h3>Reconciliation</h3>';
-            html += '<p style="margin-bottom: 15px;">Count the cash and verify it matches the expected total:</p>';
-            html += '<table style="width: 100%; border-collapse: collapse;">';
-            html += '<tr style="background: #f5f5f5;"><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Denomination</th><th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Quantity</th><th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount</th></tr>';
-            ['1000', '500', '200', '100', '50', '20'].forEach(denom => {
-                html += `<tr><td style="padding: 10px; border: 1px solid #ddd;">₱${denom} bills</td><td style="padding: 10px; border: 1px solid #ddd; text-align: center;">_____</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱_____</td></tr>`;
-            });
-            html += '<tr><td style="padding: 10px; border: 1px solid #ddd;">Coins</td><td style="padding: 10px; border: 1px solid #ddd; text-align: center;">-</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱_____</td></tr>';
-            html += `<tr style="background: #e3f2fd; font-weight: bold;"><td colspan="2" style="padding: 10px; border: 1px solid #ddd;">TOTAL COUNTED</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱_____</td></tr>`;
-            html += `<tr style="background: #fff9c4; font-weight: bold;"><td colspan="2" style="padding: 10px; border: 1px solid #ddd;">EXPECTED (from system)</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱${todayPayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</td></tr>`;
-            html += '<tr style="background: #ffebee;"><td colspan="2" style="padding: 10px; border: 1px solid #ddd;"><strong>VARIANCE (Counted - Expected)</strong></td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;"><strong>₱_____</strong></td></tr>';
-            html += '</table>';
-            html += '<div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border: 2px solid #ddd;">';
-            html += '<p><strong>Counted by:</strong> _________________________ Date: _____________</p>';
-            html += '<p style="margin-top: 15px;"><strong>Verified by:</strong> _________________________ Date: _____________</p>';
-            html += '</div>';
-            html += '</div>';
-            
-            document.getElementById('cashReportContent').innerHTML = html;
-        }
-
-        function exportCashReport() {
-            const today = new Date().toDateString();
-            const todayPayments = [];
-            
-            allRepairs.forEach(repair => {
-                if (repair.payments && repair.payments.length > 0) {
-                    repair.payments.forEach(payment => {
-                        const paymentDate = new Date(payment.date).toDateString();
-                        if (paymentDate === today && payment.paymentMethod === 'Cash') {
-                            todayPayments.push({
-                                Date: new Date(payment.date).toLocaleString(),
-                                Customer: repair.customerName,
-                                Device: `${repair.brand} ${repair.model}`,
-                                Amount: payment.amount,
-                                CollectedBy: payment.collectedBy,
-                                Method: payment.paymentMethod
-                            });
-                        }
-                    });
-                }
-            });
-            
-            let csv = 'Date,Customer,Device,Amount,Collected By,Method\n';
-            todayPayments.forEach(payment => {
-                csv += `"${payment.Date}","${payment.Customer}","${payment.Device}",${payment.Amount},"${payment.CollectedBy}","${payment.Method}"\n`;
-            });
-            
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `cash-report-${new Date().toISOString().split('T')[0]}.csv`;
-            a.click();
-        }
-
-        function generateReports() {
-            const today = new Date().toDateString();
-            const todayRepairs = allRepairs.filter(r => 
-                new Date(r.createdAt).toDateString() === today
-            );
-
-            const byStatus = {};
-            todayRepairs.forEach(r => {
-                byStatus[r.status] = (byStatus[r.status] || 0) + 1;
-            });
-
-            let summaryHTML = '<div class="repair-info">';
-            Object.entries(byStatus).forEach(([status, count]) => {
-                summaryHTML += `<div class="repair-info-item"><strong>${status}:</strong> ${count}</div>`;
-            });
-            summaryHTML += `<div class="repair-info-item"><strong>Total Today:</strong> ${todayRepairs.length}</div>`;
-            summaryHTML += '</div>';
-            document.getElementById('dailySummary').innerHTML = summaryHTML;
-
-            const byTech = {};
-            todayRepairs.forEach(r => {
-                if (!byTech[r.assignedTo]) {
-                    byTech[r.assignedTo] = { count: 0, revenue: 0 };
-                }
-                byTech[r.assignedTo].count++;
-                if (r.status === 'Picked Up') {
-                    byTech[r.assignedTo].revenue += r.totalPaid || r.total;
-                }
-            });
-
-            let techHTML = '<div class="repair-info">';
-            Object.entries(byTech).forEach(([tech, data]) => {
-                techHTML += `
-                    <div class="repair-info-item">
-                        <strong>${tech}:</strong> ${data.count} repairs, ₱${data.revenue.toFixed(2)} revenue
                     </div>
-                `;
-            });
-            techHTML += '</div>';
-            document.getElementById('techPerformance').innerHTML = techHTML || '<p>No repairs today</p>';
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
 
-            const paymentStats = {
-                totalCollected: 0,
-                cash: 0,
-                gcash: 0,
-                bank: 0,
-                byCollector: {}
-            };
+function openUserModal() {
+    document.getElementById('userModalTitle').textContent = 'Add New User';
+    document.getElementById('userModalContent').innerHTML = `
+        <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="newUserName">
+        </div>
+        <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="newUserEmail">
+        </div>
+        <div class="form-group">
+            <label>Password * (min 8 chars)</label>
+            <input type="password" id="newUserPassword" minlength="8">
+        </div>
+        <div class="form-group">
+            <label>Role *</label>
+            <select id="newUserRole">
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="technician">Technician</option>
+                <option value="cashier">Cashier</option>
+            </select>
+        </div>
+        <div class="form-group" id="techNameGroup" style="display:none;">
+            <label>Technician Name (shown in dropdowns)</label>
+            <input type="text" id="newUserTechName">
+        </div>
+        <button onclick="createUser()" style="width:100%;">Create User</button>
+    `;
+    
+    document.getElementById('newUserRole').onchange = function() {
+        document.getElementById('techNameGroup').style.display = 
+            this.value === 'technician' ? 'block' : 'none';
+    };
+    
+    document.getElementById('userModal').style.display = 'block';
+}
 
-            todayRepairs.forEach(repair => {
-                if (repair.payments) {
-                    repair.payments.forEach(payment => {
-                        const paymentDate = new Date(payment.date).toDateString();
-                        if (paymentDate === today) {
-                            paymentStats.totalCollected += payment.amount;
-                            if (payment.paymentMethod === 'Cash') paymentStats.cash += payment.amount;
-                            else if (payment.paymentMethod === 'GCash') paymentStats.gcash += payment.amount;
-                            else if (payment.paymentMethod === 'Bank Transfer') paymentStats.bank += payment.amount;
-                            
-                            if (!paymentStats.byCollector[payment.collectedBy]) {
-                                paymentStats.byCollector[payment.collectedBy] = 0;
-                            }
-                            paymentStats.byCollector[payment.collectedBy] += payment.amount;
-                        }
-                    });
-                }
-            });
+function closeUserModal() {
+    document.getElementById('userModal').style.display = 'none';
+}
 
-            let paymentHTML = '<div class="repair-info">';
-            paymentHTML += `<div class="repair-info-item"><strong>Total Collected:</strong> ₱${paymentStats.totalCollected.toFixed(2)}</div>`;
-            paymentHTML += `<div class="repair-info-item"><strong>Cash:</strong> ₱${paymentStats.cash.toFixed(2)}</div>`;
-            paymentHTML += `<div class="repair-info-item"><strong>GCash:</strong> ₱${paymentStats.gcash.toFixed(2)}</div>`;
-            paymentHTML += `<div class="repair-info-item"><strong>Bank Transfer:</strong> ₱${paymentStats.bank.toFixed(2)}</div>`;
-            paymentHTML += '</div><h4 style="margin-top: 20px; color: #667eea;">By Collector:</h4><div class="repair-info">';
-            Object.entries(paymentStats.byCollector).forEach(([collector, amount]) => {
-                paymentHTML += `<div class="repair-info-item"><strong>${collector}:</strong> ₱${amount.toFixed(2)}</div>`;
-            });
-            paymentHTML += '</div>';
-            document.getElementById('paymentSummary').innerHTML = paymentHTML;
-        }
+async function createUser() {
+    const name = document.getElementById('newUserName').value;
+    const email = document.getElementById('newUserEmail').value;
+    const password = document.getElementById('newUserPassword').value;
+    const role = document.getElementById('newUserRole').value;
+    const techName = document.getElementById('newUserTechName').value;
+    
+    if (!name || !email || !password) {
+        alert('Please fill all fields');
+        return;
+    }
+    
+    try {
+        // Note: In production, user creation should be done server-side
+        // For now, showing the structure
+        const userData = {
+            displayName: name,
+            email: email,
+            role: role,
+            technicianName: role === 'technician' ? techName : name,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser.uid
+        };
+        
+        // You would need Firebase Admin SDK for this in production
+        // For now, just showing the data structure
+        alert(`User would be created with:\n${JSON.stringify(userData, null, 2)}\n\nNote: Actual user creation requires Firebase Admin SDK on server.`);
+        closeUserModal();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
 
-        window.onclick = function(event) {
-            const modal = document.getElementById('paymentModal');
-            if (event.target == modal) {
-                closePaymentModal();
-            }
-        }
-    </script>
+async function toggleUserStatus(userId, currentStatus) {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    await db.ref(`users/${userId}/status`).set(newStatus);
+    alert(`User ${newStatus}d successfully`);
+}
+
+async function updateRepairStatus(repairId) {
+    const statuses = ['Received', 'In Progress', 'Completed', 'Ready for Pickup', 'Picked Up'];
+    const choice = prompt('Select status:\n' + statuses.map((s, i) => `${i+1}. ${s}`).join('\n'));
+    
+    if (choice && choice >= 1 && choice <= 5) {
+        await db.ref(`repairs/${repairId}/status`).set(statuses[choice - 1]);
+        alert('Status updated!');
+    }
+}
+
+async function deleteRepair(repairId) {
+    if (confirm('Delete this repair? This cannot be undone.')) {
+        await db.ref(`repairs/${repairId}`).remove();
+        alert('Repair deleted');
+    }
+}
+
+function filterRepairs(query) {
+    const filtered = allRepairs.filter(r => 
+        r.customerName.toLowerCase().includes(query.toLowerCase()) ||
+        r.contactNumber.includes(query) ||
+        r.brand.toLowerCase().includes(query.toLowerCase()) ||
+        r.model.toLowerCase().includes(query.toLowerCase())
+    );
+    displayRepairs(filtered);
+}
+
+// Close modals on outside click
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
+</script>
 </body>
 </html>
