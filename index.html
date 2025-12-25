@@ -345,14 +345,13 @@
 <script>
 // REPLACE WITH YOUR FIREBASE CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyBC7UvoqwOHIf2Qjvi1YkxDtQzPJP3AGDM",
-  authDomain: "fkrepairs-a6360.firebaseapp.com",
-  databaseURL: "https://fkrepairs-a6360-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "fkrepairs-a6360",
-  storageBucket: "fkrepairs-a6360.firebasestorage.app",
-  messagingSenderId: "84992727126",
-  appId: "1:84992727126:web:f761ec11c3ea6415e003f7",
-  measurementId: "G-NP4B6GXHBL"
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -579,6 +578,7 @@ function buildTabs() {
     
     if (role === 'admin') {
         tabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
+        tabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
     }
     
     // Build tabs
@@ -690,16 +690,60 @@ function buildNewRepairTab(container) {
                         </select>
                     </div>
                 </div>
+                <h4 style="margin: 20px 0 10px; color: var(--primary);">Parts Information</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Part Type *</label>
+                        <select name="partType" required>
+                            <option value="">Select Part</option>
+                            <option value="LCD">LCD / Display</option>
+                            <option value="Battery">Battery</option>
+                            <option value="Flex">Flex Cable</option>
+                            <option value="Charging Port">Charging Port</option>
+                            <option value="Camera">Camera Module</option>
+                            <option value="Speaker">Speaker</option>
+                            <option value="Microphone">Microphone</option>
+                            <option value="Back Cover">Back Cover / Housing</option>
+                            <option value="Board">Board / IC</option>
+                            <option value="Multiple Parts">Multiple Parts</option>
+                            <option value="No Parts">No Parts Needed</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Parts Source *</label>
+                        <select name="partSource" id="partSourceSelect" onchange="toggleSupplierPrice()" required>
+                            <option value="">Select Source</option>
+                            <option value="Shop Stock">🏪 Shop Stock</option>
+                            <option value="Guimba">📦 Guimba</option>
+                            <option value="Ate Sheng">📦 Ate Sheng</option>
+                            <option value="Lawrence">📦 Lawrence</option>
+                            <option value="Jhay">📦 Jhay</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Parts Cost (₱) *</label>
-                        <input type="number" name="partsCost" min="0" step="0.01" value="0" required>
+                        <input type="number" name="partsCost" id="partsCostInput" min="0" step="0.01" value="0" required>
+                        <small id="supplierNote" style="color: #666; display: none;">💡 Price from supplier</small>
                     </div>
                     <div class="form-group">
                         <label>Labor Cost (₱) *</label>
                         <input type="number" name="laborCost" min="0" step="0.01" value="0" required>
                     </div>
                 </div>
+                <script>
+                function toggleSupplierPrice() {
+                    const source = document.getElementById('partSourceSelect').value;
+                    const note = document.getElementById('supplierNote');
+                    if (source && source !== 'Shop Stock') {
+                        note.style.display = 'block';
+                    } else {
+                        note.style.display = 'none';
+                    }
+                }
+                </script>
                 <h4 style="margin: 20px 0 10px; color: var(--primary);">Device Photos (Optional - up to 3)</h4>
                 <div id="photoUpload">
                     <input type="file" id="photo1" accept="image/*" onchange="previewPhoto(this, 'preview1')">
@@ -714,27 +758,38 @@ function buildNewRepairTab(container) {
         </div>
     `;
     
-    // Populate technicians
+    // Populate technicians - Load from database if not loaded
     const techSelect = document.getElementById('assignedToSelect');
     if (techSelect) {
-        // Add default options
         techSelect.innerHTML = '<option value="">Select</option>';
         
-        // Add current user if they have a technician name
-        if (currentUserData.technicianName) {
+        // Always add default options
+        const defaultTechs = ['Owner', 'Tech 1', 'Tech 2'];
+        defaultTechs.forEach(tech => {
+            const opt = document.createElement('option');
+            opt.value = tech;
+            opt.textContent = tech;
+            techSelect.appendChild(opt);
+        });
+        
+        // Add current user if they have a technician name and not in defaults
+        if (currentUserData.technicianName && !defaultTechs.includes(currentUserData.technicianName)) {
             const opt = document.createElement('option');
             opt.value = currentUserData.technicianName;
             opt.textContent = currentUserData.technicianName;
             techSelect.appendChild(opt);
         }
         
-        // Add other users if available (admin only)
+        // Add other users from database if available
         if (allUsers && allUsers.length > 0) {
-            allUsers.filter(u => (u.role === 'technician' || u.role === 'admin') && u.id !== currentUser.uid).forEach(u => {
-                const opt = document.createElement('option');
-                opt.value = u.technicianName || u.displayName;
-                opt.textContent = u.technicianName || u.displayName;
-                techSelect.appendChild(opt);
+            const addedNames = new Set([...defaultTechs, currentUserData.technicianName]);
+            allUsers.filter(u => (u.role === 'technician' || u.role === 'admin') && !addedNames.has(u.technicianName)).forEach(u => {
+                if (u.technicianName) {
+                    const opt = document.createElement('option');
+                    opt.value = u.technicianName;
+                    opt.textContent = u.technicianName;
+                    techSelect.appendChild(opt);
+                }
             });
         }
     }
@@ -796,6 +851,8 @@ async function submitRepair(e) {
         model: data.get('model'),
         problem: data.get('problem'),
         repairType: data.get('repairType'),
+        partType: data.get('partType'),
+        partSource: data.get('partSource'),
         assignedTo: data.get('assignedTo'),
         partsCost: parseFloat(data.get('partsCost')),
         laborCost: parseFloat(data.get('laborCost')),
@@ -899,6 +956,8 @@ function displayRepairs(repairs) {
                     <div><strong>Type:</strong> ${r.customerType}</div>
                     <div><strong>Contact:</strong> ${r.contactNumber}</div>
                     <div><strong>Repair:</strong> ${r.repairType}</div>
+                    <div><strong>Part:</strong> ${r.partType || 'N/A'}</div>
+                    <div><strong>Source:</strong> ${r.partSource || 'N/A'}</div>
                     <div><strong>Assigned:</strong> ${r.assignedTo}</div>
                     ${!hidePayments ? `
                         <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
@@ -1150,6 +1209,98 @@ function buildUsersTab(container) {
                     </div>
                 `).join('')}
             </div>
+        </div>
+    `;
+}
+
+// Supplier Report Tab (Admin only)
+function buildSuppliersTab(container) {
+    // Group repairs by part type and source
+    const partsBySource = {};
+    
+    allRepairs.forEach(repair => {
+        if (!repair.partType || !repair.partSource || repair.partType === 'No Parts') return;
+        
+        const key = `${repair.partType}|${repair.partSource}`;
+        if (!partsBySource[key]) {
+            partsBySource[key] = {
+                partType: repair.partType,
+                source: repair.partSource,
+                prices: [],
+                count: 0
+            };
+        }
+        
+        partsBySource[key].prices.push(repair.partsCost);
+        partsBySource[key].count++;
+    });
+    
+    // Calculate averages and organize by part type
+    const partTypes = {};
+    Object.values(partsBySource).forEach(item => {
+        const avg = item.prices.reduce((sum, p) => sum + p, 0) / item.prices.length;
+        const min = Math.min(...item.prices);
+        const max = Math.max(...item.prices);
+        
+        if (!partTypes[item.partType]) {
+            partTypes[item.partType] = [];
+        }
+        
+        partTypes[item.partType].push({
+            source: item.source,
+            avgPrice: avg,
+            minPrice: min,
+            maxPrice: max,
+            count: item.count
+        });
+    });
+    
+    // Sort suppliers by average price for each part
+    Object.keys(partTypes).forEach(partType => {
+        partTypes[partType].sort((a, b) => a.avgPrice - b.avgPrice);
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>📊 Supplier Price Comparison</h3>
+            <p style="color:#666;margin-bottom:20px;">Compare prices from different suppliers to find the best deals</p>
+            
+            ${Object.keys(partTypes).length === 0 ? '<p style="text-align:center;color:#666;">No parts data yet. Start logging repairs with parts information!</p>' : ''}
+            
+            ${Object.entries(partTypes).map(([partType, suppliers]) => `
+                <div style="background:#f5f5f5;padding:20px;border-radius:8px;margin-bottom:20px;">
+                    <h4 style="color:var(--primary);margin-bottom:15px;">🔧 ${partType}</h4>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:#e0e0e0;">
+                                <th style="padding:10px;text-align:left;">Supplier</th>
+                                <th style="padding:10px;text-align:right;">Avg Price</th>
+                                <th style="padding:10px;text-align:right;">Min Price</th>
+                                <th style="padding:10px;text-align:right;">Max Price</th>
+                                <th style="padding:10px;text-align:center;">Orders</th>
+                                <th style="padding:10px;text-align:center;">Best?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${suppliers.map((s, idx) => `
+                                <tr style="border-bottom:1px solid #ccc;">
+                                    <td style="padding:10px;font-weight:bold;">${s.source === 'Shop Stock' ? '🏪' : '📦'} ${s.source}</td>
+                                    <td style="padding:10px;text-align:right;">₱${s.avgPrice.toFixed(2)}</td>
+                                    <td style="padding:10px;text-align:right;">₱${s.minPrice.toFixed(2)}</td>
+                                    <td style="padding:10px;text-align:right;">₱${s.maxPrice.toFixed(2)}</td>
+                                    <td style="padding:10px;text-align:center;">${s.count}</td>
+                                    <td style="padding:10px;text-align:center;">${idx === 0 ? '🏆 <span style="color:green;font-weight:bold;">BEST</span>' : ''}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${suppliers.length > 1 ? `
+                        <p style="margin-top:10px;color:#666;font-size:14px;">
+                            💰 Savings: ${suppliers[0].source} is ₱${(suppliers[suppliers.length-1].avgPrice - suppliers[0].avgPrice).toFixed(2)} cheaper than ${suppliers[suppliers.length-1].source} on average
+                        </p>
+                    ` : ''}
+                </div>
+            `).join('')}
         </div>
     `;
 }
