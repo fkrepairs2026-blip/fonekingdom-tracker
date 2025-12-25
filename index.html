@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fonekingdom Repair Tracker Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+        }
+        
+        .login-section {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            max-width: 400px;
+            margin: 100px auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .login-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="tel"],
+        input[type="number"],
+        input[type="date"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+        
+        button:hover {
+            background: #5568d3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .btn-logout {
+            background: #f44336;
+        }
+        
+        .btn-logout:hover {
+            background: #d32f2f;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-section {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .form-section h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .repairs-list {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .repair-card {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        
+        .repair-card h4 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .repair-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .repair-info-item {
+            padding: 5px 0;
+        }
+        
+        .repair-info-item strong {
+            color: #667eea;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .status-received { background: #ffd54f; color: #000; }
+        .status-in-progress { background: #64b5f6; color: white; }
+        .status-completed { background: #81c784; color: white; }
+        .status-ready { background: #ba68c8; color: white; }
+        .status-picked-up { background: #90a4ae; color: white; }
+        
+        .payment-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .payment-unpaid { background: #ffcdd2; color: #c62828; }
+        .payment-partial { background: #fff9c4; color: #f57f17; }
+        .payment-paid { background: #c8e6c9; color: #2e7d32; }
+        
+        .repair-actions {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 12px;
+        }
+        
+        .btn-edit {
+            background: #ff9800;
+        }
+        
+        .btn-edit:hover {
+            background: #f57c00;
+        }
+        
+        .btn-delete {
+            background: #f44336;
+        }
+        
+        .btn-delete:hover {
+            background: #d32f2f;
+        }
+        
+        .btn-payment {
+            background: #4caf50;
+        }
+        
+        .btn-payment:hover {
+            background: #388e3c;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 36px;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card p {
+            color: #666;
+        }
+        
+        .search-bar {
+            margin-bottom: 20px;
+        }
+        
+        .filter-bar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .alert {
+            padding: 12px 20px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border-left: 4px solid #c62828;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            border-left: 4px solid #2e7d32;
+        }
+        
+        .payment-summary {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .payment-summary h4 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .payment-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .payment-line.total {
+            font-weight: bold;
+            font-size: 18px;
+            border-top: 2px solid #667eea;
+            border-bottom: none;
+            margin-top: 10px;
+            padding-top: 10px;
+        }
+        
+        .cash-report {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .cash-report h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .report-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .report-section h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .collector-summary {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #667eea;
+            border-radius: 5px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h3 {
+            color: #667eea;
+        }
+        
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .cash-report {
+                box-shadow: none;
+                max-width: 100%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .repair-actions {
+                flex-direction: column;
+            }
+            
+            .filter-bar {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Section -->
+    <div id="loginSection" class="login-section">
+        <h2>🔧 Fonekingdom Repair Tracker Pro</h2>
+        <p style="text-align: center; color: #666; margin-bottom: 20px;">Sign in to manage repairs</p>
+        
+        <div id="loginAlert"></div>
+        
+        <input type="email" id="loginEmail" placeholder="Email">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="handleLogin()" style="width: 100%; margin-top: 10px;">Sign In</button>
+        
+        <p style="text-align: center; margin: 15px 0; color: #666;">or</p>
+        
+        <button onclick="showRegister()" style="width: 100%; background: white; color: #667eea; border: 2px solid #667eea;">Create Account</button>
+    </div>
+
+    <!-- Registration Section -->
+    <div id="registerSection" class="login-section hidden">
+        <h2>Create Account</h2>
+        
+        <div id="registerAlert"></div>
+        
+        <input type="text" id="registerName" placeholder="Full Name">
+        <input type="email" id="registerEmail" placeholder="Email">
+        <input type="password" id="registerPassword" placeholder="Password (min 6 characters)">
+        <button onclick="handleRegister()" style="width: 100%; margin-top: 10px;">Create Account</button>
+        <button onclick="showLogin()" style="width: 100%; background: white; color: #667eea; border: 2px solid #667eea; margin-top: 10px;">Back to Login</button>
+    </div>
+
+    <!-- Main App Section -->
+    <div id="appSection" class="container hidden">
+        <div class="header">
+            <h1>🔧 Fonekingdom Repair Tracker Pro</h1>
+            <div class="user-info">
+                <span>Welcome, <strong id="userName"></strong></span>
+                <button class="btn-logout" onclick="handleLogout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="stats">
+            <div class="stat-card">
+                <h3 id="statTotal">0</h3>
+                <p>Total Repairs</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="statInProgress">0</h3>
+                <p>In Progress</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="statCompleted">0</h3>
+                <p>Completed Today</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="statRevenue">₱0</h3>
+                <p>Today's Revenue</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="statBalance">₱0</h3>
+                <p>Balance Due</p>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('new')">➕ New Repair</div>
+            <div class="tab" onclick="switchTab('list')">📋 All Repairs</div>
+            <div class="tab" onclick="switchTab('cash')">💰 Cash Report</div>
+            <div class="tab" onclick="switchTab('reports')">📊 Reports</div>
+        </div>
+
+        <!-- New Repair Form -->
+        <div id="newRepairTab" class="tab-content active">
+            <form id="repairForm" onsubmit="handleSubmitRepair(event)">
+                <div class="form-section">
+                    <h3>Customer Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Customer Name *</label>
+                            <input type="text" name="customerName" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Contact Number *</label>
+                            <input type="tel" name="contactNumber" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Device Information</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Brand *</label>
+                            <input type="text" name="brand" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Model *</label>
+                            <input type="text" name="model" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>IMEI/Serial</label>
+                        <input type="text" name="imei">
+                    </div>
+                    <div class="form-group">
+                        <label>Problem Description *</label>
+                        <textarea name="problem" rows="3" required></textarea>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Repair Details</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Repair Type *</label>
+                            <select name="repairType" required>
+                                <option value="">Select Type</option>
+                                <option value="LCD">LCD Replacement</option>
+                                <option value="Battery">Battery Replacement</option>
+                                <option value="Charging Port">Charging Port</option>
+                                <option value="Flex Cable">Flex Cable</option>
+                                <option value="Microsoldering">Microsoldering</option>
+                                <option value="Water Damage">Water Damage</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Assigned To *</label>
+                            <select name="assignedTo" required>
+                                <option value="">Select Technician</option>
+                                <option value="Owner">Owner</option>
+                                <option value="Tech 1">Tech 1</option>
+                                <option value="New Tech">New Tech</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Priority *</label>
+                            <select name="priority" required>
+                                <option value="">Select Priority</option>
+                                <option value="Rush">Rush (Same Day)</option>
+                                <option value="Standard">Standard (2-3 Days)</option>
+                                <option value="Wait for Parts">Wait for Parts</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status *</label>
+                            <select name="status" required>
+                                <option value="Received">Received</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Ready for Pickup">Ready for Pickup</option>
+                                <option value="Picked Up">Picked Up</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h3>Pricing & Payment</h3>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Parts Cost (₱) *</label>
+                            <input type="number" name="partsCost" min="0" step="0.01" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Labor Cost (₱) *</label>
+                            <input type="number" name="laborCost" min="0" step="0.01" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Total (₱)</label>
+                            <input type="number" name="total" readonly style="background: #f5f5f5; font-weight: bold; font-size: 16px;">
+                        </div>
+                        <div class="form-group">
+                            <label>Deposit Paid (₱)</label>
+                            <input type="number" name="depositAmount" min="0" step="0.01" value="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Deposit Collected By</label>
+                            <select name="depositCollectedBy">
+                                <option value="">N/A</option>
+                                <option value="Owner">Owner</option>
+                                <option value="Tech 1">Tech 1</option>
+                                <option value="New Tech">New Tech</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Payment Method</label>
+                            <select name="depositPaymentMethod">
+                                <option value="Cash">Cash</option>
+                                <option value="GCash">GCash</option>
+                                <option value="Bank Transfer">Bank Transfer</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" style="width: 100%; padding: 15px; font-size: 16px;">💾 Save Repair</button>
+            </form>
+        </div>
+
+        <!-- Repairs List -->
+        <div id="listRepairsTab" class="tab-content">
+            <div class="search-bar">
+                <input type="text" id="searchInput" placeholder="🔍 Search by customer name, phone, or device..." onkeyup="filterRepairs()">
+            </div>
+            
+            <div class="filter-bar">
+                <select id="statusFilter" onchange="filterRepairs()">
+                    <option value="">All Status</option>
+                    <option value="Received">Received</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Ready for Pickup">Ready for Pickup</option>
+                    <option value="Picked Up">Picked Up</option>
+                </select>
+                <select id="techFilter" onchange="filterRepairs()">
+                    <option value="">All Technicians</option>
+                    <option value="Owner">Owner</option>
+                    <option value="Tech 1">Tech 1</option>
+                    <option value="New Tech">New Tech</option>
+                </select>
+                <select id="paymentFilter" onchange="filterRepairs()">
+                    <option value="">All Payments</option>
+                    <option value="unpaid">Unpaid</option>
+                    <option value="partial">Partial</option>
+                    <option value="paid">Fully Paid</option>
+                </select>
+            </div>
+
+            <div class="repairs-list" id="repairsList">
+                <p style="text-align: center; color: #666;">No repairs found. Add your first repair!</p>
+            </div>
+        </div>
+
+        <!-- Cash Report Tab -->
+        <div id="cashReportTab" class="tab-content">
+            <div class="cash-report">
+                <div class="no-print" style="text-align: right; margin-bottom: 20px;">
+                    <button onclick="window.print()">🖨️ Print Report</button>
+                    <button onclick="exportCashReport()">📥 Export to CSV</button>
+                </div>
+                
+                <h2>💰 Daily Cash Report</h2>
+                <p style="text-align: center; color: #666; margin-bottom: 20px;" id="reportDate"></p>
+                
+                <div id="cashReportContent">
+                    <!-- Will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Reports Tab -->
+        <div id="reportsTab" class="tab-content">
+            <div class="form-section">
+                <h3>📊 Daily Summary</h3>
+                <div id="dailySummary"></div>
+            </div>
+            
+            <div class="form-section">
+                <h3>👨‍🔧 Technician Performance</h3>
+                <div id="techPerformance"></div>
+            </div>
+            
+            <div class="form-section">
+                <h3>💰 Payment Summary</h3>
+                <div id="paymentSummary"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Record Payment</h3>
+                <span class="close" onclick="closePaymentModal()">&times;</span>
+            </div>
+            
+            <div id="paymentModalContent">
+                <!-- Will be populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY_HERE",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+
+        let currentUser = null;
+        let allRepairs = [];
+        let currentRepairForPayment = null;
+
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('registerSection').classList.add('hidden');
+                document.getElementById('appSection').classList.remove('hidden');
+                document.getElementById('userName').textContent = user.email;
+                loadRepairs();
+            } else {
+                currentUser = null;
+                document.getElementById('loginSection').classList.remove('hidden');
+                document.getElementById('appSection').classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('repairForm');
+            ['partsCost', 'laborCost'].forEach(field => {
+                form.elements[field].addEventListener('input', calculateTotal);
+            });
+        });
+
+        function calculateTotal() {
+            const form = document.getElementById('repairForm');
+            const parts = parseFloat(form.elements['partsCost'].value) || 0;
+            const labor = parseFloat(form.elements['laborCost'].value) || 0;
+            form.elements['total'].value = (parts + labor).toFixed(2);
+        }
+
+        function showRegister() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('registerSection').classList.remove('hidden');
+        }
+
+        function showLogin() {
+            document.getElementById('registerSection').classList.add('hidden');
+            document.getElementById('loginSection').classList.remove('hidden');
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const alertDiv = document.getElementById('loginAlert');
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                alertDiv.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+            }
+        }
+
+        async function handleRegister() {
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const alertDiv = document.getElementById('registerAlert');
+
+            if (password.length < 6) {
+                alertDiv.innerHTML = '<div class="alert alert-error">Password must be at least 6 characters</div>';
+                return;
+            }
+
+            try {
+                await auth.createUserWithEmailAndPassword(email, password);
+                alertDiv.innerHTML = '<div class="alert alert-success">Account created! Signing in...</div>';
+            } catch (error) {
+                alertDiv.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+            }
+        }
+
+        function handleLogout() {
+            auth.signOut();
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            
+            if (tab === 'new') {
+                document.getElementById('newRepairTab').classList.add('active');
+            } else if (tab === 'list') {
+                document.getElementById('listRepairsTab').classList.add('active');
+            } else if (tab === 'cash') {
+                document.getElementById('cashReportTab').classList.add('active');
+                generateCashReport();
+            } else if (tab === 'reports') {
+                document.getElementById('reportsTab').classList.add('active');
+                generateReports();
+            }
+        }
+
+        async function handleSubmitRepair(event) {
+            event.preventDefault();
+            const form = event.target;
+            const formData = new FormData(form);
+            
+            const depositAmount = parseFloat(formData.get('depositAmount')) || 0;
+            const total = parseFloat(formData.get('total'));
+            
+            const repair = {
+                customerName: formData.get('customerName'),
+                contactNumber: formData.get('contactNumber'),
+                brand: formData.get('brand'),
+                model: formData.get('model'),
+                imei: formData.get('imei') || '',
+                problem: formData.get('problem'),
+                repairType: formData.get('repairType'),
+                assignedTo: formData.get('assignedTo'),
+                priority: formData.get('priority'),
+                status: formData.get('status'),
+                partsCost: parseFloat(formData.get('partsCost')),
+                laborCost: parseFloat(formData.get('laborCost')),
+                total: total,
+                payments: depositAmount > 0 ? [{
+                    amount: depositAmount,
+                    collectedBy: formData.get('depositCollectedBy') || 'N/A',
+                    paymentMethod: formData.get('depositPaymentMethod') || 'Cash',
+                    date: new Date().toISOString(),
+                    type: 'Deposit'
+                }] : [],
+                totalPaid: depositAmount,
+                balance: total - depositAmount,
+                createdAt: new Date().toISOString(),
+                createdBy: currentUser.email
+            };
+
+            try {
+                await database.ref('repairs').push(repair);
+                alert('✅ Repair saved successfully!');
+                form.reset();
+                switchTab('list');
+            } catch (error) {
+                alert('❌ Error saving repair: ' + error.message);
+            }
+        }
+
+        function loadRepairs() {
+            database.ref('repairs').on('value', snapshot => {
+                allRepairs = [];
+                snapshot.forEach(child => {
+                    allRepairs.push({
+                        id: child.key,
+                        ...child.val()
+                    });
+                });
+                allRepairs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                displayRepairs(allRepairs);
+                updateStats();
+            });
+        }
+
+        function displayRepairs(repairs) {
+            const container = document.getElementById('repairsList');
+            
+            if (repairs.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666;">No repairs found.</p>';
+                return;
+            }
+
+            container.innerHTML = repairs.map(repair => {
+                const statusClass = repair.status.toLowerCase().replace(/ /g, '-');
+                const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
+                const totalPaid = repair.totalPaid || 0;
+                const date = new Date(repair.createdAt).toLocaleString();
+                
+                let paymentStatus = 'unpaid';
+                let paymentBadge = 'Unpaid';
+                if (totalPaid === 0) {
+                    paymentStatus = 'unpaid';
+                    paymentBadge = 'Unpaid';
+                } else if (balance > 0) {
+                    paymentStatus = 'partial';
+                    paymentBadge = 'Partial';
+                } else {
+                    paymentStatus = 'paid';
+                    paymentBadge = 'Fully Paid';
+                }
+                
+                return `
+                    <div class="repair-card">
+                        <h4>${repair.customerName} - ${repair.brand} ${repair.model}</h4>
+                        <span class="status-badge status-${statusClass}">${repair.status}</span>
+                        <span class="payment-badge payment-${paymentStatus}">${paymentBadge}</span>
+                        
+                        <div class="repair-info">
+                            <div class="repair-info-item">
+                                <strong>Contact:</strong> ${repair.contactNumber}
+                            </div>
+                            <div class="repair-info-item">
+                                <strong>Repair:</strong> ${repair.repairType}
+                            </div>
+                            <div class="repair-info-item">
+                                <strong>Technician:</strong> ${repair.assignedTo}
+                            </div>
+                            <div class="repair-info-item">
+                                <strong>Priority:</strong> ${repair.priority}
+                            </div>
+                            <div class="repair-info-item">
+                                <strong>Total:</strong> ₱${repair.total.toFixed(2)}
+                            </div>
+                            <div class="repair-info-item">
+                                <strong>Paid:</strong> ₱${totalPaid.toFixed(2)}
+                            </div>
+                            <div class="repair-info-item">
+                                <strong>Balance:</strong> <span style="color: ${balance > 0 ? '#f44336' : '#4caf50'}; font-weight: bold;">₱${balance.toFixed(2)}</span>
+                            </div>
+                            <div class="repair-info-item">
+                                <strong>Date:</strong> ${date}
+                            </div>
+                        </div>
+                        
+                        <div class="repair-info-item">
+                            <strong>Problem:</strong> ${repair.problem}
+                        </div>
+                        
+                        ${getPaymentHistory(repair)}
+                        
+                        <div class="repair-actions">
+                            ${balance > 0 ? `<button class="btn-small btn-payment" onclick="openPaymentModal('${repair.id}')">💰 Record Payment</button>` : ''}
+                            <button class="btn-small" onclick="updateStatus('${repair.id}')">📝 Update Status</button>
+                            <button class="btn-small btn-delete" onclick="deleteRepair('${repair.id}')">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function getPaymentHistory(repair) {
+            if (!repair.payments || repair.payments.length === 0) {
+                return '<p style="margin-top: 10px; color: #999; font-style: italic;">No payments recorded yet</p>';
+            }
+            
+            let html = '<div class="payment-summary"><h4>Payment History:</h4>';
+            repair.payments.forEach(payment => {
+                const date = new Date(payment.date).toLocaleString();
+                html += `
+                    <div class="payment-line">
+                        <span>${payment.type || 'Payment'} - ${date}</span>
+                        <span><strong>₱${payment.amount.toFixed(2)}</strong> (${payment.paymentMethod}) by ${payment.collectedBy}</span>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function openPaymentModal(repairId) {
+            const repair = allRepairs.find(r => r.id === repairId);
+            if (!repair) return;
+            
+            currentRepairForPayment = repair;
+            const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
+            
+            const modalContent = document.getElementById('paymentModalContent');
+            modalContent.innerHTML = `
+                <div class="payment-summary">
+                    <h4>${repair.customerName} - ${repair.brand} ${repair.model}</h4>
+                    <div class="payment-line">
+                        <span>Total Amount:</span>
+                        <span>₱${repair.total.toFixed(2)}</span>
+                    </div>
+                    <div class="payment-line">
+                        <span>Already Paid:</span>
+                        <span>₱${(repair.totalPaid || 0).toFixed(2)}</span>
+                    </div>
+                    <div class="payment-line total">
+                        <span>Balance Due:</span>
+                        <span style="color: #f44336;">₱${balance.toFixed(2)}</span>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top: 20px;">
+                    <label>Payment Amount (₱) *</label>
+                    <input type="number" id="paymentAmount" min="0" max="${balance}" step="0.01" value="${balance}" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Collected By *</label>
+                    <select id="paymentCollectedBy" required>
+                        <option value="">Select Person</option>
+                        <option value="Owner">Owner</option>
+                        <option value="Tech 1">Tech 1</option>
+                        <option value="New Tech">New Tech</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Payment Method *</label>
+                    <select id="paymentMethod" required>
+                        <option value="Cash">Cash</option>
+                        <option value="GCash">GCash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                    </select>
+                </div>
+                
+                <button onclick="recordPayment()" style="width: 100%; margin-top: 10px;">💾 Record Payment</button>
+            `;
+            
+            document.getElementById('paymentModal').style.display = 'block';
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').style.display = 'none';
+            currentRepairForPayment = null;
+        }
+
+        async function recordPayment() {
+            const amount = parseFloat(document.getElementById('paymentAmount').value);
+            const collectedBy = document.getElementById('paymentCollectedBy').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+            
+            if (!amount || !collectedBy || !paymentMethod) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            const repair = currentRepairForPayment;
+            const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
+            
+            if (amount > balance) {
+                alert('Payment amount cannot exceed balance due!');
+                return;
+            }
+            
+            const payments = repair.payments || [];
+            payments.push({
+                amount: amount,
+                collectedBy: collectedBy,
+                paymentMethod: paymentMethod,
+                date: new Date().toISOString(),
+                type: 'Payment'
+            });
+            
+            const newTotalPaid = (repair.totalPaid || 0) + amount;
+            const newBalance = repair.total - newTotalPaid;
+            
+            try {
+                await database.ref(`repairs/${repair.id}`).update({
+                    payments: payments,
+                    totalPaid: newTotalPaid,
+                    balance: newBalance
+                });
+                
+                alert('✅ Payment recorded successfully!');
+                closePaymentModal();
+            } catch (error) {
+                alert('❌ Error recording payment: ' + error.message);
+            }
+        }
+
+        function filterRepairs() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const techFilter = document.getElementById('techFilter').value;
+            const paymentFilter = document.getElementById('paymentFilter').value;
+
+            let filtered = allRepairs.filter(repair => {
+                const matchesSearch = 
+                    repair.customerName.toLowerCase().includes(search) ||
+                    repair.contactNumber.includes(search) ||
+                    repair.brand.toLowerCase().includes(search) ||
+                    repair.model.toLowerCase().includes(search);
+                
+                const matchesStatus = !statusFilter || repair.status === statusFilter;
+                const matchesTech = !techFilter || repair.assignedTo === techFilter;
+                
+                let matchesPayment = true;
+                if (paymentFilter) {
+                    const balance = repair.balance || (repair.total - (repair.totalPaid || 0));
+                    const totalPaid = repair.totalPaid || 0;
+                    if (paymentFilter === 'unpaid') matchesPayment = totalPaid === 0;
+                    else if (paymentFilter === 'partial') matchesPayment = totalPaid > 0 && balance > 0;
+                    else if (paymentFilter === 'paid') matchesPayment = balance === 0;
+                }
+
+                return matchesSearch && matchesStatus && matchesTech && matchesPayment;
+            });
+
+            displayRepairs(filtered);
+        }
+
+        function updateStatus(repairId) {
+            const statuses = ['Received', 'In Progress', 'Completed', 'Ready for Pickup', 'Picked Up'];
+            const newStatus = prompt('Select new status:\n' + statuses.map((s, i) => `${i+1}. ${s}`).join('\n'));
+            
+            if (newStatus && newStatus >= 1 && newStatus <= 5) {
+                database.ref(`repairs/${repairId}`).update({
+                    status: statuses[newStatus - 1]
+                });
+            }
+        }
+
+        function deleteRepair(repairId) {
+            if (confirm('Are you sure you want to delete this repair?')) {
+                database.ref(`repairs/${repairId}`).remove();
+            }
+        }
+
+        function updateStats() {
+            const today = new Date().toDateString();
+            const todayRepairs = allRepairs.filter(r => 
+                new Date(r.createdAt).toDateString() === today
+            );
+            
+            const inProgress = allRepairs.filter(r => 
+                r.status === 'In Progress' || r.status === 'Received'
+            ).length;
+            
+            const todayCompleted = todayRepairs.filter(r => 
+                r.status === 'Completed' || r.status === 'Picked Up'
+            ).length;
+            
+            const todayRevenue = todayRepairs
+                .filter(r => r.status === 'Picked Up')
+                .reduce((sum, r) => sum + (r.totalPaid || 0), 0);
+            
+            const totalBalance = allRepairs
+                .filter(r => r.status !== 'Picked Up')
+                .reduce((sum, r) => sum + (r.balance || (r.total - (r.totalPaid || 0))), 0);
+
+            document.getElementById('statTotal').textContent = allRepairs.length;
+            document.getElementById('statInProgress').textContent = inProgress;
+            document.getElementById('statCompleted').textContent = todayCompleted;
+            document.getElementById('statRevenue').textContent = '₱' + todayRevenue.toFixed(2);
+            document.getElementById('statBalance').textContent = '₱' + totalBalance.toFixed(2);
+        }
+
+        function generateCashReport() {
+            const today = new Date();
+            document.getElementById('reportDate').textContent = today.toLocaleDateString('en-US', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+            
+            const todayStr = today.toDateString();
+            const todayPayments = [];
+            
+            allRepairs.forEach(repair => {
+                if (repair.payments && repair.payments.length > 0) {
+                    repair.payments.forEach(payment => {
+                        const paymentDate = new Date(payment.date).toDateString();
+                        if (paymentDate === todayStr && payment.paymentMethod === 'Cash') {
+                            todayPayments.push({
+                                ...payment,
+                                customerName: repair.customerName,
+                                device: `${repair.brand} ${repair.model}`,
+                                repairType: repair.repairType
+                            });
+                        }
+                    });
+                }
+            });
+            
+            const collectorSummary = {};
+            todayPayments.forEach(payment => {
+                if (!collectorSummary[payment.collectedBy]) {
+                    collectorSummary[payment.collectedBy] = {
+                        count: 0,
+                        total: 0,
+                        payments: []
+                    };
+                }
+                collectorSummary[payment.collectedBy].count++;
+                collectorSummary[payment.collectedBy].total += payment.amount;
+                collectorSummary[payment.collectedBy].payments.push(payment);
+            });
+            
+            let html = '<div class="report-section">';
+            html += '<h3>Summary</h3>';
+            html += `<p><strong>Total Cash Collections Today:</strong> ₱${todayPayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</p>`;
+            html += `<p><strong>Number of Transactions:</strong> ${todayPayments.length}</p>`;
+            html += '</div>';
+            
+            html += '<div class="report-section">';
+            html += '<h3>Collections by Person</h3>';
+            Object.entries(collectorSummary).forEach(([collector, data]) => {
+                html += `
+                    <div class="collector-summary">
+                        <h4>${collector}</h4>
+                        <p><strong>Transactions:</strong> ${data.count}</p>
+                        <p><strong>Total Collected:</strong> ₱${data.total.toFixed(2)}</p>
+                        <div style="margin-top: 10px;">
+                `;
+                data.payments.forEach(payment => {
+                    html += `
+                        <div class="payment-line">
+                            <span>${payment.customerName} - ${payment.device}</span>
+                            <span>₱${payment.amount.toFixed(2)}</span>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            });
+            html += '</div>';
+            
+            html += '<div class="report-section">';
+            html += '<h3>Reconciliation</h3>';
+            html += '<p style="margin-bottom: 15px;">Count the cash and verify it matches the expected total:</p>';
+            html += '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="background: #f5f5f5;"><th style="padding: 10px; border: 1px solid #ddd; text-align: left;">Denomination</th><th style="padding: 10px; border: 1px solid #ddd; text-align: center;">Quantity</th><th style="padding: 10px; border: 1px solid #ddd; text-align: right;">Amount</th></tr>';
+            ['1000', '500', '200', '100', '50', '20'].forEach(denom => {
+                html += `<tr><td style="padding: 10px; border: 1px solid #ddd;">₱${denom} bills</td><td style="padding: 10px; border: 1px solid #ddd; text-align: center;">_____</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱_____</td></tr>`;
+            });
+            html += '<tr><td style="padding: 10px; border: 1px solid #ddd;">Coins</td><td style="padding: 10px; border: 1px solid #ddd; text-align: center;">-</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱_____</td></tr>';
+            html += `<tr style="background: #e3f2fd; font-weight: bold;"><td colspan="2" style="padding: 10px; border: 1px solid #ddd;">TOTAL COUNTED</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱_____</td></tr>`;
+            html += `<tr style="background: #fff9c4; font-weight: bold;"><td colspan="2" style="padding: 10px; border: 1px solid #ddd;">EXPECTED (from system)</td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;">₱${todayPayments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</td></tr>`;
+            html += '<tr style="background: #ffebee;"><td colspan="2" style="padding: 10px; border: 1px solid #ddd;"><strong>VARIANCE (Counted - Expected)</strong></td><td style="padding: 10px; border: 1px solid #ddd; text-align: right;"><strong>₱_____</strong></td></tr>';
+            html += '</table>';
+            html += '<div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border: 2px solid #ddd;">';
+            html += '<p><strong>Counted by:</strong> _________________________ Date: _____________</p>';
+            html += '<p style="margin-top: 15px;"><strong>Verified by:</strong> _________________________ Date: _____________</p>';
+            html += '</div>';
+            html += '</div>';
+            
+            document.getElementById('cashReportContent').innerHTML = html;
+        }
+
+        function exportCashReport() {
+            const today = new Date().toDateString();
+            const todayPayments = [];
+            
+            allRepairs.forEach(repair => {
+                if (repair.payments && repair.payments.length > 0) {
+                    repair.payments.forEach(payment => {
+                        const paymentDate = new Date(payment.date).toDateString();
+                        if (paymentDate === today && payment.paymentMethod === 'Cash') {
+                            todayPayments.push({
+                                Date: new Date(payment.date).toLocaleString(),
+                                Customer: repair.customerName,
+                                Device: `${repair.brand} ${repair.model}`,
+                                Amount: payment.amount,
+                                CollectedBy: payment.collectedBy,
+                                Method: payment.paymentMethod
+                            });
+                        }
+                    });
+                }
+            });
+            
+            let csv = 'Date,Customer,Device,Amount,Collected By,Method\n';
+            todayPayments.forEach(payment => {
+                csv += `"${payment.Date}","${payment.Customer}","${payment.Device}",${payment.Amount},"${payment.CollectedBy}","${payment.Method}"\n`;
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `cash-report-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+        }
+
+        function generateReports() {
+            const today = new Date().toDateString();
+            const todayRepairs = allRepairs.filter(r => 
+                new Date(r.createdAt).toDateString() === today
+            );
+
+            const byStatus = {};
+            todayRepairs.forEach(r => {
+                byStatus[r.status] = (byStatus[r.status] || 0) + 1;
+            });
+
+            let summaryHTML = '<div class="repair-info">';
+            Object.entries(byStatus).forEach(([status, count]) => {
+                summaryHTML += `<div class="repair-info-item"><strong>${status}:</strong> ${count}</div>`;
+            });
+            summaryHTML += `<div class="repair-info-item"><strong>Total Today:</strong> ${todayRepairs.length}</div>`;
+            summaryHTML += '</div>';
+            document.getElementById('dailySummary').innerHTML = summaryHTML;
+
+            const byTech = {};
+            todayRepairs.forEach(r => {
+                if (!byTech[r.assignedTo]) {
+                    byTech[r.assignedTo] = { count: 0, revenue: 0 };
+                }
+                byTech[r.assignedTo].count++;
+                if (r.status === 'Picked Up') {
+                    byTech[r.assignedTo].revenue += r.totalPaid || r.total;
+                }
+            });
+
+            let techHTML = '<div class="repair-info">';
+            Object.entries(byTech).forEach(([tech, data]) => {
+                techHTML += `
+                    <div class="repair-info-item">
+                        <strong>${tech}:</strong> ${data.count} repairs, ₱${data.revenue.toFixed(2)} revenue
+                    </div>
+                `;
+            });
+            techHTML += '</div>';
+            document.getElementById('techPerformance').innerHTML = techHTML || '<p>No repairs today</p>';
+
+            const paymentStats = {
+                totalCollected: 0,
+                cash: 0,
+                gcash: 0,
+                bank: 0,
+                byCollector: {}
+            };
+
+            todayRepairs.forEach(repair => {
+                if (repair.payments) {
+                    repair.payments.forEach(payment => {
+                        const paymentDate = new Date(payment.date).toDateString();
+                        if (paymentDate === today) {
+                            paymentStats.totalCollected += payment.amount;
+                            if (payment.paymentMethod === 'Cash') paymentStats.cash += payment.amount;
+                            else if (payment.paymentMethod === 'GCash') paymentStats.gcash += payment.amount;
+                            else if (payment.paymentMethod === 'Bank Transfer') paymentStats.bank += payment.amount;
+                            
+                            if (!paymentStats.byCollector[payment.collectedBy]) {
+                                paymentStats.byCollector[payment.collectedBy] = 0;
+                            }
+                            paymentStats.byCollector[payment.collectedBy] += payment.amount;
+                        }
+                    });
+                }
+            });
+
+            let paymentHTML = '<div class="repair-info">';
+            paymentHTML += `<div class="repair-info-item"><strong>Total Collected:</strong> ₱${paymentStats.totalCollected.toFixed(2)}</div>`;
+            paymentHTML += `<div class="repair-info-item"><strong>Cash:</strong> ₱${paymentStats.cash.toFixed(2)}</div>`;
+            paymentHTML += `<div class="repair-info-item"><strong>GCash:</strong> ₱${paymentStats.gcash.toFixed(2)}</div>`;
+            paymentHTML += `<div class="repair-info-item"><strong>Bank Transfer:</strong> ₱${paymentStats.bank.toFixed(2)}</div>`;
+            paymentHTML += '</div><h4 style="margin-top: 20px; color: #667eea;">By Collector:</h4><div class="repair-info">';
+            Object.entries(paymentStats.byCollector).forEach(([collector, amount]) => {
+                paymentHTML += `<div class="repair-info-item"><strong>${collector}:</strong> ₱${amount.toFixed(2)}</div>`;
+            });
+            paymentHTML += '</div>';
+            document.getElementById('paymentSummary').innerHTML = paymentHTML;
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById('paymentModal');
+            if (event.target == modal) {
+                closePaymentModal();
+            }
+        }
+    </script>
+</body>
+</html>
