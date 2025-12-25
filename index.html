@@ -345,14 +345,13 @@
 <script>
 // REPLACE WITH YOUR FIREBASE CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyBC7UvoqwOHIf2Qjvi1YkxDtQzPJP3AGDM",
-  authDomain: "fkrepairs-a6360.firebaseapp.com",
-  databaseURL: "https://fkrepairs-a6360-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "fkrepairs-a6360",
-  storageBucket: "fkrepairs-a6360.firebasestorage.app",
-  messagingSenderId: "84992727126",
-  appId: "1:84992727126:web:f761ec11c3ea6415e003f7",
-  measurementId: "G-NP4B6GXHBL"
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -494,7 +493,13 @@ async function handleLogin() {
 }
 
 function handleLogout() {
-    auth.signOut();
+    auth.signOut().then(() => {
+        currentUser = null;
+        currentUserData = null;
+        allRepairs = [];
+        allUsers = [];
+        window.location.reload();
+    });
 }
 
 async function loadUserData() {
@@ -610,17 +615,32 @@ function switchTab(tabId) {
 
 function buildStats() {
     const today = new Date().toDateString();
-    const inProgress = allRepairs.filter(r => r.status === 'In Progress' || r.status === 'Received').length;
-    const todayRevenue = allRepairs
+    
+    // Filter repairs based on role
+    let userRepairs = allRepairs;
+    if (currentUserData.role === 'technician') {
+        // Show repairs created by this tech OR assigned to this tech
+        userRepairs = allRepairs.filter(r => 
+            r.createdBy === currentUser.uid || 
+            r.assignedTo === currentUserData.technicianName
+        );
+    }
+    
+    const inProgress = userRepairs.filter(r => r.status === 'In Progress' || r.status === 'Received').length;
+    const todayRevenue = userRepairs
         .filter(r => r.payments && r.payments.some(p => new Date(p.date).toDateString() === today && p.verified))
         .reduce((sum, r) => sum + r.payments.filter(p => new Date(p.date).toDateString() === today && p.verified).reduce((s, p) => s + p.amount, 0), 0);
-    const pending = allRepairs.filter(r => r.payments && r.payments.some(p => !p.verified)).length;
+    const pending = userRepairs.filter(r => r.payments && r.payments.some(p => !p.verified)).length;
+    
+    const statsLabels = currentUserData.role === 'technician' 
+        ? ['My Total', 'In Progress', 'My Revenue', 'Pending Verify']
+        : ['Total Repairs', 'In Progress', "Today's Revenue", 'Pending Verify'];
     
     document.getElementById('statsSection').innerHTML = `
-        <div class="stat-card"><h3>${allRepairs.length}</h3><p>Total Repairs</p></div>
-        <div class="stat-card"><h3>${inProgress}</h3><p>In Progress</p></div>
-        <div class="stat-card"><h3>₱${todayRevenue.toFixed(0)}</h3><p>Today's Revenue</p></div>
-        <div class="stat-card"><h3>${pending}</h3><p>Pending Verification</p></div>
+        <div class="stat-card"><h3>${userRepairs.length}</h3><p>${statsLabels[0]}</p></div>
+        <div class="stat-card"><h3>${inProgress}</h3><p>${statsLabels[1]}</p></div>
+        <div class="stat-card"><h3>₱${todayRevenue.toFixed(0)}</h3><p>${statsLabels[2]}</p></div>
+        <div class="stat-card"><h3>${pending}</h3><p>${statsLabels[3]}</p></div>
     `;
 }
 
@@ -900,7 +920,22 @@ function buildMyRepairsTab(container) {
         if (cont) buildMyRepairsTab(document.getElementById('myTab'));
     };
     
-    const myRepairs = allRepairs.filter(r => r.assignedTo === currentUserData.technicianName);
+    // Show repairs created by this user OR assigned to this user
+    const myRepairs = allRepairs.filter(r => 
+        r.assignedTo === currentUserData.technicianName || 
+        r.createdBy === currentUser.uid
+    );
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>My Repairs</h3>
+            <p style="color:#666;margin-bottom:15px;">Showing repairs you created or assigned to you</p>
+            <div id="repairsList"></div>
+        </div>
+    `;
+    
+    displayRepairs(myRepairs);
+}
     
     container.innerHTML = `
         <div class="card">
@@ -950,6 +985,7 @@ function displayRepairs(repairs) {
                     <div><strong>Part:</strong> ${r.partType || 'N/A'}</div>
                     <div><strong>Source:</strong> ${r.partSource || 'N/A'}</div>
                     <div><strong>Assigned:</strong> ${r.assignedTo}</div>
+                    ${role === 'technician' && r.createdByName ? `<div><strong>Created by:</strong> ${r.createdByName}</div>` : ''}
                     ${!hidePayments ? `
                         <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
                         <div><strong>Paid:</strong> ₱${totalPaid.toFixed(2)}</div>
