@@ -345,14 +345,13 @@
 <script>
 // REPLACE WITH YOUR FIREBASE CONFIG
 const firebaseConfig = {
-  apiKey: "AIzaSyBC7UvoqwOHIf2Qjvi1YkxDtQzPJP3AGDM",
-  authDomain: "fkrepairs-a6360.firebaseapp.com",
-  databaseURL: "https://fkrepairs-a6360-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "fkrepairs-a6360",
-  storageBucket: "fkrepairs-a6360.firebasestorage.app",
-  messagingSenderId: "84992727126",
-  appId: "1:84992727126:web:f761ec11c3ea6415e003f7",
-  measurementId: "G-NP4B6GXHBL"
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -635,12 +634,25 @@ function buildNewRepairTab(container) {
             <form id="newRepairForm" onsubmit="submitRepair(event)">
                 <div class="form-row">
                     <div class="form-group">
+                        <label>Customer Type *</label>
+                        <select name="customerType" required>
+                            <option value="Walk-in">Walk-in</option>
+                            <option value="Dealer">Dealer / Other Shop</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
                         <label>Customer Name *</label>
                         <input type="text" name="customerName" required>
                     </div>
+                </div>
+                <div class="form-row">
                     <div class="form-group">
                         <label>Contact Number *</label>
                         <input type="tel" name="contactNumber" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Shop Name (if Dealer)</label>
+                        <input type="text" name="shopName" placeholder="Leave blank for walk-in">
                     </div>
                 </div>
                 <div class="form-row">
@@ -775,7 +787,9 @@ async function submitRepair(e) {
     const data = new FormData(form);
     
     const repair = {
+        customerType: data.get('customerType'),
         customerName: data.get('customerName'),
+        shopName: data.get('shopName') || '',
         contactNumber: data.get('contactNumber'),
         brand: data.get('brand'),
         model: data.get('model'),
@@ -875,11 +889,13 @@ function displayRepairs(repairs) {
         
         return `
             <div class="repair-card">
-                <h4>${r.customerName} - ${r.brand} ${r.model}</h4>
+                <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
                 <span class="status-badge status-${statusClass}">${r.status}</span>
                 ${!hidePayments ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending Verification' : 'Verified'}</span>` : ''}
+                ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
                 
                 <div class="repair-info">
+                    <div><strong>Type:</strong> ${r.customerType}</div>
                     <div><strong>Contact:</strong> ${r.contactNumber}</div>
                     <div><strong>Repair:</strong> ${r.repairType}</div>
                     <div><strong>Assigned:</strong> ${r.assignedTo}</div>
