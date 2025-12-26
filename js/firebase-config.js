@@ -1,12 +1,21 @@
 // Firebase Configuration
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-    apiKey: "AIzaSyAeaBy4XBlWB3XmVYaAidvvCJyDZqBFOz8",
-    authDomain: "fkrepairs2026.firebaseapp.com",
-    databaseURL: "https://fkrepairs2026-default-rtdb.firebaseio.com",
-    projectId: "fkrepairs2026",
-    storageBucket: "fkrepairs2026.appspot.com",
-    messagingSenderId: "1064226481575",
-    appId: "1:1064226481575:web:7c1a0bb33ad1c5e5c9e8f0"
+  apiKey: "AIzaSyBC7UvoqwOHIf2Qjvi1YkxDtQzPJP3AGDM",
+  authDomain: "fkrepairs-a6360.firebaseapp.com",
+  databaseURL: "https://fkrepairs-a6360-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "fkrepairs-a6360",
+  storageBucket: "fkrepairs-a6360.firebasestorage.app",
+  messagingSenderId: "84992727126",
+  appId: "1:84992727126:web:f761ec11c3ea6415e003f7",
+  measurementId: "G-NP4B6GXHBL"
 };
 
 // Initialize Firebase
