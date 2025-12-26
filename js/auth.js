@@ -4,6 +4,9 @@
 window.currentUser = null;
 window.currentUserData = null;
 
+// Flag to prevent multiple initializations
+let appInitialized = false;
+
 /**
  * Handle login
  */
@@ -15,15 +18,21 @@ async function handleLogin(e) {
     const errorEl = document.getElementById('loginError');
     
     try {
+        console.log('🔐 Logging in...');
+        
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         window.currentUser = userCredential.user;
         
-        // Load user data
+        console.log('✅ Auth successful, loading user data...');
+        
+        // Load user data and WAIT for it
         const snapshot = await db.ref(`users/${window.currentUser.uid}`).once('value');
         window.currentUserData = snapshot.val();
         
+        console.log('📊 User data loaded:', window.currentUserData);
+        
         if (!window.currentUserData) {
-            throw new Error('User data not found');
+            throw new Error('User data not found in database');
         }
         
         // Check if user is active
@@ -46,13 +55,15 @@ async function handleLogin(e) {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').style.display = 'block';
         
-        // Initialize app
-        if (window.initializeApp) {
-            window.initializeApp();
+        // Initialize app ONLY if not already initialized
+        if (!appInitialized && window.initializeApp) {
+            appInitialized = true;
+            console.log('🚀 Initializing app...');
+            await window.initializeApp();
         }
         
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('❌ Login error:', error);
         errorEl.textContent = error.message;
         errorEl.style.display = 'block';
     }
@@ -69,6 +80,7 @@ async function handleLogout() {
         await auth.signOut();
         window.currentUser = null;
         window.currentUserData = null;
+        appInitialized = false;
         
         // Reload page to show login
         window.location.reload();
@@ -83,21 +95,25 @@ async function handleLogout() {
  * Record login/logout event
  */
 async function recordLoginEvent(type) {
-    if (!window.currentUser) return;
+    if (!window.currentUser || !window.currentUserData) return;
     
-    const event = {
-        type: type, // 'login' or 'logout'
-        timestamp: new Date().toISOString(),
-        userId: window.currentUser.uid,
-        userName: window.currentUserData.displayName,
-        userEmail: window.currentUserData.email
-    };
-    
-    // Add to user's login history
-    await db.ref(`users/${window.currentUser.uid}/loginHistory`).push(event);
-    
-    // Also add to global login history (for admin tracking)
-    await db.ref(`loginHistory`).push(event);
+    try {
+        const event = {
+            type: type,
+            timestamp: new Date().toISOString(),
+            userId: window.currentUser.uid,
+            userName: window.currentUserData.displayName,
+            userEmail: window.currentUserData.email
+        };
+        
+        // Add to user's login history
+        await db.ref(`users/${window.currentUser.uid}/loginHistory`).push(event);
+        
+        // Also add to global login history (for admin tracking)
+        await db.ref(`loginHistory`).push(event);
+    } catch (error) {
+        console.warn('Could not record login event:', error);
+    }
 }
 
 /**
@@ -147,6 +163,11 @@ function updateUserAvatar(imageUrl) {
  * Open profile modal
  */
 async function openProfileModal() {
+    if (!window.currentUser || !window.currentUserData) {
+        alert('User data not loaded');
+        return;
+    }
+    
     const content = document.getElementById('profileModalContent');
     
     // Get login history
@@ -185,7 +206,7 @@ async function openProfileModal() {
             <p><strong>Technician Name:</strong> ${window.currentUserData.technicianName || 'N/A'}</p>
             <p><strong>Status:</strong> <span style="color:green;">${window.currentUserData.status}</span></p>
             <p><strong>Created:</strong> ${utils.formatDate(window.currentUserData.createdAt)}</p>
-            <p><strong>Last Login:</strong> ${utils.formatDateTime(window.currentUserData.lastLogin)}</p>
+            <p><strong>Last Login:</strong> ${utils.formatDateTime(window.currentUserData.lastLogin || new Date().toISOString())}</p>
         </div>
         
         <div class="profile-section">
@@ -241,26 +262,38 @@ function closeProfileModal() {
 
 /**
  * Initialize auth state listener
+ * NOTE: This handles page refreshes and persistent sessions
+ * But we DON'T call initializeApp here to avoid double initialization
  */
 auth.onAuthStateChanged(async (user) => {
-    if (user) {
+    console.log('🔄 Auth state changed:', user ? 'logged in' : 'logged out');
+    
+    if (user && !appInitialized) {
         window.currentUser = user;
         const snapshot = await db.ref(`users/${user.uid}`).once('value');
         window.currentUserData = snapshot.val();
+        
+        console.log('📊 User data from state change:', window.currentUserData);
         
         if (window.currentUserData && window.currentUserData.status === 'active') {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('app').style.display = 'block';
             
-            if (window.initializeApp) {
-                window.initializeApp();
+            // Initialize app only if not already initialized
+            if (!appInitialized && window.initializeApp) {
+                appInitialized = true;
+                console.log('🚀 Initializing app from auth state...');
+                await window.initializeApp();
             }
-        } else {
+        } else if (window.currentUserData && window.currentUserData.status !== 'active') {
+            console.warn('⚠️ User account is not active');
             auth.signOut();
         }
-    } else {
+    } else if (!user) {
+        console.log('👋 No user logged in');
         document.getElementById('loginScreen').style.display = 'flex';
         document.getElementById('app').style.display = 'none';
+        appInitialized = false;
     }
 });
 
