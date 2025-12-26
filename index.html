@@ -1,0 +1,2232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fonekingdom Repair Management System v2.0</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5568d3;
+            --success: #4caf50;
+            --danger: #f44336;
+            --warning: #ff9800;
+            --info: #2196f3;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        .auth-section {
+            background: white;
+            border-radius: 10px;
+            padding: 40px;
+            max-width: 500px;
+            margin: 100px auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+        
+        .auth-section h2 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .logo { text-align: center; font-size: 48px; margin-bottom: 20px; }
+        
+        .header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .user-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .user-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        
+        .badge-admin { background: #e3f2fd; color: #1976d2; }
+        .badge-manager { background: #fff3e0; color: #f57c00; }
+        .badge-technician { background: #e8f5e9; color: #388e3c; }
+        .badge-cashier { background: #f3e5f5; color: #7b1fa2; }
+        
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        button, .btn {
+            background: var(--primary);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        button:hover { background: var(--primary-dark); }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        
+        .btn-logout { background: var(--danger); }
+        .btn-success { background: var(--success); }
+        .btn-warning { background: var(--warning); }
+        .btn-danger { background: var(--danger); }
+        .btn-small { padding: 8px 16px; font-size: 12px; }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .tab.active { background: var(--primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h3 { font-size: 36px; color: var(--primary); margin-bottom: 5px; }
+        
+        .repair-card {
+            background: #f5f5f5;
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        
+        .repair-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .status-received { background: #ffd54f; color: #000; }
+        .status-in-progress { background: #64b5f6; color: white; }
+        .status-completed { background: #81c784; color: white; }
+        .status-ready { background: #ba68c8; color: white; }
+        .status-picked-up { background: #90a4ae; color: white; }
+        
+        .payment-unpaid { background: #ffcdd2; color: #c62828; }
+        .payment-pending { background: #ffe082; color: #f57f17; }
+        .payment-verified { background: #c8e6c9; color: #2e7d32; }
+        
+        .alert {
+            padding: 12px 20px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 4px solid;
+        }
+        
+        .alert-error { background: #ffebee; color: #c62828; border-color: #c62828; }
+        .alert-success { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
+        .alert-info { background: #e3f2fd; color: #1976d2; border-color: #1976d2; }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover { color: #000; }
+        
+        .photo-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .photo-item {
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .photo-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .hidden { display: none !important; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { margin-bottom: 15px; }
+        
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Setup Section -->
+<div id="setupSection" class="auth-section hidden">
+    <div class="logo">🔧</div>
+    <h2>First Time Setup</h2>
+    <p style="text-align: center; color: #666; margin-bottom: 30px;">Create your admin account</p>
+    <div id="setupAlert"></div>
+    <div class="form-group">
+        <label>Your Full Name *</label>
+        <input type="text" id="setupName" placeholder="Juan Reyes">
+    </div>
+    <div class="form-group">
+        <label>Email *</label>
+        <input type="email" id="setupEmail" placeholder="owner@fonekingdom.com">
+    </div>
+    <div class="form-group">
+        <label>Password * (min 8 characters)</label>
+        <input type="password" id="setupPassword" minlength="8">
+    </div>
+    <button onclick="initializeSystem()" style="width: 100%;">
+        🚀 Initialize System
+    </button>
+</div>
+
+<!-- Login Section -->
+<div id="loginSection" class="auth-section hidden">
+    <div class="logo">🔧</div>
+    <h2>Fonekingdom Repair Management</h2>
+    <p style="text-align: center; color: #666; margin-bottom: 30px;">Sign in to continue</p>
+    <div id="loginAlert"></div>
+    <input type="email" id="loginEmail" placeholder="Email">
+    <input type="password" id="loginPassword" placeholder="Password">
+    <button onclick="handleLogin()" style="width: 100%;">Sign In</button>
+</div>
+
+<!-- Main App -->
+<div id="appSection" class="container hidden">
+    <div class="header">
+        <h1>🔧 Fonekingdom Repair Management</h1>
+        <div class="user-info">
+            <div>
+                <span>Welcome, <strong id="userName"></strong></span>
+                <span id="userRole" class="user-badge"></span>
+            </div>
+            <button class="btn-logout" onclick="handleLogout()">Logout</button>
+        </div>
+    </div>
+
+    <div id="statsSection" class="stats"></div>
+    <div class="tabs" id="mainTabs"></div>
+    <div id="tabContents"></div>
+</div>
+
+<!-- Modals -->
+<div id="photoModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closePhotoModal()">&times;</span>
+        <img id="modalPhoto" style="width: 100%; border-radius: 8px;">
+    </div>
+</div>
+
+<div id="userModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeUserModal()">&times;</span>
+        <h3 id="userModalTitle">Add User</h3>
+        <div id="userModalContent"></div>
+    </div>
+</div>
+
+<div id="paymentModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closePaymentModal()">&times;</span>
+        <h3>Record Payment</h3>
+        <div id="paymentModalContent"></div>
+    </div>
+</div>
+
+<div id="statusModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeStatusModal()">&times;</span>
+        <h3>Update Status</h3>
+        <div id="statusModalContent"></div>
+    </div>
+</div>
+
+<div id="additionalRepairModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeAdditionalRepairModal()">&times;</span>
+        <h3>Add Additional Repair</h3>
+        <div id="additionalRepairModalContent"></div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<script>
+// REPLACE WITH YOUR FIREBASE CONFIG
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY_HERE",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+
+let currentUser = null;
+let currentUserData = null;
+let allRepairs = [];
+let allUsers = [];
+
+// Role permissions
+const PERMISSIONS = {
+    admin: {
+        canCreateUsers: true,
+        canViewAllRepairs: true,
+        canDeleteRepairs: true,
+        canProcessRefunds: true,
+        canViewFinancials: true,
+        canEditAnyRepair: true
+    },
+    manager: {
+        canCreateUsers: false,
+        canViewAllRepairs: true,
+        canDeleteRepairs: false,
+        canProcessRefunds: true,
+        canViewFinancials: true,
+        canEditAnyRepair: true
+    },
+    technician: {
+        canCreateUsers: false,
+        canViewAllRepairs: false,
+        canDeleteRepairs: false,
+        canProcessRefunds: false,
+        canViewFinancials: false,
+        canEditAnyRepair: false
+    },
+    cashier: {
+        canCreateUsers: false,
+        canViewAllRepairs: true,
+        canDeleteRepairs: false,
+        canProcessRefunds: false,
+        canViewFinancials: false,
+        canEditAnyRepair: false
+    }
+};
+
+// Initialize
+auth.onAuthStateChanged(async user => {
+    if (user) {
+        currentUser = user;
+        await loadUserData();
+        await checkIfSystemInitialized();
+    } else {
+        await checkIfSystemInitialized();
+    }
+});
+
+async function checkIfSystemInitialized() {
+    const snap = await db.ref('systemInitialized').once('value');
+    if (!snap.val() && !currentUser) {
+        showSetupScreen();
+    } else if (!currentUser) {
+        showLoginScreen();
+    } else {
+        await loadAppData();
+        showMainApp();
+    }
+}
+
+function showSetupScreen() {
+    document.getElementById('setupSection').classList.remove('hidden');
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('appSection').classList.add('hidden');
+}
+
+function showLoginScreen() {
+    document.getElementById('setupSection').classList.add('hidden');
+    document.getElementById('loginSection').classList.remove('hidden');
+    document.getElementById('appSection').classList.add('hidden');
+}
+
+function showMainApp() {
+    document.getElementById('setupSection').classList.add('hidden');
+    document.getElementById('loginSection').classList.add('hidden');
+    document.getElementById('appSection').classList.remove('hidden');
+    buildInterface();
+}
+
+async function initializeSystem() {
+    const name = document.getElementById('setupName').value;
+    const email = document.getElementById('setupEmail').value;
+    const password = document.getElementById('setupPassword').value;
+    const alert = document.getElementById('setupAlert');
+    
+    if (!name || !email || !password) {
+        alert.innerHTML = '<div class="alert alert-error">Please fill all fields</div>';
+        return;
+    }
+    
+    if (password.length < 8) {
+        alert.innerHTML = '<div class="alert alert-error">Password must be at least 8 characters</div>';
+        return;
+    }
+    
+    try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = userCredential.user.uid;
+        
+        await db.ref(`users/${uid}`).set({
+            displayName: name,
+            email: email,
+            role: 'admin',
+            technicianName: 'Owner',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: uid
+        });
+        
+        await db.ref('systemInitialized').set(true);
+        
+        alert.innerHTML = '<div class="alert alert-success">System initialized! Loading...</div>';
+        setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+        alert.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+    }
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const alert = document.getElementById('loginAlert');
+    
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+    } catch (error) {
+        alert.innerHTML = `<div class="alert alert-error">${error.message}</div>`;
+    }
+}
+
+function handleLogout() {
+    auth.signOut().then(() => {
+        currentUser = null;
+        currentUserData = null;
+        allRepairs = [];
+        allUsers = [];
+        window.location.reload();
+    });
+}
+
+async function loadUserData() {
+    const snap = await db.ref(`users/${currentUser.uid}`).once('value');
+    currentUserData = snap.val();
+    
+    if (!currentUserData) {
+        alert('Your account has been deleted. Contact administrator.');
+        auth.signOut();
+        return;
+    }
+    
+    if (currentUserData.status !== 'active') {
+        alert('Your account has been deactivated. Contact administrator.');
+        auth.signOut();
+        return;
+    }
+    
+    await db.ref(`users/${currentUser.uid}/lastLogin`).set(new Date().toISOString());
+}
+
+async function loadAppData() {
+    // Load repairs
+    db.ref('repairs').on('value', snap => {
+        allRepairs = [];
+        snap.forEach(child => {
+            allRepairs.push({ id: child.key, ...child.val() });
+        });
+        allRepairs.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        updateStats();
+        if (window.currentTabRefresh) window.currentTabRefresh();
+    });
+    
+    // Load users (if admin)
+    if (currentUserData.role === 'admin') {
+        db.ref('users').on('value', snap => {
+            allUsers = [];
+            snap.forEach(child => {
+                allUsers.push({ id: child.key, ...child.val() });
+            });
+        });
+    }
+}
+
+function buildInterface() {
+    document.getElementById('userName').textContent = currentUserData.displayName;
+    const roleSpan = document.getElementById('userRole');
+    roleSpan.textContent = currentUserData.role.toUpperCase();
+    roleSpan.className = `user-badge badge-${currentUserData.role}`;
+    
+    buildTabs();
+    buildStats();
+}
+
+function buildTabs() {
+    const tabsContainer = document.getElementById('mainTabs');
+    const contentsContainer = document.getElementById('tabContents');
+    const role = currentUserData.role;
+    
+    const tabs = [];
+    
+    // Define tabs based on role
+    if (role === 'admin' || role === 'manager' || role === 'technician') {
+        tabs.push({ id: 'new', label: '➕ New Repair', build: buildNewRepairTab });
+    }
+    
+    if (role === 'admin' || role === 'manager' || role === 'cashier') {
+        tabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
+    }
+    
+    if (role === 'technician') {
+        tabs.push({ id: 'my', label: '🔧 My Repairs', build: buildMyRepairsTab });
+        tabs.push({ id: 'assigned', label: '📤 Assigned to Others', build: buildAssignedToOthersTab });
+    }
+    
+    if (role === 'admin' || role === 'manager' || role === 'cashier') {
+        tabs.push({ id: 'verify', label: '✅ Verify Payments', build: buildVerifyTab });
+    }
+    
+    if (role === 'admin' || role === 'manager' || role === 'cashier') {
+        tabs.push({ id: 'cash', label: '💰 Cash Report', build: buildCashReportTab });
+    }
+    
+    if (role === 'admin') {
+        tabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
+        tabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
+    }
+    
+    // Build tabs
+    tabsContainer.innerHTML = '';
+    contentsContainer.innerHTML = '';
+    
+    tabs.forEach((tab, index) => {
+        const tabEl = document.createElement('div');
+        tabEl.className = 'tab' + (index === 0 ? ' active' : '');
+        tabEl.textContent = tab.label;
+        tabEl.onclick = () => switchTab(tab.id);
+        tabsContainer.appendChild(tabEl);
+        
+        const contentEl = document.createElement('div');
+        contentEl.id = `${tab.id}Tab`;
+        contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
+        tab.build(contentEl);
+        contentsContainer.appendChild(contentEl);
+    });
+}
+
+function switchTab(tabId) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(`${tabId}Tab`).classList.add('active');
+}
+
+function buildStats() {
+    const today = new Date().toDateString();
+    
+    // Filter repairs based on role
+    let userRepairs = allRepairs;
+    if (currentUserData.role === 'technician') {
+        // Show only repairs assigned to this tech (their actual workload)
+        userRepairs = allRepairs.filter(r => r.assignedTo === currentUserData.technicianName);
+    }
+    
+    const inProgress = userRepairs.filter(r => r.status === 'In Progress' || r.status === 'Received').length;
+    const todayRevenue = userRepairs
+        .filter(r => r.payments && r.payments.some(p => new Date(p.date).toDateString() === today && p.verified))
+        .reduce((sum, r) => sum + r.payments.filter(p => new Date(p.date).toDateString() === today && p.verified).reduce((s, p) => s + p.amount, 0), 0);
+    const pending = userRepairs.filter(r => r.payments && r.payments.some(p => !p.verified)).length;
+    
+    const statsLabels = currentUserData.role === 'technician' 
+        ? ['My Workload', 'In Progress', 'My Revenue', 'Pending Verify']
+        : ['Total Repairs', 'In Progress', "Today's Revenue", 'Pending Verify'];
+    
+    document.getElementById('statsSection').innerHTML = `
+        <div class="stat-card"><h3>${userRepairs.length}</h3><p>${statsLabels[0]}</p></div>
+        <div class="stat-card"><h3>${inProgress}</h3><p>${statsLabels[1]}</p></div>
+        <div class="stat-card"><h3>₱${todayRevenue.toFixed(0)}</h3><p>${statsLabels[2]}</p></div>
+        <div class="stat-card"><h3>${pending}</h3><p>${statsLabels[3]}</p></div>
+    `;
+}
+
+function updateStats() {
+    buildStats();
+}
+
+// New Repair Tab
+function buildNewRepairTab(container) {
+    container.innerHTML = `
+        <div class="card">
+            <h3>Create New Repair</h3>
+            <form id="newRepairForm" onsubmit="submitRepair(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Customer Type *</label>
+                        <select name="customerType" required>
+                            <option value="Walk-in">Walk-in</option>
+                            <option value="Dealer">Dealer / Other Shop</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Customer Name *</label>
+                        <input type="text" name="customerName" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Contact Number *</label>
+                        <input type="tel" name="contactNumber" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Shop Name (if Dealer)</label>
+                        <input type="text" name="shopName" placeholder="Leave blank for walk-in">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Brand *</label>
+                        <input type="text" name="brand" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Model *</label>
+                        <input type="text" name="model" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Problem Description *</label>
+                    <textarea name="problem" rows="3" required></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Repair Type *</label>
+                        <select name="repairType" id="repairTypeSelect" onchange="toggleMicrosoldingFields()" required>
+                            <option value="">Select</option>
+                            <option>LCD Replacement</option>
+                            <option>Battery Replacement</option>
+                            <option>Charging Port</option>
+                            <option>Microsoldering</option>
+                            <option>Water Damage</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Assigned To *</label>
+                        <select name="assignedTo" required id="assignedToSelect">
+                            <option value="">Select Technician</option>
+                            <option value="Owner">Owner</option>
+                            <option value="Tech 1">Tech 1</option>
+                            <option value="Tech 2">Tech 2</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="microsoldingFields" style="display:none;">
+                    <h4 style="margin: 20px 0 10px; color: var(--primary);">Microsoldering Details</h4>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Device Condition *</label>
+                            <select name="deviceCondition" id="deviceCondition" onchange="toggleServiceFeeInfo()">
+                                <option value="">Select Condition</option>
+                                <option value="Fresh">✅ Fresh (Never Opened)</option>
+                                <option value="Tampered">⚠️ Tampered (Previously Repaired)</option>
+                            </select>
+                            <small style="color:#666;display:block;margin-top:5px;">
+                                Fresh = No charge if unsuccessful<br>
+                                Tampered = Service fee applies even if unsuccessful
+                            </small>
+                        </div>
+                        <div class="form-group" id="deviceTierGroup" style="display:none;">
+                            <label>Device Tier (for service fee) *</label>
+                            <select name="deviceTier" id="deviceTier" onchange="updateServiceFeePreview()">
+                                <option value="">Select Tier</option>
+                                <option value="Entry Android">Entry Android (₱150-200)</option>
+                                <option value="Old iPhone">Old iPhone / Mid Android (₱200-300)</option>
+                                <option value="Latest Models">Latest iPhone / Flagship Android (₱300-500)</option>
+                            </select>
+                            <small id="serviceFeeNote" style="color:#ff6b6b;display:block;margin-top:5px;font-weight:bold;"></small>
+                        </div>
+                    </div>
+                </div>
+                <h4 style="margin: 20px 0 10px; color: var(--primary);">Parts Information</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Part Type *</label>
+                        <select name="partType" required>
+                            <option value="">Select Part</option>
+                            <option value="LCD">LCD / Display</option>
+                            <option value="Battery">Battery</option>
+                            <option value="Flex">Flex Cable</option>
+                            <option value="Charging Port">Charging Port</option>
+                            <option value="Camera">Camera Module</option>
+                            <option value="Speaker">Speaker</option>
+                            <option value="Microphone">Microphone</option>
+                            <option value="Back Cover">Back Cover / Housing</option>
+                            <option value="Board">Board / IC</option>
+                            <option value="Multiple Parts">Multiple Parts</option>
+                            <option value="No Parts">No Parts Needed</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Parts Source *</label>
+                        <select name="partSource" id="partSourceSelect" onchange="toggleSupplierPrice()" required>
+                            <option value="">Select Source</option>
+                            <option value="Shop Stock">🏪 Shop Stock</option>
+                            <option value="Guimba">📦 Guimba</option>
+                            <option value="Ate Sheng">📦 Ate Sheng</option>
+                            <option value="Lawrence">📦 Lawrence</option>
+                            <option value="Jhay">📦 Jhay</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Parts Cost (₱) *</label>
+                        <input type="number" name="partsCost" id="partsCostInput" min="0" step="0.01" value="0" required>
+                        <small id="supplierNote" style="color: #666; display: none;">💡 Price from supplier</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Labor Cost (₱) *</label>
+                        <input type="number" name="laborCost" min="0" step="0.01" value="0" required>
+                    </div>
+                </div>
+                <h4 style="margin: 20px 0 10px; color: var(--primary);">Device Photos (Optional - up to 3)</h4>
+                <div id="photoUpload">
+                    <input type="file" id="photo1" accept="image/*" onchange="previewPhoto(this, 'preview1')">
+                    <div id="preview1" class="photo-gallery" style="display:none;"></div>
+                    <input type="file" id="photo2" accept="image/*" onchange="previewPhoto(this, 'preview2')" style="display:none;">
+                    <div id="preview2" class="photo-gallery" style="display:none;"></div>
+                    <input type="file" id="photo3" accept="image/*" onchange="previewPhoto(this, 'preview3')" style="display:none;">
+                    <div id="preview3" class="photo-gallery" style="display:none;"></div>
+                </div>
+                <button type="submit" style="width: 100%; margin-top: 20px;">💾 Save Repair</button>
+            </form>
+        </div>
+    `;
+    
+    // Add additional users from database if available
+    setTimeout(() => {
+        const techSelect = document.getElementById('assignedToSelect');
+        if (techSelect && allUsers && allUsers.length > 0) {
+            // Get existing options
+            const existingOptions = Array.from(techSelect.options).map(opt => opt.value);
+            
+            // Add users who aren't already in the list
+            allUsers.forEach(u => {
+                if ((u.role === 'technician' || u.role === 'admin') && u.technicianName) {
+                    if (!existingOptions.includes(u.technicianName)) {
+                        const opt = document.createElement('option');
+                        opt.value = u.technicianName;
+                        opt.textContent = u.technicianName;
+                        techSelect.appendChild(opt);
+                    }
+                }
+            });
+        }
+    }, 100);
+}
+
+let photoData = [];
+
+function toggleMicrosoldingFields() {
+    const repairType = document.getElementById('repairTypeSelect').value;
+    const microsoldingFields = document.getElementById('microsoldingFields');
+    
+    if (repairType === 'Microsoldering') {
+        microsoldingFields.style.display = 'block';
+    } else {
+        microsoldingFields.style.display = 'none';
+    }
+}
+
+function toggleServiceFeeInfo() {
+    const condition = document.getElementById('deviceCondition').value;
+    const tierGroup = document.getElementById('deviceTierGroup');
+    
+    if (condition === 'Tampered') {
+        tierGroup.style.display = 'block';
+    } else {
+        tierGroup.style.display = 'none';
+    }
+}
+
+function updateServiceFeePreview() {
+    const tier = document.getElementById('deviceTier').value;
+    const note = document.getElementById('serviceFeeNote');
+    
+    const serviceFees = {
+        'Entry Android': '₱150-200',
+        'Old iPhone': '₱200-300',
+        'Latest Models': '₱300-500'
+    };
+    
+    if (tier) {
+        note.textContent = '⚠️ Service fee ' + serviceFees[tier] + ' applies if repair unsuccessful';
+        note.style.display = 'block';
+    } else {
+        note.style.display = 'none';
+    }
+}
+
+function toggleSupplierPrice() {
+    const source = document.getElementById('partSourceSelect');
+    const note = document.getElementById('supplierNote');
+    if (source && note) {
+        if (source.value && source.value !== 'Shop Stock') {
+            note.style.display = 'block';
+        } else {
+            note.style.display = 'none';
+        }
+    }
+}
+
+function previewPhoto(input, previewId) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 800;
+            
+            if (width > height && width > maxSize) {
+                height *= maxSize / width;
+                width = maxSize;
+            } else if (height > maxSize) {
+                width *= maxSize / height;
+                height = maxSize;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            const compressed = canvas.toDataURL('image/jpeg', 0.7);
+            photoData.push({ data: compressed, timestamp: new Date().toISOString() });
+            
+            const previewDiv = document.getElementById(previewId);
+            previewDiv.innerHTML = '<div class="photo-item"><img src="' + compressed + '"></div>';
+            previewDiv.style.display = 'grid';
+            
+            if (photoData.length === 1) document.getElementById('photo2').style.display = 'block';
+            if (photoData.length === 2) document.getElementById('photo3').style.display = 'block';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function submitRepair(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    
+    const repair = {
+        customerType: data.get('customerType'),
+        customerName: data.get('customerName'),
+        shopName: data.get('shopName') || '',
+        contactNumber: data.get('contactNumber'),
+        brand: data.get('brand'),
+        model: data.get('model'),
+        problem: data.get('problem'),
+        repairType: data.get('repairType'),
+        partType: data.get('partType'),
+        partSource: data.get('partSource'),
+        assignedTo: data.get('assignedTo'),
+        partsCost: parseFloat(data.get('partsCost')),
+        laborCost: parseFloat(data.get('laborCost')),
+        total: parseFloat(data.get('partsCost')) + parseFloat(data.get('laborCost')),
+        status: 'Received',
+        photos: photoData,
+        payments: [],
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser.uid,
+        createdByName: currentUserData.displayName
+    };
+    
+    // Add microsoldering specific fields if applicable
+    if (data.get('repairType') === 'Microsoldering') {
+        repair.deviceCondition = data.get('deviceCondition') || '';
+        repair.deviceTier = data.get('deviceTier') || '';
+        repair.isMicrosoldering = true;
+    }
+    
+    try {
+        await db.ref('repairs').push(repair);
+        alert('✅ Repair saved!');
+        form.reset();
+        photoData = [];
+        document.querySelectorAll('[id^="preview"]').forEach(el => {
+            el.innerHTML = '';
+            el.style.display = 'none';
+        });
+        document.getElementById('photo2').style.display = 'none';
+        document.getElementById('photo3').style.display = 'none';
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+// All Repairs Tab
+function buildAllRepairsTab(container) {
+    window.currentTabRefresh = () => {
+        buildAllRepairsTab(document.getElementById('allTab'));
+    };
+    
+    const repairs = currentUserData.role === 'technician' 
+        ? allRepairs.filter(r => r.assignedTo === currentUserData.technicianName)
+        : allRepairs;
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>All Repairs</h3>
+            <input type="text" placeholder="🔍 Search..." onkeyup="filterAllRepairs(this.value)" style="margin-bottom: 15px;">
+            <div id="allRepairsList"></div>
+        </div>
+    `;
+    
+    const listContainer = document.getElementById('allRepairsList');
+    if (listContainer) {
+        displayRepairsInContainer(repairs, listContainer);
+    }
+}
+
+function filterAllRepairs(query) {
+    const repairs = currentUserData.role === 'technician' 
+        ? allRepairs.filter(r => r.assignedTo === currentUserData.technicianName)
+        : allRepairs;
+        
+    const filtered = repairs.filter(r => 
+        r.customerName.toLowerCase().includes(query.toLowerCase()) ||
+        r.contactNumber.includes(query) ||
+        r.brand.toLowerCase().includes(query.toLowerCase()) ||
+        r.model.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    const listContainer = document.getElementById('allRepairsList');
+    if (listContainer) {
+        displayRepairsInContainer(filtered, listContainer);
+    }
+}
+
+function buildMyRepairsTab(container) {
+    window.currentTabRefresh = () => {
+        buildMyRepairsTab(document.getElementById('myTab'));
+    };
+    
+    // Show only repairs assigned TO this tech
+    const myRepairs = allRepairs.filter(r => {
+        return r.assignedTo === currentUserData.technicianName;
+    });
+    
+    // Debug info visible on page
+    let debugInfo = `
+        <div style="background:#fffacd;padding:10px;margin-bottom:15px;border:2px solid #ffd700;border-radius:5px;">
+            <strong>🔍 DEBUG INFO:</strong><br>
+            Your technicianName: <code>${currentUserData.technicianName}</code><br>
+            Total repairs in system: ${allRepairs.length}<br>
+            Repairs assigned to you: ${myRepairs.length}<br>
+            Your UID: <code>${currentUser.uid.substring(0,10)}...</code>
+        </div>
+    `;
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>My Repairs (${myRepairs.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Repairs assigned to you to work on</p>
+            ${debugInfo}
+            <div id="myRepairsList"></div>
+        </div>
+    `;
+    
+    // Display in THIS tab's container
+    const listContainer = document.getElementById('myRepairsList');
+    if (!listContainer) return;
+    if (!myRepairs.length) {
+        listContainer.innerHTML = '<p style="text-align:center;color:#666;">No repairs assigned to you</p>';
+        return;
+    }
+    displayRepairsInContainer(myRepairs, listContainer);
+}
+
+// Assigned to Others Tab (Technician only)
+function buildAssignedToOthersTab(container) {
+    window.currentTabRefresh = () => {
+        buildAssignedToOthersTab(document.getElementById('assignedTab'));
+    };
+    
+    // Show repairs created by this tech but assigned to someone else
+    const assignedToOthers = allRepairs.filter(r => {
+        const createdByMe = r.createdBy === currentUser.uid;
+        const notAssignedToMe = r.assignedTo !== currentUserData.technicianName;
+        return createdByMe && notAssignedToMe;
+    });
+    
+    // Build debug table
+    let debugTable = '<table style="width:100%;font-size:12px;background:white;margin:10px 0;" border="1" cellpadding="5"><tr><th>Customer</th><th>Assigned To</th><th>Created By Me?</th><th>Not Assigned To Me?</th><th>Show?</th></tr>';
+    
+    allRepairs.filter(r => r.createdBy === currentUser.uid).forEach(r => {
+        const createdByMe = r.createdBy === currentUser.uid;
+        const notAssignedToMe = r.assignedTo !== currentUserData.technicianName;
+        const shouldShow = createdByMe && notAssignedToMe;
+        
+        debugTable += `<tr style="background:${shouldShow ? '#e8f5e9' : '#ffebee'}">
+            <td>${r.customerName}</td>
+            <td><code>${r.assignedTo}</code></td>
+            <td>${createdByMe ? '✅' : '❌'}</td>
+            <td>${notAssignedToMe ? '✅' : '❌'} (my name: <code>${currentUserData.technicianName}</code>)</td>
+            <td><strong>${shouldShow ? '✅ YES' : '❌ NO'}</strong></td>
+        </tr>`;
+    });
+    
+    debugTable += '</table>';
+    
+    let debugInfo = `
+        <div style="background:#fffacd;padding:10px;margin-bottom:15px;border:2px solid #ffd700;border-radius:5px;">
+            <strong>🔍 DEBUG INFO:</strong><br>
+            Your technicianName: <code>${currentUserData.technicianName}</code><br>
+            Your UID: <code>${currentUser.uid.substring(0,10)}...</code><br>
+            Total repairs you created: ${allRepairs.filter(r => r.createdBy === currentUser.uid).length}<br>
+            Should show here: ${assignedToOthers.length}<br><br>
+            <details>
+                <summary>Click to see detailed breakdown</summary>
+                ${debugTable}
+            </details>
+        </div>
+    `;
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>📤 Assigned to Others (${assignedToOthers.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Repairs you created and assigned to other technicians</p>
+            ${debugInfo}
+            <div id="assignedRepairsList"></div>
+        </div>
+    `;
+    
+    // Display in THIS tab's container
+    const listContainer = document.getElementById('assignedRepairsList');
+    if (!listContainer) return;
+    if (!assignedToOthers.length) {
+        listContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No repairs found based on filter criteria.</p>';
+        return;
+    }
+    displayRepairsInContainer(assignedToOthers, listContainer);
+}
+
+// New helper function to display repairs in a specific container
+function displayRepairsInContainer(repairs, container) {
+    const role = currentUserData.role;
+    const hidePayments = role === 'technician';
+    
+    container.innerHTML = repairs.map(r => {
+        const totalPaid = r.payments ? r.payments.reduce((sum, p) => sum + p.amount, 0) : 0;
+        const balance = r.total - totalPaid;
+        const statusClass = r.status.toLowerCase().replace(/ /g, '-');
+        
+        let paymentStatus = 'unpaid';
+        if (r.payments && r.payments.length > 0) {
+            const hasUnverified = r.payments.some(p => !p.verified);
+            if (hasUnverified) paymentStatus = 'pending';
+            else if (balance === 0) paymentStatus = 'verified';
+            else paymentStatus = 'pending';
+        }
+        
+        return `
+            <div class="repair-card">
+                <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
+                <span class="status-badge status-${statusClass}">${r.status}</span>
+                ${!hidePayments ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending Verification' : 'Verified'}</span>` : ''}
+                ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
+                ${r.status === 'RTO' && r.rto ? '<span class="status-badge" style="background:#ff5722;color:white;">⚠️ RTO</span>' : ''}
+                
+                <div class="repair-info">
+                    <div><strong>Type:</strong> ${r.customerType}</div>
+                    <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                    <div><strong>Repair:</strong> ${r.repairType}</div>
+                    ${r.isMicrosoldering || r.repairType === 'Microsoldering' ? `
+                        <div><strong>Condition:</strong> ${r.deviceCondition === 'Fresh' ? '✅ Fresh' : '⚠️ Tampered'}</div>
+                        ${r.deviceCondition === 'Tampered' && r.deviceTier ? `<div><strong>Tier:</strong> ${r.deviceTier}</div>` : ''}
+                    ` : ''}
+                    <div><strong>Part:</strong> ${r.partType || 'N/A'}</div>
+                    <div><strong>Source:</strong> ${r.partSource || 'N/A'}</div>
+                    <div><strong>Assigned:</strong> ${r.assignedTo}</div>
+                    ${role === 'technician' && r.createdByName ? `<div><strong>Created by:</strong> ${r.createdByName}</div>` : ''}
+                    ${!hidePayments ? `
+                        <div><strong>Total:</strong> ₱${r.total.toFixed(2)}${r.serviceFee ? ' <span style="color:#f44336;">(Service Fee)</span>' : ''}</div>
+                        <div><strong>Paid:</strong> ₱${totalPaid.toFixed(2)}</div>
+                        <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'}">₱${balance.toFixed(2)}</span></div>
+                    ` : '<div><strong>Amount:</strong> ***</div>'}
+                </div>
+                
+                <div><strong>Problem:</strong> ${r.problem}</div>
+                
+                ${r.status === 'Unsuccessful' && r.unsuccessfulReason ? `
+                    <div style="margin-top:15px;padding:15px;background:#ffebee;border-left:4px solid #f44336;border-radius:5px;">
+                        <h4 style="margin:0 0 10px 0;color:#c62828;">❌ Repair Unsuccessful</h4>
+                        <p>${r.unsuccessfulReason}</p>
+                        ${r.serviceFee ? `<p style="font-weight:bold;">Service Fee: ₱${r.serviceFee.toFixed(2)}</p>` : '<p style="color:green;font-weight:bold;">No charge - Fresh device</p>'}
+                    </div>
+                ` : ''}
+                ${r.status === 'RTO' && r.rto ? `
+                    <div style="margin-top:15px;padding:15px;background:#ffebee;border-left:4px solid #f44336;border-radius:5px;">
+                        <h4 style="margin:0 0 10px 0;color:#c62828;">🚫 RTO - Return to Owner</h4>
+                        <p><strong>Reason:</strong> ${r.rto.reason}</p>
+                        <p style="font-size:12px;color:#666;">By ${r.rto.by} on ${new Date(r.rto.date).toLocaleDateString()}</p>
+                    </div>
+                ` : ''}
+                
+                ${r.additionalRepairs && r.additionalRepairs.length > 0 ? `
+                    <div style="margin-top:15px;padding:15px;background:#e3f2fd;border-left:4px solid #2196f3;border-radius:5px;">
+                        <h4 style="margin:0 0 10px 0;color:#1976d2;">➕ Additional Repairs (${r.additionalRepairs.length})</h4>
+                        ${r.additionalRepairs.map((add, idx) => `
+                            <div style="padding:10px;margin:5px 0;background:white;border-radius:3px;">
+                                <strong>${idx + 1}. ${add.problem}</strong><br>
+                                <small>
+                                    Part: ${add.partType} | Source: ${add.partSource}<br>
+                                    Parts: ₱${add.partsCost.toFixed(2)} | Labor: ₱${add.laborCost.toFixed(2)} | <strong>Total: ₱${add.total.toFixed(2)}</strong><br>
+                                    Added by ${add.addedBy} on ${new Date(add.addedAt).toLocaleDateString()}
+                                </small>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                ${r.payments && r.payments.length > 0 && !hidePayments ? `
+                    <div style="margin-top:15px;padding:15px;background:white;border-radius:5px;border:2px solid #e0e0e0;">
+                        <h4 style="margin:0 0 10px 0;color:var(--primary);">💰 Payment History</h4>
+                        ${r.payments.map((p, idx) => {
+                            const pDate = new Date(p.date);
+                            const isVerified = p.verified;
+                            return `
+                                <div style="padding:10px;margin:5px 0;background:${isVerified ? '#e8f5e9' : '#fff9c4'};border-left:3px solid ${isVerified ? 'green' : 'orange'};border-radius:3px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                                        <div>
+                                            <strong>Payment ${idx + 1}:</strong> ₱${p.amount.toFixed(2)} (${p.method})
+                                            ${isVerified ? '<span style="color:green;margin-left:10px;">✅ Verified</span>' : '<span style="color:orange;margin-left:10px;">⏳ Pending</span>'}
+                                        </div>
+                                    </div>
+                                    <div style="font-size:12px;color:#666;margin-top:5px;">
+                                        <div>Collected by: ${p.collectedBy || p.markedByName}</div>
+                                        <div>Date: ${pDate.toLocaleDateString()} ${pDate.toLocaleTimeString()}</div>
+                                        ${isVerified ? '<div>Verified by: ' + p.verifiedByName + ' on ' + new Date(p.verifiedAt).toLocaleDateString() + '</div>' : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                        <div style="margin-top:10px;padding-top:10px;border-top:2px solid #ddd;font-weight:bold;">
+                            Total Paid: ₱${totalPaid.toFixed(2)} / ₱${r.total.toFixed(2)}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${r.photos && r.photos.length > 0 ? `
+                    <div class="photo-gallery">
+                        ${r.photos.map((p, i) => '<div class="photo-item" onclick="viewPhoto(\'' + p.data + '\')"><img src="' + p.data + '"></div>').join('')}
+                    </div>
+                ` : ''}
+                
+                <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                    ${!hidePayments && balance > 0 ? `<button class="btn-small btn-success" onclick="openPaymentModal('${r.id}')">💰 Record Payment</button>` : ''}
+                    ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')">📝 Update Status</button>` : ''}
+                    ${role === 'admin' || role === 'manager' ? `<button class="btn-small" style="background:#ff9800;" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional Repair</button>` : ''}
+                    ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function viewPhoto(data) {
+    document.getElementById('modalPhoto').src = data;
+    document.getElementById('photoModal').style.display = 'block';
+}
+
+function closePhotoModal() {
+    document.getElementById('photoModal').style.display = 'none';
+}
+
+function openPaymentModal(repairId) {
+    const repair = allRepairs.find(r => r.id === repairId);
+    const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + p.amount, 0) : 0;
+    const balance = repair.total - totalPaid;
+    
+    const content = document.getElementById('paymentModalContent');
+    content.innerHTML = `
+        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Total:</span><span>₱${repair.total.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Paid:</span><span>₱${totalPaid.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:10px 0;font-weight:bold;font-size:18px;border-top:2px solid #ccc;padding-top:10px;">
+                <span>Balance:</span><span style="color:red;">₱${balance.toFixed(2)}</span>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Amount (₱)</label>
+            <input type="number" id="paymentAmount" max="${balance}" step="0.01" required>
+        </div>
+        <div class="form-group">
+            <label>Method</label>
+            <select id="paymentMethod">
+                <option>Cash</option>
+                <option>GCash</option>
+                <option>Bank Transfer</option>
+            </select>
+        </div>
+        <button onclick="recordPayment('${repairId}')" style="width:100%;">💾 Record Payment</button>
+    `;
+    
+    // Set value after HTML is created
+    setTimeout(() => {
+        document.getElementById('paymentAmount').value = balance;
+    }, 0);
+    
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+}
+
+async function recordPayment(repairId) {
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const method = document.getElementById('paymentMethod').value;
+    
+    if (!amount || amount <= 0) {
+        alert('Invalid amount');
+        return;
+    }
+    
+    const repair = allRepairs.find(r => r.id === repairId);
+    const payments = repair.payments || [];
+    
+    const payment = {
+        amount: amount,
+        method: method,
+        date: new Date().toISOString(),
+        collectedBy: currentUserData.displayName,
+        verified: currentUserData.role === 'cashier', // Auto-verify if cashier collects directly
+        markedBy: currentUser.uid,
+        markedByName: currentUserData.displayName
+    };
+    
+    payments.push(payment);
+    
+    await db.ref(`repairs/${repairId}/payments`).set(payments);
+    alert('✅ Payment recorded!');
+    closePaymentModal();
+}
+
+// Verify Payments Tab
+function buildVerifyTab(container) {
+    window.currentTabRefresh = () => buildVerifyTab(container);
+    
+    const pendingPayments = [];
+    allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach((payment, pIdx) => {
+                if (!payment.verified) {
+                    pendingPayments.push({ repair, payment, paymentIndex: pIdx });
+                }
+            });
+        }
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>Verify Payments</h3>
+            ${pendingPayments.length === 0 ? '<p style="text-align:center;color:#666;">No pending payments</p>' : ''}
+            <div id="pendingList">
+                ${pendingPayments.map(p => `
+                    <div style="background:#fff9c4;padding:15px;border-radius:8px;border-left:4px solid orange;margin-bottom:15px;">
+                        <h4>${p.repair.customerName} - ${p.repair.brand} ${p.repair.model}</h4>
+                        <p>Amount: <strong>₱${p.payment.amount.toFixed(2)}</strong> (${p.payment.method})</p>
+                        <p>Marked by: ${p.payment.markedByName} on ${new Date(p.payment.date).toLocaleString()}</p>
+                        <div style="margin-top:10px;display:flex;gap:10px;">
+                            <button class="btn-small btn-success" onclick="verifyPayment('${p.repair.id}', ${p.paymentIndex})">✅ Verify</button>
+                            <button class="btn-small btn-danger" onclick="rejectPayment('${p.repair.id}', ${p.paymentIndex})">❌ Reject</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+async function verifyPayment(repairId, paymentIndex) {
+    const repair = allRepairs.find(r => r.id === repairId);
+    repair.payments[paymentIndex].verified = true;
+    repair.payments[paymentIndex].verifiedBy = currentUser.uid;
+    repair.payments[paymentIndex].verifiedByName = currentUserData.displayName;
+    repair.payments[paymentIndex].verifiedAt = new Date().toISOString();
+    
+    await db.ref(`repairs/${repairId}/payments`).set(repair.payments);
+    alert('✅ Payment verified!');
+}
+
+async function rejectPayment(repairId, paymentIndex) {
+    const reason = prompt('Reason for rejection:');
+    if (!reason) return;
+    
+    const repair = allRepairs.find(r => r.id === repairId);
+    repair.payments.splice(paymentIndex, 1);
+    
+    await db.ref(`repairs/${repairId}/payments`).set(repair.payments);
+    alert('❌ Payment rejected');
+}
+
+// Cash Report Tab
+function buildCashReportTab(container) {
+    const today = new Date().toDateString();
+    const cashPayments = [];
+    
+    allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach(payment => {
+                if (payment.method === 'Cash' && payment.verified && new Date(payment.date).toDateString() === today) {
+                    cashPayments.push({ ...payment, repair });
+                }
+            });
+        }
+    });
+    
+    const byCollector = {};
+    cashPayments.forEach(p => {
+        if (!byCollector[p.collectedBy]) byCollector[p.collectedBy] = [];
+        byCollector[p.collectedBy].push(p);
+    });
+    
+    const total = cashPayments.reduce((sum, p) => sum + p.amount, 0);
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>Daily Cash Report - ${new Date().toLocaleDateString()}</h3>
+            
+            <div style="background:#f5f5f5;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h2 style="text-align:center;color:var(--primary);">Total Cash: ₱${total.toFixed(2)}</h2>
+                <p style="text-align:center;color:#666;">${cashPayments.length} transactions</p>
+            </div>
+            
+            ${Object.entries(byCollector).map(([collector, payments]) => `
+                <div style="background:white;padding:15px;border-left:4px solid var(--primary);margin-bottom:15px;border-radius:5px;">
+                    <h4>${collector}</h4>
+                    <p><strong>Transactions:</strong> ${payments.length}</p>
+                    <p><strong>Total:</strong> ₱${payments.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</p>
+                    <details style="margin-top:10px;">
+                        <summary>View details</summary>
+                        ${payments.map(p => `
+                            <div style="padding:5px 0;border-bottom:1px solid #eee;">
+                                ${p.repair.customerName} - ₱${p.amount.toFixed(2)}
+                            </div>
+                        `).join('')}
+                    </details>
+                </div>
+            `).join('')}
+            
+            <div style="margin-top:30px;padding:20px;background:#f9f9f9;border-radius:8px;">
+                <h4>📸 Cash Count Verification</h4>
+                <p style="margin:10px 0;">Take a photo of the counted cash for records:</p>
+                
+                <input type="file" id="cashPhotoInput" accept="image/*" capture="environment" style="margin:10px 0;">
+                <div id="cashPhotoPreview" style="display:none;margin:15px 0;">
+                    <img id="cashPhotoImg" style="max-width:100%;max-height:300px;border-radius:8px;border:2px solid #ddd;">
+                    <button onclick="removeCashPhoto()" class="btn-small btn-danger" style="margin-top:10px;">🗑️ Remove Photo</button>
+                </div>
+                
+                <div style="margin-top:20px;">
+                    <p><strong>Expected Cash:</strong> ₱${total.toFixed(2)}</p>
+                    <div style="display:flex;gap:10px;align-items:center;margin:10px 0;">
+                        <label style="min-width:100px;">Counted:</label>
+                        <input type="number" id="countedAmount" step="0.01" style="width:150px;" placeholder="₱">
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;margin:10px 0;">
+                        <label style="min-width:100px;">Variance:</label>
+                        <span id="varianceAmount" style="font-weight:bold;font-size:18px;">₱0.00</span>
+                    </div>
+                </div>
+                
+                <button onclick="saveCashReport(${total})" class="btn-success" style="width:100%;margin-top:20px;">
+                    💾 Save Cash Report
+                </button>
+                
+                <div style="margin-top:20px;padding-top:20px;border-top:2px solid #ddd;">
+                    <p>Counted by: _______________ Date: _______</p>
+                    <p>Verified by: _______________ Date: _______</p>
+                </div>
+            </div>
+            
+            <div id="savedReportsSection" style="margin-top:30px;">
+                <h4>📋 Previous Reports</h4>
+                <div id="savedReportsList"></div>
+            </div>
+        </div>
+    `;
+    
+    // Add event listeners
+    setTimeout(() => {
+        const photoInput = document.getElementById('cashPhotoInput');
+        if (photoInput) {
+            photoInput.onchange = function(e) {
+                handleCashPhoto(e.target.files[0]);
+            };
+        }
+        
+        const countedInput = document.getElementById('countedAmount');
+        if (countedInput) {
+            countedInput.oninput = function() {
+                const counted = parseFloat(this.value) || 0;
+                const variance = counted - total;
+                const varianceEl = document.getElementById('varianceAmount');
+                varianceEl.textContent = '₱' + variance.toFixed(2);
+                varianceEl.style.color = variance === 0 ? 'green' : (variance < 0 ? 'red' : 'orange');
+            };
+        }
+        
+        loadSavedCashReports();
+    }, 0);
+}
+
+let currentCashPhoto = null;
+
+function handleCashPhoto(file) {
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+            const maxSize = 1200;
+            
+            if (width > height && width > maxSize) {
+                height *= maxSize / width;
+                width = maxSize;
+            } else if (height > maxSize) {
+                width *= maxSize / height;
+                height = maxSize;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+            
+            currentCashPhoto = canvas.toDataURL('image/jpeg', 0.8);
+            
+            const preview = document.getElementById('cashPhotoPreview');
+            const imgEl = document.getElementById('cashPhotoImg');
+            imgEl.src = currentCashPhoto;
+            preview.style.display = 'block';
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function removeCashPhoto() {
+    currentCashPhoto = null;
+    document.getElementById('cashPhotoPreview').style.display = 'none';
+    document.getElementById('cashPhotoInput').value = '';
+}
+
+async function saveCashReport(expectedTotal) {
+    const counted = parseFloat(document.getElementById('countedAmount').value);
+    
+    if (!counted && counted !== 0) {
+        alert('Please enter counted amount');
+        return;
+    }
+    
+    if (!currentCashPhoto) {
+        alert('Please take a photo of the counted cash');
+        return;
+    }
+    
+    const variance = counted - expectedTotal;
+    
+    const report = {
+        date: new Date().toISOString(),
+        expectedTotal: expectedTotal,
+        countedTotal: counted,
+        variance: variance,
+        photo: currentCashPhoto,
+        verifiedBy: currentUserData.displayName,
+        verifiedById: currentUser.uid
+    };
+    
+    await db.ref('cashReports').push(report);
+    
+    alert('✅ Cash report saved with photo!');
+    currentCashPhoto = null;
+    buildCashReportTab(document.getElementById('cashTab'));
+}
+
+async function loadSavedCashReports() {
+    const today = new Date().toDateString();
+    const snapshot = await db.ref('cashReports').orderByChild('date').limitToLast(10).once('value');
+    const reports = [];
+    
+    snapshot.forEach(child => {
+        reports.unshift({ id: child.key, ...child.val() });
+    });
+    
+    const container = document.getElementById('savedReportsList');
+    if (!container) return;
+    
+    if (reports.length === 0) {
+        container.innerHTML = '<p style="color:#666;text-align:center;">No saved reports yet</p>';
+        return;
+    }
+    
+    container.innerHTML = reports.map(r => {
+        const reportDate = new Date(r.date);
+        const isToday = reportDate.toDateString() === today;
+        
+        return `
+            <div style="background:${isToday ? '#e8f5e9' : '#f5f5f5'};padding:15px;margin:10px 0;border-radius:8px;border-left:4px solid ${r.variance === 0 ? 'green' : 'orange'};">
+                <div style="display:flex;justify-content:space-between;align-items:start;">
+                    <div>
+                        <h4>${reportDate.toLocaleDateString()} ${reportDate.toLocaleTimeString()} ${isToday ? '🆕' : ''}</h4>
+                        <p><strong>Expected:</strong> ₱${r.expectedTotal.toFixed(2)}</p>
+                        <p><strong>Counted:</strong> ₱${r.countedTotal.toFixed(2)}</p>
+                        <p style="color:${r.variance === 0 ? 'green' : (r.variance < 0 ? 'red' : 'orange')};font-weight:bold;">
+                            <strong>Variance:</strong> ₱${r.variance.toFixed(2)}
+                        </p>
+                        <p style="font-size:12px;color:#666;">By: ${r.verifiedBy}</p>
+                    </div>
+                    <img src="${r.photo}" onclick="viewPhoto('${r.photo}')" style="width:120px;height:120px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid #ddd;">
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Users Tab (Admin only)
+function buildUsersTab(container) {
+    container.innerHTML = `
+        <div class="card">
+            <h3>User Management</h3>
+            <button onclick="openUserModal()" style="margin-bottom:20px;">➕ Add User</button>
+            <div id="usersList">
+                ${allUsers.map(u => `
+                    <div style="background:#f5f5f5;padding:20px;border-radius:8px;border-left:4px solid var(--primary);margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <h4>${u.displayName} <span class="user-badge badge-${u.role}">${u.role.toUpperCase()}</span></h4>
+                                <p style="color:#666;margin:5px 0;">📧 ${u.email}</p>
+                                <p style="color:#666;margin:5px 0;">Status: ${u.status}</p>
+                                ${u.lastLogin ? `<p style="color:#666;font-size:12px;">Last login: ${new Date(u.lastLogin).toLocaleString()}</p>` : ''}
+                            </div>
+                            <div>
+                                ${u.id !== currentUser.uid ? `
+                                    <button class="btn-small ${u.status === 'active' ? 'btn-warning' : 'btn-success'}" 
+                                            onclick="toggleUserStatus('${u.id}', '${u.status}')">
+                                        ${u.status === 'active' ? '🚫 Deactivate' : '✅ Activate'}
+                                    </button>
+                                ` : '<span style="color:green;">✓ You</span>'}
+                            </div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+// Supplier Report Tab (Admin only)
+function buildSuppliersTab(container) {
+    // Group repairs by part type and source
+    const partsBySource = {};
+    
+    allRepairs.forEach(repair => {
+        if (!repair.partType || !repair.partSource || repair.partType === 'No Parts') return;
+        
+        const key = `${repair.partType}|${repair.partSource}`;
+        if (!partsBySource[key]) {
+            partsBySource[key] = {
+                partType: repair.partType,
+                source: repair.partSource,
+                prices: [],
+                count: 0
+            };
+        }
+        
+        partsBySource[key].prices.push(repair.partsCost);
+        partsBySource[key].count++;
+    });
+    
+    // Calculate averages and organize by part type
+    const partTypes = {};
+    Object.values(partsBySource).forEach(item => {
+        const avg = item.prices.reduce((sum, p) => sum + p, 0) / item.prices.length;
+        const min = Math.min(...item.prices);
+        const max = Math.max(...item.prices);
+        
+        if (!partTypes[item.partType]) {
+            partTypes[item.partType] = [];
+        }
+        
+        partTypes[item.partType].push({
+            source: item.source,
+            avgPrice: avg,
+            minPrice: min,
+            maxPrice: max,
+            count: item.count
+        });
+    });
+    
+    // Sort suppliers by average price for each part
+    Object.keys(partTypes).forEach(partType => {
+        partTypes[partType].sort((a, b) => a.avgPrice - b.avgPrice);
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>📊 Supplier Price Comparison</h3>
+            <p style="color:#666;margin-bottom:20px;">Compare prices from different suppliers to find the best deals</p>
+            
+            ${Object.keys(partTypes).length === 0 ? '<p style="text-align:center;color:#666;">No parts data yet. Start logging repairs with parts information!</p>' : ''}
+            
+            ${Object.entries(partTypes).map(([partType, suppliers]) => `
+                <div style="background:#f5f5f5;padding:20px;border-radius:8px;margin-bottom:20px;">
+                    <h4 style="color:var(--primary);margin-bottom:15px;">🔧 ${partType}</h4>
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead>
+                            <tr style="background:#e0e0e0;">
+                                <th style="padding:10px;text-align:left;">Supplier</th>
+                                <th style="padding:10px;text-align:right;">Avg Price</th>
+                                <th style="padding:10px;text-align:right;">Min Price</th>
+                                <th style="padding:10px;text-align:right;">Max Price</th>
+                                <th style="padding:10px;text-align:center;">Orders</th>
+                                <th style="padding:10px;text-align:center;">Best?</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${suppliers.map((s, idx) => `
+                                <tr style="border-bottom:1px solid #ccc;">
+                                    <td style="padding:10px;font-weight:bold;">${s.source === 'Shop Stock' ? '🏪' : '📦'} ${s.source}</td>
+                                    <td style="padding:10px;text-align:right;">₱${s.avgPrice.toFixed(2)}</td>
+                                    <td style="padding:10px;text-align:right;">₱${s.minPrice.toFixed(2)}</td>
+                                    <td style="padding:10px;text-align:right;">₱${s.maxPrice.toFixed(2)}</td>
+                                    <td style="padding:10px;text-align:center;">${s.count}</td>
+                                    <td style="padding:10px;text-align:center;">${idx === 0 ? '🏆 <span style="color:green;font-weight:bold;">BEST</span>' : ''}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    ${suppliers.length > 1 ? `
+                        <p style="margin-top:10px;color:#666;font-size:14px;">
+                            💰 Savings: ${suppliers[0].source} is ₱${(suppliers[suppliers.length-1].avgPrice - suppliers[0].avgPrice).toFixed(2)} cheaper than ${suppliers[suppliers.length-1].source} on average
+                        </p>
+                    ` : ''}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function openUserModal() {
+    document.getElementById('userModalTitle').textContent = 'Add New User';
+    document.getElementById('userModalContent').innerHTML = `
+        <div class="form-group">
+            <label>Full Name *</label>
+            <input type="text" id="newUserName">
+        </div>
+        <div class="form-group">
+            <label>Email *</label>
+            <input type="email" id="newUserEmail">
+        </div>
+        <div class="form-group">
+            <label>Password * (min 8 chars)</label>
+            <input type="password" id="newUserPassword" minlength="8">
+        </div>
+        <div class="form-group">
+            <label>Role *</label>
+            <select id="newUserRole">
+                <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
+                <option value="technician">Technician</option>
+                <option value="cashier">Cashier</option>
+            </select>
+        </div>
+        <div class="form-group" id="techNameGroup" style="display:none;">
+            <label>Technician Name (shown in dropdowns)</label>
+            <input type="text" id="newUserTechName">
+        </div>
+        <button onclick="createUser()" style="width:100%;">Create User</button>
+    `;
+    
+    document.getElementById('newUserRole').onchange = function() {
+        document.getElementById('techNameGroup').style.display = 
+            this.value === 'technician' ? 'block' : 'none';
+    };
+    
+    document.getElementById('userModal').style.display = 'block';
+}
+
+function closeUserModal() {
+    document.getElementById('userModal').style.display = 'none';
+}
+
+async function createUser() {
+    const name = document.getElementById('newUserName').value;
+    const email = document.getElementById('newUserEmail').value;
+    const password = document.getElementById('newUserPassword').value;
+    const role = document.getElementById('newUserRole').value;
+    const techName = document.getElementById('newUserTechName').value;
+    
+    if (!name || !email || !password) {
+        alert('Please fill all fields');
+        return;
+    }
+    
+    try {
+        // Note: In production, user creation should be done server-side
+        // For now, showing the structure
+        const userData = {
+            displayName: name,
+            email: email,
+            role: role,
+            technicianName: role === 'technician' ? techName : name,
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            createdBy: currentUser.uid
+        };
+        
+        // You would need Firebase Admin SDK for this in production
+        // For now, just showing the data structure
+        alert(`User would be created with:\n${JSON.stringify(userData, null, 2)}\n\nNote: Actual user creation requires Firebase Admin SDK on server.`);
+        closeUserModal();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+async function toggleUserStatus(userId, currentStatus) {
+    const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    await db.ref(`users/${userId}/status`).set(newStatus);
+    alert(`User ${newStatus}d successfully`);
+}
+
+async function updateRepairStatus(repairId) {
+    const repair = allRepairs.find(r => r.id === repairId);
+    
+    const content = document.getElementById('statusModalContent');
+    
+    // Check if microsoldering job
+    const isMicrosoldering = repair.isMicrosoldering || repair.repairType === 'Microsoldering';
+    
+    content.innerHTML = `
+        <div class="form-group">
+            <label>Current Status: <strong>${repair.status}</strong></label>
+        </div>
+        
+        ${isMicrosoldering && repair.deviceCondition ? `
+            <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+                <h4 style="margin:0 0 10px 0;">⚡ Microsoldering Job</h4>
+                <p><strong>Condition:</strong> ${repair.deviceCondition === 'Fresh' ? '✅ Fresh (Never Opened)' : '⚠️ Tampered (Previously Repaired)'}</p>
+                ${repair.deviceCondition === 'Tampered' && repair.deviceTier ? `
+                    <p><strong>Tier:</strong> ${repair.deviceTier}</p>
+                    <p style="color:#d32f2f;font-weight:bold;">Service fee applies if unsuccessful!</p>
+                ` : ''}
+                ${repair.deviceCondition === 'Fresh' ? `
+                    <p style="color:#388e3c;font-weight:bold;">No charge if unsuccessful</p>
+                ` : ''}
+            </div>
+        ` : ''}
+        
+        <div class="form-group">
+            <label>New Status *</label>
+            <select id="newStatus" onchange="toggleRTOReasonField()">
+                <option value="">Select Status</option>
+                <option value="Received">Received</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Waiting for Parts">Waiting for Parts</option>
+                <option value="Ready for Pickup">Ready for Pickup</option>
+                <option value="Completed">Completed</option>
+                ${isMicrosoldering ? '<option value="Unsuccessful">Unsuccessful (Failed Repair)</option>' : ''}
+                <option value="RTO">RTO (Return to Owner)</option>
+            </select>
+        </div>
+        <div class="form-group" id="rtoReasonGroup" style="display:none;">
+            <label>RTO Reason *</label>
+            <select id="rtoReason" onchange="toggleCustomReason()">
+                <option value="">Select Reason</option>
+                <option value="Too expensive">Too expensive - Customer declined</option>
+                <option value="No parts available">No parts available</option>
+                <option value="Beyond repair">Beyond repair / Not economical</option>
+                <option value="Customer changed mind">Customer changed mind</option>
+                <option value="Wrong diagnosis">Wrong diagnosis / Different issue</option>
+                <option value="Customer unresponsive">Customer unresponsive</option>
+                <option value="Other">Other (specify)</option>
+            </select>
+        </div>
+        <div class="form-group" id="customReasonGroup" style="display:none;">
+            <label>Specify Reason *</label>
+            <textarea id="customReason" rows="3" placeholder="Enter custom reason..."></textarea>
+        </div>
+        
+        <div id="serviceFeeSection" style="display:none;">
+            <div style="background:#ffebee;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #f44336;">
+                <h4 style="margin:0 0 10px 0;color:#c62828;">💰 Service Fee Required</h4>
+                <p>Device was <strong>tampered</strong> - service fee applies even though repair unsuccessful.</p>
+                <div class="form-group">
+                    <label>Service Fee (₱) *</label>
+                    <input type="number" id="serviceFeeAmount" min="0" step="50" placeholder="Enter service fee">
+                    <small style="color:#666;display:block;margin-top:5px;">
+                        Recommended: ${repair.deviceTier === 'Entry Android' ? '₱150-200' : 
+                                      repair.deviceTier === 'Old iPhone' ? '₱200-300' : 
+                                      repair.deviceTier === 'Latest Models' ? '₱300-500' : '₱150-500'}
+                    </small>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Notes (Optional)</label>
+            <textarea id="statusNotes" rows="3" placeholder="Additional notes about status change..."></textarea>
+        </div>
+        <button onclick="saveStatus('${repairId}')" style="width:100%;">💾 Update Status</button>
+    `;
+    
+    // Add event listener for status change
+    setTimeout(() => {
+        const statusSelect = document.getElementById('newStatus');
+        statusSelect.addEventListener('change', function() {
+            const isMicro = ${isMicrosoldering};
+            const condition = '${repair.deviceCondition || ''}';
+            const status = this.value;
+            
+            // Show service fee section if unsuccessful microsoldering on tampered device
+            const serviceFeeSection = document.getElementById('serviceFeeSection');
+            if (status === 'Unsuccessful' && isMicro && condition === 'Tampered') {
+                serviceFeeSection.style.display = 'block';
+            } else {
+                serviceFeeSection.style.display = 'none';
+            }
+        });
+    }, 0);
+    
+    document.getElementById('statusModal').style.display = 'block';
+}
+
+function toggleRTOReasonField() {
+    const status = document.getElementById('newStatus').value;
+    const rtoGroup = document.getElementById('rtoReasonGroup');
+    const customGroup = document.getElementById('customReasonGroup');
+    
+    if (status === 'RTO') {
+        rtoGroup.style.display = 'block';
+    } else {
+        rtoGroup.style.display = 'none';
+        customGroup.style.display = 'none';
+    }
+}
+
+function toggleCustomReason() {
+    const reason = document.getElementById('rtoReason').value;
+    const customGroup = document.getElementById('customReasonGroup');
+    
+    if (reason === 'Other') {
+        customGroup.style.display = 'block';
+    } else {
+        customGroup.style.display = 'none';
+    }
+}
+
+async function saveStatus(repairId) {
+    const newStatus = document.getElementById('newStatus').value;
+    const notes = document.getElementById('statusNotes').value;
+    
+    if (!newStatus) {
+        alert('Please select a status');
+        return;
+    }
+    
+    const repair = allRepairs.find(r => r.id === repairId);
+    
+    let rtoInfo = null;
+    if (newStatus === 'RTO') {
+        const rtoReason = document.getElementById('rtoReason').value;
+        if (!rtoReason) {
+            alert('Please select RTO reason');
+            return;
+        }
+        
+        let finalReason = rtoReason;
+        if (rtoReason === 'Other') {
+            const customReason = document.getElementById('customReason').value.trim();
+            if (!customReason) {
+                alert('Please specify custom reason');
+                return;
+            }
+            finalReason = customReason;
+        }
+        
+        rtoInfo = {
+            reason: finalReason,
+            date: new Date().toISOString(),
+            by: currentUserData.displayName
+        };
+    }
+    
+    const update = {
+        status: newStatus,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: currentUserData.displayName
+    };
+    
+    // Handle unsuccessful microsoldering with service fee
+    if (newStatus === 'Unsuccessful') {
+        const isMicrosoldering = repair.isMicrosoldering || repair.repairType === 'Microsoldering';
+        const isTampered = repair.deviceCondition === 'Tampered';
+        
+        if (isMicrosoldering && isTampered) {
+            const serviceFeeInput = document.getElementById('serviceFeeAmount');
+            if (!serviceFeeInput || !serviceFeeInput.value) {
+                alert('Please enter service fee for tampered device');
+                return;
+            }
+            
+            const serviceFee = parseFloat(serviceFeeInput.value);
+            if (serviceFee <= 0) {
+                alert('Service fee must be greater than 0');
+                return;
+            }
+            
+            // Update total to just service fee
+            update.total = serviceFee;
+            update.serviceFee = serviceFee;
+            update.partsCost = 0;
+            update.laborCost = 0;
+            update.unsuccessfulReason = 'Microsoldering failed - Device was tampered';
+        } else if (isMicrosoldering && repair.deviceCondition === 'Fresh') {
+            // Fresh device unsuccessful = no charge
+            update.total = 0;
+            update.partsCost = 0;
+            update.laborCost = 0;
+            update.unsuccessfulReason = 'Microsoldering failed - No charge (Fresh device)';
+        }
+    }
+    
+    if (rtoInfo) {
+        update.rto = rtoInfo;
+    }
+    
+    if (notes) {
+        const existingNotes = repair.notes || [];
+        update.notes = [...existingNotes, {
+            text: notes,
+            by: currentUserData.displayName,
+            date: new Date().toISOString()
+        }];
+    }
+    
+    await db.ref('repairs/' + repairId).update(update);
+    
+    closeStatusModal();
+    
+    if (window.currentTabRefresh) window.currentTabRefresh();
+    
+    if (newStatus === 'Unsuccessful') {
+        const isTampered = repair.deviceCondition === 'Tampered';
+        if (isTampered) {
+            alert(`✅ Status updated to Unsuccessful\n\n⚠️ Service fee of ₱${update.serviceFee.toFixed(2)} applies\n\nDevice was tampered - customer must pay service fee.`);
+        } else {
+            alert(`✅ Status updated to Unsuccessful\n\n✅ No charge - Fresh device\n\nCustomer does not owe anything.`);
+        }
+    } else {
+        alert('✅ Status updated to: ' + newStatus);
+    }
+}
+
+function closeStatusModal() {
+    document.getElementById('statusModal').style.display = 'none';
+}
+
+function openAdditionalRepairModal(repairId) {
+    const repair = allRepairs.find(r => r.id === repairId);
+    
+    const content = document.getElementById('additionalRepairModalContent');
+    content.innerHTML = `
+        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+            <h4 style="margin:0 0 10px 0;">Current Repair</h4>
+            <p><strong>Customer:</strong> ${repair.customerName}</p>
+            <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p><strong>Original Problem:</strong> ${repair.problem}</p>
+            <p><strong>Current Total:</strong> ₱${repair.total.toFixed(2)}</p>
+        </div>
+        
+        <div class="form-group">
+            <label>Additional Problem Found *</label>
+            <textarea id="additionalProblem" rows="3" required placeholder="Describe what else needs repair..."></textarea>
+        </div>
+        
+        <h4 style="margin:20px 0 10px;">Additional Parts & Labor</h4>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Part Type</label>
+                <select id="additionalPartType">
+                    <option value="">Select Part (if needed)</option>
+                    <option value="LCD">LCD / Display</option>
+                    <option value="Battery">Battery</option>
+                    <option value="Flex">Flex Cable</option>
+                    <option value="Charging Port">Charging Port</option>
+                    <option value="Camera">Camera Module</option>
+                    <option value="Speaker">Speaker</option>
+                    <option value="Microphone">Microphone</option>
+                    <option value="Back Cover">Back Cover / Housing</option>
+                    <option value="Board">Board / IC</option>
+                    <option value="Multiple Parts">Multiple Parts</option>
+                    <option value="No Parts">No Parts Needed</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Parts Source</label>
+                <select id="additionalPartSource">
+                    <option value="">Select Source (if applicable)</option>
+                    <option value="Shop Stock">🏪 Shop Stock</option>
+                    <option value="Guimba">📦 Guimba</option>
+                    <option value="Ate Sheng">📦 Ate Sheng</option>
+                    <option value="Lawrence">📦 Lawrence</option>
+                    <option value="Jhay">📦 Jhay</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>Additional Parts Cost (₱) *</label>
+                <input type="number" id="additionalPartsCost" min="0" step="0.01" value="0" required>
+            </div>
+            <div class="form-group">
+                <label>Additional Labor Cost (₱) *</label>
+                <input type="number" id="additionalLaborCost" min="0" step="0.01" value="0" required>
+            </div>
+        </div>
+        
+        <div style="background:#fff3cd;padding:15px;border-radius:5px;border-left:4px solid #ffc107;margin:15px 0;">
+            <h4 style="margin:0 0 10px 0;">💰 New Total Calculation</h4>
+            <p>Original Total: ₱${repair.total.toFixed(2)}</p>
+            <p>Additional Cost: <span id="additionalCostPreview">₱0.00</span></p>
+            <p style="font-size:18px;font-weight:bold;margin-top:10px;padding-top:10px;border-top:2px solid #ddd;">
+                New Total: <span id="newTotalPreview">₱${repair.total.toFixed(2)}</span>
+            </p>
+        </div>
+        
+        <button onclick="saveAdditionalRepair('${repairId}')" style="width:100%;">💾 Add Additional Repair & Update Price</button>
+    `;
+    
+    // Add event listeners for live preview
+    setTimeout(() => {
+        const partsCostInput = document.getElementById('additionalPartsCost');
+        const laborCostInput = document.getElementById('additionalLaborCost');
+        
+        const updatePreview = () => {
+            const partsCost = parseFloat(partsCostInput.value) || 0;
+            const laborCost = parseFloat(laborCostInput.value) || 0;
+            const additionalTotal = partsCost + laborCost;
+            const newTotal = repair.total + additionalTotal;
+            
+            document.getElementById('additionalCostPreview').textContent = '₱' + additionalTotal.toFixed(2);
+            document.getElementById('newTotalPreview').textContent = '₱' + newTotal.toFixed(2);
+        };
+        
+        partsCostInput.addEventListener('input', updatePreview);
+        laborCostInput.addEventListener('input', updatePreview);
+    }, 0);
+    
+    document.getElementById('additionalRepairModal').style.display = 'block';
+}
+
+async function saveAdditionalRepair(repairId) {
+    const additionalProblem = document.getElementById('additionalProblem').value.trim();
+    const partType = document.getElementById('additionalPartType').value;
+    const partSource = document.getElementById('additionalPartSource').value;
+    const partsCost = parseFloat(document.getElementById('additionalPartsCost').value) || 0;
+    const laborCost = parseFloat(document.getElementById('additionalLaborCost').value) || 0;
+    
+    if (!additionalProblem) {
+        alert('Please describe the additional problem');
+        return;
+    }
+    
+    if (partsCost === 0 && laborCost === 0) {
+        alert('Please enter at least parts cost or labor cost');
+        return;
+    }
+    
+    const repair = allRepairs.find(r => r.id === repairId);
+    const additionalTotal = partsCost + laborCost;
+    const newTotal = repair.total + additionalTotal;
+    
+    const additionalRepair = {
+        problem: additionalProblem,
+        partType: partType || 'N/A',
+        partSource: partSource || 'N/A',
+        partsCost: partsCost,
+        laborCost: laborCost,
+        total: additionalTotal,
+        addedBy: currentUserData.displayName,
+        addedAt: new Date().toISOString()
+    };
+    
+    const existingAdditional = repair.additionalRepairs || [];
+    
+    await db.ref('repairs/' + repairId).update({
+        additionalRepairs: [...existingAdditional, additionalRepair],
+        total: newTotal,
+        partsCost: repair.partsCost + partsCost,
+        laborCost: repair.laborCost + laborCost,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: currentUserData.displayName
+    });
+    
+    closeAdditionalRepairModal();
+    
+    if (window.currentTabRefresh) window.currentTabRefresh();
+    
+    alert(`✅ Additional repair added!\n\nPrevious Total: ₱${repair.total.toFixed(2)}\nAdditional: ₱${additionalTotal.toFixed(2)}\nNew Total: ₱${newTotal.toFixed(2)}\n\nCustomer needs to be informed of new price.`);
+}
+
+function closeAdditionalRepairModal() {
+    document.getElementById('additionalRepairModal').style.display = 'none';
+}
+
+async function deleteRepair(repairId) {
+    if (confirm('Delete this repair? This cannot be undone.')) {
+        await db.ref(`repairs/${repairId}`).remove();
+        alert('Repair deleted');
+    }
+}
+
+// Close modals on outside click
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
+</script>
+</body>
+</html>
