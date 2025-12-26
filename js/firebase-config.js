@@ -6,8 +6,8 @@ const firebaseConfig = {
   projectId: "fkrepairs-a6360",
   storageBucket: "fkrepairs-a6360.firebasestorage.app",
   messagingSenderId: "84992727126",
-  appId: "1:84992727126:web:cf1e10fd7e8d0ffbe003f7",
-  measurementId: "G-J3SND1GS9C"
+  appId: "1:84992727126:web:f761ec11c3ea6415e003f7",
+  measurementId: "G-NP4B6GXHBL"
 };
 
 // Initialize Firebase
