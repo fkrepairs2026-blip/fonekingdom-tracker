@@ -7,6 +7,7 @@ let activeTab = '';
  * Build tabs based on user role
  */
 function buildTabs() {
+    console.log('🔖 Building tabs...');
     const role = window.currentUserData.role;
     availableTabs = [];
     
@@ -35,6 +36,7 @@ function buildTabs() {
         availableTabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
     }
     
+    console.log('✅ Tabs configured:', availableTabs.length);
     renderTabs();
 }
 
@@ -42,8 +44,14 @@ function buildTabs() {
  * Render tabs
  */
 function renderTabs() {
+    console.log('🎨 Rendering tabs UI...');
     const tabsContainer = document.getElementById('tabsContainer');
     const contentsContainer = document.getElementById('contentsContainer');
+    
+    if (!tabsContainer || !contentsContainer) {
+        console.error('❌ Tab containers not found!');
+        return;
+    }
     
     tabsContainer.innerHTML = '';
     contentsContainer.innerHTML = '';
@@ -59,33 +67,42 @@ function renderTabs() {
         const contentEl = document.createElement('div');
         contentEl.id = `${tab.id}Tab`;
         contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
-        tab.build(contentEl);
         contentsContainer.appendChild(contentEl);
+        
+        // Build tab content
+        console.log('📄 Building content for tab:', tab.label);
+        tab.build(contentEl);
     });
     
     if (availableTabs.length > 0) {
         activeTab = availableTabs[0].id;
     }
+    
+    console.log('✅ Tabs rendered successfully');
 }
 
 /**
  * Switch tab
  */
 function switchTab(tabId) {
+    console.log('🔄 Switching to tab:', tabId);
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    document.getElementById(`tab-${tabId}`).classList.add('active');
-    document.getElementById(`${tabId}Tab`).classList.add('active');
+    
+    const tab = document.getElementById(`tab-${tabId}`);
+    const content = document.getElementById(`${tabId}Tab`);
+    
+    if (tab) tab.classList.add('active');
+    if (content) content.classList.add('active');
+    
+    activeTab = tabId;
 }
-
-// Export for global use
-window.buildTabs = buildTabs;
-window.switchTab = switchTab;
 
 /**
  * Build New Repair Tab
  */
 function buildNewRepairTab(container) {
+    console.log('🆕 Building New Repair tab');
     window.currentTabRefresh = () => buildNewRepairTab(document.getElementById('newTab'));
     
     container.innerHTML = `
@@ -232,21 +249,68 @@ function buildNewRepairTab(container) {
 }
 
 function toggleMicrosoldingFields() {
-    const repairType = document.getElementById('repairTypeSelect').value;
-    document.getElementById('microsoldingFields').style.display = repairType === 'Microsoldering' ? 'block' : 'none';
+    const repairType = document.getElementById('repairTypeSelect');
+    const fields = document.getElementById('microsoldingFields');
+    if (repairType && fields) {
+        fields.style.display = repairType.value === 'Microsoldering' ? 'block' : 'none';
+    }
+}
+
+/**
+ * Build All Repairs Tab
+ */
+function buildAllRepairsTab(container) {
+    console.log('📋 Building All Repairs tab');
+    console.log('Total repairs to show:', window.allRepairs.length);
+    
+    window.currentTabRefresh = () => {
+        console.log('🔄 Refreshing All Repairs tab');
+        buildAllRepairsTab(document.getElementById('allTab'));
+    };
+    
+    const repairs = window.allRepairs || [];
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>All Repairs (${repairs.length})</h3>
+            <div id="allRepairsList"></div>
+        </div>
+    `;
+    
+    // Use setTimeout to ensure DOM is ready
+    setTimeout(() => {
+        const listContainer = document.getElementById('allRepairsList');
+        if (listContainer) {
+            console.log('📝 Displaying repairs in container...');
+            displayRepairsInContainer(repairs, listContainer);
+        } else {
+            console.error('❌ allRepairsList container not found!');
+        }
+    }, 0);
 }
 
 /**
  * Display repairs in container
  */
 function displayRepairsInContainer(repairs, container) {
+    console.log('🎨 displayRepairsInContainer called');
+    console.log('Repairs to display:', repairs.length);
+    console.log('Container:', container);
+    
+    if (!container) {
+        console.error('❌ Container is null!');
+        return;
+    }
+    
+    if (!repairs || repairs.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No repairs found</p>';
+        return;
+    }
+    
     const role = window.currentUserData.role;
     const hidePayments = role === 'technician';
     
-    if (!repairs.length) {
-        container.innerHTML = '<p style="text-align:center;color:#666;">No repairs found</p>';
-        return;
-    }
+    console.log('✅ Rendering', repairs.length, 'repair cards');
     
     container.innerHTML = repairs.map(r => {
         const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
@@ -275,69 +339,23 @@ function displayRepairsInContainer(repairs, container) {
                 
                 <div><strong>Problem:</strong> ${r.problem}</div>
                 
-                ${r.status === 'RTO' && r.rto ? `
-                    <div style="margin-top:15px;padding:15px;background:#ffebee;border-left:4px solid #f44336;border-radius:5px;">
-                        <h4 style="margin:0 0 10px 0;color:#c62828;">🚫 RTO</h4>
-                        <p><strong>Reason:</strong> ${r.rto.reason}</p>
-                        <p style="font-size:12px;color:#666;">By ${r.rto.by}</p>
-                    </div>
-                ` : ''}
-                
-                ${r.additionalRepairs && r.additionalRepairs.length > 0 ? `
-                    <div style="margin-top:15px;padding:15px;background:#e3f2fd;border-left:4px solid #2196f3;border-radius:5px;">
-                        <h4 style="margin:0 0 10px 0;color:#1976d2;">➕ Additional Repairs (${r.additionalRepairs.length})</h4>
-                        ${r.additionalRepairs.map((add, idx) => `
-                            <div style="padding:10px;margin:5px 0;background:white;border-radius:3px;">
-                                <strong>${idx + 1}. ${add.problem}</strong><br>
-                                <small>Parts: ₱${add.partsCost.toFixed(2)} | Labor: ₱${add.laborCost.toFixed(2)} | Total: ₱${add.total.toFixed(2)}</small>
-                            </div>
-                        `).join('')}
-                    </div>
-                ` : ''}
-                
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
-                    ${!hidePayments && balance > 0 ? `<button class="btn-small btn-success" onclick="alert('Payment modal - to implement')">💰 Payment</button>` : ''}
-                    ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')">📝 Status</button>` : ''}
+                    ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
                 </div>
             </div>
         `;
     }).join('');
-}
-
-// Export tab builders
-window.buildNewRepairTab = buildNewRepairTab;
-window.toggleMicrosoldingFields = toggleMicrosoldingFields;
-window.displayRepairsInContainer = displayRepairsInContainer;
-
-/**
- * Build All Repairs Tab
- */
-function buildAllRepairsTab(container) {
-    window.currentTabRefresh = () => buildAllRepairsTab(document.getElementById('allTab'));
     
-    const repairs = window.currentUserData.role === 'technician' 
-        ? window.allRepairs.filter(r => r.assignedTo === window.currentUserData.technicianName)
-        : window.allRepairs;
-    
-    container.innerHTML = `
-        <div class="card">
-            <h3>All Repairs</h3>
-            <div id="allRepairsList"></div>
-        </div>
-    `;
-    
-    const listContainer = document.getElementById('allRepairsList');
-    if (listContainer) {
-        displayRepairsInContainer(repairs, listContainer);
-    }
+    console.log('✅ Repair cards rendered successfully');
 }
 
 /**
- * Build My Repairs Tab
+ * Build other tabs (simplified for now)
  */
 function buildMyRepairsTab(container) {
+    console.log('🔧 Building My Repairs tab');
     window.currentTabRefresh = () => buildMyRepairsTab(document.getElementById('myTab'));
     
     const myRepairs = window.allRepairs.filter(r => r.assignedTo === window.currentUserData.technicianName);
@@ -345,21 +363,20 @@ function buildMyRepairsTab(container) {
     container.innerHTML = `
         <div class="card">
             <h3>My Repairs (${myRepairs.length})</h3>
-            <p style="color:#666;">Repairs assigned to you</p>
             <div id="myRepairsList"></div>
         </div>
     `;
     
-    const listContainer = document.getElementById('myRepairsList');
-    if (listContainer) {
-        displayRepairsInContainer(myRepairs, listContainer);
-    }
+    setTimeout(() => {
+        const listContainer = document.getElementById('myRepairsList');
+        if (listContainer) {
+            displayRepairsInContainer(myRepairs, listContainer);
+        }
+    }, 0);
 }
 
-/**
- * Build Assigned to Others Tab
- */
 function buildAssignedToOthersTab(container) {
+    console.log('📤 Building Assigned to Others tab');
     window.currentTabRefresh = () => buildAssignedToOthersTab(document.getElementById('assignedTab'));
     
     const assignedToOthers = window.allRepairs.filter(r => 
@@ -370,25 +387,20 @@ function buildAssignedToOthersTab(container) {
     container.innerHTML = `
         <div class="card">
             <h3>📤 Assigned to Others (${assignedToOthers.length})</h3>
-            <p style="color:#666;">Repairs you created for other technicians</p>
             <div id="assignedRepairsList"></div>
         </div>
     `;
     
-    const listContainer = document.getElementById('assignedRepairsList');
-    if (listContainer) {
-        if (assignedToOthers.length === 0) {
-            listContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No repairs assigned to others</p>';
-        } else {
+    setTimeout(() => {
+        const listContainer = document.getElementById('assignedRepairsList');
+        if (listContainer) {
             displayRepairsInContainer(assignedToOthers, listContainer);
         }
-    }
+    }, 0);
 }
 
-/**
- * Build Pending Verification Tab
- */
 function buildPendingTab(container) {
+    console.log('⏳ Building Pending tab');
     window.currentTabRefresh = () => buildPendingTab(document.getElementById('pendingTab'));
     
     const pendingRepairs = window.allRepairs.filter(r => 
@@ -398,68 +410,60 @@ function buildPendingTab(container) {
     container.innerHTML = `
         <div class="card">
             <h3>⏳ Pending Verification (${pendingRepairs.length})</h3>
-            <p style="color:#666;">Payments waiting for verification</p>
             <div id="pendingRepairsList"></div>
         </div>
     `;
     
-    const listContainer = document.getElementById('pendingRepairsList');
-    if (listContainer) {
-        displayRepairsInContainer(pendingRepairs, listContainer);
-    }
+    setTimeout(() => {
+        const listContainer = document.getElementById('pendingRepairsList');
+        if (listContainer) {
+            displayRepairsInContainer(pendingRepairs, listContainer);
+        }
+    }, 0);
 }
 
-/**
- * Build Cash Count Tab
- */
 function buildCashCountTab(container) {
+    console.log('💵 Building Cash Count tab');
     window.currentTabRefresh = () => buildCashCountTab(document.getElementById('cashTab'));
-    
-    const today = new Date().toDateString();
-    const todayRevenue = window.allRepairs
-        .filter(r => r.payments && r.payments.some(p => new Date(p.date).toDateString() === today && p.verified))
-        .reduce((sum, r) => sum + r.payments.filter(p => new Date(p.date).toDateString() === today && p.verified).reduce((s, p) => s + p.amount, 0), 0);
     
     container.innerHTML = `
         <div class="card">
             <h3>💵 Cash Count</h3>
-            <div style="background:#e8f5e9;padding:20px;border-radius:10px;margin:20px 0;text-align:center;">
-                <h2 style="margin:0;color:#2e7d32;">Today's Expected: ₱${todayRevenue.toFixed(2)}</h2>
-            </div>
-            <p style="text-align:center;color:#999;">Cash count feature coming soon...</p>
+            <p style="text-align:center;color:#999;padding:40px;">Cash count feature coming soon...</p>
         </div>
     `;
 }
 
-/**
- * Build Suppliers Tab
- */
 function buildSuppliersTab(container) {
+    console.log('📊 Building Suppliers tab');
     window.currentTabRefresh = () => buildSuppliersTab(document.getElementById('suppliersTab'));
     
     container.innerHTML = `
         <div class="card">
             <h3>📊 Supplier Price Comparison</h3>
-            <p style="text-align:center;color:#999;">Supplier report feature coming soon...</p>
+            <p style="text-align:center;color:#999;padding:40px;">Supplier report feature coming soon...</p>
         </div>
     `;
 }
 
-/**
- * Build Users Tab
- */
 function buildUsersTab(container) {
+    console.log('👥 Building Users tab');
     window.currentTabRefresh = () => buildUsersTab(document.getElementById('usersTab'));
     
     container.innerHTML = `
         <div class="card">
             <h3>👥 User Management</h3>
-            <p style="text-align:center;color:#999;">User management feature coming soon...</p>
+            <p style="text-align:center;color:#999;padding:40px;">User management feature coming soon...</p>
         </div>
     `;
 }
 
-// Export tab builders
+// Export to global scope
+window.buildTabs = buildTabs;
+window.switchTab = switchTab;
+window.buildNewRepairTab = buildNewRepairTab;
+window.toggleMicrosoldingFields = toggleMicrosoldingFields;
+window.displayRepairsInContainer = displayRepairsInContainer;
 window.buildAllRepairsTab = buildAllRepairsTab;
 window.buildMyRepairsTab = buildMyRepairsTab;
 window.buildAssignedToOthersTab = buildAssignedToOthersTab;
@@ -467,3 +471,5 @@ window.buildPendingTab = buildPendingTab;
 window.buildCashCountTab = buildCashCountTab;
 window.buildSuppliersTab = buildSuppliersTab;
 window.buildUsersTab = buildUsersTab;
+
+console.log('✅ ui.js loaded');
