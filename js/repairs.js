@@ -1,6 +1,7 @@
 // ===== REPAIRS MODULE =====
 
-let allRepairs = [];
+// Initialize global repairs array
+window.allRepairs = [];
 let photoData = [];
 
 /**
@@ -8,15 +9,32 @@ let photoData = [];
  */
 async function loadRepairs() {
     return new Promise((resolve) => {
+        console.log('📦 Setting up repairs listener...');
+        
         db.ref('repairs').on('value', (snapshot) => {
-            allRepairs = [];
+            window.allRepairs = [];
+            
             snapshot.forEach((child) => {
-                allRepairs.push({
+                window.allRepairs.push({
                     id: child.key,
                     ...child.val()
                 });
             });
-            resolve(allRepairs);
+            
+            console.log('✅ Repairs loaded from Firebase:', window.allRepairs.length);
+            
+            // Refresh current tab if it exists
+            if (window.currentTabRefresh) {
+                console.log('🔄 Refreshing current tab...');
+                window.currentTabRefresh();
+            }
+            
+            // Update stats
+            if (window.buildStats) {
+                window.buildStats();
+            }
+            
+            resolve(window.allRepairs);
         });
     });
 }
@@ -28,6 +46,8 @@ async function submitRepair(e) {
     e.preventDefault();
     const form = e.target;
     const data = new FormData(form);
+    
+    console.log('💾 Saving new repair...');
     
     const repair = {
         customerType: data.get('customerType'),
@@ -48,8 +68,8 @@ async function submitRepair(e) {
         photos: photoData,
         payments: [],
         createdAt: new Date().toISOString(),
-        createdBy: currentUser.uid,
-        createdByName: currentUserData.displayName
+        createdBy: window.currentUser.uid,
+        createdByName: window.currentUserData.displayName
     };
     
     // Add microsoldering specific fields if applicable
@@ -61,19 +81,25 @@ async function submitRepair(e) {
     
     try {
         await db.ref('repairs').push(repair);
+        console.log('✅ Repair saved successfully!');
         alert('✅ Repair saved!');
+        
+        // Reset form
         form.reset();
         photoData = [];
         document.querySelectorAll('[id^="preview"]').forEach(el => {
             el.innerHTML = '';
             el.style.display = 'none';
         });
-        document.getElementById('photo2').style.display = 'none';
-        document.getElementById('photo3').style.display = 'none';
+        const photo2 = document.getElementById('photo2');
+        const photo3 = document.getElementById('photo3');
+        if (photo2) photo2.style.display = 'none';
+        if (photo3) photo3.style.display = 'none';
         
-        // Refresh current tab
-        if (window.currentTabRefresh) window.currentTabRefresh();
+        // Repairs will auto-refresh via listener
+        
     } catch (error) {
+        console.error('❌ Error saving repair:', error);
         alert('Error: ' + error.message);
     }
 }
@@ -90,11 +116,19 @@ async function handlePhotoUpload(input, previewId) {
         photoData.push(compressed);
         
         const preview = document.getElementById(previewId);
-        preview.innerHTML = '<img src="' + compressed + '" style="width:100%;border-radius:5px;">';
-        preview.style.display = 'block';
+        if (preview) {
+            preview.innerHTML = '<img src="' + compressed + '" style="width:100%;border-radius:5px;">';
+            preview.style.display = 'block';
+        }
         
-        if (photoData.length === 1) document.getElementById('photo2').style.display = 'block';
-        if (photoData.length === 2) document.getElementById('photo3').style.display = 'block';
+        if (photoData.length === 1) {
+            const photo2 = document.getElementById('photo2');
+            if (photo2) photo2.style.display = 'block';
+        }
+        if (photoData.length === 2) {
+            const photo3 = document.getElementById('photo3');
+            if (photo3) photo3.style.display = 'block';
+        }
     } catch (error) {
         alert('Error uploading photo: ' + error.message);
     }
@@ -104,7 +138,12 @@ async function handlePhotoUpload(input, previewId) {
  * Update repair status
  */
 async function updateRepairStatus(repairId) {
-    const repair = allRepairs.find(r => r.id === repairId);
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
     const isMicrosoldering = repair.isMicrosoldering || repair.repairType === 'Microsoldering';
     
     const content = document.getElementById('statusModalContent');
@@ -215,7 +254,7 @@ async function saveStatus(repairId) {
         return;
     }
     
-    const repair = allRepairs.find(r => r.id === repairId);
+    const repair = window.allRepairs.find(r => r.id === repairId);
     
     let rtoInfo = null;
     if (newStatus === 'RTO') {
@@ -238,14 +277,14 @@ async function saveStatus(repairId) {
         rtoInfo = {
             reason: finalReason,
             date: new Date().toISOString(),
-            by: currentUserData.displayName
+            by: window.currentUserData.displayName
         };
     }
     
     const update = {
         status: newStatus,
         lastUpdated: new Date().toISOString(),
-        lastUpdatedBy: currentUserData.displayName
+        lastUpdatedBy: window.currentUserData.displayName
     };
     
     // Handle unsuccessful microsoldering with service fee
@@ -287,15 +326,14 @@ async function saveStatus(repairId) {
         const existingNotes = repair.notes || [];
         update.notes = [...existingNotes, {
             text: notes,
-            by: currentUserData.displayName,
+            by: window.currentUserData.displayName,
             date: new Date().toISOString()
         }];
     }
     
     await db.ref('repairs/' + repairId).update(update);
-    closeStatusModal();
     
-    if (window.currentTabRefresh) window.currentTabRefresh();
+    closeStatusModal();
     
     if (newStatus === 'Unsuccessful') {
         const isTampered = repair.deviceCondition === 'Tampered';
@@ -313,7 +351,11 @@ async function saveStatus(repairId) {
  * Open additional repair modal
  */
 function openAdditionalRepairModal(repairId) {
-    const repair = allRepairs.find(r => r.id === repairId);
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
     
     const content = document.getElementById('additionalRepairModalContent');
     content.innerHTML = `
@@ -429,7 +471,7 @@ async function saveAdditionalRepair(repairId) {
         return;
     }
     
-    const repair = allRepairs.find(r => r.id === repairId);
+    const repair = window.allRepairs.find(r => r.id === repairId);
     const additionalTotal = partsCost + laborCost;
     const newTotal = repair.total + additionalTotal;
     
@@ -440,7 +482,7 @@ async function saveAdditionalRepair(repairId) {
         partsCost: partsCost,
         laborCost: laborCost,
         total: additionalTotal,
-        addedBy: currentUserData.displayName,
+        addedBy: window.currentUserData.displayName,
         addedAt: new Date().toISOString()
     };
     
@@ -452,12 +494,10 @@ async function saveAdditionalRepair(repairId) {
         partsCost: repair.partsCost + partsCost,
         laborCost: repair.laborCost + laborCost,
         lastUpdated: new Date().toISOString(),
-        lastUpdatedBy: currentUserData.displayName
+        lastUpdatedBy: window.currentUserData.displayName
     });
     
     closeAdditionalRepairModal();
-    
-    if (window.currentTabRefresh) window.currentTabRefresh();
     
     alert(`✅ Additional repair added!\n\nPrevious Total: ₱${repair.total.toFixed(2)}\nAdditional: ₱${additionalTotal.toFixed(2)}\nNew Total: ₱${newTotal.toFixed(2)}\n\nCustomer needs to be informed of new price.`);
 }
@@ -469,7 +509,6 @@ async function deleteRepair(repairId) {
     if (confirm('Delete this repair? This cannot be undone.')) {
         await db.ref(`repairs/${repairId}`).remove();
         alert('Repair deleted');
-        if (window.currentTabRefresh) window.currentTabRefresh();
     }
 }
 
@@ -520,4 +559,5 @@ window.toggleRTOReasonField = toggleRTOReasonField;
 window.toggleCustomReason = toggleCustomReason;
 window.closeStatusModal = closeStatusModal;
 window.closeAdditionalRepairModal = closeAdditionalRepairModal;
-window.allRepairs = allRepairs;
+
+console.log('✅ repairs.js loaded');
