@@ -15,6 +15,8 @@ function buildTabs() {
     availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
     availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
     availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
+
+    availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
     
     // ROLE-SPECIFIC PAGES
     if (role === 'cashier') {
