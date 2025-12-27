@@ -1648,5 +1648,7 @@ window.viewClaimDetails = viewClaimDetails;
 window.openWarrantyClaimModal = openWarrantyClaimModal;
 window.processWarrantyClaim = processWarrantyClaim;
 window.closeClaimModal = closeClaimModal;
+window.openEditRepairModal = openEditRepairModal;
+window.submitPricingUpdate = submitPricingUpdate;
 
 console.log('✅ repairs.js loaded');
