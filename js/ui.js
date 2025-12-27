@@ -19,10 +19,8 @@ function buildTabs() {
     availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
     
     // ROLE-SPECIFIC PAGES
-    // Note: Completed, Pending Payment, Revenue moved to FAB menu
     if (role === 'cashier') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
-        // Unpaid, Paid, Pending moved to FAB menu - keep tabs for direct access
         availableTabs.push({ id: 'unpaid', label: '💳 Unpaid', build: buildUnpaidTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingPaymentsTab });
         availableTabs.push({ id: 'paid', label: '✅ Paid', build: buildPaidTab });
@@ -32,7 +30,6 @@ function buildTabs() {
     else if (role === 'admin' || role === 'manager') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
-        // Pending Verification, Cash Count moved to FAB menu but keep tabs
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
         availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
         availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
@@ -76,36 +73,41 @@ function renderTabs() {
     tabsContainer.innerHTML = '';
     contentsContainer.innerHTML = '';
     
-    // Mobile bottom nav is now hidden - using bottom tabs instead
-    // Keep this code but it won't be displayed
+    // Build mobile navigation (show first 5 tabs)
     if (mobileNav) {
         mobileNav.innerHTML = '';
-        // Don't build mobile nav - using bottom tabs instead
+        const mobileTabs = availableTabs.slice(0, 5);
+        mobileTabs.forEach((tab, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'mobile-nav-item' + (index === 0 ? ' active' : '');
+            navItem.onclick = () => switchTab(tab.id);
+            navItem.id = `mobile-tab-${tab.id}`;
+            
+            // Extract emoji and text
+            const label = tab.label;
+            const emojiMatch = label.match(/^([^\s]+)\s+(.+)$/);
+            const emoji = emojiMatch ? emojiMatch[1] : '📋';
+            const text = emojiMatch ? emojiMatch[2] : label;
+            
+            navItem.innerHTML = `
+                <span>${emoji}</span>
+                <span>${text}</span>
+            `;
+            mobileNav.appendChild(navItem);
+        });
     }
     
     availableTabs.forEach((tab, index) => {
         const tabEl = document.createElement('div');
         tabEl.className = 'tab' + (index === 0 ? ' active' : '');
         tabEl.textContent = tab.label;
-        tabEl.onclick = () => {
-            switchTab(tab.id);
-            // Ensure content is visible
-            setTimeout(() => {
-                const content = document.getElementById(`${tab.id}Tab`);
-                if (content) {
-                    content.style.display = 'block';
-                }
-            }, 50);
-        };
+        tabEl.onclick = () => switchTab(tab.id);
         tabEl.id = `tab-${tab.id}`;
         tabsContainer.appendChild(tabEl);
         
         const contentEl = document.createElement('div');
         contentEl.id = `${tab.id}Tab`;
         contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
-        if (index === 0) {
-            contentEl.style.display = 'block';
-        }
         contentsContainer.appendChild(contentEl);
         
         console.log('📄 Building content for tab:', tab.label);
@@ -133,24 +135,15 @@ function switchTab(tabId) {
     const mobileTab = document.getElementById(`mobile-tab-${tabId}`);
     
     if (tab) tab.classList.add('active');
-    if (content) {
-        content.classList.add('active');
-        // Ensure content is visible and scroll to it
-        content.style.display = 'block';
-        // Scroll to content area
-        setTimeout(() => {
-            const tabsContainer = document.getElementById('tabsContainer');
-            if (tabsContainer) {
-                tabsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 100);
-    }
+    if (content) content.classList.add('active');
     if (mobileTab) mobileTab.classList.add('active');
     
     activeTab = tabId;
     
-    // Always scroll to top to show content
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll to top on mobile
+    if (window.innerWidth <= 768) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 }
 
 /**
@@ -463,9 +456,14 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <div class="form-group">
-                    <label>Problem Description *</label>
+                    <label>Detailed Problem Description *</label>
                     <textarea name="problem" id="problemDescription" rows="3" required placeholder="Describe the issue in detail..."></textarea>
                     <small style="color:#666;">Be specific: What happened? When? Any error messages?</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Problem Description *</label>
+                    <textarea name="problem" rows="3" required placeholder="Describe the issue..."></textarea>
                 </div>
                 
                 <div class="form-group">

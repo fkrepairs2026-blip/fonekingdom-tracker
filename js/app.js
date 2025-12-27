@@ -52,11 +52,6 @@ async function initializeApp() {
         console.log('🔖 Building tabs...');
         buildTabs();
         
-        // Initialize FAB menu
-        if (window.buildFABMenu) {
-            buildFABMenu();
-        }
-        
         // CRITICAL: ALWAYS hide loading at the end
         utils.showLoading(false);
         
@@ -164,16 +159,6 @@ function buildStats() {
         
         console.log('✅ Stats built successfully');
         
-        // Update FAB menu when stats change
-        if (window.buildFABMenu) {
-            setTimeout(() => {
-                const fabMenu = document.getElementById('fabMenu');
-                if (fabMenu && fabMenu.classList.contains('active')) {
-                    buildFABMenu();
-                }
-            }, 100);
-        }
-        
     } catch (error) {
         console.error('❌ Error building stats:', error);
         console.error('Error stack:', error.stack);
@@ -223,6 +208,18 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
                 <h3>${forReleaseCount}</h3>
                 <p>📦 For Release</p>
             </div>
+            <div class="stat-card" style="background:#ffebee;border-left:4px solid #f44336;">
+                <h3>${unpaidRepairs.length}</h3>
+                <p>💳 Unpaid</p>
+            </div>
+            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+                <h3>${pendingPayments.length}</h3>
+                <p>⏳ Pending Payment</p>
+            </div>
+            <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
+                <h3>₱${todayRevenue.toFixed(0)}</h3>
+                <p>💰 Today's Revenue</p>
+            </div>
         `;
     } catch (error) {
         console.error('❌ Error building cashier stats:', error);
@@ -261,6 +258,21 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
                 <h3>${forReleaseCount}</h3>
                 <p>📦 For Release</p>
                 <small style="font-size:12px;color:#666;">Ready for pickup</small>
+            </div>
+            <div class="stat-card" style="background:#c8e6c9;border-left:4px solid #2e7d32;">
+                <h3>${completed}</h3>
+                <p>✅ Completed</p>
+                <small style="font-size:12px;color:#666;">Total done</small>
+            </div>
+            <div class="stat-card" style="background:#fff3cd;border-left:4px solid #fbc02d;">
+                <h3>${pendingPayments.length}</h3>
+                <p>⏳ Pending Payment</p>
+                <small style="font-size:12px;color:#666;">Need verification</small>
+            </div>
+            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                <h3>₱${todayRevenue.toFixed(0)}</h3>
+                <p>💰 Today's Revenue</p>
+                <small style="font-size:12px;color:#666;">Verified payments</small>
             </div>
         `;
     } catch (error) {
@@ -378,144 +390,5 @@ window.closePhotoModal = closePhotoModal;
 window.showPhotoModal = showPhotoModal;
 window.closeUserModal = closeUserModal;
 window.closePaymentModal = closePaymentModal;
-
-/**
- * Toggle Floating Action Button Menu
- */
-function toggleFABMenu() {
-    const fabMain = document.getElementById('fabMain');
-    const fabMenu = document.getElementById('fabMenu');
-    const fabBackdrop = document.getElementById('fabBackdrop');
-    
-    if (!fabMain || !fabMenu || !fabBackdrop) return;
-    
-    const isActive = fabMenu.classList.contains('active');
-    
-    if (isActive) {
-        fabMenu.classList.remove('active');
-        fabMain.classList.remove('active');
-        fabBackdrop.classList.remove('active');
-    } else {
-        buildFABMenu(); // Build menu first
-        // Small delay to ensure menu is built before showing
-        setTimeout(() => {
-            fabMenu.classList.add('active');
-            fabMain.classList.add('active');
-            fabBackdrop.classList.add('active');
-        }, 10);
-    }
-}
-
-/**
- * Build FAB menu with quick actions based on role
- */
-function buildFABMenu() {
-    const fabMenu = document.getElementById('fabMenu');
-    if (!fabMenu || !window.currentUserData) return;
-    
-    const role = window.currentUserData.role;
-    const today = new Date().toDateString();
-    
-    // Calculate quick stats
-    const completed = window.allRepairs.filter(r => r.status === 'Completed').length;
-    const pendingPayments = window.allRepairs.filter(r => 
-        r.payments && r.payments.some(p => !p.verified)
-    ).length;
-    
-    const todayRevenue = window.allRepairs
-        .filter(r => r.payments && r.payments.some(p => {
-            const paymentDate = new Date(p.paymentDate || p.date).toDateString();
-            return paymentDate === today && p.verified;
-        }))
-        .reduce((sum, r) => {
-            return sum + r.payments
-                .filter(p => {
-                    const paymentDate = new Date(p.paymentDate || p.date).toDateString();
-                    return paymentDate === today && p.verified;
-                })
-                .reduce((s, p) => s + p.amount, 0);
-        }, 0);
-    
-    const unpaidRepairs = window.allRepairs.filter(r => {
-        const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
-        return (r.total - totalPaid) > 0 && r.total > 0;
-    }).length;
-    
-    let menuItems = [];
-    
-    // Role-specific quick actions
-    if (role === 'admin' || role === 'manager') {
-        menuItems = [
-            { icon: '✅', label: 'Completed', value: completed, action: () => { switchTab('all'); toggleFABMenu(); } },
-            { icon: '⏳', label: 'Pending Payment', value: pendingPayments, action: () => { switchTab('pending'); toggleFABMenu(); } },
-            { icon: '💰', label: "Today's Revenue", value: `₱${todayRevenue.toFixed(0)}`, action: () => { switchTab('cash'); toggleFABMenu(); } },
-            { icon: '💳', label: 'Unpaid Repairs', value: unpaidRepairs, action: () => { switchTab('all'); toggleFABMenu(); } }
-        ];
-    } else if (role === 'cashier') {
-        menuItems = [
-            { icon: '💳', label: 'Unpaid', value: unpaidRepairs, action: () => { switchTab('unpaid'); toggleFABMenu(); } },
-            { icon: '⏳', label: 'Pending Payment', value: pendingPayments, action: () => { switchTab('pending'); toggleFABMenu(); } },
-            { icon: '💰', label: "Today's Revenue", value: `₱${todayRevenue.toFixed(0)}`, action: () => { switchTab('cash'); toggleFABMenu(); } },
-            { icon: '✅', label: 'Paid', value: window.allRepairs.filter(r => {
-                const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
-                return totalPaid >= r.total && r.total > 0;
-            }).length, action: () => { switchTab('paid'); toggleFABMenu(); } }
-        ];
-    } else if (role === 'technician') {
-        const techUserId = window.currentUser.uid;
-        const myCompleted = window.allRepairs.filter(r => 
-            r.acceptedBy === techUserId && r.status === 'Completed'
-        ).length;
-        
-        menuItems = [
-            { icon: '🎉', label: 'My Completed', value: myCompleted, action: () => { switchTab('my'); toggleFABMenu(); } }
-        ];
-    }
-    
-    // Build menu HTML
-    if (menuItems.length === 0) {
-        fabMenu.innerHTML = '<div class="fab-menu-item" style="opacity:0.6;"><span class="fab-menu-item-label">No quick actions available</span></div>';
-        return;
-    }
-    
-    fabMenu.innerHTML = menuItems.map((item, index) => {
-        // Extract tab ID from the action function
-        const actionStr = item.action.toString();
-        const tabMatch = actionStr.match(/switchTab\(['"]([^'"]+)['"]\)/);
-        const tabId = tabMatch ? tabMatch[1] : null;
-        
-        // Create click handler
-        const handleClick = () => {
-            toggleFABMenu(); // Close menu first
-            if (tabId && window.switchTab) {
-                setTimeout(() => {
-                    window.switchTab(tabId);
-                    // Force scroll to show content
-                    setTimeout(() => {
-                        const content = document.getElementById(`${tabId}Tab`);
-                        if (content) {
-                            content.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                        }
-                    }, 200);
-                }, 150);
-            }
-        };
-        
-        // Store handler globally
-        const handlerId = `fabHandler_${Date.now()}_${index}`;
-        window[handlerId] = handleClick;
-        
-        return `
-            <div class="fab-menu-item" onclick="window['${handlerId}']()">
-                <span class="fab-menu-item-icon">${item.icon}</span>
-                <span class="fab-menu-item-label">${item.label}</span>
-                <span class="fab-menu-item-value">${item.value}</span>
-            </div>
-        `;
-    }).join('');
-}
-
-window.toggleFABMenu = toggleFABMenu;
-window.buildFABMenu = buildFABMenu;
 
 console.log('✅ app.js loaded');
