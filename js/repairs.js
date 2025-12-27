@@ -212,6 +212,9 @@ async function acceptRepair(repairId) {
         alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"`);
         
         console.log('✅ Repair accepted successfully');
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
         
     } catch (error) {
         console.error('❌ Error accepting repair:', error);
