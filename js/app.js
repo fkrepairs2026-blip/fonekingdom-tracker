@@ -7,6 +7,13 @@ async function initializeApp() {
     try {
         console.log('🚀 Starting app initialization...');
         
+        // CRITICAL: Force hide any existing loading overlays FIRST
+        utils.showLoading(false);
+        
+        // Small delay to ensure cleanup
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // NOW show loading for current init
         utils.showLoading(true);
         
         if (!window.currentUser) {
@@ -24,10 +31,8 @@ async function initializeApp() {
         if (window.currentUserData.role === 'technician') {
             console.log('✅ Technician detected');
             if (!window.currentUserData.technicianName) {
-                console.warn('⚠️ Technician name missing, using displayName');
                 window.currentUserData.technicianName = window.currentUserData.displayName;
             }
-            console.log('✅ Technician name:', window.currentUserData.technicianName);
         }
         
         updateHeaderUserInfo();
@@ -35,7 +40,7 @@ async function initializeApp() {
         console.log('📦 Loading repairs...');
         await loadRepairs();
         console.log('✅ Repairs loaded:', window.allRepairs.length);
-
+        
         console.log('📦 Loading modification requests...');
         await loadModificationRequests();
         console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
@@ -46,19 +51,19 @@ async function initializeApp() {
         console.log('🔖 Building tabs...');
         buildTabs();
         
+        // CRITICAL: ALWAYS hide loading at the end
         utils.showLoading(false);
         
         console.log('✅ App initialization complete!');
         
     } catch (error) {
         console.error('❌ Error initializing app:', error);
-        console.error('Error stack:', error.stack);
+        console.error('Stack:', error.stack);
         
-        // ALWAYS hide loading even on error
+        // CRITICAL: Always hide loading on error
         utils.showLoading(false);
         
-        // Show user-friendly error
-        alert('Error loading app: ' + error.message + '\n\nPlease refresh the page.\n\nIf the problem persists, contact support.');
+        alert('Error loading app: ' + error.message + '\n\nTry refreshing the page.');
     }
 }
 
