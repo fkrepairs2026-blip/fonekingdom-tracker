@@ -456,14 +456,9 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <div class="form-group">
-                    <label>Detailed Problem Description *</label>
+                    <label>Problem Description *</label>
                     <textarea name="problem" id="problemDescription" rows="3" required placeholder="Describe the issue in detail..."></textarea>
                     <small style="color:#666;">Be specific: What happened? When? Any error messages?</small>
-                </div>
-                
-                <div class="form-group">
-                    <label>Problem Description *</label>
-                    <textarea name="problem" rows="3" required placeholder="Describe the issue..."></textarea>
                 </div>
                 
                 <div class="form-group">
