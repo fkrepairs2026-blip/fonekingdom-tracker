@@ -1619,6 +1619,141 @@ function closeClaimModal() {
     if (modal) modal.style.display = 'none';
 }
 
+/**
+ * Open edit repair modal to set pricing
+ */
+function openEditRepairModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const content = document.getElementById('statusModalContent');
+    
+    content.innerHTML = `
+        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;">
+            <h3 style="margin:0;">💰 Set Repair Pricing</h3>
+            <p style="margin:5px 0 0;"><strong>${repair.customerName}</strong> - ${repair.brand} ${repair.model}</p>
+        </div>
+        
+        <form id="editPricingForm" onsubmit="submitPricingUpdate(event, '${repairId}')">
+            <div class="form-group">
+                <label>Repair Type *</label>
+                <select name="repairType" required>
+                    <option value="">Select repair type</option>
+                    <option value="Screen Replacement" ${repair.repairType === 'Screen Replacement' ? 'selected' : ''}>Screen Replacement</option>
+                    <option value="Battery Replacement" ${repair.repairType === 'Battery Replacement' ? 'selected' : ''}>Battery Replacement</option>
+                    <option value="Charging Port Repair" ${repair.repairType === 'Charging Port Repair' ? 'selected' : ''}>Charging Port Repair</option>
+                    <option value="Camera Repair" ${repair.repairType === 'Camera Repair' ? 'selected' : ''}>Camera Repair</option>
+                    <option value="Speaker/Microphone" ${repair.repairType === 'Speaker/Microphone' ? 'selected' : ''}>Speaker/Microphone</option>
+                    <option value="Button Repair" ${repair.repairType === 'Button Repair' ? 'selected' : ''}>Button Repair</option>
+                    <option value="Water Damage Repair" ${repair.repairType === 'Water Damage Repair' ? 'selected' : ''}>Water Damage Repair</option>
+                    <option value="Motherboard Repair" ${repair.repairType === 'Motherboard Repair' ? 'selected' : ''}>Motherboard Repair</option>
+                    <option value="Software Issue" ${repair.repairType === 'Software Issue' ? 'selected' : ''}>Software Issue</option>
+                    <option value="FRP Unlock" ${repair.repairType === 'FRP Unlock' ? 'selected' : ''}>FRP Unlock</option>
+                    <option value="Password Unlock" ${repair.repairType === 'Password Unlock' ? 'selected' : ''}>Password Unlock</option>
+                    <option value="Data Recovery" ${repair.repairType === 'Data Recovery' ? 'selected' : ''}>Data Recovery</option>
+                    <option value="Other" ${repair.repairType === 'Other' ? 'selected' : ''}>Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Part Type/Description</label>
+                <input type="text" name="partType" value="${repair.partType || ''}" placeholder="e.g., Original LCD, High Copy Battery">
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Part Source</label>
+                    <select name="partSource">
+                        <option value="">Select source</option>
+                        <option value="Stock" ${repair.partSource === 'Stock' ? 'selected' : ''}>Stock</option>
+                        <option value="Supplier A" ${repair.partSource === 'Supplier A' ? 'selected' : ''}>Supplier A</option>
+                        <option value="Supplier B" ${repair.partSource === 'Supplier B' ? 'selected' : ''}>Supplier B</option>
+                        <option value="Customer Provided" ${repair.partSource === 'Customer Provided' ? 'selected' : ''}>Customer Provided</option>
+                        <option value="Other" ${repair.partSource === 'Other' ? 'selected' : ''}>Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Parts Cost</label>
+                    <input type="number" name="partsCost" value="${repair.partsCost || 0}" min="0" step="0.01" required>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Labor Cost</label>
+                <input type="number" name="laborCost" value="${repair.laborCost || 0}" min="0" step="0.01" required>
+            </div>
+            
+            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin:15px 0;border-left:4px solid #ffc107;">
+                <p style="margin:0;"><strong>Total:</strong> ₱<span id="totalPreview">${(parseFloat(repair.partsCost || 0) + parseFloat(repair.laborCost || 0)).toFixed(2)}</span></p>
+            </div>
+            
+            <div style="display:flex;gap:10px;">
+                <button type="submit" style="flex:1;background:#4caf50;color:white;padding:12px;font-weight:bold;">
+                    💰 Save Pricing
+                </button>
+                <button type="button" onclick="closeStatusModal()" style="flex:1;background:#666;color:white;padding:12px;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    `;
+    
+    // Add event listeners to update total
+    const partsCostInput = content.querySelector('[name="partsCost"]');
+    const laborCostInput = content.querySelector('[name="laborCost"]');
+    const totalPreview = content.querySelector('#totalPreview');
+    
+    const updateTotal = () => {
+        const parts = parseFloat(partsCostInput.value) || 0;
+        const labor = parseFloat(laborCostInput.value) || 0;
+        totalPreview.textContent = (parts + labor).toFixed(2);
+    };
+    
+    partsCostInput.addEventListener('input', updateTotal);
+    laborCostInput.addEventListener('input', updateTotal);
+    
+    document.getElementById('statusModal').style.display = 'block';
+}
+
+/**
+ * Submit pricing update
+ */
+async function submitPricingUpdate(e, repairId) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const partsCost = parseFloat(formData.get('partsCost')) || 0;
+    const laborCost = parseFloat(formData.get('laborCost')) || 0;
+    const total = partsCost + laborCost;
+    
+    const updateData = {
+        repairType: formData.get('repairType'),
+        partType: formData.get('partType') || '',
+        partSource: formData.get('partSource') || '',
+        partsCost: partsCost,
+        laborCost: laborCost,
+        total: total,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: window.currentUserData.displayName
+    };
+    
+    try {
+        await db.ref('repairs/' + repairId).update(updateData);
+        alert(`✅ Pricing updated!\n\nTotal: ₱${total.toFixed(2)}`);
+        closeStatusModal();
+        
+        // Refresh current tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    } catch (error) {
+        console.error('Error updating pricing:', error);
+        alert('Error: ' + error.message);
+    }
+}
 
 // Export to global scope
 window.loadRepairs = loadRepairs;
