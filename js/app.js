@@ -7,14 +7,15 @@ async function initializeApp() {
     try {
         console.log('🚀 Starting app initialization...');
         
-        // CRITICAL: Force hide any existing loading overlays FIRST
+        // CRITICAL: Force hide any existing loading FIRST
         utils.showLoading(false);
         
         // Small delay to ensure cleanup
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150));
         
         // NOW show loading for current init
         utils.showLoading(true);
+        
         
         if (!window.currentUser) {
             throw new Error('No user logged in');
@@ -60,7 +61,7 @@ async function initializeApp() {
         console.error('❌ Error initializing app:', error);
         console.error('Stack:', error.stack);
         
-        // CRITICAL: Always hide loading on error
+        // CRITICAL: ALWAYS hide loading on error
         utils.showLoading(false);
         
         alert('Error loading app: ' + error.message + '\n\nTry refreshing the page.');
