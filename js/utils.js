@@ -123,6 +123,13 @@ const utils = {
         if (days < 365) return `${Math.floor(days / 30)} months ago`;
         return `${Math.floor(days / 365)} years ago`;
     },
+
+    /**
+     * Time ago (alias for daysAgo)
+     */
+    timeAgo: function(isoString) {
+        return this.daysAgo(isoString);
+    },
     
     /**
      * Format currency
