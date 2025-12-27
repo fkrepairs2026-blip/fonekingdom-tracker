@@ -1,0 +1,256 @@
+# Fonekingdom Repair Tracker - Cursor AI Rules
+
+## Project Context
+This is Fonekingdom Repair Tracker v2.0, a mobile phone repair shop management system.
+See `.cursor/PROJECT.md` for complete project overview.
+
+## Tech Stack
+- **Frontend:** Vanilla JavaScript (no frameworks)
+- **Database:** Firebase Realtime Database
+- **Auth:** Firebase Authentication
+- **Hosting:** GitHub Pages
+- **Languages:** English + Tagalog (Filipino)
+
+## Documentation Files
+- `.cursor/PROJECT.md` - Complete project overview
+- `.cursor/FILE_STRUCTURE.md` - Code organization
+- `.cursor/FEATURES.md` - Feature documentation
+- `.cursor/CODING_STANDARDS.md` - Code standards & best practices
+- `.cursor/CURSOR_GUIDE.md` - How to use Cursor with this project
+- `.cursor/README.md` - Documentation index
+
+## Code Standards (Must Follow)
+
+### JavaScript
+- **Naming:** camelCase for functions/variables, UPPER_SNAKE_CASE for constants
+- **Functions:** Function declarations for top-level, arrow functions for callbacks
+- **Async:** Always use async/await for Firebase operations
+- **Exports:** CRITICAL - All functions used in HTML must export to window:
+  ```javascript
+  window.functionName = functionName;
+  ```
+
+### Critical Patterns (MUST Include)
+
+#### 1. Export Pattern
+```javascript
+// At end of file
+window.functionName = functionName;
+window.anotherFunction = anotherFunction;
+```
+
+#### 2. Auto-Refresh Pattern
+```javascript
+// After ANY Firebase update
+if (window.currentTabRefresh) {
+    window.currentTabRefresh();
+}
+```
+
+#### 3. Loading State Pattern
+```javascript
+try {
+    utils.showLoading(true);
+    await someOperation();
+    utils.showLoading(false);  // Always hide
+} catch (error) {
+    utils.showLoading(false);  // CRITICAL - hide on error too
+    alert('Error: ' + error.message);
+}
+```
+
+#### 4. Tab Refresh Setup
+```javascript
+function buildMyTab(container) {
+    // Set refresh callback FIRST
+    window.currentTabRefresh = () => buildMyTab(
+        document.getElementById('myTabId')
+    );
+    
+    // Then build content
+    container.innerHTML = generateHTML();
+}
+```
+
+#### 5. Null Check Pattern
+```javascript
+// Always check before using
+const container = document.getElementById('myId');
+if (!container) {
+    console.warn('Container not found');
+    return;
+}
+```
+
+### Common Pitfalls to AVOID
+
+❌ **Don't forget commas in utils object:**
+```javascript
+// WRONG
+daysAgo: function() { }
+timeAgo: function() { }  // Syntax Error!
+
+// CORRECT
+daysAgo: function() { },
+timeAgo: function() { },
+```
+
+❌ **Don't forget to export functions:**
+```javascript
+function myFunction() { }
+window.myFunction = myFunction;  // Must have this!
+```
+
+❌ **Don't forget auto-refresh:**
+```javascript
+await db.ref('repairs/'+id).update(data);
+// Must add:
+if (window.currentTabRefresh) {
+    window.currentTabRefresh();
+}
+```
+
+❌ **Don't forget to hide loading on error:**
+```javascript
+try {
+    utils.showLoading(true);
+    await doSomething();
+    utils.showLoading(false);
+} catch (error) {
+    utils.showLoading(false);  // CRITICAL!
+}
+```
+
+## Role-Based Access Control
+
+Always check user role before allowing actions:
+
+| Action | Admin | Manager | Cashier | Technician |
+|--------|-------|---------|---------|------------|
+| Receive Devices | ✅ | ✅ | ✅ | ✅ |
+| Accept Repairs | ✅ | ✅ | ❌ | ✅ |
+| Set Pricing | ✅ | ✅ | ❌ | ✅ |
+| Record Payments | ✅ | ✅ | ✅ | ❌ |
+| Verify Payments | ✅ | ✅ | ❌ | ❌ |
+| Release Device | ✅ | ✅ | ✅ | ❌ |
+| Process Warranty | ✅ | ✅ | ❌ | ❌ |
+| User Management | ✅ | ❌ | ❌ | ❌ |
+
+## Firebase Operations
+
+### Create
+```javascript
+const newRef = await db.ref('repairs').push({
+    customerName: name,
+    createdAt: new Date().toISOString(),
+    // ...
+});
+const repairId = newRef.key;
+```
+
+### Update
+```javascript
+await db.ref(`repairs/${repairId}`).update({
+    status: newStatus,
+    lastUpdated: new Date().toISOString(),
+    lastUpdatedBy: window.currentUserData.displayName
+});
+```
+
+### Delete (Soft)
+```javascript
+await db.ref(`repairs/${repairId}`).update({
+    deleted: true,
+    deletedAt: new Date().toISOString(),
+    deletedBy: window.currentUserData.displayName
+});
+```
+
+### Timestamps
+```javascript
+// Always use ISO format
+const now = new Date().toISOString();
+
+// Store in database
+createdAt: now,
+lastUpdated: now
+
+// Display to user
+utils.formatDateTime(now)  // "Dec 27, 2025, 10:30 AM"
+utils.formatDate(now)      // "Dec 27, 2025"
+utils.daysAgo(now)         // "2 days ago"
+```
+
+## Error Handling
+
+Always include proper error handling:
+```javascript
+try {
+    // Operation
+} catch (error) {
+    console.error('Error:', error);
+    alert('User-friendly message');
+    utils.showLoading(false);  // Cleanup
+}
+```
+
+## When Generating Code
+
+1. Follow `.cursor/CODING_STANDARDS.md`
+2. Include all required patterns (export, refresh, loading)
+3. Add role-based checks if needed
+4. Include error handling
+5. Add null checks
+6. Use Philippine peso symbol (₱)
+7. Support English + Tagalog where applicable
+8. Test in all user roles
+
+## Testing Checklist
+
+Before considering code complete:
+- ✅ Works for all relevant user roles
+- ✅ No console errors
+- ✅ Auto-refresh works
+- ✅ Loading states managed
+- ✅ Null checks included
+- ✅ Functions exported
+- ✅ Error handling present
+- ✅ Mobile responsive
+
+## File Locations
+
+- **HTML:** `index.html`
+- **Styles:** `css/styles.css`
+- **JavaScript:**
+  - `js/firebase-config.js` - Firebase init
+  - `js/utils.js` - Utilities
+  - `js/auth.js` - Authentication
+  - `js/repairs.js` - Business logic (~1800 lines)
+  - `js/ui.js` - UI rendering (~920 lines)
+  - `js/app.js` - Main initialization
+
+## Important Notes
+
+- This is a vanilla JavaScript project (NO frameworks)
+- Global state stored in `window` scope
+- Firebase Realtime Database (not Firestore)
+- All dates in ISO 8601 format
+- Philippine phone format: 09XX or +639XX
+- Currency: Philippine Peso (₱)
+- Support both Walk-in and Dealer customers
+- Warranty system uses days-based calculation
+- Payment system supports partial payments
+- Real-time updates via Firebase listeners
+
+## When in Doubt
+
+Refer to documentation in `.cursor/` folder:
+- Project questions → `PROJECT.md`
+- Code location → `FILE_STRUCTURE.md`
+- Feature questions → `FEATURES.md`
+- Style questions → `CODING_STANDARDS.md`
+- Cursor usage → `CURSOR_GUIDE.md`
+
+---
+
+**Remember:** Quality over speed. Always follow patterns, include error handling, and test thoroughly! ✅

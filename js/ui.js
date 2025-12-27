@@ -63,6 +63,7 @@ function renderTabs() {
     console.log('🎨 Rendering tabs UI...');
     const tabsContainer = document.getElementById('tabsContainer');
     const contentsContainer = document.getElementById('contentsContainer');
+    const mobileNav = document.getElementById('mobileBottomNav');
     
     if (!tabsContainer || !contentsContainer) {
         console.error('❌ Tab containers not found!');
@@ -71,6 +72,30 @@ function renderTabs() {
     
     tabsContainer.innerHTML = '';
     contentsContainer.innerHTML = '';
+    
+    // Build mobile navigation (show first 5 tabs)
+    if (mobileNav) {
+        mobileNav.innerHTML = '';
+        const mobileTabs = availableTabs.slice(0, 5);
+        mobileTabs.forEach((tab, index) => {
+            const navItem = document.createElement('div');
+            navItem.className = 'mobile-nav-item' + (index === 0 ? ' active' : '');
+            navItem.onclick = () => switchTab(tab.id);
+            navItem.id = `mobile-tab-${tab.id}`;
+            
+            // Extract emoji and text
+            const label = tab.label;
+            const emojiMatch = label.match(/^([^\s]+)\s+(.+)$/);
+            const emoji = emojiMatch ? emojiMatch[1] : '📋';
+            const text = emojiMatch ? emojiMatch[2] : label;
+            
+            navItem.innerHTML = `
+                <span>${emoji}</span>
+                <span>${text}</span>
+            `;
+            mobileNav.appendChild(navItem);
+        });
+    }
     
     availableTabs.forEach((tab, index) => {
         const tabEl = document.createElement('div');
@@ -103,14 +128,22 @@ function switchTab(tabId) {
     console.log('🔄 Switching to tab:', tabId);
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.mobile-nav-item').forEach(m => m.classList.remove('active'));
     
     const tab = document.getElementById(`tab-${tabId}`);
     const content = document.getElementById(`${tabId}Tab`);
+    const mobileTab = document.getElementById(`mobile-tab-${tabId}`);
     
     if (tab) tab.classList.add('active');
     if (content) content.classList.add('active');
+    if (mobileTab) mobileTab.classList.add('active');
     
     activeTab = tabId;
+    
+    // Scroll to top on mobile
+    if (window.innerWidth <= 768) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 }
 
 /**
