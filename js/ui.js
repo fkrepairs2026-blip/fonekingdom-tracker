@@ -634,6 +634,12 @@ function buildAllRepairsTab(container) {
 }
 
 function displayRepairsInContainer(repairs, container) {
+    // Safety check
+    if (!container) {
+        console.warn('⚠️ Container not found, skipping display');
+        return;
+    }
+    
     if (!container) {
         console.error('❌ Container is null!');
         return;
