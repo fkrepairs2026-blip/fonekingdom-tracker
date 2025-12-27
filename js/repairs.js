@@ -135,6 +135,220 @@ async function handlePhotoUpload(input, previewId) {
 }
 
 /**
+ * Open payment modal
+ */
+function openPaymentModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+    const balance = repair.total - totalPaid;
+    
+    const content = document.getElementById('paymentModalContent');
+    
+    content.innerHTML = `
+        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+            <h4 style="margin:0 0 10px 0;">Payment Summary</h4>
+            <p><strong>Customer:</strong> ${repair.customerName}</p>
+            <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p><strong>Total Amount:</strong> ₱${repair.total.toFixed(2)}</p>
+            <p><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></p>
+            <p><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-size:18px;font-weight:bold;">₱${balance.toFixed(2)}</span></p>
+        </div>
+        
+        ${balance <= 0 ? `
+            <div style="background:#c8e6c9;padding:15px;border-radius:5px;margin-bottom:15px;text-align:center;">
+                <h3 style="color:green;margin:0;">✅ FULLY PAID</h3>
+                <p style="margin:10px 0 0;">This repair has been fully paid.</p>
+            </div>
+        ` : `
+            <h4>Record New Payment</h4>
+            
+            <div class="form-group">
+                <label>Payment Amount (₱) *</label>
+                <input type="number" id="paymentAmount" step="0.01" min="0.01" max="${balance}" value="${balance}" required>
+                <small style="color:#666;">Maximum: ₱${balance.toFixed(2)} (remaining balance)</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Payment Method *</label>
+                <select id="paymentMethod" required>
+                    <option value="">Select Method</option>
+                    <option value="Cash">💵 Cash</option>
+                    <option value="GCash">📱 GCash</option>
+                    <option value="Bank Transfer">🏦 Bank Transfer</option>
+                    <option value="Card">💳 Card</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Payment Proof (Photo)</label>
+                <input type="file" accept="image/*" id="paymentProof" onchange="previewPaymentProof(event)">
+                <div id="paymentProofPreview" style="display:none;margin-top:10px;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>Notes (Optional)</label>
+                <textarea id="paymentNotes" rows="2" placeholder="Additional notes about this payment..."></textarea>
+            </div>
+            
+            <button onclick="savePayment('${repairId}')" style="width:100%;background:#4caf50;color:white;">💰 Record Payment</button>
+        `}
+        
+        ${(repair.payments && repair.payments.length > 0) ? `
+            <div style="margin-top:20px;">
+                <h4>Payment History</h4>
+                <div style="max-height:300px;overflow-y:auto;">
+                    ${repair.payments.map((p, i) => `
+                        <div style="background:${p.verified ? '#e8f5e9' : '#fff3e0'};padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid ${p.verified ? '#4caf50' : '#ff9800'};">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                                <strong style="color:${p.verified ? '#2e7d32' : '#e65100'};">₱${p.amount.toFixed(2)}</strong>
+                                <span style="background:${p.verified ? '#4caf50' : '#ff9800'};color:white;padding:2px 8px;border-radius:3px;font-size:12px;">
+                                    ${p.verified ? '✅ Verified' : '⏳ Pending'}
+                                </span>
+                            </div>
+                            <div style="font-size:13px;color:#666;">
+                                <div><strong>Method:</strong> ${p.method}</div>
+                                <div><strong>Date:</strong> ${utils.formatDateTime(p.date)}</div>
+                                <div><strong>Received by:</strong> ${p.receivedBy}</div>
+                                ${p.notes ? `<div><strong>Notes:</strong> ${p.notes}</div>` : ''}
+                                ${p.verifiedBy ? `<div><strong>Verified by:</strong> ${p.verifiedBy} on ${utils.formatDateTime(p.verifiedAt)}</div>` : ''}
+                            </div>
+                            ${p.photo ? `
+                                <div style="margin-top:8px;">
+                                    <img src="${p.photo}" onclick="showPhotoModal('${p.photo}')" style="max-width:100%;max-height:150px;cursor:pointer;border-radius:5px;">
+                                </div>
+                            ` : ''}
+                            ${!p.verified && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? `
+                                <button onclick="verifyPayment('${repairId}', ${i})" style="margin-top:8px;background:#4caf50;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;">
+                                    ✅ Verify Payment
+                                </button>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : ''}
+    `;
+    
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+let paymentProofPhoto = null;
+
+/**
+ * Preview payment proof photo
+ */
+async function previewPaymentProof(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        const compressed = await utils.compressImage(file, 800);
+        paymentProofPhoto = compressed;
+        
+        const preview = document.getElementById('paymentProofPreview');
+        if (preview) {
+            preview.innerHTML = '<img src="' + compressed + '" style="width:100%;max-height:200px;object-fit:contain;border-radius:5px;">';
+            preview.style.display = 'block';
+        }
+    } catch (error) {
+        alert('Error uploading photo: ' + error.message);
+    }
+}
+
+/**
+ * Save payment
+ */
+async function savePayment(repairId) {
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const method = document.getElementById('paymentMethod').value;
+    const notes = document.getElementById('paymentNotes').value;
+    
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid payment amount');
+        return;
+    }
+    
+    if (!method) {
+        alert('Please select payment method');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+    const balance = repair.total - totalPaid;
+    
+    if (amount > balance) {
+        alert(`Payment amount cannot exceed balance of ₱${balance.toFixed(2)}`);
+        return;
+    }
+    
+    const payment = {
+        amount: amount,
+        method: method,
+        date: new Date().toISOString(),
+        receivedBy: window.currentUserData.displayName,
+        notes: notes,
+        photo: paymentProofPhoto || null,
+        verified: (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager'),
+        verifiedBy: (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? window.currentUserData.displayName : null,
+        verifiedAt: (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? new Date().toISOString() : null
+    };
+    
+    const existingPayments = repair.payments || [];
+    
+    await db.ref('repairs/' + repairId).update({
+        payments: [...existingPayments, payment],
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: window.currentUserData.displayName
+    });
+    
+    paymentProofPhoto = null;
+    
+    const newBalance = balance - amount;
+    
+    if (newBalance === 0) {
+        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n🎉 FULLY PAID! Balance is now ₱0.00`);
+    } else {
+        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n📊 Remaining Balance: ₱${newBalance.toFixed(2)}`);
+    }
+    
+    closePaymentModal();
+}
+
+/**
+ * Verify payment
+ */
+async function verifyPayment(repairId, paymentIndex) {
+    if (!confirm('Verify this payment?')) return;
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payments = [...repair.payments];
+    
+    payments[paymentIndex] = {
+        ...payments[paymentIndex],
+        verified: true,
+        verifiedBy: window.currentUserData.displayName,
+        verifiedAt: new Date().toISOString()
+    };
+    
+    await db.ref('repairs/' + repairId).update({
+        payments: payments,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: window.currentUserData.displayName
+    });
+    
+    alert('✅ Payment verified!');
+    
+    // Reopen modal to refresh
+    setTimeout(() => openPaymentModal(repairId), 100);
+}
+
+/**
  * Update repair status
  */
 async function updateRepairStatus(repairId) {
@@ -550,6 +764,10 @@ function closeAdditionalRepairModal() {
 window.loadRepairs = loadRepairs;
 window.submitRepair = submitRepair;
 window.handlePhotoUpload = handlePhotoUpload;
+window.openPaymentModal = openPaymentModal;
+window.previewPaymentProof = previewPaymentProof;
+window.savePayment = savePayment;
+window.verifyPayment = verifyPayment;
 window.updateRepairStatus = updateRepairStatus;
 window.saveStatus = saveStatus;
 window.openAdditionalRepairModal = openAdditionalRepairModal;

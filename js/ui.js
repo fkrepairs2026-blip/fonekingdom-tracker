@@ -99,6 +99,59 @@ function switchTab(tabId) {
 }
 
 /**
+ * Build filtered repairs tab (for status filters)
+ */
+function buildFilteredRepairsTab(status) {
+    console.log('🔍 Building filtered repairs tab for:', status);
+    
+    let repairs = [];
+    let title = '';
+    
+    const role = window.currentUserData.role;
+    let userRepairs = window.allRepairs;
+    
+    // Filter by role first
+    if (role === 'technician') {
+        userRepairs = window.allRepairs.filter(r => r.assignedTo === window.currentUserData.technicianName);
+    }
+    
+    // Then filter by status
+    if (status === 'all') {
+        repairs = userRepairs;
+        title = 'All Repairs';
+    } else if (status === 'pending-payment') {
+        repairs = userRepairs.filter(r => r.payments && r.payments.some(p => !p.verified));
+        title = 'Pending Payment Verification';
+    } else {
+        repairs = userRepairs.filter(r => r.status === status);
+        title = `${status} Repairs`;
+    }
+    
+    // Switch to 'all' tab or create temporary filtered view
+    switchTab('all');
+    
+    const container = document.getElementById('allTab');
+    if (container) {
+        container.innerHTML = `
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                    <h3>${title} (${repairs.length})</h3>
+                    <button onclick="buildTabs()" class="btn-small">← Back to All</button>
+                </div>
+                <div id="filteredRepairsList"></div>
+            </div>
+        `;
+        
+        setTimeout(() => {
+            const listContainer = document.getElementById('filteredRepairsList');
+            if (listContainer) {
+                displayRepairsInContainer(repairs, listContainer);
+            }
+        }, 0);
+    }
+}
+
+/**
  * Build New Repair Tab
  */
 function buildNewRepairTab(container) {
@@ -277,7 +330,6 @@ function buildAllRepairsTab(container) {
         </div>
     `;
     
-    // Use setTimeout to ensure DOM is ready
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
@@ -333,13 +385,15 @@ function displayRepairsInContainer(repairs, container) {
                     <div><strong>Assigned:</strong> ${r.assignedTo}</div>
                     ${!hidePayments ? `
                         <div><strong>Total:</strong> ₱${r.total.toFixed(2)}${r.serviceFee ? ' <span style="color:#f44336;">(Service Fee)</span>' : ''}</div>
-                        <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'}">₱${balance.toFixed(2)}</span></div>
+                        <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
+                        <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-weight:bold;">₱${balance.toFixed(2)}</span></div>
                     ` : '<div><strong>Amount:</strong> ***</div>'}
                 </div>
                 
                 <div><strong>Problem:</strong> ${r.problem}</div>
                 
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                    ${!hidePayments ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
                     ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
@@ -461,6 +515,7 @@ function buildUsersTab(container) {
 // Export to global scope
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
+window.buildFilteredRepairsTab = buildFilteredRepairsTab;
 window.buildNewRepairTab = buildNewRepairTab;
 window.toggleMicrosoldingFields = toggleMicrosoldingFields;
 window.displayRepairsInContainer = displayRepairsInContainer;

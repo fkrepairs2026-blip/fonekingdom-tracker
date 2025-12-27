@@ -81,7 +81,7 @@ function updateHeaderUserInfo() {
 }
 
 /**
- * Build statistics dashboard
+ * Build statistics dashboard with clickable filters
  */
 function buildStats() {
     try {
@@ -113,15 +113,20 @@ function buildStats() {
             console.log('Technician repairs:', userRepairs.length);
         }
         
-        const inProgress = userRepairs.filter(r => r.status === 'In Progress' || r.status === 'Received').length;
+        // Calculate stats by status
+        const received = userRepairs.filter(r => r.status === 'Received').length;
+        const inProgress = userRepairs.filter(r => r.status === 'In Progress').length;
+        const waiting = userRepairs.filter(r => r.status === 'Waiting for Parts').length;
+        const ready = userRepairs.filter(r => r.status === 'Ready for Pickup').length;
+        const completed = userRepairs.filter(r => r.status === 'Completed').length;
+        const unsuccessful = userRepairs.filter(r => r.status === 'Unsuccessful').length;
+        const rto = userRepairs.filter(r => r.status === 'RTO').length;
+        
+        // Payment stats
         const todayRevenue = userRepairs
             .filter(r => r.payments && r.payments.some(p => new Date(p.date).toDateString() === today && p.verified))
             .reduce((sum, r) => sum + r.payments.filter(p => new Date(p.date).toDateString() === today && p.verified).reduce((s, p) => s + p.amount, 0), 0);
         const pending = userRepairs.filter(r => r.payments && r.payments.some(p => !p.verified)).length;
-        
-        const statsLabels = role === 'technician' 
-            ? ['My Workload', 'In Progress', 'My Revenue', 'Pending Verify']
-            : ['Total Repairs', 'In Progress', "Today's Revenue", 'Pending Verify'];
         
         const statsSection = document.getElementById('statsSection');
         if (!statsSection) {
@@ -129,23 +134,54 @@ function buildStats() {
             return;
         }
         
+        // Build clickable stats cards
         statsSection.innerHTML = `
-            <div class="stat-card">
+            <div class="stat-card" onclick="filterByStatus('all')" style="cursor:pointer;" title="Click to view all repairs">
                 <h3>${userRepairs.length}</h3>
-                <p>${statsLabels[0]}</p>
+                <p>Total Repairs</p>
             </div>
-            <div class="stat-card">
+            <div class="stat-card stat-received" onclick="filterByStatus('Received')" style="cursor:pointer;" title="Click to view received units">
+                <h3>${received}</h3>
+                <p>📥 Received</p>
+            </div>
+            <div class="stat-card stat-in-progress" onclick="filterByStatus('In Progress')" style="cursor:pointer;" title="Click to view in progress">
                 <h3>${inProgress}</h3>
-                <p>${statsLabels[1]}</p>
+                <p>🔧 In Progress</p>
             </div>
-            <div class="stat-card">
-                <h3>₱${todayRevenue.toFixed(0)}</h3>
-                <p>${statsLabels[2]}</p>
+            <div class="stat-card stat-waiting" onclick="filterByStatus('Waiting for Parts')" style="cursor:pointer;" title="Click to view waiting for parts">
+                <h3>${waiting}</h3>
+                <p>⏳ Waiting Parts</p>
             </div>
-            <div class="stat-card">
-                <h3>${pending}</h3>
-                <p>${statsLabels[3]}</p>
+            <div class="stat-card stat-ready" onclick="filterByStatus('Ready for Pickup')" style="cursor:pointer;" title="Click to view ready units">
+                <h3>${ready}</h3>
+                <p>✅ Ready</p>
             </div>
+            <div class="stat-card stat-completed" onclick="filterByStatus('Completed')" style="cursor:pointer;" title="Click to view completed">
+                <h3>${completed}</h3>
+                <p>🎉 Completed</p>
+            </div>
+            ${unsuccessful > 0 ? `
+                <div class="stat-card stat-unsuccessful" onclick="filterByStatus('Unsuccessful')" style="cursor:pointer;" title="Click to view unsuccessful">
+                    <h3>${unsuccessful}</h3>
+                    <p>❌ Unsuccessful</p>
+                </div>
+            ` : ''}
+            ${rto > 0 ? `
+                <div class="stat-card stat-rto" onclick="filterByStatus('RTO')" style="cursor:pointer;" title="Click to view RTO">
+                    <h3>${rto}</h3>
+                    <p>🔙 RTO</p>
+                </div>
+            ` : ''}
+            ${role !== 'technician' ? `
+                <div class="stat-card" onclick="filterByStatus('pending-payment')" style="cursor:pointer;background:#fff3cd;" title="Click to view pending payments">
+                    <h3>${pending}</h3>
+                    <p>⏳ Pending Payment</p>
+                </div>
+                <div class="stat-card" style="background:#e3f2fd;">
+                    <h3>₱${todayRevenue.toFixed(0)}</h3>
+                    <p>💰 Today's Revenue</p>
+                </div>
+            ` : ''}
         `;
         
         console.log('✅ Stats built successfully');
@@ -153,6 +189,18 @@ function buildStats() {
     } catch (error) {
         console.error('❌ Error building stats:', error);
         // Don't throw - just log and continue
+    }
+}
+
+/**
+ * Filter repairs by status
+ */
+function filterByStatus(status) {
+    console.log('🔍 Filtering by status:', status);
+    
+    // Switch to appropriate tab and apply filter
+    if (window.buildFilteredRepairsTab) {
+        window.buildFilteredRepairsTab(status);
     }
 }
 
@@ -171,6 +219,15 @@ function closePhotoModal() {
     if (modal) modal.style.display = 'none';
 }
 
+function showPhotoModal(photoUrl) {
+    const modal = document.getElementById('photoModal');
+    const img = document.getElementById('modalPhoto');
+    if (modal && img) {
+        img.src = photoUrl;
+        modal.style.display = 'block';
+    }
+}
+
 function closeUserModal() {
     const modal = document.getElementById('userModal');
     if (modal) modal.style.display = 'none';
@@ -185,7 +242,9 @@ function closePaymentModal() {
 window.initializeApp = initializeApp;
 window.updateHeaderUserInfo = updateHeaderUserInfo;
 window.buildStats = buildStats;
+window.filterByStatus = filterByStatus;
 window.closePhotoModal = closePhotoModal;
+window.showPhotoModal = showPhotoModal;
 window.closeUserModal = closeUserModal;
 window.closePaymentModal = closePaymentModal;
 
