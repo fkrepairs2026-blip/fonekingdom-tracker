@@ -35,6 +35,10 @@ async function initializeApp() {
         console.log('📦 Loading repairs...');
         await loadRepairs();
         console.log('✅ Repairs loaded:', window.allRepairs.length);
+
+        console.log('📦 Loading modification requests...');
+        await loadModificationRequests();
+        console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
         
         console.log('📊 Building stats...');
         buildStats();
