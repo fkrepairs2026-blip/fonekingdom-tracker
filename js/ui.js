@@ -337,6 +337,57 @@ function buildReceiveDeviceTab(container) {
                         <input type="text" name="model" required placeholder="e.g., Galaxy S21, iPhone 12">
                     </div>
                 </div>
+
+                <div class="form-group">
+                    <label>Problem Type *</label>
+                    <select id="problemType" name="problemType" onchange="handleProblemTypeChange()" required>
+                        <option value="">Select problem type</option>
+                        <optgroup label="🔧 Hardware Issues">
+                            <option value="Screen">Screen (Cracked, Lines, Black)</option>
+                            <option value="Battery">Battery (Drain, Not Charging, Swollen)</option>
+                            <option value="Charging Port">Charging Port</option>
+                            <option value="Camera">Camera (Front/Back)</option>
+                            <option value="Speaker">Speaker/Microphone</option>
+                            <option value="Button">Button (Power, Volume, Home)</option>
+                            <option value="Housing">Housing/Body</option>
+                            <option value="Water Damage">Water Damage</option>
+                            <option value="Motherboard">Motherboard Issue</option>
+                        </optgroup>
+                        <optgroup label="💻 Software Issues">
+                            <option value="FRP Lock">FRP Lock (Google Account)</option>
+                            <option value="Password Lock">Password/Pattern Lock</option>
+                            <option value="iCloud Lock">iCloud Lock (Apple ID)</option>
+                            <option value="Software Restore">Software Restore/Reflash</option>
+                            <option value="Virus/Malware">Virus/Malware Removal</option>
+                            <option value="OS Update">OS Update/Upgrade</option>
+                            <option value="App Issues">App Installation Issues</option>
+                            <option value="Slow Performance">Slow Performance/Hang</option>
+                            <option value="Data Recovery">Data Recovery</option>
+                        </optgroup>
+                        <optgroup label="🔄 Other">
+                            <option value="Network">Network Issues (WiFi, Signal)</option>
+                            <option value="Other Hardware">Other Hardware</option>
+                            <option value="Other Software">Other Software</option>
+                            <option value="Pending Diagnosis">Pending Diagnosis</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div id="softwareWarningBox" style="display:none;background:#fff3cd;padding:12px;border-radius:5px;margin:10px 0;border-left:4px solid #ffc107;">
+                    <p style="margin:0;"><strong>⚠️ Software Issue Detected</strong></p>
+                    <p style="margin:5px 0 0;font-size:14px;">This is a software repair. Make sure to inform customer about data backup and potential data loss.</p>
+                </div>
+                
+                <div id="frpWarningBox" style="display:none;background:#ffebee;padding:12px;border-radius:5px;margin:10px 0;border-left:4px solid #f44336;">
+                    <p style="margin:0;color:#c62828;"><strong>🔒 FRP/Lock Issue</strong></p>
+                    <p style="margin:5px 0 0;font-size:14px;color:#c62828;">Verify customer is the original owner. Request proof of purchase. FRP unlock may not be possible on all devices.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Detailed Problem Description *</label>
+                    <textarea name="problem" id="problemDescription" rows="3" required placeholder="Describe the issue in detail..."></textarea>
+                    <small style="color:#666;">Be specific: What happened? When? Any error messages?</small>
+                </div>
                 
                 <div class="form-group">
                     <label>Problem Description *</label>
@@ -725,6 +776,117 @@ function toggleBackJobFields() {
     }
 }
 
+
+/**
+ * Handle problem type selection
+ */
+function handleProblemTypeChange() {
+    const problemType = document.getElementById('problemType')?.value;
+    if (!problemType) return;
+    
+    const softwareWarning = document.getElementById('softwareWarningBox');
+    const frpWarning = document.getElementById('frpWarningBox');
+    
+    const softwareIssues = ['FRP Lock', 'Password Lock', 'iCloud Lock', 'Software Restore', 
+                            'Virus/Malware', 'OS Update', 'App Issues', 'Slow Performance', 
+                            'Data Recovery', 'Other Software'];
+    
+    const lockIssues = ['FRP Lock', 'Password Lock', 'iCloud Lock'];
+    
+    if (softwareWarning) {
+        softwareWarning.style.display = softwareIssues.includes(problemType) ? 'block' : 'none';
+    }
+    
+    if (frpWarning) {
+        frpWarning.style.display = lockIssues.includes(problemType) ? 'block' : 'none';
+    }
+}
+
+/**
+ * Build Claimed Units Page
+ */
+function buildClaimedUnitsPage(container) {
+    console.log('✅ Building Claimed Units page');
+    window.currentTabRefresh = () => buildClaimedUnitsPage(document.getElementById('claimedTab'));
+    
+    const claimedUnits = window.allRepairs.filter(r => r.claimedAt);
+    claimedUnits.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
+    
+    const role = window.currentUserData.role;
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>✅ Claimed Units - Released to Customers (${claimedUnits.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Devices that have been picked up by customers with warranty tracking</p>
+            
+            ${claimedUnits.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">📭</h2>
+                    <p>No claimed units yet</p>
+                </div>
+            ` : `
+                <div>
+                    ${claimedUnits.map(r => {
+                        const warrantyEndDate = r.warrantyEndDate ? new Date(r.warrantyEndDate) : null;
+                        const isWarrantyActive = warrantyEndDate && warrantyEndDate > new Date();
+                        const daysSinceClaimed = Math.floor((new Date() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
+                        
+                        return `
+                            <div class="repair-card" style="border-left:4px solid ${isWarrantyActive ? '#4caf50' : '#999'};">
+                                <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
+                                <span class="status-badge" style="background:#c8e6c9;color:#2e7d32;">✅ Claimed</span>
+                                ${isWarrantyActive ? 
+                                    '<span class="status-badge" style="background:#4caf50;color:white;">🛡️ Warranty Active</span>' : 
+                                    '<span class="status-badge" style="background:#999;color:white;">⏰ Warranty Expired</span>'
+                                }
+                                
+                                <div class="repair-info">
+                                    <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                                    <div><strong>Problem Type:</strong> ${r.problemType || 'N/A'}</div>
+                                    <div><strong>Repair:</strong> ${r.repairType || 'N/A'}</div>
+                                    <div><strong>Technician:</strong> ${r.acceptedByName || 'N/A'}</div>
+                                    <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
+                                </div>
+                                
+                                <div style="background:#f5f5f5;padding:12px;border-radius:5px;margin:10px 0;">
+                                    <h4 style="margin:0 0 8px 0;color:#2e7d32;">📋 Claim & Warranty Info</h4>
+                                    <div style="font-size:14px;">
+                                        <div><strong>Claimed:</strong> ${utils.formatDateTime(r.claimedAt)} (${daysSinceClaimed} days ago)</div>
+                                        <div><strong>Released By:</strong> ${r.releasedBy || 'N/A'}</div>
+                                        ${r.warrantyPeriodDays ? `
+                                            <div style="margin-top:8px;padding-top:8px;border-top:1px solid #ddd;">
+                                                <div><strong>🛡️ Warranty:</strong> ${r.warrantyPeriodDays} days</div>
+                                                <div><strong>Expires:</strong> ${warrantyEndDate ? utils.formatDate(warrantyEndDate.toISOString()) : 'N/A'}</div>
+                                                ${isWarrantyActive ? 
+                                                    `<div style="color:#2e7d32;font-weight:bold;">✅ Active (${Math.ceil((warrantyEndDate - new Date()) / (1000 * 60 * 60 * 24))} days left)</div>` :
+                                                    '<div style="color:#999;font-weight:bold;">⏰ Expired</div>'
+                                                }
+                                            </div>
+                                        ` : '<div style="color:#999;"><strong>Warranty:</strong> None</div>'}
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                                    ${(role === 'admin' || role === 'manager' || role === 'cashier') ? `
+                                        <button class="btn-small" onclick="viewClaimDetails('${r.id}')" style="background:#2196f3;color:white;">
+                                            📄 View Details
+                                        </button>
+                                    ` : ''}
+                                    ${isWarrantyActive && (role === 'admin' || role === 'manager') ? `
+                                        <button class="btn-small" onclick="openWarrantyClaimModal('${r.id}')" style="background:#ff9800;color:white;">
+                                            🛡️ Warranty Claim
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `}
+        </div>
+    `;
+}
+
 // Export to global scope
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
@@ -745,5 +907,7 @@ window.buildCashCountTab = buildCashCountTab;
 window.buildSuppliersTab = buildSuppliersTab;
 window.buildUsersTab = buildUsersTab;
 window.toggleBackJobFields = toggleBackJobFields;
+window.buildClaimedUnitsPage = buildClaimedUnitsPage;
+window.handleProblemTypeChange = handleProblemTypeChange;
 
 console.log('✅ ui.js loaded');
