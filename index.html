@@ -7,6 +7,40 @@
     <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+<script>
+// 🚨 EMERGENCY CLEANUP - Runs every 100ms for 3 seconds
+(function() {
+    console.log('🚨 Emergency cleanup script starting...');
+    
+    let attempts = 0;
+    const maxAttempts = 30; // 30 x 100ms = 3 seconds
+    
+    const forceCleanup = setInterval(function() {
+        attempts++;
+        
+        // Force hide loading
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.style.display = 'none';
+            loading.style.visibility = 'hidden';
+            loading.style.opacity = '0';
+        }
+        
+        // Hide all modals
+        document.querySelectorAll('.modal').forEach(function(modal) {
+            modal.style.display = 'none';
+        });
+        
+        if (attempts >= maxAttempts) {
+            clearInterval(forceCleanup);
+            console.log('✅ Emergency cleanup complete after ' + attempts + ' attempts');
+        }
+    }, 100);
+    
+    console.log('✅ Emergency cleanup script loaded');
+})();
+</script>
+
     <!-- Login Screen -->
     <div id="loginScreen">
         <div class="login-container">
@@ -147,5 +181,37 @@
         }
     })();
     </script>
+
+    <!-- Emergency Cleanup Shortcut -->
+    <script>
+    // Press ESC to force cleanup if screen gets stuck
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            console.log('🚨 ESC pressed - forcing emergency cleanup');
+            
+            const loading = document.getElementById('loading');
+            if (loading) {
+                loading.style.display = 'none';
+                loading.style.visibility = 'hidden';
+                loading.style.opacity = '0';
+            }
+            
+            document.querySelectorAll('.modal').forEach(function(m) {
+                m.style.display = 'none';
+            });
+            
+            console.log('✅ Emergency cleanup via ESC complete');
+            
+            // Visual feedback
+            const wasStuck = loading && loading.style.display !== 'none';
+            if (wasStuck) {
+                alert('✅ Screen cleared!\n\nIf this happens again, tell the developer.');
+            }
+        }
+    });
+    
+    console.log('✅ ESC cleanup shortcut ready');
+    </script>
+
 </body>
 </html>
