@@ -406,10 +406,13 @@ function toggleFABMenu() {
         fabMain.classList.remove('active');
         fabBackdrop.classList.remove('active');
     } else {
-        fabMenu.classList.add('active');
-        fabMain.classList.add('active');
-        fabBackdrop.classList.add('active');
-        buildFABMenu();
+        buildFABMenu(); // Build menu first
+        // Small delay to ensure menu is built before showing
+        setTimeout(() => {
+            fabMenu.classList.add('active');
+            fabMain.classList.add('active');
+            fabBackdrop.classList.add('active');
+        }, 10);
     }
 }
 
@@ -485,17 +488,35 @@ function buildFABMenu() {
         return;
     }
     
-    fabMenu.innerHTML = menuItems.map(item => {
-        // Create a wrapper function that closes menu and executes action
-        const actionWrapper = () => {
+    fabMenu.innerHTML = menuItems.map((item, index) => {
+        // Extract tab ID from the action function
+        const actionStr = item.action.toString();
+        const tabMatch = actionStr.match(/switchTab\(['"]([^'"]+)['"]\)/);
+        const tabId = tabMatch ? tabMatch[1] : null;
+        
+        // Create click handler
+        const handleClick = () => {
             toggleFABMenu(); // Close menu first
-            setTimeout(() => {
-                item.action(); // Then execute action
-            }, 200);
+            if (tabId && window.switchTab) {
+                setTimeout(() => {
+                    window.switchTab(tabId);
+                    // Force scroll to show content
+                    setTimeout(() => {
+                        const content = document.getElementById(`${tabId}Tab`);
+                        if (content) {
+                            content.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    }, 200);
+                }, 150);
+            }
         };
         
+        // Store handler globally
+        const handlerId = `fabHandler_${Date.now()}_${index}`;
+        window[handlerId] = handleClick;
+        
         return `
-            <div class="fab-menu-item" onclick="(${actionWrapper.toString()})()">
+            <div class="fab-menu-item" onclick="window['${handlerId}']()">
                 <span class="fab-menu-item-icon">${item.icon}</span>
                 <span class="fab-menu-item-label">${item.label}</span>
                 <span class="fab-menu-item-value">${item.value}</span>

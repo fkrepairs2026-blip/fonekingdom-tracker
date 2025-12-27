@@ -104,13 +104,25 @@ function renderTabs() {
         const tabEl = document.createElement('div');
         tabEl.className = 'tab' + (index === 0 ? ' active' : '');
         tabEl.textContent = tab.label;
-        tabEl.onclick = () => switchTab(tab.id);
+        tabEl.onclick = () => {
+            switchTab(tab.id);
+            // Ensure content is visible
+            setTimeout(() => {
+                const content = document.getElementById(`${tab.id}Tab`);
+                if (content) {
+                    content.style.display = 'block';
+                }
+            }, 50);
+        };
         tabEl.id = `tab-${tab.id}`;
         tabsContainer.appendChild(tabEl);
         
         const contentEl = document.createElement('div');
         contentEl.id = `${tab.id}Tab`;
         contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
+        if (index === 0) {
+            contentEl.style.display = 'block';
+        }
         contentsContainer.appendChild(contentEl);
         
         console.log('📄 Building content for tab:', tab.label);
@@ -138,15 +150,24 @@ function switchTab(tabId) {
     const mobileTab = document.getElementById(`mobile-tab-${tabId}`);
     
     if (tab) tab.classList.add('active');
-    if (content) content.classList.add('active');
+    if (content) {
+        content.classList.add('active');
+        // Ensure content is visible and scroll to it
+        content.style.display = 'block';
+        // Scroll to content area
+        setTimeout(() => {
+            const tabsContainer = document.getElementById('tabsContainer');
+            if (tabsContainer) {
+                tabsContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 100);
+    }
     if (mobileTab) mobileTab.classList.add('active');
     
     activeTab = tabId;
     
-    // Scroll to top on mobile
-    if (window.innerWidth <= 768) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    // Always scroll to top to show content
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 /**

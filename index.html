@@ -65,6 +65,15 @@
                 <h2>🔧 Fonekingdom</h2>
             </div>
             <div class="header-right">
+                <!-- Floating Action Button (FAB) in Header -->
+                <div class="fab-container-header" id="fabContainerHeader">
+                    <button class="fab-main fab-header" id="fabMain" onclick="toggleFABMenu()">
+                        <span class="fab-icon">⚡</span>
+                    </button>
+                    <div class="fab-menu fab-menu-header" id="fabMenu">
+                        <!-- Quick actions will be populated here -->
+                    </div>
+                </div>
                 <div class="user-profile" id="userProfile">
                     <img id="userAvatar" src="" alt="User" class="user-avatar">
                     <div class="user-info">
@@ -89,16 +98,6 @@
         <!-- Mobile Bottom Navigation -->
         <div class="mobile-bottom-nav" id="mobileBottomNav"></div>
 
-        <!-- Floating Action Menu (FAB) -->
-        <div class="fab-container" id="fabContainer">
-            <button class="fab-main" id="fabMain" onclick="toggleFABMenu()">
-                <span class="fab-icon">⚡</span>
-            </button>
-            <div class="fab-menu" id="fabMenu">
-                <!-- Quick actions will be populated here -->
-            </div>
-        </div>
-        
         <!-- FAB Backdrop -->
         <div class="fab-backdrop" id="fabBackdrop" onclick="toggleFABMenu()"></div>
     </div>
