@@ -217,5 +217,105 @@
     console.log('✅ ESC cleanup shortcut ready');
     </script>
 
+    <!-- Parts Cost Modal -->
+    <div id="partsCostModal" class="modal">
+        <div class="modal-content">
+            <h3>💰 Record Parts Cost</h3>
+            <input type="hidden" id="partsCostRepairId">
+            <div class="form-group">
+                <label>Parts Cost (₱) *</label>
+                <input type="number" id="partsCostAmount" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label>Parts Description</label>
+                <textarea id="partsCostNotes" rows="3" placeholder="List of parts used..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button onclick="savePartsCost()" class="btn-primary">Save Parts Cost</button>
+                <button onclick="closePartsCostModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Expense Recording Modal -->
+    <div id="expenseModal" class="modal">
+        <div class="modal-content">
+            <h3>💸 Record Expense</h3>
+            <div id="expenseRepairIdDisplay" style="display:none;margin-bottom:10px;padding:8px;background:#e3f2fd;border-radius:5px;font-size:13px;"></div>
+            <div class="form-group">
+                <label>Expense Type *</label>
+                <select id="expenseType" required>
+                    <option value="general">General Expense</option>
+                    <option value="repair-specific">Repair-Specific</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Category *</label>
+                <select id="expenseCategory" required>
+                    <option value="delivery">Delivery/Rider</option>
+                    <option value="advance">Cash Advance</option>
+                    <option value="transport">Transportation</option>
+                    <option value="meals">Meals</option>
+                    <option value="parts">Parts Purchase</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Amount (₱) *</label>
+                <input type="number" id="expenseAmount" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label>Description *</label>
+                <textarea id="expenseDescription" rows="2" placeholder="Brief description of expense..." required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Additional Notes</label>
+                <textarea id="expenseNotes" rows="2" placeholder="Optional additional details..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button onclick="saveExpense()" class="btn-primary">Save Expense</button>
+                <button onclick="closeExpenseModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remittance Submission Modal -->
+    <div id="remittanceModal" class="modal">
+        <div class="modal-content" style="max-width:700px;">
+            <h3>💵 Submit Daily Remittance</h3>
+            <div id="remittanceSummary" style="margin:20px 0;"></div>
+            <div class="form-group">
+                <label>Actual Amount Remitting (₱) *</label>
+                <input type="number" id="actualRemittanceAmount" step="0.01" min="0" placeholder="0.00" required>
+                <small style="color:#666;display:block;margin-top:5px;">Enter the actual cash amount you are remitting</small>
+            </div>
+            <div class="form-group">
+                <label>Notes (Required if discrepancy exists)</label>
+                <textarea id="remittanceNotes" rows="3" placeholder="Explain any discrepancy between expected and actual amount..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button onclick="confirmRemittance()" class="btn-primary">Submit Remittance</button>
+                <button onclick="closeRemittanceModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Remittance Verification Modal -->
+    <div id="verifyRemittanceModal" class="modal">
+        <div class="modal-content" style="max-width:800px;">
+            <h3>✅ Verify Remittance</h3>
+            <div id="remittanceDetails" style="margin:20px 0;"></div>
+            <div class="form-group">
+                <label>Verification Notes (Required if discrepancy)</label>
+                <textarea id="verificationNotes" rows="3" placeholder="Enter notes about this verification..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button onclick="approveRemittance()" class="btn-success">✅ Approve</button>
+                <button onclick="rejectRemittance()" class="btn-danger">❌ Reject</button>
+                <button onclick="closeVerifyRemittanceModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

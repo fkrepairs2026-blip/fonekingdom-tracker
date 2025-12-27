@@ -40,7 +40,13 @@ function buildTabs() {
     else if (role === 'technician') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'my', label: '🔧 My Jobs', build: buildMyRepairsTab });
+        availableTabs.push({ id: 'remittance', label: '💸 Daily Remittance', build: buildDailyRemittanceTab });
         availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
+    }
+    
+    // Cashier/Admin/Manager get remittance verification tab
+    if (role === 'admin' || role === 'manager' || role === 'cashier') {
+        availableTabs.push({ id: 'verify-remittance', label: '✅ Verify Remittance', build: buildRemittanceVerificationTab });
     }
     
     // Admin gets modification requests approval page
@@ -73,21 +79,12 @@ function renderTabs() {
     tabsContainer.innerHTML = '';
     contentsContainer.innerHTML = '';
     
-    // Build mobile navigation (show main tabs)
+    // Build mobile navigation (show ALL available tabs)
     if (mobileNav) {
         mobileNav.innerHTML = '';
         
-        // Define mobile priority tabs
-        const mobilePriorityTabs = ['received', 'inprogress', 'forrelease', 'all', 'users'];
-        const mobileTabs = availableTabs.filter(tab => mobilePriorityTabs.includes(tab.id)).slice(0, 5);
-        
-        // If fewer than 5 tabs, add more from available tabs
-        if (mobileTabs.length < 5) {
-            const remainingTabs = availableTabs.filter(tab => !mobilePriorityTabs.includes(tab.id));
-            mobileTabs.push(...remainingTabs.slice(0, 5 - mobileTabs.length));
-        }
-        
-        mobileTabs.forEach((tab, index) => {
+        // Show ALL available tabs in mobile navigation
+        availableTabs.forEach((tab, index) => {
             const navItem = document.createElement('div');
             navItem.className = 'mobile-nav-item' + (index === 0 ? ' active' : '');
             navItem.onclick = () => switchTab(tab.id);
@@ -100,7 +97,7 @@ function renderTabs() {
             let text = emojiMatch ? emojiMatch[2] : label;
             
             // Shorten text for mobile - keep it short but readable
-            const maxLength = 8;
+            const maxLength = 7;
             if (text.length > maxLength) {
                 text = text.substring(0, maxLength - 1) + '…';
             }
@@ -790,6 +787,8 @@ function displayRepairsInContainer(repairs, container) {
                     ${!hidePayments && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
                     ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
+                    ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">🔧 Parts Cost</button>` : ''}
+                    ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
                 </div>
             </div>
@@ -1021,5 +1020,302 @@ window.buildUsersTab = buildUsersTab;
 window.toggleBackJobFields = toggleBackJobFields;
 window.buildClaimedUnitsPage = buildClaimedUnitsPage;
 window.handleProblemTypeChange = handleProblemTypeChange;
+
+/**
+ * Build Daily Remittance Tab (Technician)
+ */
+function buildDailyRemittanceTab(container) {
+    console.log('💸 Building Daily Remittance tab');
+    window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'));
+    
+    const techId = window.currentUser.uid;
+    const today = new Date();
+    const todayStr = today.toDateString();
+    
+    // Get today's data
+    const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, today);
+    const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, today);
+    const expectedAmount = paymentsTotal - expensesTotal;
+    
+    // Check if already submitted today
+    const todayRemittance = window.techRemittances.find(r => {
+        const remDate = new Date(r.date).toDateString();
+        return r.techId === techId && remDate === todayStr;
+    });
+    
+    // Get recent remittances
+    const recentRemittances = window.techRemittances
+        .filter(r => r.techId === techId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 10);
+    
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>💸 Daily Cash Remittance</h2>
+            <p>Track your collected payments and expenses, then submit daily remittance</p>
+        </div>
+        
+        <!-- Today's Summary -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
+            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                <h3>₱${paymentsTotal.toFixed(2)}</h3>
+                <p>💰 Payments Collected</p>
+                <small>${payments.length} payment(s) today</small>
+            </div>
+            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+                <h3>₱${expensesTotal.toFixed(2)}</h3>
+                <p>💸 Expenses</p>
+                <small>${expenses.length} expense(s) today</small>
+            </div>
+            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+                <h3>₱${expectedAmount.toFixed(2)}</h3>
+                <p>💵 Expected Remittance</p>
+                <small>Payments - Expenses</small>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap;">
+            <button onclick="openExpenseModal()" class="btn-primary">
+                ➕ Record General Expense
+            </button>
+            ${payments.length > 0 && !todayRemittance ? `
+                <button onclick="openRemittanceModal()" class="btn-success">
+                    📤 Submit Today's Remittance
+                </button>
+            ` : ''}
+        </div>
+        
+        ${todayRemittance ? `
+            <div class="remittance-card" style="background:#${todayRemittance.status === 'approved' ? 'e8f5e9' : (todayRemittance.status === 'rejected' ? 'ffebee' : 'fff3e0')};border-left:4px solid #${todayRemittance.status === 'approved' ? '4caf50' : (todayRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};padding:20px;border-radius:10px;margin:20px 0;">
+                <h4>Today's Remittance Status</h4>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0;">
+                    <span style="font-size:18px;font-weight:600;">₱${todayRemittance.actualAmount.toFixed(2)}</span>
+                    <span class="status-badge" style="background:#${todayRemittance.status === 'approved' ? '4caf50' : (todayRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};color:white;">
+                        ${todayRemittance.status === 'approved' ? '✅ Approved' : (todayRemittance.status === 'rejected' ? '❌ Rejected' : '⏳ Pending')}
+                    </span>
+                </div>
+                <p style="font-size:13px;color:#666;">
+                    Submitted: ${utils.formatDateTime(todayRemittance.submittedAt)}
+                </p>
+                ${todayRemittance.verifiedBy ? `
+                    <p style="font-size:13px;color:#666;">
+                        Verified by: ${todayRemittance.verifiedBy} on ${utils.formatDateTime(todayRemittance.verifiedAt)}
+                    </p>
+                ` : ''}
+                ${todayRemittance.verificationNotes ? `
+                    <div style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.05);border-radius:5px;">
+                        <strong>Verification Notes:</strong>
+                        <p style="margin:5px 0 0 0;">${todayRemittance.verificationNotes}</p>
+                    </div>
+                ` : ''}
+            </div>
+        ` : ''}
+        
+        <!-- Today's Payments -->
+        <div class="card" style="margin:20px 0;">
+            <h3>💰 Today's Collected Payments (${payments.length})</h3>
+            ${payments.length > 0 ? `
+                <div class="repairs-list">
+                    ${payments.map(p => `
+                        <div class="repair-card" style="border-left-color:#2196f3;">
+                            <div style="display:flex;justify-content:space-between;align-items:start;">
+                                <div>
+                                    <h4>${p.customerName}</h4>
+                                    <p style="font-size:13px;color:#666;">
+                                        ${p.method} • ${utils.formatDateTime(p.recordedDate)}
+                                    </p>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:20px;font-weight:600;color:#4caf50;">₱${p.amount.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p style="color:#999;text-align:center;padding:20px;">No payments collected today</p>'}
+        </div>
+        
+        <!-- Today's Expenses -->
+        <div class="card" style="margin:20px 0;">
+            <h3>💸 Today's Expenses (${expenses.length})</h3>
+            ${expenses.length > 0 ? `
+                <div class="repairs-list">
+                    ${expenses.map(e => `
+                        <div class="repair-card" style="border-left-color:#ff9800;">
+                            <div style="display:flex;justify-content:space-between;align-items:start;">
+                                <div style="flex:1;">
+                                    <h4>${e.description}</h4>
+                                    <p style="font-size:13px;color:#666;">
+                                        ${e.category} • ${e.type === 'repair-specific' ? 'Repair-Specific' : 'General'}
+                                    </p>
+                                    ${e.notes ? `<p style="font-size:12px;color:#999;margin-top:5px;">${e.notes}</p>` : ''}
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:18px;font-weight:600;color:#f44336;">-₱${e.amount.toFixed(2)}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p style="color:#999;text-align:center;padding:20px;">No expenses recorded today</p>'}
+        </div>
+        
+        <!-- Remittance History -->
+        <div class="card" style="margin:20px 0;">
+            <h3>📋 Remittance History</h3>
+            ${recentRemittances.length > 0 ? `
+                <div class="repairs-list">
+                    ${recentRemittances.map(r => `
+                        <div class="repair-card" style="border-left-color:#${r.status === 'approved' ? '4caf50' : (r.status === 'rejected' ? 'f44336' : 'ff9800')};">
+                            <div style="display:flex;justify-content:space-between;align-items:start;">
+                                <div style="flex:1;">
+                                    <h4>${utils.formatDate(r.date)}</h4>
+                                    <p style="font-size:13px;color:#666;">
+                                        ${r.paymentsList.length} payment(s) • ${r.expensesList.length} expense(s)
+                                    </p>
+                                    <p style="font-size:12px;color:#999;">
+                                        Submitted: ${utils.formatDateTime(r.submittedAt)}
+                                    </p>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:18px;font-weight:600;color:#4caf50;">₱${r.actualAmount.toFixed(2)}</div>
+                                    <span class="status-badge" style="background:#${r.status === 'approved' ? '4caf50' : (r.status === 'rejected' ? 'f44336' : 'ff9800')};color:white;font-size:11px;">
+                                        ${r.status === 'approved' ? '✅ Approved' : (r.status === 'rejected' ? '❌ Rejected' : '⏳ Pending')}
+                                    </span>
+                                </div>
+                            </div>
+                            ${Math.abs(r.discrepancy) > 0.01 ? `
+                                <div style="margin-top:10px;padding:8px;background:rgba(255,152,0,0.1);border-radius:5px;font-size:12px;">
+                                    Discrepancy: ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p style="color:#999;text-align:center;padding:20px;">No remittance history</p>'}
+        </div>
+    `;
+}
+
+/**
+ * Build Remittance Verification Tab (Cashier/Admin/Manager)
+ */
+function buildRemittanceVerificationTab(container) {
+    console.log('✅ Building Remittance Verification tab');
+    window.currentTabRefresh = () => buildRemittanceVerificationTab(document.getElementById('verify-remittanceTab'));
+    
+    // Get pending remittances
+    const pendingRemittances = window.techRemittances
+        .filter(r => r.status === 'pending')
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    
+    // Get recent verified remittances
+    const recentVerified = window.techRemittances
+        .filter(r => r.status === 'approved' || r.status === 'rejected')
+        .sort((a, b) => new Date(b.verifiedAt) - new Date(a.verifiedAt))
+        .slice(0, 10);
+    
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>✅ Verify Remittances</h2>
+            <p>Review and approve technician cash remittances</p>
+        </div>
+        
+        <!-- Pending Remittances -->
+        <div class="card" style="margin:20px 0;">
+            <h3>⏳ Pending Verification (${pendingRemittances.length})</h3>
+            ${pendingRemittances.length > 0 ? `
+                <div class="repairs-list">
+                    ${pendingRemittances.map(r => {
+                        const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
+                        const isLargeDiscrepancy = Math.abs(r.discrepancy) > r.expectedAmount * 0.05;
+                        return `
+                            <div class="remittance-card ${hasDiscrepancy ? (isLargeDiscrepancy ? 'discrepancy-danger' : 'discrepancy-warning') : ''}">
+                                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:15px;">
+                                    <div>
+                                        <h4>${r.techName}</h4>
+                                        <p style="font-size:13px;color:#666;">
+                                            ${utils.formatDate(r.date)} • Submitted ${utils.timeAgo(r.submittedAt)}
+                                        </p>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:20px;font-weight:600;color:#4caf50;">₱${r.actualAmount.toFixed(2)}</div>
+                                        <span class="status-badge" style="background:#ff9800;color:white;">⏳ Pending</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="remittance-summary">
+                                    <div>
+                                        <strong>Payments:</strong> ${r.paymentsList.length}<br>
+                                        <span style="color:#4caf50;font-weight:600;">₱${r.totalPaymentsCollected.toFixed(2)}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Expenses:</strong> ${r.expensesList.length}<br>
+                                        <span style="color:#f44336;font-weight:600;">-₱${r.totalExpenses.toFixed(2)}</span>
+                                    </div>
+                                    <div>
+                                        <strong>Expected:</strong><br>
+                                        <span style="font-weight:600;">₱${r.expectedAmount.toFixed(2)}</span>
+                                    </div>
+                                </div>
+                                
+                                ${hasDiscrepancy ? `
+                                    <div class="${isLargeDiscrepancy ? 'discrepancy-danger' : 'discrepancy-warning'}" style="margin:15px 0;">
+                                        <strong>⚠️ Discrepancy: ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}</strong>
+                                        ${r.discrepancyReason ? `
+                                            <p style="margin:5px 0 0 0;font-size:13px;">Tech's note: ${r.discrepancyReason}</p>
+                                        ` : ''}
+                                    </div>
+                                ` : `
+                                    <div style="margin:15px 0;padding:10px;background:#e8f5e9;border-radius:5px;color:#2e7d32;">
+                                        ✅ No discrepancy - Amount matches expected
+                                    </div>
+                                `}
+                                
+                                <button onclick="openVerifyRemittanceModal('${r.id}')" class="btn-primary" style="width:100%;margin-top:10px;">
+                                    📋 Review & Verify
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            ` : '<p style="color:#999;text-align:center;padding:20px;">No pending remittances</p>'}
+        </div>
+        
+        <!-- Recent Verified -->
+        <div class="card" style="margin:20px 0;">
+            <h3>📋 Recently Verified (${recentVerified.length})</h3>
+            ${recentVerified.length > 0 ? `
+                <div class="repairs-list">
+                    ${recentVerified.map(r => `
+                        <div class="repair-card" style="border-left-color:#${r.status === 'approved' ? '4caf50' : 'f44336'};">
+                            <div style="display:flex;justify-content:space-between;align-items:start;">
+                                <div style="flex:1;">
+                                    <h4>${r.techName}</h4>
+                                    <p style="font-size:13px;color:#666;">
+                                        ${utils.formatDate(r.date)} • ${r.paymentsList.length} payment(s)
+                                    </p>
+                                    <p style="font-size:12px;color:#999;">
+                                        Verified by ${r.verifiedBy} • ${utils.formatDateTime(r.verifiedAt)}
+                                    </p>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:18px;font-weight:600;">₱${r.actualAmount.toFixed(2)}</div>
+                                    <span class="status-badge" style="background:#${r.status === 'approved' ? '4caf50' : 'f44336'};color:white;font-size:11px;">
+                                        ${r.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p style="color:#999;text-align:center;padding:20px;">No verified remittances yet</p>'}
+        </div>
+    `;
+}
+
+window.buildDailyRemittanceTab = buildDailyRemittanceTab;
+window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;
 
 console.log('✅ ui.js loaded');

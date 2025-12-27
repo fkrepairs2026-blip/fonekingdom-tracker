@@ -495,17 +495,27 @@ async function savePayment(repairId) {
     const selectedDate = new Date(paymentDateInput.value + 'T00:00:00');
     const paymentDate = selectedDate.toISOString();
     
+    // Check if payment is collected by technician
+    const isTechnician = window.currentUserData.role === 'technician';
+    const isAdminOrManager = window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager';
+    
     const payment = {
         amount: amount,
         method: method,
         paymentDate: paymentDate,
         recordedDate: new Date().toISOString(),
         receivedBy: window.currentUserData.displayName,
+        receivedById: window.currentUser.uid,
         notes: notes,
         photo: paymentProofPhoto || null,
-        verified: (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager'),
-        verifiedBy: (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? window.currentUserData.displayName : null,
-        verifiedAt: (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? new Date().toISOString() : null
+        // Technician payment flags
+        collectedByTech: isTechnician,
+        techRemittanceId: null,
+        remittanceStatus: isTechnician ? 'pending' : (isAdminOrManager ? 'verified' : 'pending'),
+        // Verification
+        verified: isAdminOrManager,
+        verifiedBy: isAdminOrManager ? window.currentUserData.displayName : null,
+        verifiedAt: isAdminOrManager ? new Date().toISOString() : null
     };
     
     const existingPayments = repair.payments || [];
@@ -1952,6 +1962,667 @@ async function approveDiagnosis(repairId) {
     }
 }
 
+/**
+ * ============================================
+ * TECHNICIAN REMITTANCE SYSTEM
+ * ============================================
+ */
+
+// Global state for expenses and remittances
+window.techExpenses = [];
+window.techRemittances = [];
+let currentExpenseRepairId = null;
+
+/**
+ * Load technician expenses from Firebase
+ */
+async function loadTechExpenses() {
+    try {
+        const snapshot = await db.ref('techExpenses').once('value');
+        const expenses = [];
+        snapshot.forEach(child => {
+            expenses.push({
+                id: child.key,
+                ...child.val()
+            });
+        });
+        window.techExpenses = expenses;
+        console.log('✅ Tech expenses loaded:', expenses.length);
+    } catch (error) {
+        console.error('❌ Error loading tech expenses:', error);
+    }
+}
+
+/**
+ * Load technician remittances from Firebase
+ */
+async function loadTechRemittances() {
+    try {
+        const snapshot = await db.ref('techRemittances').once('value');
+        const remittances = [];
+        snapshot.forEach(child => {
+            remittances.push({
+                id: child.key,
+                ...child.val()
+            });
+        });
+        window.techRemittances = remittances;
+        console.log('✅ Tech remittances loaded:', remittances.length);
+    } catch (error) {
+        console.error('❌ Error loading tech remittances:', error);
+    }
+}
+
+/**
+ * Open Parts Cost Modal
+ */
+function openPartsCostModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) return;
+    
+    document.getElementById('partsCostRepairId').value = repairId;
+    document.getElementById('partsCostAmount').value = repair.partsCost || '';
+    document.getElementById('partsCostNotes').value = repair.partsCostNotes || '';
+    document.getElementById('partsCostModal').style.display = 'block';
+}
+
+/**
+ * Save Parts Cost
+ */
+async function savePartsCost() {
+    const repairId = document.getElementById('partsCostRepairId').value;
+    const amount = parseFloat(document.getElementById('partsCostAmount').value);
+    const notes = document.getElementById('partsCostNotes').value.trim();
+    
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid parts cost');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        await db.ref(`repairs/${repairId}`).update({
+            partsCost: amount,
+            partsCostNotes: notes,
+            partsCostRecordedBy: window.currentUserData.displayName,
+            partsCostRecordedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Parts cost recorded!\n\n₱${amount.toFixed(2)}`);
+        closePartsCostModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error saving parts cost:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function closePartsCostModal() {
+    document.getElementById('partsCostModal').style.display = 'none';
+}
+
+/**
+ * Open Expense Modal
+ */
+function openExpenseModal(repairId = null) {
+    currentExpenseRepairId = repairId;
+    
+    // Reset form
+    document.getElementById('expenseType').value = repairId ? 'repair-specific' : 'general';
+    document.getElementById('expenseCategory').value = 'delivery';
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expenseDescription').value = '';
+    document.getElementById('expenseNotes').value = '';
+    
+    // Show/hide repair ID field
+    const repairIdField = document.getElementById('expenseRepairIdDisplay');
+    if (repairIdField) {
+        repairIdField.style.display = repairId ? 'block' : 'none';
+        if (repairId) {
+            const repair = window.allRepairs.find(r => r.id === repairId);
+            repairIdField.textContent = `Repair: ${repair?.customerName || repairId}`;
+        }
+    }
+    
+    document.getElementById('expenseModal').style.display = 'block';
+}
+
+/**
+ * Save Expense
+ */
+async function saveExpense() {
+    const type = document.getElementById('expenseType').value;
+    const category = document.getElementById('expenseCategory').value;
+    const amount = parseFloat(document.getElementById('expenseAmount').value);
+    const description = document.getElementById('expenseDescription').value.trim();
+    const notes = document.getElementById('expenseNotes').value.trim();
+    
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid expense amount');
+        return;
+    }
+    
+    if (!description) {
+        alert('Please enter expense description');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const expense = {
+            techId: window.currentUser.uid,
+            techName: window.currentUserData.displayName,
+            date: new Date().toISOString(),
+            type: type,
+            repairId: type === 'repair-specific' ? currentExpenseRepairId : null,
+            category: category,
+            amount: amount,
+            description: description,
+            notes: notes,
+            createdAt: new Date().toISOString(),
+            remittanceId: null
+        };
+        
+        await db.ref('techExpenses').push(expense);
+        
+        // Reload expenses
+        await loadTechExpenses();
+        
+        utils.showLoading(false);
+        alert(`✅ Expense recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📝 ${description}`);
+        closeExpenseModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error saving expense:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function closeExpenseModal() {
+    document.getElementById('expenseModal').style.display = 'none';
+    currentExpenseRepairId = null;
+}
+
+/**
+ * Get technician's daily payments
+ */
+function getTechDailyPayments(techId, date) {
+    const today = new Date(date).toDateString();
+    const payments = [];
+    let total = 0;
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach((payment, index) => {
+                const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toDateString();
+                if (payment.collectedByTech && 
+                    payment.receivedById === techId && 
+                    paymentDate === today &&
+                    payment.remittanceStatus === 'pending') {
+                    payments.push({
+                        repairId: repair.id,
+                        paymentIndex: index,
+                        customerName: repair.customerName,
+                        amount: payment.amount,
+                        method: payment.method,
+                        paymentDate: payment.paymentDate,
+                        recordedDate: payment.recordedDate
+                    });
+                    total += payment.amount;
+                }
+            });
+        }
+    });
+    
+    return { payments, total };
+}
+
+/**
+ * Get technician's daily expenses
+ */
+function getTechDailyExpenses(techId, date) {
+    const today = new Date(date).toDateString();
+    const expenses = window.techExpenses.filter(exp => {
+        const expDate = new Date(exp.date).toDateString();
+        return exp.techId === techId && 
+               expDate === today && 
+               !exp.remittanceId;
+    });
+    
+    const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+    
+    return { expenses, total };
+}
+
+/**
+ * Open Remittance Submission Modal
+ */
+function openRemittanceModal() {
+    const techId = window.currentUser.uid;
+    const today = new Date();
+    
+    // Check if already submitted for today
+    const todayStr = today.toDateString();
+    const existingRemittance = window.techRemittances.find(r => {
+        const remDate = new Date(r.date).toDateString();
+        return r.techId === techId && remDate === todayStr && r.status === 'pending';
+    });
+    
+    if (existingRemittance) {
+        alert('⚠️ You have already submitted a remittance for today that is pending verification.');
+        return;
+    }
+    
+    // Get today's data
+    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, today);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
+    
+    if (payments.length === 0) {
+        alert('No payments collected today to remit.');
+        return;
+    }
+    
+    const expectedAmount = paymentsTotal - expensesTotal;
+    
+    // Build summary
+    let summary = `
+        <div class="remittance-summary-section">
+            <h4>📥 Payments Collected (${payments.length})</h4>
+            <div class="remittance-list">
+                ${payments.map(p => `
+                    <div class="remittance-item">
+                        <span>${p.customerName}</span>
+                        <span>₱${p.amount.toFixed(2)}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="remittance-total">Total: ₱${paymentsTotal.toFixed(2)}</div>
+        </div>
+        
+        <div class="remittance-summary-section">
+            <h4>💸 Expenses (${expenses.length})</h4>
+            <div class="remittance-list">
+                ${expenses.length > 0 ? expenses.map(e => `
+                    <div class="remittance-item">
+                        <span>${e.description}</span>
+                        <span>-₱${e.amount.toFixed(2)}</span>
+                    </div>
+                `).join('') : '<p style="color:#999;">No expenses recorded</p>'}
+            </div>
+            <div class="remittance-total">Total: -₱${expensesTotal.toFixed(2)}</div>
+        </div>
+        
+        <div class="remittance-expected">
+            <strong>Expected Remittance Amount:</strong>
+            <span class="expected-amount">₱${expectedAmount.toFixed(2)}</span>
+        </div>
+    `;
+    
+    document.getElementById('remittanceSummary').innerHTML = summary;
+    document.getElementById('actualRemittanceAmount').value = expectedAmount.toFixed(2);
+    document.getElementById('remittanceNotes').value = '';
+    document.getElementById('remittanceModal').style.display = 'block';
+}
+
+/**
+ * Confirm and Submit Remittance
+ */
+async function confirmRemittance() {
+    const techId = window.currentUser.uid;
+    const today = new Date();
+    const actualAmount = parseFloat(document.getElementById('actualRemittanceAmount').value);
+    const notes = document.getElementById('remittanceNotes').value.trim();
+    
+    if (isNaN(actualAmount) || actualAmount < 0) {
+        alert('Please enter a valid remittance amount');
+        return;
+    }
+    
+    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, today);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
+    const expectedAmount = paymentsTotal - expensesTotal;
+    const discrepancy = actualAmount - expectedAmount;
+    
+    // Require notes if there's a discrepancy
+    if (Math.abs(discrepancy) > 0.01 && !notes) {
+        alert('Please provide a note explaining the discrepancy');
+        return;
+    }
+    
+    if (!confirm(`Submit remittance of ₱${actualAmount.toFixed(2)}?${discrepancy !== 0 ? `\n\nDiscrepancy: ₱${discrepancy.toFixed(2)}` : ''}`)) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Create remittance record
+        const remittance = {
+            techId: techId,
+            techName: window.currentUserData.displayName,
+            date: today.toISOString(),
+            // Payments
+            paymentIds: payments.map(p => `${p.repairId}_${p.paymentIndex}`),
+            totalPaymentsCollected: paymentsTotal,
+            paymentsList: payments.map(p => ({
+                repairId: p.repairId,
+                customerName: p.customerName,
+                amount: p.amount,
+                method: p.method
+            })),
+            // Expenses
+            expenseIds: expenses.map(e => e.id),
+            totalExpenses: expensesTotal,
+            expensesList: expenses.map(e => ({
+                category: e.category,
+                amount: e.amount,
+                description: e.description
+            })),
+            // Calculation
+            expectedAmount: expectedAmount,
+            actualAmount: actualAmount,
+            discrepancy: discrepancy,
+            // Status
+            status: 'pending',
+            submittedAt: new Date().toISOString(),
+            // Verification
+            verifiedBy: null,
+            verifiedAt: null,
+            verificationNotes: '',
+            discrepancyReason: notes
+        };
+        
+        const remittanceRef = await db.ref('techRemittances').push(remittance);
+        const remittanceId = remittanceRef.key;
+        
+        // Update payments with remittance ID
+        const updatePromises = [];
+        payments.forEach(p => {
+            const repair = window.allRepairs.find(r => r.id === p.repairId);
+            const updatedPayments = [...repair.payments];
+            updatedPayments[p.paymentIndex] = {
+                ...updatedPayments[p.paymentIndex],
+                techRemittanceId: remittanceId,
+                remittanceStatus: 'remitted'
+            };
+            updatePromises.push(
+                db.ref(`repairs/${p.repairId}`).update({ payments: updatedPayments })
+            );
+        });
+        
+        // Update expenses with remittance ID
+        expenses.forEach(e => {
+            updatePromises.push(
+                db.ref(`techExpenses/${e.id}`).update({ remittanceId: remittanceId })
+            );
+        });
+        
+        await Promise.all(updatePromises);
+        
+        // Reload data
+        await loadTechRemittances();
+        await loadTechExpenses();
+        
+        utils.showLoading(false);
+        alert(`✅ Remittance submitted!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n\nWaiting for cashier/admin verification.`);
+        closeRemittanceModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error submitting remittance:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function closeRemittanceModal() {
+    document.getElementById('remittanceModal').style.display = 'none';
+}
+
+/**
+ * Open Remittance Verification Modal
+ */
+function openVerifyRemittanceModal(remittanceId) {
+    const remittance = window.techRemittances.find(r => r.id === remittanceId);
+    if (!remittance) return;
+    
+    const discrepancy = remittance.discrepancy;
+    const hasDiscrepancy = Math.abs(discrepancy) > 0.01;
+    
+    let details = `
+        <div class="remittance-verify-header">
+            <h4>Technician: ${remittance.techName}</h4>
+            <p>Date: ${utils.formatDate(remittance.date)}</p>
+            <p>Submitted: ${utils.formatDateTime(remittance.submittedAt)}</p>
+        </div>
+        
+        <div class="remittance-summary-section">
+            <h4>📥 Payments Collected (${remittance.paymentsList.length})</h4>
+            <div class="remittance-list">
+                ${remittance.paymentsList.map(p => `
+                    <div class="remittance-item">
+                        <span>${p.customerName}</span>
+                        <span>₱${p.amount.toFixed(2)}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="remittance-total">Total: ₱${remittance.totalPaymentsCollected.toFixed(2)}</div>
+        </div>
+        
+        <div class="remittance-summary-section">
+            <h4>💸 Expenses (${remittance.expensesList.length})</h4>
+            <div class="remittance-list">
+                ${remittance.expensesList.length > 0 ? remittance.expensesList.map(e => `
+                    <div class="remittance-item">
+                        <span>${e.description}</span>
+                        <span>-₱${e.amount.toFixed(2)}</span>
+                    </div>
+                `).join('') : '<p style="color:#999;">No expenses</p>'}
+            </div>
+            <div class="remittance-total">Total: -₱${remittance.totalExpenses.toFixed(2)}</div>
+        </div>
+        
+        <div class="remittance-calculation">
+            <div class="calc-row">
+                <span>Expected Amount:</span>
+                <strong>₱${remittance.expectedAmount.toFixed(2)}</strong>
+            </div>
+            <div class="calc-row">
+                <span>Actual Amount Remitted:</span>
+                <strong>₱${remittance.actualAmount.toFixed(2)}</strong>
+            </div>
+            <div class="calc-row ${hasDiscrepancy ? 'discrepancy' : ''}">
+                <span>Discrepancy:</span>
+                <strong style="color:${discrepancy > 0 ? '#4caf50' : (discrepancy < 0 ? '#f44336' : '#666')}">
+                    ${discrepancy > 0 ? '+' : ''}₱${discrepancy.toFixed(2)}
+                    ${discrepancy > 0 ? ' (Over)' : (discrepancy < 0 ? ' (Short)' : ' (Match)')}
+                </strong>
+            </div>
+        </div>
+        
+        ${hasDiscrepancy ? `
+            <div class="discrepancy-warning ${Math.abs(discrepancy) > remittance.expectedAmount * 0.05 ? 'discrepancy-danger' : ''}">
+                <strong>⚠️ Technician's Note:</strong>
+                <p>${remittance.discrepancyReason || 'No explanation provided'}</p>
+            </div>
+        ` : ''}
+    `;
+    
+    document.getElementById('remittanceDetails').innerHTML = details;
+    document.getElementById('verificationNotes').value = '';
+    document.getElementById('verifyRemittanceModal').dataset.remittanceId = remittanceId;
+    document.getElementById('verifyRemittanceModal').style.display = 'block';
+}
+
+/**
+ * Approve Remittance
+ */
+async function approveRemittance() {
+    const remittanceId = document.getElementById('verifyRemittanceModal').dataset.remittanceId;
+    const notes = document.getElementById('verificationNotes').value.trim();
+    const remittance = window.techRemittances.find(r => r.id === remittanceId);
+    
+    if (!remittance) return;
+    
+    const hasDiscrepancy = Math.abs(remittance.discrepancy) > 0.01;
+    
+    if (hasDiscrepancy && !notes) {
+        alert('Please provide verification notes explaining why you are approving despite the discrepancy');
+        return;
+    }
+    
+    if (!confirm('Approve this remittance?')) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        // Update remittance status
+        await db.ref(`techRemittances/${remittanceId}`).update({
+            status: 'approved',
+            verifiedBy: window.currentUserData.displayName,
+            verifiedAt: new Date().toISOString(),
+            verificationNotes: notes
+        });
+        
+        // Update all linked payments to verified
+        const updatePromises = [];
+        remittance.paymentIds.forEach(paymentId => {
+            const [repairId, paymentIndex] = paymentId.split('_');
+            const repair = window.allRepairs.find(r => r.id === repairId);
+            if (repair && repair.payments && repair.payments[paymentIndex]) {
+                const updatedPayments = [...repair.payments];
+                updatedPayments[paymentIndex] = {
+                    ...updatedPayments[paymentIndex],
+                    verified: true,
+                    verifiedBy: window.currentUserData.displayName,
+                    verifiedAt: new Date().toISOString(),
+                    remittanceStatus: 'verified'
+                };
+                updatePromises.push(
+                    db.ref(`repairs/${repairId}`).update({ payments: updatedPayments })
+                );
+            }
+        });
+        
+        await Promise.all(updatePromises);
+        
+        // Reload data
+        await loadTechRemittances();
+        
+        utils.showLoading(false);
+        alert('✅ Remittance approved and all payments verified!');
+        closeVerifyRemittanceModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error approving remittance:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Reject Remittance
+ */
+async function rejectRemittance() {
+    const remittanceId = document.getElementById('verifyRemittanceModal').dataset.remittanceId;
+    const notes = document.getElementById('verificationNotes').value.trim();
+    
+    if (!notes) {
+        alert('Please provide a reason for rejecting this remittance');
+        return;
+    }
+    
+    if (!confirm('Reject this remittance? The technician will need to resubmit.')) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        // Update remittance status
+        await db.ref(`techRemittances/${remittanceId}`).update({
+            status: 'rejected',
+            verifiedBy: window.currentUserData.displayName,
+            verifiedAt: new Date().toISOString(),
+            verificationNotes: notes
+        });
+        
+        // Reset payment remittance status back to pending
+        const remittance = window.techRemittances.find(r => r.id === remittanceId);
+        const updatePromises = [];
+        remittance.paymentIds.forEach(paymentId => {
+            const [repairId, paymentIndex] = paymentId.split('_');
+            const repair = window.allRepairs.find(r => r.id === repairId);
+            if (repair && repair.payments && repair.payments[paymentIndex]) {
+                const updatedPayments = [...repair.payments];
+                updatedPayments[paymentIndex] = {
+                    ...updatedPayments[paymentIndex],
+                    techRemittanceId: null,
+                    remittanceStatus: 'pending'
+                };
+                updatePromises.push(
+                    db.ref(`repairs/${repairId}`).update({ payments: updatedPayments })
+                );
+            }
+        });
+        
+        // Reset expense remittance IDs
+        remittance.expenseIds.forEach(expenseId => {
+            updatePromises.push(
+                db.ref(`techExpenses/${expenseId}`).update({ remittanceId: null })
+            );
+        });
+        
+        await Promise.all(updatePromises);
+        
+        // Reload data
+        await loadTechRemittances();
+        await loadTechExpenses();
+        
+        utils.showLoading(false);
+        alert('❌ Remittance rejected. Technician can resubmit with corrections.');
+        closeVerifyRemittanceModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error rejecting remittance:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function closeVerifyRemittanceModal() {
+    document.getElementById('verifyRemittanceModal').style.display = 'none';
+}
+
 // Export to global scope
 window.loadRepairs = loadRepairs;
 window.submitReceiveDevice = submitReceiveDevice;
@@ -1983,5 +2654,23 @@ window.closeClaimModal = closeClaimModal;
 window.openEditRepairModal = openEditRepairModal;
 window.submitPricingUpdate = submitPricingUpdate;
 window.approveDiagnosis = approveDiagnosis;
+// Remittance system exports
+window.loadTechExpenses = loadTechExpenses;
+window.loadTechRemittances = loadTechRemittances;
+window.openPartsCostModal = openPartsCostModal;
+window.savePartsCost = savePartsCost;
+window.closePartsCostModal = closePartsCostModal;
+window.openExpenseModal = openExpenseModal;
+window.saveExpense = saveExpense;
+window.closeExpenseModal = closeExpenseModal;
+window.getTechDailyPayments = getTechDailyPayments;
+window.getTechDailyExpenses = getTechDailyExpenses;
+window.openRemittanceModal = openRemittanceModal;
+window.confirmRemittance = confirmRemittance;
+window.closeRemittanceModal = closeRemittanceModal;
+window.openVerifyRemittanceModal = openVerifyRemittanceModal;
+window.approveRemittance = approveRemittance;
+window.rejectRemittance = rejectRemittance;
+window.closeVerifyRemittanceModal = closeVerifyRemittanceModal;
 
 console.log('✅ repairs.js loaded');
