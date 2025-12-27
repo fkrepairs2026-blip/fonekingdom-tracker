@@ -23,6 +23,7 @@ function buildTabs() {
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingPaymentsTab });
         availableTabs.push({ id: 'paid', label: '✅ Paid', build: buildPaidTab });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
+        availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
     }
     else if (role === 'admin' || role === 'manager') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
@@ -30,9 +31,18 @@ function buildTabs() {
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
         availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
         availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
+        if (role === 'manager') {
+            availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
+        }
     }
     else if (role === 'technician') {
         availableTabs.push({ id: 'my', label: '🔧 My Jobs', build: buildMyRepairsTab });
+        availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
+    }
+    
+    // Admin gets modification requests approval page
+    if (role === 'admin') {
+        availableTabs.push({ id: 'mod-requests', label: '🔔 Mod Requests', build: buildModificationRequestsTab });
     }
     
     if (role === 'admin') {
@@ -126,14 +136,17 @@ function buildReceivedDevicesPage(container) {
             ` : `
                 <div id="receivedDevicesList">
                     ${receivedDevices.map(r => `
-                        <div class="repair-card" style="border-left:4px solid #2196f3;">
+                        <div class="repair-card" style="border-left:4px solid ${r.isBackJob ? '#f44336' : '#2196f3'};">
                             <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
                             <span class="status-badge" style="background:#e3f2fd;color:#1565c0;">📥 Received</span>
+                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 BACK JOB</span>' : ''}
                             ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
                             
                             <div class="repair-info">
                                 <div><strong>Contact:</strong> ${r.contactNumber}</div>
                                 <div><strong>Problem:</strong> ${r.problem}</div>
+                                ${r.isBackJob ? `<div style="color:#c62828;"><strong>⚠️ Back Job:</strong> ${r.backJobReason}</div>` : ''}
+                                ${r.isBackJob && r.originalTechName ? `<div style="color:#c62828;"><strong>Original Tech:</strong> ${r.originalTechName}</div>` : ''}
                                 <div><strong>Received by:</strong> ${r.receivedBy || r.createdByName}</div>
                                 <div><strong>Received on:</strong> ${utils.formatDateTime(r.createdAt)}</div>
                                 ${r.repairType && r.repairType !== 'Pending Diagnosis' ? `<div><strong>Repair Type:</strong> ${r.repairType}</div>` : ''}
@@ -197,7 +210,6 @@ function buildInProgressPage(container) {
         </div>
     `;
     
-    // Render after container is in DOM
     setTimeout(() => {
         const listContainer = document.getElementById('inProgressList');
         if (listContainer && inProgressDevices.length > 0) {
@@ -234,7 +246,6 @@ function buildForReleasePage(container) {
         </div>
     `;
     
-    // Render after container is in DOM
     setTimeout(() => {
         const listContainer = document.getElementById('forReleaseList');
         if (listContainer && forReleaseDevices.length > 0) {
@@ -244,11 +255,19 @@ function buildForReleasePage(container) {
 }
 
 /**
- * Build Receive Device Tab
+ * Build Receive Device Tab with BACK JOB option
  */
 function buildReceiveDeviceTab(container) {
     console.log('📥 Building Receive Device tab');
     window.currentTabRefresh = () => buildReceiveDeviceTab(document.getElementById('receiveTab'));
+    
+    // Get list of techs who have worked on repairs (for back jobs)
+    const techsWithJobs = {};
+    window.allRepairs.forEach(r => {
+        if (r.acceptedBy && r.acceptedByName) {
+            techsWithJobs[r.acceptedBy] = r.acceptedByName;
+        }
+    });
     
     container.innerHTML = `
         <div class="card">
@@ -256,6 +275,29 @@ function buildReceiveDeviceTab(container) {
             <p style="color:#666;margin-bottom:20px;">Receive new device from customer - Technician will accept it later</p>
             
             <form onsubmit="submitReceiveDevice(event)">
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px;">
+                        <input type="checkbox" id="isBackJob" onchange="toggleBackJobFields()">
+                        <span style="color:#c62828;font-weight:bold;">🔄 This is a BACK JOB (returning for same issue)</span>
+                    </label>
+                </div>
+                
+                <div id="backJobFields" style="display:none;background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                    <div class="form-group">
+                        <label>Assign to Original Technician *</label>
+                        <select id="backJobTech" name="backJobTech">
+                            <option value="">Select technician who worked on this before</option>
+                            ${Object.entries(techsWithJobs).map(([uid, name]) => 
+                                `<option value="${uid}">${name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Back Job Reason *</label>
+                        <textarea id="backJobReason" name="backJobReason" rows="2" placeholder="Why is this coming back? (English or Tagalog OK)"></textarea>
+                    </div>
+                </div>
+                
                 <div class="form-row">
                     <div class="form-group">
                         <label>Customer Type *</label>
@@ -317,58 +359,128 @@ function buildReceiveDeviceTab(container) {
 }
 
 /**
- * Build filtered repairs tab (for status filters)
+ * Build My Requests Tab (for non-admin users)
  */
-function buildFilteredRepairsTab(status) {
-    console.log('🔍 Building filtered repairs tab for:', status);
+function buildMyRequestsTab(container) {
+    console.log('📝 Building My Requests tab');
+    window.currentTabRefresh = () => buildMyRequestsTab(document.getElementById('requestsTab'));
     
-    let repairs = [];
-    let title = '';
+    // Load modification requests for this user
+    const myRequests = window.allModificationRequests ? 
+        window.allModificationRequests.filter(r => r.requestedBy === window.currentUser.uid) : [];
     
-    const role = window.currentUserData.role;
-    let userRepairs = window.allRepairs;
-    
-    if (role === 'technician') {
-        userRepairs = window.allRepairs.filter(r => r.acceptedBy === window.currentUser.uid);
-    }
-    
-    if (status === 'all') {
-        repairs = userRepairs;
-        title = 'All Repairs';
-    } else if (status === 'pending-payment') {
-        repairs = userRepairs.filter(r => r.payments && r.payments.some(p => !p.verified));
-        title = 'Pending Payment Verification';
-    } else {
-        repairs = userRepairs.filter(r => r.status === status);
-        title = `${status} Repairs`;
-    }
-    
-    switchTab('all');
-    
-    const container = document.getElementById('allTab');
-    if (container) {
-        container.innerHTML = `
-            <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-                    <h3>${title} (${repairs.length})</h3>
-                    <button onclick="buildTabs()" class="btn-small">← Back to All</button>
+    container.innerHTML = `
+        <div class="card">
+            <h3>📝 My Modification Requests (${myRequests.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Your requests to modify payment/repair data</p>
+            
+            ${myRequests.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">📭</h2>
+                    <p>No modification requests</p>
+                    <p style="font-size:14px;color:#999;">When you need to change payment dates or repair data, submit a request here.</p>
                 </div>
-                <div id="filteredRepairsList"></div>
-            </div>
-        `;
-        
-        setTimeout(() => {
-            const listContainer = document.getElementById('filteredRepairsList');
-            if (listContainer) {
-                displayRepairsInContainer(repairs, listContainer);
-            }
-        }, 0);
-    }
+            ` : `
+                <div>
+                    ${myRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).map(req => `
+                        <div style="background:${req.status === 'approved' ? '#e8f5e9' : req.status === 'rejected' ? '#ffebee' : '#fff3e0'};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${req.status === 'approved' ? '#4caf50' : req.status === 'rejected' ? '#f44336' : '#ff9800'};">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                                <strong>${req.requestType === 'payment-date' ? '📅 Payment Date Change' : req.requestType === 'recorded-date' ? '🕒 Recorded Date Change' : '📝 Data Modification'}</strong>
+                                <span style="background:${req.status === 'approved' ? '#4caf50' : req.status === 'rejected' ? '#f44336' : '#ff9800'};color:white;padding:2px 8px;border-radius:3px;font-size:12px;">
+                                    ${req.status === 'approved' ? '✅ Approved' : req.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
+                                </span>
+                            </div>
+                            <div style="font-size:14px;color:#666;margin-bottom:10px;">
+                                <div><strong>Repair:</strong> ${req.repairDetails || 'N/A'}</div>
+                                ${req.oldValue ? `<div><strong>From:</strong> ${req.oldValue}</div>` : ''}
+                                ${req.newValue ? `<div><strong>To:</strong> ${req.newValue}</div>` : ''}
+                                <div><strong>Reason:</strong> ${req.reason}</div>
+                                <div><strong>Requested:</strong> ${utils.formatDateTime(req.requestedAt)}</div>
+                            </div>
+                            ${req.status !== 'pending' ? `
+                                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;font-size:13px;">
+                                    <div><strong>${req.status === 'approved' ? 'Approved' : 'Rejected'} by:</strong> ${req.processedByName}</div>
+                                    <div><strong>On:</strong> ${utils.formatDateTime(req.processedAt)}</div>
+                                    ${req.adminNotes ? `<div><strong>Admin Notes:</strong> ${req.adminNotes}</div>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `}
+        </div>
+    `;
 }
 
 /**
- * Build Unpaid Tab (Cashier)
+ * Build Modification Requests Tab (Admin only)
  */
+function buildModificationRequestsTab(container) {
+    console.log('🔔 Building Modification Requests tab');
+    window.currentTabRefresh = () => buildModificationRequestsTab(document.getElementById('mod-requestsTab'));
+    
+    const pendingRequests = window.allModificationRequests ?
+        window.allModificationRequests.filter(r => r.status === 'pending') : [];
+    
+    const processedRequests = window.allModificationRequests ?
+        window.allModificationRequests.filter(r => r.status !== 'pending').slice(0, 20) : [];
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>🔔 Modification Requests (${pendingRequests.length} pending)</h3>
+            <p style="color:#666;margin-bottom:15px;">Review and approve/reject modification requests from users</p>
+            
+            ${pendingRequests.length === 0 && processedRequests.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">✅</h2>
+                    <p>No modification requests</p>
+                </div>
+            ` : `
+                ${pendingRequests.length > 0 ? `
+                    <h4 style="margin-top:20px;">⏳ Pending Requests</h4>
+                    ${pendingRequests.map(req => `
+                        <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                            <div style="margin-bottom:10px;">
+                                <strong>${req.requestType === 'payment-date' ? '📅 Payment Date Change' : req.requestType === 'recorded-date' ? '🕒 Recorded Date Change' : '📝 Data Modification'}</strong>
+                            </div>
+                            <div style="font-size:14px;color:#666;margin-bottom:10px;">
+                                <div><strong>Requested by:</strong> ${req.requestedByName} (${req.requestedByRole})</div>
+                                <div><strong>Repair:</strong> ${req.repairDetails || 'N/A'}</div>
+                                ${req.oldValue ? `<div><strong>From:</strong> ${req.oldValue}</div>` : ''}
+                                ${req.newValue ? `<div><strong>To:</strong> ${req.newValue}</div>` : ''}
+                                <div><strong>Reason:</strong> ${req.reason}</div>
+                                <div><strong>Requested:</strong> ${utils.formatDateTime(req.requestedAt)}</div>
+                            </div>
+                            <div style="display:flex;gap:10px;">
+                                <button onclick="processModificationRequest('${req.id}', 'approve')" style="background:#4caf50;color:white;padding:8px 16px;border:none;border-radius:5px;cursor:pointer;">
+                                    ✅ Approve
+                                </button>
+                                <button onclick="processModificationRequest('${req.id}', 'reject')" style="background:#f44336;color:white;padding:8px 16px;border:none;border-radius:5px;cursor:pointer;">
+                                    ❌ Reject
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                ` : ''}
+                
+                ${processedRequests.length > 0 ? `
+                    <h4 style="margin-top:30px;">📋 Recent Processed (Last 20)</h4>
+                    ${processedRequests.map(req => `
+                        <div style="background:${req.status === 'approved' ? '#e8f5e9' : '#ffebee'};padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid ${req.status === 'approved' ? '#4caf50' : '#f44336'};">
+                            <div style="display:flex;justify-content:space-between;font-size:14px;">
+                                <div>
+                                    <strong>${req.requestType === 'payment-date' ? '📅' : req.requestType === 'recorded-date' ? '🕒' : '📝'} ${req.requestedByName}</strong> - ${req.reason.substring(0, 50)}...
+                                </div>
+                                <span style="font-size:12px;color:#666;">${utils.formatDate(req.processedAt)}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                ` : ''}
+            `}
+        </div>
+    `;
+}
+
 function buildUnpaidTab(container) {
     console.log('💳 Building Unpaid tab');
     window.currentTabRefresh = () => buildUnpaidTab(document.getElementById('unpaidTab'));
@@ -394,9 +506,6 @@ function buildUnpaidTab(container) {
     }, 0);
 }
 
-/**
- * Build Pending Payments Tab (Cashier)
- */
 function buildPendingPaymentsTab(container) {
     console.log('⏳ Building Pending Payments tab');
     window.currentTabRefresh = () => buildPendingPaymentsTab(document.getElementById('pendingTab'));
@@ -421,9 +530,6 @@ function buildPendingPaymentsTab(container) {
     }, 0);
 }
 
-/**
- * Build Paid Tab (Cashier)
- */
 function buildPaidTab(container) {
     console.log('✅ Building Paid tab');
     window.currentTabRefresh = () => buildPaidTab(document.getElementById('paidTab'));
@@ -449,9 +555,6 @@ function buildPaidTab(container) {
     }, 0);
 }
 
-/**
- * Build All Repairs Tab
- */
 function buildAllRepairsTab(container) {
     console.log('📋 Building All Repairs tab');
     
@@ -476,9 +579,6 @@ function buildAllRepairsTab(container) {
     }, 0);
 }
 
-/**
- * Display repairs in container
- */
 function displayRepairsInContainer(repairs, container) {
     if (!container) {
         console.error('❌ Container is null!');
@@ -503,17 +603,16 @@ function displayRepairsInContainer(repairs, container) {
             <div class="repair-card">
                 <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
                 <span class="status-badge status-${statusClass}">${r.status}</span>
+                ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
                 ${!hidePayments ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending' : 'Verified'}</span>` : ''}
                 ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
                 
                 <div class="repair-info">
                     <div><strong>Contact:</strong> ${r.contactNumber}</div>
                     <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
-                    ${r.isMicrosoldering || r.repairType === 'Microsoldering' ? `<div><strong>Condition:</strong> ${r.deviceCondition === 'Fresh' ? '✅ Fresh' : '⚠️ Tampered'}</div>` : ''}
-                    <div><strong>Part:</strong> ${r.partType || 'N/A'}</div>
                     ${r.acceptedBy ? `<div><strong>Technician:</strong> ${r.acceptedByName}</div>` : ''}
                     ${!hidePayments ? `
-                        <div><strong>Total:</strong> ₱${r.total.toFixed(2)}${r.serviceFee ? ' <span style="color:#f44336;">(Service Fee)</span>' : ''}</div>
+                        <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
                         <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
                         <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-weight:bold;">₱${balance.toFixed(2)}</span></div>
                     ` : '<div><strong>Amount:</strong> ***</div>'}
@@ -532,9 +631,6 @@ function displayRepairsInContainer(repairs, container) {
     }).join('');
 }
 
-/**
- * Build My Repairs Tab (Technician)
- */
 function buildMyRepairsTab(container) {
     console.log('🔧 Building My Repairs tab');
     window.currentTabRefresh = () => buildMyRepairsTab(document.getElementById('myTab'));
@@ -616,14 +712,25 @@ function buildUsersTab(container) {
     `;
 }
 
+// Toggle back job fields
+function toggleBackJobFields() {
+    const isBackJob = document.getElementById('isBackJob').checked;
+    const backJobFields = document.getElementById('backJobFields');
+    
+    if (backJobFields) {
+        backJobFields.style.display = isBackJob ? 'block' : 'none';
+    }
+}
+
 // Export to global scope
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
-window.buildFilteredRepairsTab = buildFilteredRepairsTab;
 window.buildReceivedDevicesPage = buildReceivedDevicesPage;
 window.buildInProgressPage = buildInProgressPage;
 window.buildForReleasePage = buildForReleasePage;
 window.buildReceiveDeviceTab = buildReceiveDeviceTab;
+window.buildMyRequestsTab = buildMyRequestsTab;
+window.buildModificationRequestsTab = buildModificationRequestsTab;
 window.buildUnpaidTab = buildUnpaidTab;
 window.buildPendingPaymentsTab = buildPendingPaymentsTab;
 window.buildPaidTab = buildPaidTab;
@@ -634,5 +741,6 @@ window.buildPendingTab = buildPendingTab;
 window.buildCashCountTab = buildCashCountTab;
 window.buildSuppliersTab = buildSuppliersTab;
 window.buildUsersTab = buildUsersTab;
+window.toggleBackJobFields = toggleBackJobFields;
 
 console.log('✅ ui.js loaded');
