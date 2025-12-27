@@ -370,13 +370,8 @@ function openPaymentModal(repairId) {
                                     </button>
                                 ` : ''}
                                 ${(window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
-    <button onclick="editPaymentDate('${repairId}', ${i})" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
-        📅 Edit Payment Date
-    </button>
-` : ''}
-${(window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
-    <button onclick="${window.currentUserData.role === 'admin' ? `editRecordedDate('${repairId}', ${i})` : `requestRecordedDateModification('${repairId}', ${i})`}" style="background:#9c27b0;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
-        🕒 ${window.currentUserData.role === 'admin' ? 'Edit Recorded' : 'Request Edit Recorded'}
+    <button onclick="${window.currentUserData.role === 'admin' ? `editPaymentDate('${repairId}', ${i})` : `requestPaymentDateModification('${repairId}', ${i})`}" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+        📅 ${window.currentUserData.role === 'admin' ? 'Edit Payment Date' : 'Request Edit Payment Date'}
     </button>
 ` : ''}
                             </div>
