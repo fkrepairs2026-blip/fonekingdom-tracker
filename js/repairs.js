@@ -44,7 +44,7 @@ async function loadRepairs() {
  */
 async function submitRepair(e) {
     e.preventDefault();
-    const form = e.target;
+    const form = e.target();
     const data = new FormData(form);
     
     console.log('💾 Saving new repair...');
@@ -205,6 +205,18 @@ function getTodayDate() {
 }
 
 /**
+ * Convert ISO date to YYYY-MM-DD format
+ */
+function isoToDateInput(isoString) {
+    if (!isoString) return getTodayDate();
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+/**
  * Open payment modal
  */
 function openPaymentModal(repairId) {
@@ -299,11 +311,18 @@ function openPaymentModal(repairId) {
                                     <img src="${p.photo}" onclick="showPhotoModal('${p.photo}')" style="max-width:100%;max-height:150px;cursor:pointer;border-radius:5px;">
                                 </div>
                             ` : ''}
-                            ${!p.verified && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? `
-                                <button onclick="verifyPayment('${repairId}', ${i})" style="margin-top:8px;background:#4caf50;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;">
-                                    ✅ Verify Payment
-                                </button>
-                            ` : ''}
+                            <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
+                                ${!p.verified && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? `
+                                    <button onclick="verifyPayment('${repairId}', ${i})" style="background:#4caf50;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+                                        ✅ Verify Payment
+                                    </button>
+                                ` : ''}
+                                ${(window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
+                                    <button onclick="editPaymentDate('${repairId}', ${i})" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+                                        📅 Edit Date
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
                     `).join('')}
                 </div>
@@ -408,6 +427,105 @@ async function savePayment(repairId) {
     }
     
     closePaymentModal();
+}
+
+/**
+ * Edit payment date
+ */
+function editPaymentDate(repairId, paymentIndex) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payment = repair.payments[paymentIndex];
+    
+    const currentDate = isoToDateInput(payment.paymentDate || payment.date);
+    
+    const content = document.getElementById('paymentModalContent');
+    content.innerHTML = `
+        <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+            <h4 style="margin:0 0 10px 0;">📅 Edit Payment Date</h4>
+            <p><strong>Payment Amount:</strong> ₱${payment.amount.toFixed(2)}</p>
+            <p><strong>Method:</strong> ${payment.method}</p>
+            <p><strong>Current Date:</strong> ${utils.formatDate(payment.paymentDate || payment.date)}</p>
+        </div>
+        
+        <div class="form-group">
+            <label>New Payment Date *</label>
+            <input type="date" id="newPaymentDate" value="${currentDate}" max="${getTodayDate()}" required>
+            <small style="color:#666;">Select the correct date when payment was received</small>
+        </div>
+        
+        <div class="form-group">
+            <label>Reason for Change *</label>
+            <textarea id="editReason" rows="2" required placeholder="Why are you changing the date? (e.g., Wrong date entered, Found payment slip from earlier date)"></textarea>
+        </div>
+        
+        <div style="display:flex;gap:10px;">
+            <button onclick="savePaymentDateEdit('${repairId}', ${paymentIndex})" style="flex:1;background:#4caf50;color:white;">
+                ✅ Save Changes
+            </button>
+            <button onclick="openPaymentModal('${repairId}')" style="flex:1;background:#666;color:white;">
+                ❌ Cancel
+            </button>
+        </div>
+        
+        <div style="background:#ffebee;padding:12px;border-radius:5px;margin-top:15px;border-left:4px solid #f44336;">
+            <p style="margin:0;font-size:13px;"><strong>⚠️ Important:</strong> This will update the payment date in your records. The change will be logged with your name and reason.</p>
+        </div>
+    `;
+    
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+/**
+ * Save payment date edit
+ */
+async function savePaymentDateEdit(repairId, paymentIndex) {
+    const newDateInput = document.getElementById('newPaymentDate');
+    const reason = document.getElementById('editReason').value.trim();
+    
+    if (!newDateInput || !newDateInput.value) {
+        alert('Please select a new payment date');
+        return;
+    }
+    
+    if (!reason) {
+        alert('Please provide a reason for changing the date');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payments = [...repair.payments];
+    const payment = payments[paymentIndex];
+    
+    const oldDate = payment.paymentDate || payment.date;
+    const selectedDate = new Date(newDateInput.value + 'T00:00:00');
+    const newDate = selectedDate.toISOString();
+    
+    // Update payment with new date and edit log
+    payments[paymentIndex] = {
+        ...payment,
+        paymentDate: newDate,
+        dateEditHistory: [
+            ...(payment.dateEditHistory || []),
+            {
+                oldDate: oldDate,
+                newDate: newDate,
+                reason: reason,
+                editedBy: window.currentUserData.displayName,
+                editedAt: new Date().toISOString()
+            }
+        ]
+    };
+    
+    await db.ref('repairs/' + repairId).update({
+        payments: payments,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: window.currentUserData.displayName
+    });
+    
+    alert(`✅ Payment date updated!\n\nOld Date: ${utils.formatDate(oldDate)}\nNew Date: ${utils.formatDate(newDate)}\n\nReason: ${reason}\n\nChange has been logged.`);
+    
+    // Reopen modal to refresh
+    setTimeout(() => openPaymentModal(repairId), 100);
 }
 
 /**
@@ -860,9 +978,12 @@ window.submitRepair = submitRepair;
 window.submitQuickReceive = submitQuickReceive;
 window.handlePhotoUpload = handlePhotoUpload;
 window.getTodayDate = getTodayDate;
+window.isoToDateInput = isoToDateInput;
 window.openPaymentModal = openPaymentModal;
 window.previewPaymentProof = previewPaymentProof;
 window.savePayment = savePayment;
+window.editPaymentDate = editPaymentDate;
+window.savePaymentDateEdit = savePaymentDateEdit;
 window.verifyPayment = verifyPayment;
 window.updateRepairStatus = updateRepairStatus;
 window.saveStatus = saveStatus;
