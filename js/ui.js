@@ -11,27 +11,29 @@ function buildTabs() {
     const role = window.currentUserData.role;
     availableTabs = [];
     
-    // Common tabs
-    availableTabs.push({ id: 'new', label: '➕ New Repair', build: buildNewRepairTab });
-    
-    if (role === 'admin' || role === 'manager') {
+    // CASHIER - Payment-focused interface
+    if (role === 'cashier') {
+        availableTabs.push({ id: 'receive', label: '📥 Receive Device', build: buildReceiveDeviceTab });
+        availableTabs.push({ id: 'unpaid', label: '💳 Unpaid', build: buildUnpaidTab });
+        availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingPaymentsTab });
+        availableTabs.push({ id: 'paid', label: '✅ Paid', build: buildPaidTab });
+        availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
+    }
+    // ADMIN/MANAGER - Full interface
+    else if (role === 'admin' || role === 'manager') {
+        availableTabs.push({ id: 'new', label: '➕ New Repair', build: buildNewRepairTab });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
         availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
         availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
     }
-    
-    if (role === 'cashier') {
-        availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
-        availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
-        availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
-    }
-    
-    if (role === 'technician') {
+    // TECHNICIAN - Work-focused interface
+    else if (role === 'technician') {
         availableTabs.push({ id: 'my', label: '🔧 My Repairs', build: buildMyRepairsTab });
         availableTabs.push({ id: 'assigned', label: '📤 Assigned to Others', build: buildAssignedToOthersTab });
     }
     
+    // Admin-only tabs
     if (role === 'admin') {
         availableTabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
     }
@@ -152,7 +154,173 @@ function buildFilteredRepairsTab(status) {
 }
 
 /**
- * Build New Repair Tab
+ * Build Receive Device Tab (Cashier)
+ */
+function buildReceiveDeviceTab(container) {
+    console.log('📥 Building Receive Device tab');
+    window.currentTabRefresh = () => buildReceiveDeviceTab(document.getElementById('receiveTab'));
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>📥 Receive Device</h3>
+            <p style="color:#666;margin-bottom:20px;">Quick device receiving when technician is not available</p>
+            
+            <form onsubmit="submitQuickReceive(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Customer Type *</label>
+                        <select name="customerType" onchange="document.getElementById('shopNameGroupQuick').style.display=this.value==='Dealer'?'block':'none'" required>
+                            <option value="">Select</option>
+                            <option>Walk-in</option>
+                            <option>Dealer</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="shopNameGroupQuick" style="display:none;">
+                        <label>Shop Name *</label>
+                        <input type="text" name="shopName" placeholder="Dealer shop name">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Customer Name *</label>
+                        <input type="text" name="customerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Number *</label>
+                        <input type="text" name="contactNumber" required>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Brand *</label>
+                        <input type="text" name="brand" required placeholder="e.g., Samsung, iPhone, Oppo">
+                    </div>
+                    <div class="form-group">
+                        <label>Model *</label>
+                        <input type="text" name="model" required placeholder="e.g., Galaxy S21, iPhone 12">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Problem Description *</label>
+                    <textarea name="problem" rows="3" required placeholder="Describe the issue the customer is experiencing..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label>Assign To *</label>
+                    <select name="assignedTo" required>
+                        <option value="">Select Technician</option>
+                        <option value="Owner">Owner</option>
+                        <option value="Lester">Lester</option>
+                    </select>
+                    <small style="color:#666;">Technician will diagnose and set pricing later</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Device Photo (Optional)</label>
+                    <input type="file" accept="image/*" id="quickPhoto1" onchange="handlePhotoUpload(this,'quickPreview1')">
+                    <div id="quickPreview1" style="display:none;margin-top:10px;"></div>
+                </div>
+                
+                <div style="background:#fff3cd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #ffc107;">
+                    <p style="margin:0;"><strong>ℹ️ Note:</strong> Device will be marked as "Received" - technician will add pricing and repair details later.</p>
+                </div>
+                
+                <button type="submit" style="width:100%;background:#4caf50;color:white;font-size:16px;padding:12px;">
+                    📥 Receive Device
+                </button>
+            </form>
+        </div>
+    `;
+}
+
+/**
+ * Build Unpaid Tab (Cashier)
+ */
+function buildUnpaidTab(container) {
+    console.log('💳 Building Unpaid tab');
+    window.currentTabRefresh = () => buildUnpaidTab(document.getElementById('unpaidTab'));
+    
+    const unpaidRepairs = window.allRepairs.filter(r => {
+        const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+        return (r.total - totalPaid) > 0;
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>💳 Unpaid Repairs (${unpaidRepairs.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Repairs with outstanding balance</p>
+            <div id="unpaidRepairsList"></div>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const listContainer = document.getElementById('unpaidRepairsList');
+        if (listContainer) {
+            displayRepairsInContainer(unpaidRepairs, listContainer);
+        }
+    }, 0);
+}
+
+/**
+ * Build Pending Payments Tab (Cashier)
+ */
+function buildPendingPaymentsTab(container) {
+    console.log('⏳ Building Pending Payments tab');
+    window.currentTabRefresh = () => buildPendingPaymentsTab(document.getElementById('pendingTab'));
+    
+    const pendingRepairs = window.allRepairs.filter(r => 
+        r.payments && r.payments.some(p => !p.verified)
+    );
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>⏳ Pending Payment Verification (${pendingRepairs.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Payments waiting for admin/manager approval</p>
+            <div id="pendingPaymentsList"></div>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const listContainer = document.getElementById('pendingPaymentsList');
+        if (listContainer) {
+            displayRepairsInContainer(pendingRepairs, listContainer);
+        }
+    }, 0);
+}
+
+/**
+ * Build Paid Tab (Cashier)
+ */
+function buildPaidTab(container) {
+    console.log('✅ Building Paid tab');
+    window.currentTabRefresh = () => buildPaidTab(document.getElementById('paidTab'));
+    
+    const paidRepairs = window.allRepairs.filter(r => {
+        const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+        return (r.total - totalPaid) === 0 && r.total > 0;
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>✅ Fully Paid Repairs (${paidRepairs.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Repairs with no outstanding balance</p>
+            <div id="paidRepairsList"></div>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const listContainer = document.getElementById('paidRepairsList');
+        if (listContainer) {
+            displayRepairsInContainer(paidRepairs, listContainer);
+        }
+    }, 0);
+}
+
+/**
+ * Build New Repair Tab (Admin/Manager)
  */
 function buildNewRepairTab(container) {
     console.log('🆕 Building New Repair tab');
@@ -218,8 +386,7 @@ function buildNewRepairTab(container) {
                         <select name="assignedTo" required>
                             <option value="">Select Technician</option>
                             <option value="Owner">Owner</option>
-                            <option value="Tech 1">Tech 1</option>
-                            <option value="Tech 2">Tech 2</option>
+                            <option value="Lester">Lester</option>
                         </select>
                     </div>
                 </div>
@@ -368,7 +535,7 @@ function displayRepairsInContainer(repairs, container) {
         const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         const balance = r.total - totalPaid;
-        const paymentStatus = balance === 0 ? 'verified' : (r.payments && r.payments.some(p => !p.verified)) ? 'pending' : 'unpaid';
+        const paymentStatus = balance === 0 && r.total > 0 ? 'verified' : (r.payments && r.payments.some(p => !p.verified)) ? 'pending' : 'unpaid';
         
         return `
             <div class="repair-card">
@@ -379,7 +546,7 @@ function displayRepairsInContainer(repairs, container) {
                 
                 <div class="repair-info">
                     <div><strong>Contact:</strong> ${r.contactNumber}</div>
-                    <div><strong>Repair:</strong> ${r.repairType}</div>
+                    <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
                     ${r.isMicrosoldering || r.repairType === 'Microsoldering' ? `<div><strong>Condition:</strong> ${r.deviceCondition === 'Fresh' ? '✅ Fresh' : '⚠️ Tampered'}</div>` : ''}
                     <div><strong>Part:</strong> ${r.partType || 'N/A'}</div>
                     <div><strong>Assigned:</strong> ${r.assignedTo}</div>
@@ -393,7 +560,7 @@ function displayRepairsInContainer(repairs, container) {
                 <div><strong>Problem:</strong> ${r.problem}</div>
                 
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
-                    ${!hidePayments ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
+                    ${!hidePayments && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
                     ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
@@ -516,6 +683,10 @@ function buildUsersTab(container) {
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
 window.buildFilteredRepairsTab = buildFilteredRepairsTab;
+window.buildReceiveDeviceTab = buildReceiveDeviceTab;
+window.buildUnpaidTab = buildUnpaidTab;
+window.buildPendingPaymentsTab = buildPendingPaymentsTab;
+window.buildPaidTab = buildPaidTab;
 window.buildNewRepairTab = buildNewRepairTab;
 window.toggleMicrosoldingFields = toggleMicrosoldingFields;
 window.displayRepairsInContainer = displayRepairsInContainer;
