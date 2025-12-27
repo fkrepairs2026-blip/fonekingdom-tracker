@@ -95,6 +95,7 @@ async function submitReceiveDevice(e) {
         contactNumber: data.get('contactNumber'),
         brand: data.get('brand'),
         model: data.get('model'),
+        problemType: data.get('problemType') || 'Pending Diagnosis',
         problem: data.get('problem'),
         repairType: 'Pending Diagnosis',
         partType: '',
@@ -112,6 +113,7 @@ async function submitReceiveDevice(e) {
         acceptedBy: null,
         acceptedByName: null,
         acceptedAt: null
+        
     };
     
     // Add back job information if checked
