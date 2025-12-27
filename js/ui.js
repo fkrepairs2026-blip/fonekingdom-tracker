@@ -11,29 +11,30 @@ function buildTabs() {
     const role = window.currentUserData.role;
     availableTabs = [];
     
-    // CASHIER - Payment-focused interface
+    // SHARED PAGES - Everyone can access
+    availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
+    availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
+    availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
+    
+    // ROLE-SPECIFIC PAGES
     if (role === 'cashier') {
-        availableTabs.push({ id: 'receive', label: '📥 Receive Device', build: buildReceiveDeviceTab });
+        availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'unpaid', label: '💳 Unpaid', build: buildUnpaidTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingPaymentsTab });
         availableTabs.push({ id: 'paid', label: '✅ Paid', build: buildPaidTab });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
     }
-    // ADMIN/MANAGER - Full interface
     else if (role === 'admin' || role === 'manager') {
-        availableTabs.push({ id: 'new', label: '➕ New Repair', build: buildNewRepairTab });
+        availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
         availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
         availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
     }
-    // TECHNICIAN - Work-focused interface
     else if (role === 'technician') {
-        availableTabs.push({ id: 'my', label: '🔧 My Repairs', build: buildMyRepairsTab });
-        availableTabs.push({ id: 'assigned', label: '📤 Assigned to Others', build: buildAssignedToOthersTab });
+        availableTabs.push({ id: 'my', label: '🔧 My Jobs', build: buildMyRepairsTab });
     }
     
-    // Admin-only tabs
     if (role === 'admin') {
         availableTabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
     }
@@ -71,7 +72,6 @@ function renderTabs() {
         contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
         contentsContainer.appendChild(contentEl);
         
-        // Build tab content
         console.log('📄 Building content for tab:', tab.label);
         tab.build(contentEl);
     });
@@ -101,60 +101,150 @@ function switchTab(tabId) {
 }
 
 /**
- * Build filtered repairs tab (for status filters)
+ * Build Received Devices Page (SHARED - Everyone can access)
  */
-function buildFilteredRepairsTab(status) {
-    console.log('🔍 Building filtered repairs tab for:', status);
+function buildReceivedDevicesPage(container) {
+    console.log('📥 Building Received Devices page');
+    window.currentTabRefresh = () => buildReceivedDevicesPage(document.getElementById('receivedTab'));
     
-    let repairs = [];
-    let title = '';
+    const receivedDevices = window.allRepairs.filter(r => 
+        r.status === 'Received' && !r.acceptedBy
+    );
     
     const role = window.currentUserData.role;
-    let userRepairs = window.allRepairs;
+    const canAccept = (role === 'admin' || role === 'manager' || role === 'technician');
     
-    // Filter by role first
-    if (role === 'technician') {
-        userRepairs = window.allRepairs.filter(r => r.assignedTo === window.currentUserData.technicianName);
-    }
-    
-    // Then filter by status
-    if (status === 'all') {
-        repairs = userRepairs;
-        title = 'All Repairs';
-    } else if (status === 'pending-payment') {
-        repairs = userRepairs.filter(r => r.payments && r.payments.some(p => !p.verified));
-        title = 'Pending Payment Verification';
-    } else {
-        repairs = userRepairs.filter(r => r.status === status);
-        title = `${status} Repairs`;
-    }
-    
-    // Switch to 'all' tab or create temporary filtered view
-    switchTab('all');
-    
-    const container = document.getElementById('allTab');
-    if (container) {
-        container.innerHTML = `
-            <div class="card">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-                    <h3>${title} (${repairs.length})</h3>
-                    <button onclick="buildTabs()" class="btn-small">← Back to All</button>
+    container.innerHTML = `
+        <div class="card">
+            <h3>📥 Received Devices - Waiting for Technician (${receivedDevices.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Devices received but not yet accepted by a technician</p>
+            ${receivedDevices.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">✅</h2>
+                    <p>No devices waiting - All caught up!</p>
                 </div>
-                <div id="filteredRepairsList"></div>
-            </div>
-        `;
-        
-        setTimeout(() => {
-            const listContainer = document.getElementById('filteredRepairsList');
-            if (listContainer) {
-                displayRepairsInContainer(repairs, listContainer);
-            }
-        }, 0);
-    }
+            ` : `
+                <div id="receivedDevicesList">
+                    ${receivedDevices.map(r => `
+                        <div class="repair-card" style="border-left:4px solid #2196f3;">
+                            <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
+                            <span class="status-badge" style="background:#e3f2fd;color:#1565c0;">📥 Received</span>
+                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
+                            
+                            <div class="repair-info">
+                                <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                                <div><strong>Problem:</strong> ${r.problem}</div>
+                                <div><strong>Received by:</strong> ${r.receivedBy || r.createdByName}</div>
+                                <div><strong>Received on:</strong> ${utils.formatDateTime(r.createdAt)}</div>
+                                ${r.repairType && r.repairType !== 'Pending Diagnosis' ? `<div><strong>Repair Type:</strong> ${r.repairType}</div>` : ''}
+                                ${r.total > 0 ? `<div><strong>Estimated Cost:</strong> ₱${r.total.toFixed(2)}</div>` : '<div style="color:#999;"><strong>Cost:</strong> Pending diagnosis</div>'}
+                            </div>
+                            
+                            ${r.photos && r.photos.length > 0 ? `
+                                <div style="margin:10px 0;">
+                                    <strong>Photos:</strong>
+                                    <div style="display:flex;gap:10px;margin-top:5px;">
+                                        ${r.photos.map(p => `<img src="${p}" onclick="showPhotoModal('${p}')" style="width:80px;height:80px;object-fit:cover;border-radius:5px;cursor:pointer;">`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            
+                            <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                                ${canAccept ? `
+                                    <button class="btn-small" onclick="acceptRepair('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+                                        ✅ Accept This Repair
+                                    </button>
+                                ` : ''}
+                                ${role === 'admin' || role === 'manager' ? `
+                                    <button class="btn-small" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
+                                        📝 Set Pricing
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `}
+        </div>
+    `;
 }
 
 /**
- * Build Receive Device Tab (Cashier)
+ * Build In Progress Page (SHARED - Everyone can access)
+ */
+function buildInProgressPage(container) {
+    console.log('🔧 Building In Progress page');
+    window.currentTabRefresh = () => buildInProgressPage(document.getElementById('inprogressTab'));
+    
+    const inProgressDevices = window.allRepairs.filter(r => 
+        r.status === 'In Progress' || r.status === 'Waiting for Parts'
+    );
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>🔧 In Progress - Active Repairs (${inProgressDevices.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Devices currently being repaired</p>
+            ${inProgressDevices.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">🎉</h2>
+                    <p>No active repairs - All done!</p>
+                </div>
+            ` : `
+                <div id="inProgressList">
+                    ${displayRepairsInContainer(inProgressDevices, document.getElementById('inProgressList'), true)}
+                </div>
+            `}
+        </div>
+    `;
+    
+    // Render after container is in DOM
+    setTimeout(() => {
+        const listContainer = document.getElementById('inProgressList');
+        if (listContainer && inProgressDevices.length > 0) {
+            displayRepairsInContainer(inProgressDevices, listContainer);
+        }
+    }, 0);
+}
+
+/**
+ * Build For Release Page (SHARED - Everyone can access)
+ */
+function buildForReleasePage(container) {
+    console.log('📦 Building For Release page');
+    window.currentTabRefresh = () => buildForReleasePage(document.getElementById('forreleaseTab'));
+    
+    const forReleaseDevices = window.allRepairs.filter(r => 
+        r.status === 'Ready for Pickup' || r.status === 'Completed'
+    );
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>📦 For Release - Ready for Pickup (${forReleaseDevices.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Devices ready to be released to customers</p>
+            ${forReleaseDevices.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">📭</h2>
+                    <p>No devices ready for release</p>
+                </div>
+            ` : `
+                <div id="forReleaseList">
+                    ${displayRepairsInContainer(forReleaseDevices, document.getElementById('forReleaseList'), true)}
+                </div>
+            `}
+        </div>
+    `;
+    
+    // Render after container is in DOM
+    setTimeout(() => {
+        const listContainer = document.getElementById('forReleaseList');
+        if (listContainer && forReleaseDevices.length > 0) {
+            displayRepairsInContainer(forReleaseDevices, listContainer);
+        }
+    }, 0);
+}
+
+/**
+ * Build Receive Device Tab
  */
 function buildReceiveDeviceTab(container) {
     console.log('📥 Building Receive Device tab');
@@ -162,20 +252,20 @@ function buildReceiveDeviceTab(container) {
     
     container.innerHTML = `
         <div class="card">
-            <h3>📥 Receive Device</h3>
-            <p style="color:#666;margin-bottom:20px;">Quick device receiving when technician is not available</p>
+            <h3>➕ Receive Device</h3>
+            <p style="color:#666;margin-bottom:20px;">Receive new device from customer - Technician will accept it later</p>
             
-            <form onsubmit="submitQuickReceive(event)">
+            <form onsubmit="submitReceiveDevice(event)">
                 <div class="form-row">
                     <div class="form-group">
                         <label>Customer Type *</label>
-                        <select name="customerType" onchange="document.getElementById('shopNameGroupQuick').style.display=this.value==='Dealer'?'block':'none'" required>
+                        <select name="customerType" onchange="document.getElementById('shopNameGroupReceive').style.display=this.value==='Dealer'?'block':'none'" required>
                             <option value="">Select</option>
                             <option>Walk-in</option>
                             <option>Dealer</option>
                         </select>
                     </div>
-                    <div class="form-group" id="shopNameGroupQuick" style="display:none;">
+                    <div class="form-group" id="shopNameGroupReceive" style="display:none;">
                         <label>Shop Name *</label>
                         <input type="text" name="shopName" placeholder="Dealer shop name">
                     </div>
@@ -205,27 +295,17 @@ function buildReceiveDeviceTab(container) {
                 
                 <div class="form-group">
                     <label>Problem Description *</label>
-                    <textarea name="problem" rows="3" required placeholder="Describe the issue the customer is experiencing..."></textarea>
-                </div>
-                
-                <div class="form-group">
-                    <label>Assign To *</label>
-                    <select name="assignedTo" required>
-                        <option value="">Select Technician</option>
-                        <option value="Owner">Owner</option>
-                        <option value="Lester">Lester</option>
-                    </select>
-                    <small style="color:#666;">Technician will diagnose and set pricing later</small>
+                    <textarea name="problem" rows="3" required placeholder="Describe the issue..."></textarea>
                 </div>
                 
                 <div class="form-group">
                     <label>Device Photo (Optional)</label>
-                    <input type="file" accept="image/*" id="quickPhoto1" onchange="handlePhotoUpload(this,'quickPreview1')">
-                    <div id="quickPreview1" style="display:none;margin-top:10px;"></div>
+                    <input type="file" accept="image/*" id="receivePhoto1" onchange="handlePhotoUpload(this,'receivePreview1')">
+                    <div id="receivePreview1" style="display:none;margin-top:10px;"></div>
                 </div>
                 
-                <div style="background:#fff3cd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #ffc107;">
-                    <p style="margin:0;"><strong>ℹ️ Note:</strong> Device will be marked as "Received" - technician will add pricing and repair details later.</p>
+                <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #2196f3;">
+                    <p style="margin:0;"><strong>ℹ️ Note:</strong> Device will appear in "📥 Received Devices" - Owner or Technician will accept it later.</p>
                 </div>
                 
                 <button type="submit" style="width:100%;background:#4caf50;color:white;font-size:16px;padding:12px;">
@@ -234,6 +314,56 @@ function buildReceiveDeviceTab(container) {
             </form>
         </div>
     `;
+}
+
+/**
+ * Build filtered repairs tab (for status filters)
+ */
+function buildFilteredRepairsTab(status) {
+    console.log('🔍 Building filtered repairs tab for:', status);
+    
+    let repairs = [];
+    let title = '';
+    
+    const role = window.currentUserData.role;
+    let userRepairs = window.allRepairs;
+    
+    if (role === 'technician') {
+        userRepairs = window.allRepairs.filter(r => r.acceptedBy === window.currentUser.uid);
+    }
+    
+    if (status === 'all') {
+        repairs = userRepairs;
+        title = 'All Repairs';
+    } else if (status === 'pending-payment') {
+        repairs = userRepairs.filter(r => r.payments && r.payments.some(p => !p.verified));
+        title = 'Pending Payment Verification';
+    } else {
+        repairs = userRepairs.filter(r => r.status === status);
+        title = `${status} Repairs`;
+    }
+    
+    switchTab('all');
+    
+    const container = document.getElementById('allTab');
+    if (container) {
+        container.innerHTML = `
+            <div class="card">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                    <h3>${title} (${repairs.length})</h3>
+                    <button onclick="buildTabs()" class="btn-small">← Back to All</button>
+                </div>
+                <div id="filteredRepairsList"></div>
+            </div>
+        `;
+        
+        setTimeout(() => {
+            const listContainer = document.getElementById('filteredRepairsList');
+            if (listContainer) {
+                displayRepairsInContainer(repairs, listContainer);
+            }
+        }, 0);
+    }
 }
 
 /**
@@ -320,171 +450,12 @@ function buildPaidTab(container) {
 }
 
 /**
- * Build New Repair Tab (Admin/Manager)
- */
-function buildNewRepairTab(container) {
-    console.log('🆕 Building New Repair tab');
-    window.currentTabRefresh = () => buildNewRepairTab(document.getElementById('newTab'));
-    
-    container.innerHTML = `
-        <div class="card">
-            <h3>Create New Repair</h3>
-            <form onsubmit="submitRepair(event)">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Customer Type *</label>
-                        <select name="customerType" onchange="document.getElementById('shopNameGroup').style.display=this.value==='Dealer'?'block':'none'" required>
-                            <option value="">Select</option>
-                            <option>Walk-in</option>
-                            <option>Dealer</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="shopNameGroup" style="display:none;">
-                        <label>Shop Name *</label>
-                        <input type="text" name="shopName" placeholder="Dealer shop name">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Customer Name *</label>
-                        <input type="text" name="customerName" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Contact Number *</label>
-                        <input type="text" name="contactNumber" required>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Brand *</label>
-                        <input type="text" name="brand" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Model *</label>
-                        <input type="text" name="model" required>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Problem Description *</label>
-                    <textarea name="problem" rows="3" required></textarea>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Repair Type *</label>
-                        <select name="repairType" id="repairTypeSelect" onchange="toggleMicrosoldingFields()" required>
-                            <option value="">Select</option>
-                            <option>LCD Replacement</option>
-                            <option>Battery Replacement</option>
-                            <option>Charging Port</option>
-                            <option>Microsoldering</option>
-                            <option>Water Damage</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Assigned To *</label>
-                        <select name="assignedTo" required>
-                            <option value="">Select Technician</option>
-                            <option value="Owner">Owner</option>
-                            <option value="Lester">Lester</option>
-                        </select>
-                    </div>
-                </div>
-                <div id="microsoldingFields" style="display:none;">
-                    <h4 style="margin:20px 0 10px;color:var(--primary);">Microsoldering Details</h4>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Device Condition *</label>
-                            <select name="deviceCondition" onchange="document.getElementById('deviceTierGroup').style.display=this.value==='Tampered'?'block':'none'">
-                                <option value="">Select Condition</option>
-                                <option value="Fresh">✅ Fresh (Never Opened)</option>
-                                <option value="Tampered">⚠️ Tampered (Previously Repaired)</option>
-                            </select>
-                            <small style="color:#666;">Fresh = No charge if unsuccessful<br>Tampered = Service fee applies</small>
-                        </div>
-                        <div class="form-group" id="deviceTierGroup" style="display:none;">
-                            <label>Device Tier *</label>
-                            <select name="deviceTier">
-                                <option value="">Select Tier</option>
-                                <option value="Entry Android">Entry Android (₱150-200)</option>
-                                <option value="Old iPhone">Old iPhone / Mid Android (₱200-300)</option>
-                                <option value="Latest Models">Latest iPhone / Flagship (₱300-500)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Part Type</label>
-                        <select name="partType">
-                            <option value="">Select Part</option>
-                            <option>LCD</option>
-                            <option>Battery</option>
-                            <option>Flex</option>
-                            <option>Charging Port</option>
-                            <option>Camera</option>
-                            <option>Speaker</option>
-                            <option>Microphone</option>
-                            <option>Back Cover</option>
-                            <option>Board</option>
-                            <option>Multiple Parts</option>
-                            <option>No Parts</option>
-                            <option>Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Parts Source</label>
-                        <select name="partSource">
-                            <option value="">Select Source</option>
-                            <option>Shop Stock</option>
-                            <option>Guimba</option>
-                            <option>Ate Sheng</option>
-                            <option>Lawrence</option>
-                            <option>Jhay</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Parts Cost (₱)</label>
-                        <input type="number" name="partsCost" step="0.01" value="0">
-                    </div>
-                    <div class="form-group">
-                        <label>Labor Cost (₱)</label>
-                        <input type="number" name="laborCost" step="0.01" value="0">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Device Photos (up to 3)</label>
-                    <div class="form-row">
-                        <div><input type="file" accept="image/*" id="photo1" onchange="handlePhotoUpload(this,'preview1')"><div id="preview1" style="display:none;margin-top:10px;"></div></div>
-                        <div id="photo2" style="display:none;"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'preview2')"><div id="preview2" style="display:none;margin-top:10px;"></div></div>
-                        <div id="photo3" style="display:none;"><input type="file" accept="image/*" onchange="handlePhotoUpload(this,'preview3')"><div id="preview3" style="display:none;margin-top:10px;"></div></div>
-                    </div>
-                </div>
-                <button type="submit" style="width:100%;background:var(--primary);color:white;">💾 Save Repair</button>
-            </form>
-        </div>
-    `;
-}
-
-function toggleMicrosoldingFields() {
-    const repairType = document.getElementById('repairTypeSelect');
-    const fields = document.getElementById('microsoldingFields');
-    if (repairType && fields) {
-        fields.style.display = repairType.value === 'Microsoldering' ? 'block' : 'none';
-    }
-}
-
-/**
  * Build All Repairs Tab
  */
 function buildAllRepairsTab(container) {
     console.log('📋 Building All Repairs tab');
-    console.log('Total repairs to show:', window.allRepairs.length);
     
     window.currentTabRefresh = () => {
-        console.log('🔄 Refreshing All Repairs tab');
         buildAllRepairsTab(document.getElementById('allTab'));
     };
     
@@ -500,10 +471,7 @@ function buildAllRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
-            console.log('📝 Displaying repairs in container...');
             displayRepairsInContainer(repairs, listContainer);
-        } else {
-            console.error('❌ allRepairsList container not found!');
         }
     }, 0);
 }
@@ -512,10 +480,6 @@ function buildAllRepairsTab(container) {
  * Display repairs in container
  */
 function displayRepairsInContainer(repairs, container) {
-    console.log('🎨 displayRepairsInContainer called');
-    console.log('Repairs to display:', repairs.length);
-    console.log('Container:', container);
-    
     if (!container) {
         console.error('❌ Container is null!');
         return;
@@ -528,8 +492,6 @@ function displayRepairsInContainer(repairs, container) {
     
     const role = window.currentUserData.role;
     const hidePayments = role === 'technician';
-    
-    console.log('✅ Rendering', repairs.length, 'repair cards');
     
     container.innerHTML = repairs.map(r => {
         const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
@@ -549,7 +511,7 @@ function displayRepairsInContainer(repairs, container) {
                     <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
                     ${r.isMicrosoldering || r.repairType === 'Microsoldering' ? `<div><strong>Condition:</strong> ${r.deviceCondition === 'Fresh' ? '✅ Fresh' : '⚠️ Tampered'}</div>` : ''}
                     <div><strong>Part:</strong> ${r.partType || 'N/A'}</div>
-                    <div><strong>Assigned:</strong> ${r.assignedTo}</div>
+                    ${r.acceptedBy ? `<div><strong>Technician:</strong> ${r.acceptedByName}</div>` : ''}
                     ${!hidePayments ? `
                         <div><strong>Total:</strong> ₱${r.total.toFixed(2)}${r.serviceFee ? ' <span style="color:#f44336;">(Service Fee)</span>' : ''}</div>
                         <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
@@ -568,22 +530,21 @@ function displayRepairsInContainer(repairs, container) {
             </div>
         `;
     }).join('');
-    
-    console.log('✅ Repair cards rendered successfully');
 }
 
 /**
- * Build other tabs (simplified for now)
+ * Build My Repairs Tab (Technician)
  */
 function buildMyRepairsTab(container) {
     console.log('🔧 Building My Repairs tab');
     window.currentTabRefresh = () => buildMyRepairsTab(document.getElementById('myTab'));
     
-    const myRepairs = window.allRepairs.filter(r => r.assignedTo === window.currentUserData.technicianName);
+    const myRepairs = window.allRepairs.filter(r => r.acceptedBy === window.currentUser.uid);
     
     container.innerHTML = `
         <div class="card">
-            <h3>My Repairs (${myRepairs.length})</h3>
+            <h3>🔧 My Jobs (${myRepairs.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Repairs you have accepted</p>
             <div id="myRepairsList"></div>
         </div>
     `;
@@ -592,30 +553,6 @@ function buildMyRepairsTab(container) {
         const listContainer = document.getElementById('myRepairsList');
         if (listContainer) {
             displayRepairsInContainer(myRepairs, listContainer);
-        }
-    }, 0);
-}
-
-function buildAssignedToOthersTab(container) {
-    console.log('📤 Building Assigned to Others tab');
-    window.currentTabRefresh = () => buildAssignedToOthersTab(document.getElementById('assignedTab'));
-    
-    const assignedToOthers = window.allRepairs.filter(r => 
-        r.createdBy === window.currentUser.uid && 
-        r.assignedTo !== window.currentUserData.technicianName
-    );
-    
-    container.innerHTML = `
-        <div class="card">
-            <h3>📤 Assigned to Others (${assignedToOthers.length})</h3>
-            <div id="assignedRepairsList"></div>
-        </div>
-    `;
-    
-    setTimeout(() => {
-        const listContainer = document.getElementById('assignedRepairsList');
-        if (listContainer) {
-            displayRepairsInContainer(assignedToOthers, listContainer);
         }
     }, 0);
 }
@@ -683,16 +620,16 @@ function buildUsersTab(container) {
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
 window.buildFilteredRepairsTab = buildFilteredRepairsTab;
+window.buildReceivedDevicesPage = buildReceivedDevicesPage;
+window.buildInProgressPage = buildInProgressPage;
+window.buildForReleasePage = buildForReleasePage;
 window.buildReceiveDeviceTab = buildReceiveDeviceTab;
 window.buildUnpaidTab = buildUnpaidTab;
 window.buildPendingPaymentsTab = buildPendingPaymentsTab;
 window.buildPaidTab = buildPaidTab;
-window.buildNewRepairTab = buildNewRepairTab;
-window.toggleMicrosoldingFields = toggleMicrosoldingFields;
 window.displayRepairsInContainer = displayRepairsInContainer;
 window.buildAllRepairsTab = buildAllRepairsTab;
 window.buildMyRepairsTab = buildMyRepairsTab;
-window.buildAssignedToOthersTab = buildAssignedToOthersTab;
 window.buildPendingTab = buildPendingTab;
 window.buildCashCountTab = buildCashCountTab;
 window.buildSuppliersTab = buildSuppliersTab;
