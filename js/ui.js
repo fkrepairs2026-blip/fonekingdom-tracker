@@ -76,28 +76,11 @@ function renderTabs() {
     tabsContainer.innerHTML = '';
     contentsContainer.innerHTML = '';
     
-    // Build mobile navigation (show first 5 tabs)
+    // Mobile bottom nav is now hidden - using bottom tabs instead
+    // Keep this code but it won't be displayed
     if (mobileNav) {
         mobileNav.innerHTML = '';
-        const mobileTabs = availableTabs.slice(0, 5);
-        mobileTabs.forEach((tab, index) => {
-            const navItem = document.createElement('div');
-            navItem.className = 'mobile-nav-item' + (index === 0 ? ' active' : '');
-            navItem.onclick = () => switchTab(tab.id);
-            navItem.id = `mobile-tab-${tab.id}`;
-            
-            // Extract emoji and text
-            const label = tab.label;
-            const emojiMatch = label.match(/^([^\s]+)\s+(.+)$/);
-            const emoji = emojiMatch ? emojiMatch[1] : '📋';
-            const text = emojiMatch ? emojiMatch[2] : label;
-            
-            navItem.innerHTML = `
-                <span>${emoji}</span>
-                <span>${text}</span>
-            `;
-            mobileNav.appendChild(navItem);
-        });
+        // Don't build mobile nav - using bottom tabs instead
     }
     
     availableTabs.forEach((tab, index) => {

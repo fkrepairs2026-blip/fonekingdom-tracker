@@ -148,7 +148,7 @@ body {
     max-width: 1600px;
     margin: 0 auto;
     padding: var(--spacing-lg);
-    padding-bottom: 100px; /* Space for mobile bottom nav */
+    padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Space for bottom tabs */
 }
 
 /* ===== HEADER ===== */
@@ -280,7 +280,6 @@ body {
     background: var(--bg-white);
     border-radius: var(--radius-md);
     padding: var(--spacing-sm);
-    margin-bottom: var(--spacing-lg);
     box-shadow: var(--shadow-sm);
     display: flex;
     gap: var(--spacing-xs);
@@ -288,6 +287,25 @@ body {
     scrollbar-width: thin;
     scrollbar-color: var(--primary-light) transparent;
     -webkit-overflow-scrolling: touch;
+}
+
+/* Tabs at bottom */
+.tabs-bottom {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    margin: 0;
+    border-radius: 0;
+    border-top: 2px solid var(--border-color);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    z-index: 997;
+    /* iOS safe area support */
+    padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 }
 
 .tabs-container::-webkit-scrollbar {
@@ -333,6 +351,11 @@ body {
     font-weight: 600;
 }
 
+.tab-contents {
+    margin-bottom: calc(80px + env(safe-area-inset-bottom)); /* Space for bottom tabs */
+    min-height: calc(100vh - 400px); /* Ensure content is visible */
+}
+
 .tab-content {
     display: none;
     animation: fadeIn 0.3s ease;
@@ -347,20 +370,9 @@ body {
     to { opacity: 1; }
 }
 
-/* Mobile Bottom Navigation */
+/* Mobile Bottom Navigation - Hide on mobile, tabs are at bottom instead */
 .mobile-bottom-nav {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--bg-white);
-    border-top: 2px solid var(--border-color);
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    z-index: 998;
-    padding: var(--spacing-sm) 0;
-    /* iOS safe area support */
-    padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+    display: none !important; /* Use bottom tabs instead */
 }
 
 .mobile-nav-item {
@@ -1132,7 +1144,18 @@ button:disabled {
 @media (max-width: 768px) {
     #app {
         padding: var(--spacing-md);
-        padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Space for mobile bottom nav + safe area */
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Space for bottom tabs */
+    }
+    
+    .tabs-bottom {
+        padding: var(--spacing-sm) var(--spacing-xs);
+        padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
+    }
+    
+    .tab {
+        padding: 10px 16px;
+        font-size: 13px;
+        min-height: 50px;
     }
 
     .header {
@@ -1215,7 +1238,8 @@ button:disabled {
     
     /* Ensure content doesn't get cut off */
     .tab-contents {
-        padding-bottom: env(safe-area-inset-bottom);
+        padding-bottom: calc(80px + env(safe-area-inset-bottom));
+        margin-bottom: 0;
     }
     
     /* FAB in header on mobile */
@@ -1277,10 +1301,24 @@ button:disabled {
     }
 }
 
-/* Desktop: Hide mobile nav */
+/* Desktop: Hide mobile nav, adjust bottom tabs */
 @media (min-width: 769px) {
     .mobile-bottom-nav {
         display: none !important;
+    }
+    
+    .tabs-bottom {
+        padding: var(--spacing-md) var(--spacing-lg);
+        padding-bottom: calc(var(--spacing-md) + env(safe-area-inset-bottom));
+        max-width: 1600px;
+        margin: 0 auto;
+        left: 50%;
+        transform: translateX(-50%);
+        right: auto;
+    }
+    
+    #app {
+        padding-bottom: calc(90px + env(safe-area-inset-bottom));
     }
     
     /* Better desktop FAB menu styling */
