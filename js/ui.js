@@ -38,6 +38,7 @@ function buildTabs() {
         }
     }
     else if (role === 'technician') {
+        availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'my', label: '🔧 My Jobs', build: buildMyRepairsTab });
         availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
     }
