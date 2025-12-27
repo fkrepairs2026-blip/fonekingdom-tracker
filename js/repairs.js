@@ -482,6 +482,10 @@ async function savePayment(repairId) {
     }
     
     closePaymentModal();
+    
+    if (window.currentTabRefresh) {
+    window.currentTabRefresh();
+}
 }
 
 /**
@@ -808,6 +812,10 @@ async function saveStatus(repairId) {
             by: window.currentUserData.displayName,
             date: new Date().toISOString()
         }];
+    }
+
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
     }
     
     await db.ref('repairs/' + repairId).update(update);
