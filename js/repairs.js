@@ -112,7 +112,15 @@ async function submitReceiveDevice(e) {
         receivedBy: window.currentUserData.displayName,
         acceptedBy: null,
         acceptedByName: null,
-        acceptedAt: null
+        acceptedAt: null,
+        // Diagnosis workflow fields
+        diagnosisCreated: false,
+        diagnosisCreatedAt: null,
+        diagnosisCreatedBy: null,
+        diagnosisCreatedByName: null,
+        customerApproved: false,
+        customerApprovedAt: null,
+        customerApprovedBy: null
         
     };
     
@@ -140,6 +148,15 @@ async function submitReceiveDevice(e) {
         repair.originalTechId = backJobTech;
         repair.originalTechName = techName;
         
+        // Back jobs skip diagnosis workflow - auto-approved (warranty claim)
+        repair.diagnosisCreated = true;
+        repair.diagnosisCreatedAt = new Date().toISOString();
+        repair.diagnosisCreatedBy = window.currentUser.uid;
+        repair.diagnosisCreatedByName = window.currentUserData.displayName;
+        repair.customerApproved = true; // Back jobs are pre-approved
+        repair.customerApprovedAt = new Date().toISOString();
+        repair.customerApprovedBy = window.currentUser.uid;
+        
         // Auto-assign to original tech
         repair.acceptedBy = backJobTech;
         repair.acceptedByName = techName;
@@ -154,7 +171,7 @@ async function submitReceiveDevice(e) {
         if (isBackJob) {
             alert(`✅ Back Job Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\n🔄 BACK JOB - Auto-assigned to: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n⚠️ This device will go directly to "${repair.originalTechName}"'s job list with status "In Progress".`);
         } else {
-            alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n✅ Device is now in "📥 Received Devices" waiting for technician to accept.`);
+            alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n📋 Next Steps:\n1. Tech/Owner will create diagnosis and set pricing\n2. Customer will approve the price\n3. Technician can then accept the repair\n\n✅ Device is now in "📥 Received Devices" waiting for diagnosis.`);
         }
         
         // Reset form
@@ -195,7 +212,19 @@ async function acceptRepair(repairId) {
         return;
     }
     
-    const confirmMsg = `Accept this repair?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📋 ${repair.problem}\n\nThis will move to your job list.`;
+    // Check if diagnosis has been created
+    if (!repair.diagnosisCreated || repair.total === 0 || repair.repairType === 'Pending Diagnosis') {
+        alert('⚠️ Diagnosis Required!\n\nPlease create a diagnosis and set pricing before accepting this repair.\n\nUse "📝 Create Diagnosis" button to set the repair details and price.');
+        return;
+    }
+    
+    // Check if customer has approved the price
+    if (!repair.customerApproved) {
+        alert('⚠️ Customer Approval Required!\n\nCustomer must approve the diagnosis and pricing before you can accept this repair.\n\nCurrent Price: ₱' + repair.total.toFixed(2) + '\n\nPlease wait for customer approval or use "✅ Mark Customer Approved" button if customer has verbally approved.');
+        return;
+    }
+    
+    const confirmMsg = `Accept this repair?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📋 ${repair.repairType}\n💰 Total: ₱${repair.total.toFixed(2)}\n\nThis will move to your job list.`;
     
     if (!confirm(confirmMsg)) return;
     
@@ -209,7 +238,7 @@ async function acceptRepair(repairId) {
             lastUpdatedBy: window.currentUserData.displayName
         });
         
-        alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"`);
+        alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n💰 Total: ₱${repair.total.toFixed(2)}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"`);
         
         console.log('✅ Repair accepted successfully');
         if (window.currentTabRefresh) {
@@ -1641,12 +1670,22 @@ function openEditRepairModal(repairId) {
     }
     
     const content = document.getElementById('statusModalContent');
+    const isNewDiagnosis = !repair.diagnosisCreated || repair.repairType === 'Pending Diagnosis';
     
     content.innerHTML = `
         <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;">
-            <h3 style="margin:0;">💰 Set Repair Pricing</h3>
+            <h3 style="margin:0;">${isNewDiagnosis ? '📋 Create Diagnosis' : '✏️ Update Diagnosis'}</h3>
             <p style="margin:5px 0 0;"><strong>${repair.customerName}</strong> - ${repair.brand} ${repair.model}</p>
         </div>
+        ${isNewDiagnosis ? `
+            <div style="background:#e3f2fd;padding:12px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
+                <p style="margin:0;"><strong>ℹ️ Create Diagnosis:</strong> Set repair details and pricing. After saving, status will change to "Pending Customer Approval".</p>
+            </div>
+        ` : `
+            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+                <p style="margin:0;"><strong>⚠️ Updating Diagnosis:</strong> Changing the diagnosis will reset customer approval. Customer will need to approve again.</p>
+            </div>
+        `}
         
         <form id="editPricingForm" onsubmit="submitPricingUpdate(event, '${repairId}')">
             <div class="form-group">
@@ -1703,7 +1742,7 @@ function openEditRepairModal(repairId) {
             
             <div style="display:flex;gap:10px;">
                 <button type="submit" style="flex:1;background:#4caf50;color:white;padding:12px;font-weight:bold;">
-                    💰 Save Pricing
+                    ${isNewDiagnosis ? '📋 Create Diagnosis' : '💾 Update Diagnosis'}
                 </button>
                 <button type="button" onclick="closeStatusModal()" style="flex:1;background:#666;color:white;padding:12px;">
                     Cancel
@@ -1740,6 +1779,11 @@ async function submitPricingUpdate(e, repairId) {
     const laborCost = parseFloat(formData.get('laborCost')) || 0;
     const total = partsCost + laborCost;
     
+    if (total <= 0) {
+        alert('⚠️ Please set a valid price (greater than ₱0)');
+        return;
+    }
+    
     const updateData = {
         repairType: formData.get('repairType'),
         partType: formData.get('partType') || '',
@@ -1747,13 +1791,24 @@ async function submitPricingUpdate(e, repairId) {
         partsCost: partsCost,
         laborCost: laborCost,
         total: total,
+        // Mark diagnosis as created
+        diagnosisCreated: true,
+        diagnosisCreatedAt: new Date().toISOString(),
+        diagnosisCreatedBy: window.currentUser.uid,
+        diagnosisCreatedByName: window.currentUserData.displayName,
+        // Reset customer approval (new diagnosis needs new approval)
+        customerApproved: false,
+        customerApprovedAt: null,
+        customerApprovedBy: null,
+        // Set status to pending customer approval
+        status: 'Pending Customer Approval',
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     };
     
     try {
         await db.ref('repairs/' + repairId).update(updateData);
-        alert(`✅ Pricing updated!\n\nTotal: ₱${total.toFixed(2)}`);
+        alert(`✅ Diagnosis Created!\n\n📋 Repair Type: ${updateData.repairType}\n💰 Total: ₱${total.toFixed(2)}\n\n⏳ Status: Pending Customer Approval\n\nNext: Customer must approve this price before technician can accept the repair.`);
         closeStatusModal();
         
         // Refresh current tab
@@ -1761,7 +1816,54 @@ async function submitPricingUpdate(e, repairId) {
             window.currentTabRefresh();
         }
     } catch (error) {
-        console.error('Error updating pricing:', error);
+        console.error('Error creating diagnosis:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Approve diagnosis - Mark customer approval of pricing
+ */
+async function approveDiagnosis(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    if (!repair.diagnosisCreated || repair.total === 0) {
+        alert('⚠️ No diagnosis found!\n\nPlease create a diagnosis first before marking customer approval.');
+        return;
+    }
+    
+    if (repair.customerApproved) {
+        alert('✅ Customer has already approved this diagnosis.');
+        return;
+    }
+    
+    const confirmMsg = `Mark customer approval?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📋 ${repair.repairType}\n💰 Total: ₱${repair.total.toFixed(2)}\n\nThis will allow technicians to accept this repair.`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        await db.ref('repairs/' + repairId).update({
+            customerApproved: true,
+            customerApprovedAt: new Date().toISOString(),
+            customerApprovedBy: window.currentUser.uid,
+            customerApprovedByName: window.currentUserData.displayName,
+            status: 'Received', // Back to Received, ready for tech to accept
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        alert(`✅ Customer Approval Recorded!\n\n📱 ${repair.brand} ${repair.model}\n💰 Approved Price: ₱${repair.total.toFixed(2)}\n\n✅ Technicians can now accept this repair.`);
+        
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        console.error('❌ Error approving diagnosis:', error);
         alert('Error: ' + error.message);
     }
 }
@@ -1796,5 +1898,6 @@ window.processWarrantyClaim = processWarrantyClaim;
 window.closeClaimModal = closeClaimModal;
 window.openEditRepairModal = openEditRepairModal;
 window.submitPricingUpdate = submitPricingUpdate;
+window.approveDiagnosis = approveDiagnosis;
 
 console.log('✅ repairs.js loaded');

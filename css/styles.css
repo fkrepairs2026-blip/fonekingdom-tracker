@@ -459,6 +459,12 @@ body {
     border: 1px solid #ffc107;
 }
 
+.status-pending-customer-approval {
+    background: #fff3e0;
+    color: #e65100;
+    border: 1px solid #ff9800;
+}
+
 .status-in-progress { 
     background: #cce5ff; 
     color: #004085; 

@@ -153,8 +153,10 @@ function buildReceivedDevicesPage(container) {
     console.log('📥 Building Received Devices page');
     window.currentTabRefresh = () => buildReceivedDevicesPage(document.getElementById('receivedTab'));
     
+    // Show devices that are received but not yet accepted
+    // Include both "Received" and "Pending Customer Approval" statuses
     const receivedDevices = window.allRepairs.filter(r => 
-        r.status === 'Received' && !r.acceptedBy
+        (r.status === 'Received' || r.status === 'Pending Customer Approval') && !r.acceptedBy
     );
     
     const role = window.currentUserData.role;
@@ -162,8 +164,10 @@ function buildReceivedDevicesPage(container) {
     
     container.innerHTML = `
         <div class="card">
-            <h3>📥 Received Devices - Waiting for Technician (${receivedDevices.length})</h3>
-            <p style="color:#666;margin-bottom:15px;">Devices received but not yet accepted by a technician</p>
+            <h3>📥 Received Devices (${receivedDevices.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">
+                <strong>Workflow:</strong> Device Received → Create Diagnosis → Customer Approves → Technician Accepts
+            </p>
             ${receivedDevices.length === 0 ? `
                 <div style="text-align:center;padding:40px;color:#999;">
                     <h2 style="font-size:48px;margin:0;">✅</h2>
@@ -172,11 +176,15 @@ function buildReceivedDevicesPage(container) {
             ` : `
                 <div id="receivedDevicesList">
                     ${receivedDevices.map(r => `
-                        <div class="repair-card" style="border-left:4px solid ${r.isBackJob ? '#f44336' : '#2196f3'};">
+                        <div class="repair-card" style="border-left:4px solid ${r.isBackJob ? '#f44336' : r.status === 'Pending Customer Approval' ? '#ff9800' : '#2196f3'};">
                             <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
-                            <span class="status-badge" style="background:#e3f2fd;color:#1565c0;">📥 Received</span>
+                            ${r.status === 'Pending Customer Approval' ? 
+                                '<span class="status-badge status-pending-customer-approval">⏳ Pending Customer Approval</span>' : 
+                                '<span class="status-badge status-received">📥 Received</span>'
+                            }
                             ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 BACK JOB</span>' : ''}
                             ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
+                            ${r.customerApproved ? '<span class="status-badge" style="background:#d4edda;color:#155724;">✅ Customer Approved</span>' : ''}
                             
                             <div class="repair-info">
                                 <div><strong>Contact:</strong> ${r.contactNumber}</div>
@@ -185,8 +193,10 @@ function buildReceivedDevicesPage(container) {
                                 ${r.isBackJob && r.originalTechName ? `<div style="color:#c62828;"><strong>Original Tech:</strong> ${r.originalTechName}</div>` : ''}
                                 <div><strong>Received by:</strong> ${r.receivedBy || r.createdByName}</div>
                                 <div><strong>Received on:</strong> ${utils.formatDateTime(r.createdAt)}</div>
-                                ${r.repairType && r.repairType !== 'Pending Diagnosis' ? `<div><strong>Repair Type:</strong> ${r.repairType}</div>` : ''}
-                                ${r.total > 0 ? `<div><strong>Estimated Cost:</strong> ₱${r.total.toFixed(2)}</div>` : '<div style="color:#999;"><strong>Cost:</strong> Pending diagnosis</div>'}
+                                ${r.diagnosisCreated && r.diagnosisCreatedAt ? `<div><strong>Diagnosis created:</strong> ${utils.formatDateTime(r.diagnosisCreatedAt)} by ${r.diagnosisCreatedByName || 'N/A'}</div>` : ''}
+                                ${r.repairType && r.repairType !== 'Pending Diagnosis' ? `<div><strong>Repair Type:</strong> ${r.repairType}</div>` : '<div style="color:#999;"><strong>Repair Type:</strong> Pending Diagnosis</div>'}
+                                ${r.total > 0 ? `<div><strong>Total Cost:</strong> <span style="font-weight:bold;color:#667eea;">₱${r.total.toFixed(2)}</span></div>` : '<div style="color:#999;"><strong>Cost:</strong> Pending diagnosis</div>'}
+                                ${r.customerApproved && r.customerApprovedAt ? `<div style="color:#28a745;"><strong>✅ Approved:</strong> ${utils.formatDateTime(r.customerApprovedAt)}</div>` : ''}
                             </div>
                             
                             ${r.photos && r.photos.length > 0 ? `
@@ -198,17 +208,46 @@ function buildReceivedDevicesPage(container) {
                                 </div>
                             ` : ''}
                             
-                            <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
-                                ${canAccept ? `
-                                    <button class="btn-small" onclick="acceptRepair('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
-                                        ✅ Accept This Repair
-                                    </button>
-                                ` : ''}
-                                ${role === 'admin' || role === 'manager' ? `
-                                    <button class="btn-small" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
-                                        📝 Set Pricing
-                                    </button>
-                                ` : ''}
+                            <div class="repair-actions">
+                                ${!r.diagnosisCreated || r.repairType === 'Pending Diagnosis' ? `
+                                    ${(role === 'admin' || role === 'manager' || role === 'technician') ? `
+                                        <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
+                                            📋 Create Diagnosis
+                                        </button>
+                                    ` : ''}
+                                ` : `
+                                    ${r.status === 'Pending Customer Approval' ? `
+                                        ${(role === 'admin' || role === 'manager' || role === 'cashier') ? `
+                                            <button class="btn-small btn-success" onclick="approveDiagnosis('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+                                                ✅ Mark Customer Approved
+                                            </button>
+                                        ` : ''}
+                                        ${(role === 'admin' || role === 'manager' || role === 'technician') ? `
+                                            <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
+                                                ✏️ Update Diagnosis
+                                            </button>
+                                        ` : ''}
+                                    ` : `
+                                        ${r.customerApproved ? `
+                                            ${canAccept ? `
+                                                <button class="btn-small btn-success" onclick="acceptRepair('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+                                                    ✅ Accept This Repair
+                                                </button>
+                                            ` : ''}
+                                        ` : `
+                                            ${(role === 'admin' || role === 'manager' || role === 'cashier') ? `
+                                                <button class="btn-small btn-success" onclick="approveDiagnosis('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+                                                    ✅ Mark Customer Approved
+                                                </button>
+                                            ` : ''}
+                                        `}
+                                        ${(role === 'admin' || role === 'manager' || role === 'technician') ? `
+                                            <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
+                                                ✏️ Update Diagnosis
+                                            </button>
+                                        ` : ''}
+                                    `}
+                                `}
                             </div>
                         </div>
                     `).join('')}
@@ -434,7 +473,13 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #2196f3;">
-                    <p style="margin:0;"><strong>ℹ️ Note:</strong> Device will appear in "📥 Received Devices" - Owner or Technician will accept it later.</p>
+                    <p style="margin:0;"><strong>ℹ️ Workflow:</strong></p>
+                    <ol style="margin:5px 0 0 20px;font-size:14px;">
+                        <li>Device received (no pricing yet)</li>
+                        <li>Tech/Owner creates diagnosis and sets price</li>
+                        <li>Customer approves the price</li>
+                        <li>Technician accepts and starts repair</li>
+                    </ol>
                 </div>
                 
                 <button type="submit" style="width:100%;background:#4caf50;color:white;font-size:16px;padding:12px;">
