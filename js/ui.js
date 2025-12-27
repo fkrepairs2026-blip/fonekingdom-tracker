@@ -99,9 +99,10 @@ function renderTabs() {
             const emoji = emojiMatch ? emojiMatch[1] : '📋';
             let text = emojiMatch ? emojiMatch[2] : label;
             
-            // Shorten text for mobile
-            if (text.length > 10) {
-                text = text.substring(0, 9) + '...';
+            // Shorten text for mobile - keep it short but readable
+            const maxLength = 8;
+            if (text.length > maxLength) {
+                text = text.substring(0, maxLength - 1) + '…';
             }
             
             navItem.innerHTML = `
@@ -155,9 +156,21 @@ function switchTab(tabId) {
     
     activeTab = tabId;
     
-    // Scroll to top on mobile
-    if (window.innerWidth <= 768) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    // For mobile: scroll to show content immediately (above stats at bottom)
+    const isMobile = window.innerWidth <= 768;
+    if (isMobile && content) {
+        setTimeout(() => {
+            const tabContents = document.querySelector('.tab-contents');
+            if (tabContents) {
+                // Scroll to tab contents area (content shows before stats on mobile)
+                const headerHeight = document.querySelector('.header')?.offsetHeight || 0;
+                const scrollPosition = tabContents.offsetTop - headerHeight - 10;
+                window.scrollTo({
+                    top: scrollPosition,
+                    behavior: 'smooth'
+                });
+            }
+        }, 100);
     }
 }
 
