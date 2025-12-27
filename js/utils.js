@@ -1,191 +1,188 @@
 // ===== UTILITY FUNCTIONS =====
 
-/**
- * Compress and convert image to base64
- */
-async function compressImage(file, maxSize = 800) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let width = img.width;
-                let height = img.height;
-
-                if (width > height && width > maxSize) {
-                    height *= maxSize / width;
-                    width = maxSize;
-                } else if (height > maxSize) {
-                    width *= maxSize / height;
-                    height = maxSize;
-                }
-
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-
-                const compressed = canvas.toDataURL('image/jpeg', 0.7);
-                resolve(compressed);
+const utils = {
+    /**
+     * Compress image to specified max width
+     */
+    compressImage: async function(file, maxWidth = 800) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > maxWidth) {
+                        height = (height * maxWidth) / width;
+                        width = maxWidth;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                };
+                img.onerror = reject;
+                img.src = e.target.result;
             };
-            img.onerror = reject;
-            img.src = e.target.result;
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    },
+    
+    /**
+     * Format date and time
+     */
+    formatDateTime: function(isoString) {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        const options = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
-
-/**
- * Format date for display
- */
-function formatDate(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-    });
-}
-
-/**
- * Format datetime for display
- */
-function formatDateTime(dateString) {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-/**
- * Format time ago (e.g., "2 hours ago")
- */
-function timeAgo(dateString) {
-    const date = new Date(dateString);
-    const now = new Date();
-    const seconds = Math.floor((now - date) / 1000);
-
-    const intervals = {
-        year: 31536000,
-        month: 2592000,
-        week: 604800,
-        day: 86400,
-        hour: 3600,
-        minute: 60
-    };
-
-    for (const [unit, value] of Object.entries(intervals)) {
-        const interval = Math.floor(seconds / value);
-        if (interval >= 1) {
-            return interval === 1 ? `1 ${unit} ago` : `${interval} ${unit}s ago`;
+        return date.toLocaleDateString('en-US', options);
+    },
+    
+    /**
+     * Format date only (no time)
+     */
+    formatDate: function(isoString) {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        const options = {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        };
+        return date.toLocaleDateString('en-US', options);
+    },
+    
+    /**
+     * Get default avatar with initials
+     */
+    getDefaultAvatar: function(name) {
+        const initials = name
+            .split(' ')
+            .map(n => n[0])
+            .join('')
+            .toUpperCase()
+            .substring(0, 2);
+        
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
+            '#DFE6E9', '#74B9FF', '#A29BFE', '#FD79A8', '#FDCB6E'
+        ];
+        
+        const colorIndex = name.charCodeAt(0) % colors.length;
+        const bgColor = colors[colorIndex];
+        
+        const svg = `
+            <svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+                <rect width="100" height="100" fill="${bgColor}"/>
+                <text x="50" y="50" font-family="Arial" font-size="40" fill="white" text-anchor="middle" dominant-baseline="central">
+                    ${initials}
+                </text>
+            </svg>
+        `;
+        
+        return 'data:image/svg+xml;base64,' + btoa(svg);
+    },
+    
+    /**
+     * Show/hide loading indicator
+     */
+    showLoading: function(show) {
+        const loading = document.getElementById('loading');
+        if (loading) {
+            loading.style.display = show ? 'flex' : 'none';
         }
+    },
+    
+    /**
+     * Calculate days ago
+     */
+    daysAgo: function(isoString) {
+        if (!isoString) return 'N/A';
+        const date = new Date(isoString);
+        const now = new Date();
+        const diff = now - date;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        
+        if (days === 0) return 'Today';
+        if (days === 1) return 'Yesterday';
+        if (days < 7) return `${days} days ago`;
+        if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
+        if (days < 365) return `${Math.floor(days / 30)} months ago`;
+        return `${Math.floor(days / 365)} years ago`;
+    },
+    
+    /**
+     * Format currency
+     */
+    formatCurrency: function(amount) {
+        return '₱' + amount.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+    },
+    
+    /**
+     * Validate email
+     */
+    isValidEmail: function(email) {
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(email);
+    },
+    
+    /**
+     * Validate phone number (Philippine format)
+     */
+    isValidPhone: function(phone) {
+        const re = /^(09|\+639)\d{9}$/;
+        return re.test(phone.replace(/[\s-]/g, ''));
+    },
+    
+    /**
+     * Generate random ID
+     */
+    generateId: function(length = 8) {
+        const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) {
+            result += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return result;
+    },
+    
+    /**
+     * Deep clone object
+     */
+    clone: function(obj) {
+        return JSON.parse(JSON.stringify(obj));
+    },
+    
+    /**
+     * Debounce function
+     */
+    debounce: function(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
     }
-
-    return 'Just now';
-}
-
-/**
- * Show alert message
- */
-function showAlert(message, type = 'info') {
-    alert(message); // Simple for now, can be enhanced with custom modal
-}
-
-/**
- * Show loading indicator
- */
-function showLoading(show = true) {
-    // Can be enhanced with a loading overlay
-    document.body.style.cursor = show ? 'wait' : 'default';
-}
-
-/**
- * Generate unique ID
- */
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
-}
-
-/**
- * Validate email
- */
-function isValidEmail(email) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-}
-
-/**
- * Format currency
- */
-function formatCurrency(amount) {
-    return '₱' + parseFloat(amount).toFixed(2);
-}
-
-/**
- * Get default avatar based on name
- */
-function getDefaultAvatar(name) {
-    const initial = name ? name.charAt(0).toUpperCase() : '?';
-    const canvas = document.createElement('canvas');
-    canvas.width = 100;
-    canvas.height = 100;
-    const ctx = canvas.getContext('2d');
-    
-    // Background
-    ctx.fillStyle = '#667eea';
-    ctx.fillRect(0, 0, 100, 100);
-    
-    // Text
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 50px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(initial, 50, 50);
-    
-    return canvas.toDataURL();
-}
-
-/**
- * Sanitize HTML to prevent XSS
- */
-function sanitizeHTML(html) {
-    const temp = document.createElement('div');
-    temp.textContent = html;
-    return temp.innerHTML;
-}
-
-/**
- * Download data as JSON file
- */
-function downloadJSON(data, filename = 'data.json') {
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
-}
-
-// Export functions to global scope
-window.utils = {
-    compressImage,
-    formatDate,
-    formatDateTime,
-    timeAgo,
-    showAlert,
-    showLoading,
-    generateId,
-    isValidEmail,
-    formatCurrency,
-    getDefaultAvatar,
-    sanitizeHTML,
-    downloadJSON
 };
+
+// Export to global scope
+window.utils = utils;
+
+console.log('✅ utils.js loaded');

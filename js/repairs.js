@@ -105,6 +105,65 @@ async function submitRepair(e) {
 }
 
 /**
+ * Submit quick device receive (Cashier)
+ */
+async function submitQuickReceive(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    
+    console.log('📥 Quick receiving device...');
+    
+    const repair = {
+        customerType: data.get('customerType'),
+        customerName: data.get('customerName'),
+        shopName: data.get('shopName') || '',
+        contactNumber: data.get('contactNumber'),
+        brand: data.get('brand'),
+        model: data.get('model'),
+        problem: data.get('problem'),
+        repairType: 'Pending Diagnosis',
+        partType: '',
+        partSource: '',
+        assignedTo: data.get('assignedTo'),
+        partsCost: 0,
+        laborCost: 0,
+        total: 0,
+        status: 'Received',
+        photos: photoData,
+        payments: [],
+        createdAt: new Date().toISOString(),
+        createdBy: window.currentUser.uid,
+        createdByName: window.currentUserData.displayName,
+        receivedBy: window.currentUserData.displayName,
+        notes: [{
+            text: 'Device received by cashier - awaiting technician diagnosis and pricing',
+            by: window.currentUserData.displayName,
+            date: new Date().toISOString()
+        }]
+    };
+    
+    try {
+        await db.ref('repairs').push(repair);
+        console.log('✅ Device received successfully!');
+        alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n🔧 Assigned to: ${repair.assignedTo}\n\n✅ Technician will diagnose and set pricing.`);
+        
+        // Reset form
+        form.reset();
+        photoData = [];
+        const preview = document.getElementById('quickPreview1');
+        if (preview) {
+            preview.innerHTML = '';
+            preview.style.display = 'none';
+        }
+        
+    } catch (error) {
+        console.error('❌ Error receiving device:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
  * Handle photo upload
  */
 async function handlePhotoUpload(input, previewId) {
@@ -132,6 +191,17 @@ async function handlePhotoUpload(input, previewId) {
     } catch (error) {
         alert('Error uploading photo: ' + error.message);
     }
+}
+
+/**
+ * Get today's date in YYYY-MM-DD format
+ */
+function getTodayDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 /**
@@ -166,6 +236,12 @@ function openPaymentModal(repairId) {
             </div>
         ` : `
             <h4>Record New Payment</h4>
+            
+            <div class="form-group">
+                <label>Payment Date *</label>
+                <input type="date" id="paymentDate" value="${getTodayDate()}" max="${getTodayDate()}" required>
+                <small style="color:#666;">Select the date when payment was actually received</small>
+            </div>
             
             <div class="form-group">
                 <label>Payment Amount (₱) *</label>
@@ -212,7 +288,8 @@ function openPaymentModal(repairId) {
                             </div>
                             <div style="font-size:13px;color:#666;">
                                 <div><strong>Method:</strong> ${p.method}</div>
-                                <div><strong>Date:</strong> ${utils.formatDateTime(p.date)}</div>
+                                <div><strong>Payment Date:</strong> ${utils.formatDate(p.paymentDate || p.date)}</div>
+                                <div><strong>Recorded:</strong> ${utils.formatDateTime(p.recordedDate || p.date)}</div>
                                 <div><strong>Received by:</strong> ${p.receivedBy}</div>
                                 ${p.notes ? `<div><strong>Notes:</strong> ${p.notes}</div>` : ''}
                                 ${p.verifiedBy ? `<div><strong>Verified by:</strong> ${p.verifiedBy} on ${utils.formatDateTime(p.verifiedAt)}</div>` : ''}
@@ -264,9 +341,15 @@ async function previewPaymentProof(event) {
  * Save payment
  */
 async function savePayment(repairId) {
+    const paymentDateInput = document.getElementById('paymentDate');
     const amount = parseFloat(document.getElementById('paymentAmount').value);
     const method = document.getElementById('paymentMethod').value;
     const notes = document.getElementById('paymentNotes').value;
+    
+    if (!paymentDateInput || !paymentDateInput.value) {
+        alert('Please select payment date');
+        return;
+    }
     
     if (!amount || amount <= 0) {
         alert('Please enter a valid payment amount');
@@ -287,10 +370,15 @@ async function savePayment(repairId) {
         return;
     }
     
+    // Convert selected date to ISO string (at start of day in local timezone)
+    const selectedDate = new Date(paymentDateInput.value + 'T00:00:00');
+    const paymentDate = selectedDate.toISOString();
+    
     const payment = {
         amount: amount,
         method: method,
-        date: new Date().toISOString(),
+        paymentDate: paymentDate, // When payment was actually received
+        recordedDate: new Date().toISOString(), // When it was recorded in system
         receivedBy: window.currentUserData.displayName,
         notes: notes,
         photo: paymentProofPhoto || null,
@@ -311,10 +399,12 @@ async function savePayment(repairId) {
     
     const newBalance = balance - amount;
     
+    const paymentDateStr = utils.formatDate(paymentDate);
+    
     if (newBalance === 0) {
-        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n🎉 FULLY PAID! Balance is now ₱0.00`);
+        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n🎉 FULLY PAID! Balance is now ₱0.00`);
     } else {
-        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n📊 Remaining Balance: ₱${newBalance.toFixed(2)}`);
+        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n📊 Remaining Balance: ₱${newBalance.toFixed(2)}`);
     }
     
     closePaymentModal();
@@ -760,10 +850,16 @@ function closeAdditionalRepairModal() {
     document.getElementById('additionalRepairModal').style.display = 'none';
 }
 
+function closePaymentModal() {
+    document.getElementById('paymentModal').style.display = 'none';
+}
+
 // Export to global scope
 window.loadRepairs = loadRepairs;
 window.submitRepair = submitRepair;
+window.submitQuickReceive = submitQuickReceive;
 window.handlePhotoUpload = handlePhotoUpload;
+window.getTodayDate = getTodayDate;
 window.openPaymentModal = openPaymentModal;
 window.previewPaymentProof = previewPaymentProof;
 window.savePayment = savePayment;
@@ -777,5 +873,6 @@ window.toggleRTOReasonField = toggleRTOReasonField;
 window.toggleCustomReason = toggleCustomReason;
 window.closeStatusModal = closeStatusModal;
 window.closeAdditionalRepairModal = closeAdditionalRepairModal;
+window.closePaymentModal = closePaymentModal;
 
 console.log('✅ repairs.js loaded');
