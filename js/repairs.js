@@ -14,6 +14,7 @@ async function loadRepairs() {
         console.log('📦 Setting up repairs listener...');
         
         db.ref('repairs').on('value', (snapshot) => {
+            const previousCount = window.allRepairs.length;
             window.allRepairs = [];
             
             snapshot.forEach((child) => {
@@ -23,17 +24,23 @@ async function loadRepairs() {
                 });
             });
             
-            console.log('✅ Repairs loaded from Firebase:', window.allRepairs.length);
+            const newCount = window.allRepairs.length;
+            console.log('✅ Repairs loaded from Firebase:', newCount, previousCount !== newCount ? '(changed)' : '');
             
-            // Refresh current tab if it exists
+            // Always refresh current tab when data changes
             if (window.currentTabRefresh) {
-                console.log('🔄 Refreshing current tab...');
-                window.currentTabRefresh();
+                console.log('🔄 Auto-refreshing current tab...');
+                // Use setTimeout to ensure DOM is ready
+                setTimeout(() => {
+                    window.currentTabRefresh();
+                }, 100);
             }
             
-            // Update stats
+            // Always update stats
             if (window.buildStats) {
-                window.buildStats();
+                setTimeout(() => {
+                    window.buildStats();
+                }, 100);
             }
             
             resolve(window.allRepairs);
@@ -190,6 +197,16 @@ async function submitReceiveDevice(e) {
         if (document.getElementById('backJobFields')) {
             document.getElementById('backJobFields').style.display = 'none';
         }
+        
+        // Force refresh after a short delay to ensure Firebase has processed
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            if (window.buildStats) {
+                window.buildStats();
+            }
+        }, 500);
         
     } catch (error) {
         console.error('❌ Error receiving device:', error);
@@ -512,9 +529,15 @@ async function savePayment(repairId) {
     
     closePaymentModal();
     
-    if (window.currentTabRefresh) {
-    window.currentTabRefresh();
-}
+    // Refresh after a short delay to ensure Firebase has processed
+    setTimeout(() => {
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+    }, 300);
 }
 
 /**
@@ -842,14 +865,20 @@ async function saveStatus(repairId) {
             date: new Date().toISOString()
         }];
     }
-
-    if (window.currentTabRefresh) {
-        window.currentTabRefresh();
-    }
     
     await db.ref('repairs/' + repairId).update(update);
     
     closeStatusModal();
+    
+    // Refresh after a short delay to ensure Firebase has processed
+    setTimeout(() => {
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+    }, 300);
     alert('✅ Status updated to: ' + newStatus);
 }
 
@@ -858,8 +887,23 @@ async function saveStatus(repairId) {
  */
 async function deleteRepair(repairId) {
     if (confirm('Delete this repair? This cannot be undone.')) {
-        await db.ref(`repairs/${repairId}`).remove();
-        alert('Repair deleted');
+        try {
+            await db.ref(`repairs/${repairId}`).remove();
+            alert('✅ Repair deleted');
+            
+            // Force refresh immediately
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            
+            // Also refresh stats
+            if (window.buildStats) {
+                window.buildStats();
+            }
+        } catch (error) {
+            console.error('Error deleting repair:', error);
+            alert('Error: ' + error.message);
+        }
     }
 }
 
@@ -932,6 +976,16 @@ async function saveAdditionalRepair(repairId) {
     
     closeAdditionalRepairModal();
     alert(`✅ Additional repair added! New total: ₱${(repair.total + additionalTotal).toFixed(2)}`);
+    
+    // Refresh after a short delay to ensure Firebase has processed
+    setTimeout(() => {
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+    }, 300);
 }
 
 /**
@@ -1383,10 +1437,19 @@ async function claimDevice(repairId) {
         
         closeClaimModal();
         
-        // Switch to claimed units tab if available
-        if (window.switchTab) {
-            setTimeout(() => window.switchTab('claimed'), 500);
-        }
+        // Refresh after a short delay to ensure Firebase has processed
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            if (window.buildStats) {
+                window.buildStats();
+            }
+            // Switch to claimed units tab if available
+            if (window.switchTab) {
+                window.switchTab('claimed');
+            }
+        }, 300);
         
     } catch (error) {
         console.error('Error claiming device:', error);
@@ -1645,6 +1708,16 @@ async function processWarrantyClaim(repairId) {
         
         closeClaimModal();
         
+        // Refresh after a short delay to ensure Firebase has processed
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            if (window.buildStats) {
+                window.buildStats();
+            }
+        }, 300);
+        
     } catch (error) {
         console.error('Error processing warranty claim:', error);
         alert('Error: ' + error.message);
@@ -1811,10 +1884,15 @@ async function submitPricingUpdate(e, repairId) {
         alert(`✅ Diagnosis Created!\n\n📋 Repair Type: ${updateData.repairType}\n💰 Total: ₱${total.toFixed(2)}\n\n⏳ Status: Pending Customer Approval\n\nNext: Customer must approve this price before technician can accept the repair.`);
         closeStatusModal();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Refresh current tab after a short delay to ensure Firebase has processed
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            if (window.buildStats) {
+                window.buildStats();
+            }
+        }, 300);
     } catch (error) {
         console.error('Error creating diagnosis:', error);
         alert('Error: ' + error.message);
@@ -1858,9 +1936,15 @@ async function approveDiagnosis(repairId) {
         
         alert(`✅ Customer Approval Recorded!\n\n📱 ${repair.brand} ${repair.model}\n💰 Approved Price: ₱${repair.total.toFixed(2)}\n\n✅ Technicians can now accept this repair.`);
         
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Refresh after a short delay to ensure Firebase has processed
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            if (window.buildStats) {
+                window.buildStats();
+            }
+        }, 300);
         
     } catch (error) {
         console.error('❌ Error approving diagnosis:', error);
