@@ -1159,6 +1159,467 @@ function closePaymentModal() {
     document.getElementById('paymentModal').style.display = 'none';
 }
 
+/**
+ * Open claim modal to release device to customer
+ */
+function openClaimModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+    const balance = repair.total - totalPaid;
+    
+    if (balance > 0) {
+        alert(`Cannot release - Outstanding balance: ₱${balance.toFixed(2)}\n\nPlease collect payment first.`);
+        return;
+    }
+    
+    if (repair.claimedAt) {
+        alert('This device has already been claimed!');
+        return;
+    }
+    
+    const content = document.getElementById('claimModalContent');
+    content.innerHTML = `
+        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
+            <h3 style="margin:0 0 10px 0;color:#2e7d32;">✅ Release Device to Customer</h3>
+            <p style="margin:0;">This will mark the device as claimed and activate warranty</p>
+        </div>
+        
+        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+            <h4 style="margin:0 0 10px 0;">Repair Summary</h4>
+            <p><strong>Customer:</strong> ${repair.customerName}</p>
+            <p><strong>Contact:</strong> ${repair.contactNumber}</p>
+            <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p><strong>Problem:</strong> ${repair.problemType || repair.problem}</p>
+            <p><strong>Repair:</strong> ${repair.repairType || 'N/A'}</p>
+            <p><strong>Total:</strong> ₱${repair.total.toFixed(2)}</p>
+            <p><strong>Status:</strong> <span style="color:green;">✅ Fully Paid</span></p>
+        </div>
+        
+        <div class="form-group">
+            <label>Warranty Period *</label>
+            <select id="warrantyPeriod" onchange="updateWarrantyInfo()">
+                <option value="">Select warranty period</option>
+                <option value="0">No Warranty</option>
+                <option value="7">7 Days</option>
+                <option value="15">15 Days</option>
+                <option value="30">30 Days (Standard)</option>
+                <option value="60">60 Days (2 Months)</option>
+                <option value="90">90 Days (3 Months)</option>
+                <option value="180">180 Days (6 Months)</option>
+                <option value="365">365 Days (1 Year)</option>
+            </select>
+        </div>
+        
+        <div id="warrantyInfoDisplay" style="display:none;background:#fff3cd;padding:12px;border-radius:5px;margin:10px 0;border-left:4px solid #ffc107;">
+            <h4 style="margin:0 0 8px 0;">🛡️ Warranty Information</h4>
+            <div id="warrantyDates"></div>
+        </div>
+        
+        <div class="form-group">
+            <label>Warranty Terms/Notes (Optional)</label>
+            <textarea id="warrantyNotes" rows="3" placeholder="e.g., Warranty covers parts and labor for same issue only. Does not cover physical damage or water damage.
+
+Tagalog OK: Warranty para sa parehong issue lang. Hindi kasali ang physical damage o tubig."></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>Release Notes (Optional)</label>
+            <textarea id="claimNotes" rows="2" placeholder="Any special notes about the release..."></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label style="display:flex;align-items:center;gap:10px;">
+                <input type="checkbox" id="customerSignature">
+                <span>Customer signed for device pickup ✍️</span>
+            </label>
+        </div>
+        
+        <div style="background:#ffebee;padding:12px;border-radius:5px;margin:15px 0;border-left:4px solid #f44336;">
+            <p style="margin:0;font-size:13px;"><strong>⚠️ Important:</strong> Once released, the device will be marked as claimed and warranty period will start. This action cannot be undone.</p>
+        </div>
+        
+        <div style="display:flex;gap:10px;">
+            <button onclick="claimDevice('${repairId}')" style="flex:1;background:#4caf50;color:white;font-size:16px;padding:12px;font-weight:bold;">
+                ✅ Release to Customer
+            </button>
+            <button onclick="closeClaimModal()" style="flex:1;background:#666;color:white;padding:12px;">
+                ❌ Cancel
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('claimModal').style.display = 'block';
+}
+
+/**
+ * Update warranty info display
+ */
+function updateWarrantyInfo() {
+    const warrantyDays = parseInt(document.getElementById('warrantyPeriod').value);
+    const infoDisplay = document.getElementById('warrantyInfoDisplay');
+    const datesDiv = document.getElementById('warrantyDates');
+    
+    if (!warrantyDays || warrantyDays === 0) {
+        infoDisplay.style.display = 'none';
+        return;
+    }
+    
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + warrantyDays);
+    
+    datesDiv.innerHTML = `
+        <div><strong>Start Date:</strong> ${utils.formatDate(startDate.toISOString())} (Today)</div>
+        <div><strong>End Date:</strong> ${utils.formatDate(endDate.toISOString())}</div>
+        <div><strong>Duration:</strong> ${warrantyDays} days</div>
+        <div style="color:#2e7d32;font-weight:bold;margin-top:5px;">✅ Warranty will be ACTIVE until ${utils.formatDate(endDate.toISOString())}</div>
+    `;
+    
+    infoDisplay.style.display = 'block';
+}
+
+/**
+ * Claim/Release device to customer
+ */
+async function claimDevice(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const warrantyPeriod = document.getElementById('warrantyPeriod').value;
+    const warrantyNotes = document.getElementById('warrantyNotes').value.trim();
+    const claimNotes = document.getElementById('claimNotes').value.trim();
+    const customerSignature = document.getElementById('customerSignature').checked;
+    
+    if (!warrantyPeriod) {
+        alert('Please select a warranty period (or "No Warranty")');
+        return;
+    }
+    
+    if (!confirm(`Release device to customer?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\nThis will activate warranty and mark as claimed.`)) {
+        return;
+    }
+    
+    const claimedAt = new Date().toISOString();
+    const warrantyDays = parseInt(warrantyPeriod);
+    let warrantyEndDate = null;
+    
+    if (warrantyDays > 0) {
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + warrantyDays);
+        warrantyEndDate = endDate.toISOString();
+    }
+    
+    const claimData = {
+        claimedAt: claimedAt,
+        releasedBy: window.currentUserData.displayName,
+        releasedByUid: window.currentUser.uid,
+        claimedNotes: claimNotes || null,
+        claimedCustomerSignature: customerSignature,
+        warrantyPeriodDays: warrantyDays,
+        warrantyStartDate: claimedAt,
+        warrantyEndDate: warrantyEndDate,
+        warrantyNotes: warrantyNotes || null,
+        status: 'Claimed',
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: window.currentUserData.displayName
+    };
+    
+    try {
+        await db.ref('repairs/' + repairId).update(claimData);
+        
+        const warrantyMsg = warrantyDays > 0 ? 
+            `\n\n🛡️ WARRANTY: ${warrantyDays} days\nExpires: ${utils.formatDate(warrantyEndDate)}` :
+            '\n\n⚠️ NO WARRANTY PROVIDED';
+        
+        alert(`✅ Device Released!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\nReleased by: ${window.currentUserData.displayName}\nDate: ${utils.formatDateTime(claimedAt)}${warrantyMsg}\n\nDevice moved to "✅ Claimed Units"`);
+        
+        closeClaimModal();
+        
+        // Switch to claimed units tab if available
+        if (window.switchTab) {
+            setTimeout(() => window.switchTab('claimed'), 500);
+        }
+        
+    } catch (error) {
+        console.error('Error claiming device:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * View claim details
+ */
+function viewClaimDetails(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const warrantyEndDate = repair.warrantyEndDate ? new Date(repair.warrantyEndDate) : null;
+    const isWarrantyActive = warrantyEndDate && warrantyEndDate > new Date();
+    const daysSinceClaimed = Math.floor((new Date() - new Date(repair.claimedAt)) / (1000 * 60 * 60 * 24));
+    
+    const content = document.getElementById('claimModalContent');
+    
+    content.innerHTML = `
+        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
+            <h3 style="margin:0 0 10px 0;">📄 Claim Details</h3>
+            <p style="margin:0;">Device release and warranty information</p>
+        </div>
+        
+        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+            <h4 style="margin:0 0 10px 0;">Device Information</h4>
+            <p><strong>Customer:</strong> ${repair.customerName}</p>
+            <p><strong>Contact:</strong> ${repair.contactNumber}</p>
+            <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p><strong>Problem Type:</strong> ${repair.problemType || 'N/A'}</p>
+            <p><strong>Repair:</strong> ${repair.repairType || 'N/A'}</p>
+            <p><strong>Part Used:</strong> ${repair.partType || 'N/A'}</p>
+            <p><strong>Technician:</strong> ${repair.acceptedByName || 'N/A'}</p>
+            <p><strong>Total Cost:</strong> ₱${repair.total.toFixed(2)}</p>
+        </div>
+        
+        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
+            <h4 style="margin:0 0 10px 0;color:#2e7d32;">📋 Claim Information</h4>
+            <p><strong>Claimed On:</strong> ${utils.formatDateTime(repair.claimedAt)}</p>
+            <p><strong>Days Since Claimed:</strong> ${daysSinceClaimed} days ago</p>
+            <p><strong>Released By:</strong> ${repair.releasedBy}</p>
+            ${repair.claimedCustomerSignature ? '<p><strong>Customer Signature:</strong> ✓ Signed</p>' : '<p><strong>Customer Signature:</strong> Not recorded</p>'}
+            ${repair.claimNotes ? `<p><strong>Release Notes:</strong> ${repair.claimNotes}</p>` : ''}
+        </div>
+        
+        <div style="background:${isWarrantyActive ? '#e8f5e9' : '#f5f5f5'};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${isWarrantyActive ? '#4caf50' : '#999'};">
+            <h4 style="margin:0 0 10px 0;color:${isWarrantyActive ? '#2e7d32' : '#666'};">🛡️ Warranty Information</h4>
+            ${repair.warrantyPeriodDays ? `
+                <p><strong>Warranty Period:</strong> ${repair.warrantyPeriodDays} days</p>
+                <p><strong>Start Date:</strong> ${utils.formatDate(repair.warrantyStartDate || repair.claimedAt)}</p>
+                <p><strong>End Date:</strong> ${warrantyEndDate ? utils.formatDate(warrantyEndDate.toISOString()) : 'N/A'}</p>
+                ${isWarrantyActive ? `
+                    <p style="color:#2e7d32;font-weight:bold;font-size:16px;margin-top:10px;">
+                        ✅ WARRANTY ACTIVE
+                    </p>
+                    <p style="color:#2e7d32;">
+                        ${Math.ceil((warrantyEndDate - new Date()) / (1000 * 60 * 60 * 24))} days remaining
+                    </p>
+                ` : `
+                    <p style="color:#999;font-weight:bold;font-size:16px;margin-top:10px;">
+                        ⏰ WARRANTY EXPIRED
+                    </p>
+                    <p style="color:#999;">
+                        Expired ${Math.floor((new Date() - warrantyEndDate) / (1000 * 60 * 60 * 24))} days ago
+                    </p>
+                `}
+                ${repair.warrantyNotes ? `
+                    <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;">
+                        <strong>Warranty Terms:</strong>
+                        <p style="white-space:pre-wrap;margin:5px 0 0;">${repair.warrantyNotes}</p>
+                    </div>
+                ` : ''}
+            ` : '<p style="color:#999;">No warranty provided for this repair</p>'}
+        </div>
+        
+        ${repair.payments && repair.payments.length > 0 ? `
+            <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+                <h4 style="margin:0 0 10px 0;">💰 Payment History</h4>
+                ${repair.payments.map(p => `
+                    <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #ddd;">
+                        <p style="margin:0;"><strong>₱${p.amount.toFixed(2)}</strong> - ${p.method}</p>
+                        <p style="margin:0;font-size:13px;color:#666;">
+                            ${utils.formatDate(p.paymentDate || p.date)} | 
+                            Received by ${p.receivedBy} | 
+                            ${p.verified ? '✅ Verified' : '⏳ Pending'}
+                        </p>
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+        
+        <button onclick="closeClaimModal()" style="width:100%;background:#2196f3;color:white;padding:12px;">
+            Close
+        </button>
+    `;
+    
+    document.getElementById('claimModal').style.display = 'block';
+}
+
+/**
+ * Open warranty claim modal (for devices returning under warranty)
+ */
+function openWarrantyClaimModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const warrantyEndDate = repair.warrantyEndDate ? new Date(repair.warrantyEndDate) : null;
+    const isWarrantyActive = warrantyEndDate && warrantyEndDate > new Date();
+    
+    if (!isWarrantyActive) {
+        alert('Warranty has expired for this device!');
+        return;
+    }
+    
+    const content = document.getElementById('claimModalContent');
+    
+    content.innerHTML = `
+        <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+            <h3 style="margin:0 0 10px 0;">🛡️ Warranty Claim</h3>
+            <p style="margin:0;">Device returning under active warranty</p>
+        </div>
+        
+        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+            <h4 style="margin:0 0 10px 0;">Original Repair</h4>
+            <p><strong>Customer:</strong> ${repair.customerName}</p>
+            <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p><strong>Original Issue:</strong> ${repair.problemType || repair.problem}</p>
+            <p><strong>Claimed:</strong> ${utils.formatDate(repair.claimedAt)} (${Math.floor((new Date() - new Date(repair.claimedAt)) / (1000 * 60 * 60 * 24))} days ago)</p>
+        </div>
+        
+        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
+            <h4 style="margin:0 0 8px 0;color:#2e7d32;">Active Warranty</h4>
+            <p><strong>Period:</strong> ${repair.warrantyPeriodDays} days</p>
+            <p><strong>Expires:</strong> ${utils.formatDate(warrantyEndDate.toISOString())}</p>
+            <p style="color:#2e7d32;font-weight:bold;">
+                ✅ ${Math.ceil((warrantyEndDate - new Date()) / (1000 * 60 * 60 * 24))} days remaining
+            </p>
+        </div>
+        
+        <div class="form-group">
+            <label>Warranty Claim Type *</label>
+            <select id="warrantyClaimType" required>
+                <option value="">Select claim type</option>
+                <option value="same-issue">Same Issue - Free Repair</option>
+                <option value="related-issue">Related Issue - Warranty Covers</option>
+                <option value="different-issue">Different Issue - NOT Covered</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Issue Description *</label>
+            <textarea id="warrantyIssue" rows="3" required placeholder="Describe what's wrong now... (English or Tagalog OK)"></textarea>
+        </div>
+        
+        <div class="form-group">
+            <label>Technician Notes</label>
+            <textarea id="warrantyTechNotes" rows="2" placeholder="Internal notes for technician..."></textarea>
+        </div>
+        
+        <div style="display:flex;gap:10px;">
+            <button onclick="processWarrantyClaim('${repairId}')" style="flex:1;background:#4caf50;color:white;padding:12px;font-weight:bold;">
+                ✅ Accept Warranty Claim
+            </button>
+            <button onclick="closeClaimModal()" style="flex:1;background:#666;color:white;padding:12px;">
+                ❌ Cancel
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('claimModal').style.display = 'block';
+}
+
+/**
+ * Process warranty claim
+ */
+async function processWarrantyClaim(repairId) {
+    const claimType = document.getElementById('warrantyClaimType').value;
+    const issue = document.getElementById('warrantyIssue').value.trim();
+    const techNotes = document.getElementById('warrantyTechNotes').value.trim();
+    
+    if (!claimType) {
+        alert('Please select claim type');
+        return;
+    }
+    
+    if (!issue) {
+        alert('Please describe the issue');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    if (!confirm(`Accept warranty claim?\n\nThis will create a new repair entry under warranty.`)) {
+        return;
+    }
+    
+    // Determine if free or paid
+    const isCovered = claimType === 'same-issue' || claimType === 'related-issue';
+    
+    // Create new repair as warranty claim
+    const warrantyClaim = {
+        customerType: repair.customerType,
+        customerName: repair.customerName,
+        shopName: repair.shopName || '',
+        contactNumber: repair.contactNumber,
+        brand: repair.brand,
+        model: repair.model,
+        problemType: 'Warranty Claim',
+        problem: issue,
+        repairType: 'Warranty Claim',
+        partType: '',
+        partSource: '',
+        partsCost: 0,
+        laborCost: 0,
+        total: isCovered ? 0 : 0, // Set to 0, will be updated if needed
+        status: 'Received',
+        photos: [],
+        payments: [],
+        createdAt: new Date().toISOString(),
+        createdBy: window.currentUser.uid,
+        createdByName: window.currentUserData.displayName,
+        receivedBy: window.currentUserData.displayName,
+        acceptedBy: repair.acceptedBy, // Auto-assign to original tech
+        acceptedByName: repair.acceptedByName,
+        acceptedAt: new Date().toISOString(),
+        isWarrantyClaim: true,
+        originalRepairId: repairId,
+        warrantyClaimType: claimType,
+        warrantyCovered: isCovered,
+        warrantyTechNotes: techNotes || null
+    };
+    
+    try {
+        const newRepairRef = await db.ref('repairs').push(warrantyClaim);
+        
+        // Update original repair with warranty claim reference
+        await db.ref('repairs/' + repairId).update({
+            warrantyClaimId: newRepairRef.key,
+            warrantyClaimDate: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        });
+        
+        const coverageMsg = isCovered ? 
+            '✅ Covered under warranty - NO CHARGE' :
+            '⚠️ Not covered - Will require payment';
+        
+        alert(`✅ Warranty Claim Accepted!\n\n📱 ${repair.brand} ${repair.model}\n\n${coverageMsg}\n\nNew repair created and assigned to ${repair.acceptedByName}\n\nCheck "📥 Received Devices" or technician's job list.`);
+        
+        closeClaimModal();
+        
+    } catch (error) {
+        console.error('Error processing warranty claim:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Close claim modal
+ */
+function closeClaimModal() {
+    const modal = document.getElementById('claimModal');
+    if (modal) modal.style.display = 'none';
+}
+
+
 // Export to global scope
 window.loadRepairs = loadRepairs;
 window.submitReceiveDevice = submitReceiveDevice;
@@ -1180,5 +1641,12 @@ window.deleteRepair = deleteRepair;
 window.closeStatusModal = closeStatusModal;
 window.closeAdditionalRepairModal = closeAdditionalRepairModal;
 window.closePaymentModal = closePaymentModal;
+window.openClaimModal = openClaimModal;
+window.updateWarrantyInfo = updateWarrantyInfo;
+window.claimDevice = claimDevice;
+window.viewClaimDetails = viewClaimDetails;
+window.openWarrantyClaimModal = openWarrantyClaimModal;
+window.processWarrantyClaim = processWarrantyClaim;
+window.closeClaimModal = closeClaimModal;
 
 console.log('✅ repairs.js loaded');
