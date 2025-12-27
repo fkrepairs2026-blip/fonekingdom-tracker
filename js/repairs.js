@@ -3,6 +3,8 @@
 // Initialize global repairs array
 window.allRepairs = [];
 let photoData = [];
+// Global modification requests
+window.allModificationRequests = [];
 
 /**
  * Load all repairs from Firebase
@@ -40,7 +42,41 @@ async function loadRepairs() {
 }
 
 /**
+ * Load modification requests from Firebase
+ */
+async function loadModificationRequests() {
+    return new Promise((resolve) => {
+        console.log('📦 Loading modification requests...');
+        
+        db.ref('modificationRequests').on('value', (snapshot) => {
+            window.allModificationRequests = [];
+            
+            snapshot.forEach((child) => {
+                window.allModificationRequests.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
+            
+            // Refresh current tab if it's modification requests tab
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            
+            resolve(window.allModificationRequests);
+        });
+    });
+}
+
+window.loadModificationRequests = loadModificationRequests;
+
+/**
  * Submit receive device (NEW WORKFLOW - No assignment)
+ */
+/**
+ * Submit receive device with BACK JOB support
  */
 async function submitReceiveDevice(e) {
     e.preventDefault();
@@ -48,6 +84,9 @@ async function submitReceiveDevice(e) {
     const data = new FormData(form);
     
     console.log('📥 Receiving device...');
+    
+    // Check if it's a back job
+    const isBackJob = document.getElementById('isBackJob').checked;
     
     const repair = {
         customerType: data.get('customerType'),
@@ -70,15 +109,51 @@ async function submitReceiveDevice(e) {
         createdBy: window.currentUser.uid,
         createdByName: window.currentUserData.displayName,
         receivedBy: window.currentUserData.displayName,
-        acceptedBy: null, // NOT ASSIGNED YET!
+        acceptedBy: null,
         acceptedByName: null,
         acceptedAt: null
     };
     
+    // Add back job information if checked
+    if (isBackJob) {
+        const backJobTech = document.getElementById('backJobTech').value;
+        const backJobReason = document.getElementById('backJobReason').value.trim();
+        
+        if (!backJobTech) {
+            alert('Please select the original technician for this back job');
+            return;
+        }
+        
+        if (!backJobReason) {
+            alert('Please provide a reason for the back job');
+            return;
+        }
+        
+        // Get tech name from selection
+        const techSelect = document.getElementById('backJobTech');
+        const techName = techSelect.options[techSelect.selectedIndex].text;
+        
+        repair.isBackJob = true;
+        repair.backJobReason = backJobReason;
+        repair.originalTechId = backJobTech;
+        repair.originalTechName = techName;
+        
+        // Auto-assign to original tech
+        repair.acceptedBy = backJobTech;
+        repair.acceptedByName = techName;
+        repair.acceptedAt = new Date().toISOString();
+        repair.status = 'In Progress'; // Auto start for back jobs
+    }
+    
     try {
         await db.ref('repairs').push(repair);
         console.log('✅ Device received successfully!');
-        alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n✅ Device is now in "📥 Received Devices" waiting for technician to accept.`);
+        
+        if (isBackJob) {
+            alert(`✅ Back Job Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\n🔄 BACK JOB - Auto-assigned to: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n⚠️ This device will go directly to "${repair.originalTechName}"'s job list with status "In Progress".`);
+        } else {
+            alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n✅ Device is now in "📥 Received Devices" waiting for technician to accept.`);
+        }
         
         // Reset form
         form.reset();
@@ -87,6 +162,14 @@ async function submitReceiveDevice(e) {
         if (preview) {
             preview.innerHTML = '';
             preview.style.display = 'none';
+        }
+        
+        // Reset back job fields
+        if (document.getElementById('isBackJob')) {
+            document.getElementById('isBackJob').checked = false;
+        }
+        if (document.getElementById('backJobFields')) {
+            document.getElementById('backJobFields').style.display = 'none';
         }
         
     } catch (error) {
@@ -287,10 +370,15 @@ function openPaymentModal(repairId) {
                                     </button>
                                 ` : ''}
                                 ${(window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
-                                    <button onclick="editPaymentDate('${repairId}', ${i})" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
-                                        📅 Edit Date
-                                    </button>
-                                ` : ''}
+    <button onclick="editPaymentDate('${repairId}', ${i})" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+        📅 Edit Payment Date
+    </button>
+` : ''}
+${(window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
+    <button onclick="${window.currentUserData.role === 'admin' ? `editRecordedDate('${repairId}', ${i})` : `requestRecordedDateModification('${repairId}', ${i})`}" style="background:#9c27b0;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+        🕒 ${window.currentUserData.role === 'admin' ? 'Edit Recorded' : 'Request Edit Recorded'}
+    </button>
+` : ''}
                             </div>
                         </div>
                     `).join('')}
@@ -441,6 +529,137 @@ function editPaymentDate(repairId, paymentIndex) {
     
     document.getElementById('paymentModal').style.display = 'block';
 }
+
+/**
+ * Edit recorded date (ADMIN ONLY)
+ */
+function editRecordedDate(repairId, paymentIndex) {
+    const role = window.currentUserData.role;
+    
+    // ONLY admin can edit recorded date directly
+    if (role !== 'admin') {
+        // Others must request
+        requestRecordedDateModification(repairId, paymentIndex);
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payment = repair.payments[paymentIndex];
+    
+    const currentDate = isoToDateInput(payment.recordedDate || payment.date);
+    
+    const content = document.getElementById('paymentModalContent');
+    content.innerHTML = `
+        <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+            <h4 style="margin:0 0 10px 0;">🕒 Edit Recorded Date (Admin Only)</h4>
+            <p><strong>Payment Amount:</strong> ₱${payment.amount.toFixed(2)}</p>
+            <p><strong>Method:</strong> ${payment.method}</p>
+            <p><strong>Payment Date:</strong> ${utils.formatDate(payment.paymentDate || payment.date)}</p>
+            <p><strong>Current Recorded Date:</strong> ${utils.formatDateTime(payment.recordedDate || payment.date)}</p>
+        </div>
+        
+        <div class="form-group">
+            <label>New Recorded Date & Time *</label>
+            <input type="datetime-local" id="newRecordedDate" value="${isoToDateTimeLocal(payment.recordedDate || payment.date)}" max="${isoToDateTimeLocal(new Date().toISOString())}" required>
+            <small style="color:#666;">When was this payment actually recorded in the system?</small>
+        </div>
+        
+        <div class="form-group">
+            <label>Reason for Change *</label>
+            <textarea id="editRecordedReason" rows="2" required placeholder="Why are you changing the recorded date?"></textarea>
+        </div>
+        
+        <div style="display:flex;gap:10px;">
+            <button onclick="saveRecordedDateEdit('${repairId}', ${paymentIndex})" style="flex:1;background:#4caf50;color:white;">
+                ✅ Save Changes
+            </button>
+            <button onclick="openPaymentModal('${repairId}')" style="flex:1;background:#666;color:white;">
+                ❌ Cancel
+            </button>
+        </div>
+        
+        <div style="background:#ffebee;padding:12px;border-radius:5px;margin-top:15px;border-left:4px solid #f44336;">
+            <p style="margin:0;font-size:13px;"><strong>⚠️ Admin Only:</strong> This changes when the payment was entered in the system. Be very careful!</p>
+        </div>
+    `;
+    
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+/**
+ * Convert ISO to datetime-local input format
+ */
+function isoToDateTimeLocal(isoString) {
+    if (!isoString) return '';
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Save recorded date edit (ADMIN ONLY)
+ */
+async function saveRecordedDateEdit(repairId, paymentIndex) {
+    const role = window.currentUserData.role;
+    
+    if (role !== 'admin') {
+        alert('Only admin can edit recorded dates directly!');
+        return;
+    }
+    
+    const newDateInput = document.getElementById('newRecordedDate');
+    const reason = document.getElementById('editRecordedReason').value.trim();
+    
+    if (!newDateInput || !newDateInput.value) {
+        alert('Please select a new recorded date');
+        return;
+    }
+    
+    if (!reason) {
+        alert('Please provide a reason for changing the date');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payments = [...repair.payments];
+    const payment = payments[paymentIndex];
+    
+    const oldDate = payment.recordedDate || payment.date;
+    const newDate = new Date(newDateInput.value).toISOString();
+    
+    payments[paymentIndex] = {
+        ...payment,
+        recordedDate: newDate,
+        recordedDateEditHistory: [
+            ...(payment.recordedDateEditHistory || []),
+            {
+                oldDate: oldDate,
+                newDate: newDate,
+                reason: reason,
+                editedBy: window.currentUserData.displayName,
+                editedAt: new Date().toISOString()
+            }
+        ]
+    };
+    
+    await db.ref('repairs/' + repairId).update({
+        payments: payments,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: window.currentUserData.displayName
+    });
+    
+    alert(`✅ Recorded date updated!\n\nOld: ${utils.formatDateTime(oldDate)}\nNew: ${utils.formatDateTime(newDate)}\n\nReason: ${reason}`);
+    
+    setTimeout(() => openPaymentModal(repairId), 100);
+}
+
+window.editRecordedDate = editRecordedDate;
+window.isoToDateTimeLocal = isoToDateTimeLocal;
+window.saveRecordedDateEdit = saveRecordedDateEdit;
 
 /**
  * Save payment date edit
@@ -677,6 +896,258 @@ async function saveAdditionalRepair(repairId) {
     closeAdditionalRepairModal();
     alert(`✅ Additional repair added! New total: ₱${(repair.total + additionalTotal).toFixed(2)}`);
 }
+
+/**
+ * Request modification for payment date (Non-admin)
+ */
+function requestPaymentDateModification(repairId, paymentIndex) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payment = repair.payments[paymentIndex];
+    
+    const currentDate = utils.formatDate(payment.paymentDate || payment.date);
+    
+    const content = document.getElementById('paymentModalContent');
+    content.innerHTML = `
+        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
+            <h4 style="margin:0 0 10px 0;">📝 Request Payment Date Change</h4>
+            <p>You need admin approval to change payment dates</p>
+        </div>
+        
+        <div style="background:#f5f5f5;padding:12px;border-radius:5px;margin-bottom:15px;">
+            <p><strong>Payment:</strong> ₱${payment.amount.toFixed(2)}</p>
+            <p><strong>Current Date:</strong> ${currentDate}</p>
+        </div>
+        
+        <div class="form-group">
+            <label>Requested New Date *</label>
+            <input type="date" id="requestedPaymentDate" max="${getTodayDate()}" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Reason for Change * (English or Tagalog OK)</label>
+            <textarea id="modificationReason" rows="3" required placeholder="Bakit kailangan palitan? / Why does this need to be changed?"></textarea>
+        </div>
+        
+        <div style="display:flex;gap:10px;">
+            <button onclick="submitModificationRequest('${repairId}', ${paymentIndex}, 'payment-date')" style="flex:1;background:#2196f3;color:white;">
+                📤 Submit Request
+            </button>
+            <button onclick="openPaymentModal('${repairId}')" style="flex:1;background:#666;color:white;">
+                ❌ Cancel
+            </button>
+        </div>
+        
+        <div style="background:#fff3cd;padding:12px;border-radius:5px;margin-top:15px;">
+            <p style="margin:0;font-size:13px;">⏳ Your request will be sent to admin for approval</p>
+        </div>
+    `;
+    
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+/**
+ * Request modification for recorded date (Non-admin)
+ */
+function requestRecordedDateModification(repairId, paymentIndex) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payment = repair.payments[paymentIndex];
+    
+    const currentDate = utils.formatDateTime(payment.recordedDate || payment.date);
+    
+    const content = document.getElementById('paymentModalContent');
+    content.innerHTML = `
+        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
+            <h4 style="margin:0 0 10px 0;">📝 Request Recorded Date Change</h4>
+            <p>You need admin approval to change recorded dates</p>
+        </div>
+        
+        <div style="background:#f5f5f5;padding:12px;border-radius:5px;margin-bottom:15px;">
+            <p><strong>Payment:</strong> ₱${payment.amount.toFixed(2)}</p>
+            <p><strong>Current Recorded:</strong> ${currentDate}</p>
+        </div>
+        
+        <div class="form-group">
+            <label>Requested New Recorded Date & Time *</label>
+            <input type="datetime-local" id="requestedRecordedDate" max="${isoToDateTimeLocal(new Date().toISOString())}" required>
+        </div>
+        
+        <div class="form-group">
+            <label>Reason for Change * (English or Tagalog OK)</label>
+            <textarea id="modificationReason" rows="3" required placeholder="Bakit kailangan palitan? / Why does this need to be changed?"></textarea>
+        </div>
+        
+        <div style="display:flex;gap:10px;">
+            <button onclick="submitModificationRequest('${repairId}', ${paymentIndex}, 'recorded-date')" style="flex:1;background:#2196f3;color:white;">
+                📤 Submit Request
+            </button>
+            <button onclick="openPaymentModal('${repairId}')" style="flex:1;background:#666;color:white;">
+                ❌ Cancel
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('paymentModal').style.display = 'block';
+}
+
+/**
+ * Submit modification request
+ */
+async function submitModificationRequest(repairId, paymentIndex, requestType) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payment = repair.payments[paymentIndex];
+    const reason = document.getElementById('modificationReason').value.trim();
+    
+    if (!reason) {
+        alert('Please provide a reason for the modification');
+        return;
+    }
+    
+    let newValue;
+    let oldValue;
+    
+    if (requestType === 'payment-date') {
+        const newDateInput = document.getElementById('requestedPaymentDate');
+        if (!newDateInput || !newDateInput.value) {
+            alert('Please select a new payment date');
+            return;
+        }
+        const selectedDate = new Date(newDateInput.value + 'T00:00:00');
+        newValue = selectedDate.toISOString();
+        oldValue = payment.paymentDate || payment.date;
+    } else if (requestType === 'recorded-date') {
+        const newDateInput = document.getElementById('requestedRecordedDate');
+        if (!newDateInput || !newDateInput.value) {
+            alert('Please select a new recorded date');
+            return;
+        }
+        newValue = new Date(newDateInput.value).toISOString();
+        oldValue = payment.recordedDate || payment.date;
+    }
+    
+    const modRequest = {
+        repairId: repairId,
+        paymentIndex: paymentIndex,
+        requestType: requestType,
+        oldValue: oldValue,
+        newValue: newValue,
+        reason: reason,
+        repairDetails: `${repair.customerName} - ${repair.brand} ${repair.model}`,
+        paymentAmount: payment.amount,
+        requestedBy: window.currentUser.uid,
+        requestedByName: window.currentUserData.displayName,
+        requestedByRole: window.currentUserData.role,
+        requestedAt: new Date().toISOString(),
+        status: 'pending'
+    };
+    
+    try {
+        await db.ref('modificationRequests').push(modRequest);
+        
+        alert(`✅ Request Submitted!\n\nYour modification request has been sent to admin for approval.\n\nYou can check the status in "📝 My Requests" tab.`);
+        
+        closePaymentModal();
+        
+        // Switch to requests tab if available
+        if (window.switchTab) {
+            setTimeout(() => window.switchTab('requests'), 500);
+        }
+        
+    } catch (error) {
+        console.error('Error submitting request:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+window.requestPaymentDateModification = requestPaymentDateModification;
+window.requestRecordedDateModification = requestRecordedDateModification;
+window.submitModificationRequest = submitModificationRequest;
+
+/**
+ * Process modification request (Admin only)
+ */
+async function processModificationRequest(requestId, action) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('Only admin can process modification requests!');
+        return;
+    }
+    
+    const request = window.allModificationRequests.find(r => r.id === requestId);
+    if (!request) {
+        alert('Request not found');
+        return;
+    }
+    
+    const actionText = action === 'approve' ? 'APPROVE' : 'REJECT';
+    const adminNotes = prompt(`${actionText} this request?\n\nReason: ${request.reason}\n\nAdd admin notes (optional):`);
+    
+    if (adminNotes === null) return; // Cancelled
+    
+    try {
+        if (action === 'approve') {
+            // Apply the modification
+            const repair = window.allRepairs.find(r => r.id === request.repairId);
+            const payments = [...repair.payments];
+            const payment = payments[request.paymentIndex];
+            
+            if (request.requestType === 'payment-date') {
+                payments[request.paymentIndex] = {
+                    ...payment,
+                    paymentDate: request.newValue,
+                    dateEditHistory: [
+                        ...(payment.dateEditHistory || []),
+                        {
+                            oldDate: request.oldValue,
+                            newDate: request.newValue,
+                            reason: request.reason,
+                            editedBy: request.requestedByName,
+                            approvedBy: window.currentUserData.displayName,
+                            editedAt: new Date().toISOString()
+                        }
+                    ]
+                };
+            } else if (request.requestType === 'recorded-date') {
+                payments[request.paymentIndex] = {
+                    ...payment,
+                    recordedDate: request.newValue,
+                    recordedDateEditHistory: [
+                        ...(payment.recordedDateEditHistory || []),
+                        {
+                            oldDate: request.oldValue,
+                            newDate: request.newValue,
+                            reason: request.reason,
+                            editedBy: request.requestedByName,
+                            approvedBy: window.currentUserData.displayName,
+                            editedAt: new Date().toISOString()
+                        }
+                    ]
+                };
+            }
+            
+            await db.ref('repairs/' + request.repairId).update({
+                payments: payments,
+                lastUpdated: new Date().toISOString(),
+                lastUpdatedBy: window.currentUserData.displayName
+            });
+        }
+        
+        // Update request status
+        await db.ref('modificationRequests/' + requestId).update({
+            status: action === 'approve' ? 'approved' : 'rejected',
+            processedBy: window.currentUser.uid,
+            processedByName: window.currentUserData.displayName,
+            processedAt: new Date().toISOString(),
+            adminNotes: adminNotes || null
+        });
+        
+        alert(`✅ Request ${action === 'approve' ? 'Approved' : 'Rejected'}!`);
+        
+    } catch (error) {
+        console.error('Error processing request:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+window.processModificationRequest = processModificationRequest;
 
 // Modal close functions
 function closeStatusModal() {
