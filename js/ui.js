@@ -73,10 +73,20 @@ function renderTabs() {
     tabsContainer.innerHTML = '';
     contentsContainer.innerHTML = '';
     
-    // Build mobile navigation (show first 5 tabs)
+    // Build mobile navigation (show main tabs)
     if (mobileNav) {
         mobileNav.innerHTML = '';
-        const mobileTabs = availableTabs.slice(0, 5);
+        
+        // Define mobile priority tabs
+        const mobilePriorityTabs = ['received', 'inprogress', 'forrelease', 'all', 'users'];
+        const mobileTabs = availableTabs.filter(tab => mobilePriorityTabs.includes(tab.id)).slice(0, 5);
+        
+        // If fewer than 5 tabs, add more from available tabs
+        if (mobileTabs.length < 5) {
+            const remainingTabs = availableTabs.filter(tab => !mobilePriorityTabs.includes(tab.id));
+            mobileTabs.push(...remainingTabs.slice(0, 5 - mobileTabs.length));
+        }
+        
         mobileTabs.forEach((tab, index) => {
             const navItem = document.createElement('div');
             navItem.className = 'mobile-nav-item' + (index === 0 ? ' active' : '');
@@ -87,7 +97,12 @@ function renderTabs() {
             const label = tab.label;
             const emojiMatch = label.match(/^([^\s]+)\s+(.+)$/);
             const emoji = emojiMatch ? emojiMatch[1] : '📋';
-            const text = emojiMatch ? emojiMatch[2] : label;
+            let text = emojiMatch ? emojiMatch[2] : label;
+            
+            // Shorten text for mobile
+            if (text.length > 10) {
+                text = text.substring(0, 9) + '...';
+            }
             
             navItem.innerHTML = `
                 <span>${emoji}</span>
