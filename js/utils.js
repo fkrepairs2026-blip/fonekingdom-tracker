@@ -100,11 +100,28 @@ const utils = {
      * Show/hide loading indicator
      */
     showLoading: function(show) {
-        const loading = document.getElementById('loading');
-        if (loading) {
-            loading.style.display = show ? 'flex' : 'none';
-        }
-    },
+    console.log(`🔄 showLoading called: ${show ? 'SHOW' : 'HIDE'}`);
+    
+    const loading = document.getElementById('loading');
+    if (!loading) {
+        console.warn('⚠️ Loading element not found');
+        return;
+    }
+    
+    if (show) {
+        loading.style.display = 'flex';
+        console.log('✅ Loading overlay shown');
+    } else {
+        // Triple-safe hiding
+        loading.style.display = 'none';
+        loading.style.visibility = 'hidden';
+        loading.style.opacity = '0';
+        console.log('✅ Loading overlay FORCE HIDDEN (triple safe)');
+        
+        // Force browser to recalculate
+        void loading.offsetHeight;
+    }
+}
     
     /**
      * Calculate days ago
