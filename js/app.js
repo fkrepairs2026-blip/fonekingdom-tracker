@@ -223,11 +223,6 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
                 <h3>${forReleaseCount}</h3>
                 <p>📦 For Release</p>
             </div>
-            <div class="stat-card" onclick="toggleFABMenu()" style="background:#f3e5f5;border-left:4px solid #9c27b0;cursor:pointer;" title="Click for quick actions">
-                <h3>⚡</h3>
-                <p>Quick Actions</p>
-                <small style="font-size:12px;color:#666;">Tap for more</small>
-            </div>
         `;
     } catch (error) {
         console.error('❌ Error building cashier stats:', error);
@@ -266,11 +261,6 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
                 <h3>${forReleaseCount}</h3>
                 <p>📦 For Release</p>
                 <small style="font-size:12px;color:#666;">Ready for pickup</small>
-            </div>
-            <div class="stat-card" onclick="toggleFABMenu()" style="background:#f3e5f5;border-left:4px solid #9c27b0;cursor:pointer;" title="Click for quick actions">
-                <h3>⚡</h3>
-                <p>Quick Actions</p>
-                <small style="font-size:12px;color:#666;">Tap for more</small>
             </div>
         `;
     } catch (error) {
