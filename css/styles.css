@@ -39,10 +39,14 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     background-attachment: fixed;
     min-height: 100vh;
+    min-height: -webkit-fill-available; /* iOS fix */
     color: var(--text-primary);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* iOS safe area support - only for login screen */
+    margin: 0;
+    padding: 0;
 }
 
 /* ===== LOGIN SCREEN ===== */
@@ -51,7 +55,13 @@ body {
     justify-content: center;
     align-items: center;
     min-height: 100vh;
+    min-height: -webkit-fill-available; /* iOS fix */
     padding: var(--spacing-lg);
+    /* iOS safe area support */
+    padding-top: calc(var(--spacing-lg) + env(safe-area-inset-top));
+    padding-bottom: calc(var(--spacing-lg) + env(safe-area-inset-bottom));
+    padding-left: calc(var(--spacing-lg) + env(safe-area-inset-left));
+    padding-right: calc(var(--spacing-lg) + env(safe-area-inset-right));
 }
 
 .login-container {
@@ -346,8 +356,10 @@ body {
     background: var(--bg-white);
     border-top: 2px solid var(--border-color);
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    z-index: 999;
+    z-index: 998;
     padding: var(--spacing-sm) 0;
+    /* iOS safe area support */
+    padding-bottom: calc(var(--spacing-sm) + env(safe-area-inset-bottom));
 }
 
 .mobile-nav-item {
@@ -362,6 +374,8 @@ body {
     font-size: 11px;
     transition: all 0.3s ease;
     min-height: 60px;
+    /* iOS safe area support */
+    -webkit-tap-highlight-color: transparent;
 }
 
 .mobile-nav-item.active {
@@ -375,6 +389,134 @@ body {
 
 .mobile-nav-item span:last-child {
     font-weight: 500;
+}
+
+/* Floating Action Button (FAB) Menu */
+.fab-container {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    z-index: 1000;
+    /* iOS safe area support */
+    bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+.fab-main {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    box-shadow: var(--shadow-lg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    transition: all 0.3s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.fab-main:hover {
+    transform: scale(1.1);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.fab-main.active {
+    transform: rotate(45deg);
+    background: var(--danger);
+}
+
+.fab-icon {
+    transition: transform 0.3s ease;
+}
+
+.fab-menu {
+    position: absolute;
+    bottom: 70px;
+    right: 0;
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 200px;
+    max-height: calc(100vh - 200px);
+    overflow-y: auto;
+    animation: slideUpFade 0.3s ease;
+    /* Ensure menu appears above everything */
+    z-index: 1001;
+}
+
+.fab-menu.active {
+    display: flex;
+}
+
+@keyframes slideUpFade {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fab-menu-item {
+    background: var(--bg-white);
+    padding: 14px 18px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    min-width: 180px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.fab-menu-item:hover {
+    transform: translateX(-5px);
+    box-shadow: var(--shadow-lg);
+    background: var(--bg-light);
+}
+
+.fab-menu-item-icon {
+    font-size: 20px;
+    width: 24px;
+    text-align: center;
+}
+
+.fab-menu-item-label {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.fab-menu-item-value {
+    margin-left: auto;
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 16px;
+}
+
+/* FAB backdrop overlay */
+.fab-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 999;
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.fab-backdrop.active {
+    display: block;
 }
 
 /* ===== CARDS ===== */
@@ -936,11 +1078,41 @@ button:disabled {
     border-color: var(--primary);
 }
 
+/* iOS-specific fixes */
+@supports (-webkit-touch-callout: none) {
+    /* iPhone/iPad specific styles */
+    body {
+        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+    }
+    
+    .mobile-bottom-nav {
+        /* Better iOS support */
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+    
+    /* Fix iOS viewport issues */
+    #app {
+        min-height: -webkit-fill-available;
+    }
+    
+    /* Fix iOS input zoom */
+    input, select, textarea {
+        font-size: 16px !important;
+    }
+    
+    /* Fix iOS scroll bounce */
+    body {
+        overscroll-behavior: none;
+    }
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     #app {
         padding: var(--spacing-md);
-        padding-bottom: 80px; /* Space for mobile bottom nav */
+        padding-bottom: calc(80px + env(safe-area-inset-bottom)); /* Space for mobile bottom nav + safe area */
     }
 
     .header {
@@ -1013,7 +1185,23 @@ button:disabled {
         width: 100%;
         margin: var(--spacing-md) auto;
         padding: var(--spacing-lg);
-        max-height: calc(100vh - 40px);
+        max-height: calc(100vh - 40px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    }
+    
+    /* Fix iPhone notch and safe areas */
+    .header {
+        margin-top: env(safe-area-inset-top);
+    }
+    
+    /* Fix FAB positioning on iPhone */
+    .fab-container {
+        bottom: calc(80px + env(safe-area-inset-bottom));
+        right: max(20px, env(safe-area-inset-right));
+    }
+    
+    /* Ensure content doesn't get cut off */
+    .tab-contents {
+        padding-bottom: env(safe-area-inset-bottom);
     }
 
     .form-actions {
@@ -1064,10 +1252,41 @@ button:disabled {
     }
 }
 
-/* Desktop: Hide mobile nav */
+/* Desktop: Hide mobile nav, show FAB */
 @media (min-width: 769px) {
     .mobile-bottom-nav {
         display: none !important;
+    }
+    
+    .fab-container {
+        bottom: 30px;
+        right: 30px;
+    }
+    
+    /* Make FAB menu show above on desktop - items in reverse order */
+    .fab-menu {
+        bottom: 70px;
+        flex-direction: column-reverse;
+        max-height: 60vh;
+    }
+    
+    /* Better desktop FAB menu styling */
+    .fab-menu-item {
+        min-width: 220px;
+    }
+}
+
+/* Hide FAB on very small screens if needed */
+@media (max-width: 320px) {
+    .fab-container {
+        bottom: calc(70px + env(safe-area-inset-bottom));
+        right: 15px;
+    }
+    
+    .fab-main {
+        width: 48px;
+        height: 48px;
+        font-size: 20px;
     }
 }
 

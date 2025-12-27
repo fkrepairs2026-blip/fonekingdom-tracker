@@ -19,8 +19,10 @@ function buildTabs() {
     availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
     
     // ROLE-SPECIFIC PAGES
+    // Note: Completed, Pending Payment, Revenue moved to FAB menu
     if (role === 'cashier') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
+        // Unpaid, Paid, Pending moved to FAB menu - keep tabs for direct access
         availableTabs.push({ id: 'unpaid', label: '💳 Unpaid', build: buildUnpaidTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingPaymentsTab });
         availableTabs.push({ id: 'paid', label: '✅ Paid', build: buildPaidTab });
@@ -30,6 +32,7 @@ function buildTabs() {
     else if (role === 'admin' || role === 'manager') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
+        // Pending Verification, Cash Count moved to FAB menu but keep tabs
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
         availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
         availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
