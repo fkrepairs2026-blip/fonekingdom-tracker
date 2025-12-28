@@ -3802,6 +3802,245 @@ async function fullResetToday() {
 window.resetTodayPayments = resetTodayPayments;
 window.resetTodayExpenses = resetTodayExpenses;
 window.fullResetToday = fullResetToday;
+
+/**
+ * ============================================
+ * ADMIN CORRECTION FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * Admin: Add payment to an already-released device
+ */
+async function adminAddPaymentToReleased(repairId) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    // Show repair details
+    const totalAmount = repair.total || 0;
+    const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
+    const balance = totalAmount - totalPaid;
+    
+    const amount = prompt(
+        `💰 Add Payment to Released Device\n\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Device: ${repair.brand} ${repair.model}\n` +
+        `Released: ${utils.formatDateTime(repair.claimedAt)}\n\n` +
+        `Total Amount: ₱${totalAmount.toFixed(2)}\n` +
+        `Already Paid: ₱${totalPaid.toFixed(2)}\n` +
+        `Balance: ₱${balance.toFixed(2)}\n\n` +
+        `Enter payment amount:`
+    );
+    
+    if (!amount) return;
+    
+    const paymentAmount = parseFloat(amount);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+        alert('⚠️ Invalid payment amount');
+        return;
+    }
+    
+    if (paymentAmount > balance) {
+        const confirmOverpay = confirm(
+            `⚠️ Payment amount (₱${paymentAmount.toFixed(2)}) exceeds balance (₱${balance.toFixed(2)})\n\n` +
+            `Continue anyway?`
+        );
+        if (!confirmOverpay) return;
+    }
+    
+    const paymentMethod = prompt('Payment method:\n1 = Cash\n2 = GCash\n3 = Bank Transfer\n4 = Card\n\nEnter 1-4:');
+    const methodMap = { '1': 'Cash', '2': 'GCash', '3': 'Bank Transfer', '4': 'Card' };
+    const method = methodMap[paymentMethod] || 'Cash';
+    
+    const reason = prompt('Reason for adding payment to released device:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const payment = {
+            amount: paymentAmount,
+            paymentMethod: method,
+            paymentDate: new Date().toISOString(),
+            recordedDate: new Date().toISOString(),
+            recordedBy: window.currentUser.uid,
+            recordedByName: window.currentUserData.displayName,
+            notes: `[ADMIN CORRECTION] ${reason}`,
+            verified: true,
+            verifiedBy: window.currentUser.uid,
+            verifiedByName: window.currentUserData.displayName,
+            verifiedAt: new Date().toISOString()
+        };
+        
+        const payments = repair.payments || [];
+        payments.push(payment);
+        
+        await db.ref(`repairs/${repairId}`).update({
+            payments: payments,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log the action
+        await logActivity('admin_payment_correction', 'admin', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            amount: paymentAmount,
+            method: method,
+            reason: reason,
+            deviceStatus: 'released'
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Payment Added!\n\n₱${paymentAmount.toFixed(2)} recorded for ${repair.customerName}\n\nNew balance: ₱${(balance - paymentAmount).toFixed(2)}`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error adding payment:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Admin: Un-release a device (rollback to "ready for release" status)
+ */
+async function adminUnreleaseDevice(repairId) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    if (!repair.claimedAt) {
+        alert('⚠️ This device has not been released yet');
+        return;
+    }
+    
+    const totalAmount = repair.total || 0;
+    const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
+    const balance = totalAmount - totalPaid;
+    
+    const reason = prompt(
+        `↩️ UN-RELEASE DEVICE\n\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Device: ${repair.brand} ${repair.model}\n` +
+        `Released: ${utils.formatDateTime(repair.claimedAt)}\n` +
+        `Balance: ₱${balance.toFixed(2)}\n\n` +
+        `⚠️ This will change device status back to "Ready for Release"\n\n` +
+        `Reason for un-releasing:`
+    );
+    
+    if (!reason || !reason.trim()) {
+        return; // User cancelled or no reason
+    }
+    
+    const confirmed = confirm(
+        `⚠️ Confirm Un-Release?\n\n` +
+        `This will:\n` +
+        `• Remove release/claim information\n` +
+        `• Change status back to "For Release"\n` +
+        `• Preserve all payment records\n` +
+        `• Log this action for audit\n\n` +
+        `Continue?`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        // Store the original claim info for backup
+        const claimBackup = {
+            claimedAt: repair.claimedAt,
+            claimedBy: repair.claimedBy,
+            claimedByName: repair.claimedByName,
+            claimVerified: repair.claimVerified,
+            claimVerifiedBy: repair.claimVerifiedBy,
+            claimVerifiedByName: repair.claimVerifiedByName,
+            claimVerifiedAt: repair.claimVerifiedAt,
+            pickupSignature: repair.pickupSignature,
+            unreleaseReason: reason,
+            unreleasedBy: window.currentUserData.displayName,
+            unreleasedAt: new Date().toISOString()
+        };
+        
+        // Save backup
+        await db.ref('unreleasedBackups').push({
+            repairId: repairId,
+            customerName: repair.customerName,
+            backup: claimBackup
+        });
+        
+        // Update repair status
+        await db.ref(`repairs/${repairId}`).update({
+            claimedAt: null,
+            claimedBy: null,
+            claimedByName: null,
+            claimVerified: null,
+            claimVerifiedBy: null,
+            claimVerifiedByName: null,
+            claimVerifiedAt: null,
+            pickupSignature: null,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName,
+            adminNote: `[ADMIN] Un-released on ${utils.formatDateTime(new Date().toISOString())}. Reason: ${reason}`
+        });
+        
+        // Log the action
+        await logActivity('admin_unreleased_device', 'admin', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            originalReleaseDate: repair.claimedAt,
+            reason: reason
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Device Un-Released!\n\n${repair.customerName} - ${repair.brand} ${repair.model}\n\nStatus changed back to "Ready for Release"\nPayment records preserved\nBackup saved for audit`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error un-releasing device:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// Admin correction functions exports
+window.adminAddPaymentToReleased = adminAddPaymentToReleased;
+window.adminUnreleaseDevice = adminUnreleaseDevice;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
 window.closePartsCostModal = closePartsCostModal;

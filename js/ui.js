@@ -1283,6 +1283,9 @@ function buildAdminToolsTab(container) {
                 </ul>
             </div>
             
+            <!-- RECENTLY RELEASED DEVICES -->
+            ${buildRecentlyReleasedSection()}
+            
             <!-- QUICK ACTIONS -->
             <div class="form-group" style="margin-top:20px;">
                 <h4 style="margin:0 0 10px;">⚡ Quick Actions</h4>
@@ -1292,6 +1295,84 @@ function buildAdminToolsTab(container) {
                 <button onclick="window.switchToTab('admin-logs')" class="btn btn-primary" style="width:100%;">
                     📋 View Activity Logs
                 </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Build Recently Released Devices Section for Admin Tools
+ */
+function buildRecentlyReleasedSection() {
+    // Get recently released devices (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const recentlyReleased = window.allRepairs.filter(r => {
+        if (!r.claimedAt) return false;
+        const claimedDate = new Date(r.claimedAt);
+        return claimedDate >= sevenDaysAgo;
+    }).sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
+    
+    if (recentlyReleased.length === 0) {
+        return `
+            <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;">
+                <h4 style="margin:0 0 10px;">📦 Recently Released Devices</h4>
+                <p style="color:#999;margin:0;">No devices released in the last 7 days</p>
+            </div>
+        `;
+    }
+    
+    // Check payment status for each
+    const devicesHTML = recentlyReleased.slice(0, 10).map(repair => {
+        const totalAmount = repair.total || 0;
+        const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
+        const balance = totalAmount - totalPaid;
+        const isPaid = balance <= 0;
+        
+        const statusColor = isPaid ? '#4caf50' : '#f44336';
+        const statusText = isPaid ? '✅ Fully Paid' : `⚠️ Unpaid: ₱${balance.toFixed(2)}`;
+        
+        return `
+            <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid ${statusColor};">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;">
+                    <div style="flex:1;">
+                        <strong>${repair.customerName}</strong> - ${repair.brand} ${repair.model}
+                        <div style="font-size:12px;color:#666;margin-top:3px;">
+                            Released: ${utils.formatDateTime(repair.claimedAt)}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:14px;font-weight:bold;color:${statusColor};">
+                            ${statusText}
+                        </div>
+                        <div style="font-size:12px;color:#999;">
+                            Total: ₱${totalAmount.toFixed(2)}
+                        </div>
+                    </div>
+                </div>
+                ${!isPaid ? `
+                    <div style="margin-top:10px;display:flex;gap:8px;">
+                        <button onclick="adminAddPaymentToReleased('${repair.id}')" class="btn btn-primary" style="flex:1;padding:6px 12px;font-size:13px;">
+                            💰 Add Payment
+                        </button>
+                        <button onclick="adminUnreleaseDevice('${repair.id}')" class="btn btn-warning" style="flex:1;padding:6px 12px;font-size:13px;">
+                            ↩️ Un-Release
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+    
+    return `
+        <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;">
+            <h4 style="margin:0 0 10px;">📦 Recently Released Devices (Last 7 Days)</h4>
+            <p style="color:#666;font-size:13px;margin:0 0 15px;">
+                Showing ${Math.min(recentlyReleased.length, 10)} of ${recentlyReleased.length} device(s)
+            </p>
+            <div style="max-height:400px;overflow-y:auto;">
+                ${devicesHTML}
             </div>
         </div>
     `;
