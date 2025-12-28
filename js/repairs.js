@@ -3434,6 +3434,374 @@ window.preventBackdating = preventBackdating;
 // Activity logging exports
 window.logActivity = logActivity;
 window.loadActivityLogs = loadActivityLogs;
+
+/**
+ * ============================================
+ * ADMIN RESET FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * Reset today's payments (Admin only)
+ */
+async function resetTodayPayments() {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const todayString = new Date().toISOString().split('T')[0];
+    
+    // Check if today is locked
+    if (!preventBackdating(todayString)) {
+        alert('⚠️ Cannot reset locked date!\n\nToday has been locked. Please unlock it first if you need to make changes.');
+        return;
+    }
+    
+    const cashData = getDailyCashData(todayString);
+    
+    if (cashData.payments.length === 0) {
+        alert('ℹ️ No payments to reset today');
+        return;
+    }
+    
+    // Confirmation with password
+    const password = prompt(
+        `⚠️ RESET TODAY'S PAYMENTS?\n\n` +
+        `This will DELETE ${cashData.payments.length} payment(s)\n` +
+        `Total amount: ₱${cashData.totals.payments.toFixed(2)}\n\n` +
+        `⚠️ THIS CANNOT BE UNDONE!\n\n` +
+        `Enter your password to confirm:`
+    );
+    
+    if (!password) return;
+    
+    const reason = prompt('Please provide a reason for this reset:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Verify password
+        const user = firebase.auth().currentUser;
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+        await user.reauthenticateWithCredential(credential);
+        
+        // Create backup
+        const backup = {
+            type: 'payments_reset',
+            date: todayString,
+            timestamp: new Date().toISOString(),
+            resetBy: window.currentUserData.displayName,
+            reason: reason,
+            data: cashData.payments
+        };
+        await db.ref('resetBackups').push(backup);
+        
+        // Reset payments for all repairs with today's payments
+        const updates = {};
+        const today = new Date().toDateString();
+        
+        window.allRepairs.forEach(repair => {
+            if (repair.payments && repair.payments.length > 0) {
+                const filteredPayments = repair.payments.filter(p => {
+                    const paymentDate = new Date(p.paymentDate || p.recordedDate).toDateString();
+                    return paymentDate !== today;
+                });
+                
+                if (filteredPayments.length !== repair.payments.length) {
+                    updates[`repairs/${repair.id}/payments`] = filteredPayments;
+                    updates[`repairs/${repair.id}/lastUpdated`] = new Date().toISOString();
+                    updates[`repairs/${repair.id}/lastUpdatedBy`] = window.currentUserData.displayName;
+                }
+            }
+        });
+        
+        await db.ref().update(updates);
+        
+        // Log the reset
+        await logActivity('data_reset', 'admin', {
+            resetType: 'payments',
+            date: todayString,
+            itemsDeleted: cashData.payments.length,
+            totalAmount: cashData.totals.payments,
+            reason: reason
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Payments Reset Complete!\n\n${cashData.payments.length} payment(s) deleted\n\nBackup saved for recovery if needed.`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        if (error.code === 'auth/wrong-password') {
+            alert('❌ Incorrect password. Reset cancelled.');
+        } else {
+            console.error('❌ Error resetting payments:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+/**
+ * Reset today's expenses (Admin only)
+ */
+async function resetTodayExpenses() {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const todayString = new Date().toISOString().split('T')[0];
+    
+    // Check if today is locked
+    if (!preventBackdating(todayString)) {
+        alert('⚠️ Cannot reset locked date!\n\nToday has been locked. Please unlock it first if you need to make changes.');
+        return;
+    }
+    
+    const cashData = getDailyCashData(todayString);
+    
+    if (cashData.expenses.length === 0) {
+        alert('ℹ️ No expenses to reset today');
+        return;
+    }
+    
+    // Confirmation with password
+    const password = prompt(
+        `⚠️ RESET TODAY'S EXPENSES?\n\n` +
+        `This will DELETE ${cashData.expenses.length} expense(s)\n` +
+        `Total amount: ₱${cashData.totals.expenses.toFixed(2)}\n\n` +
+        `⚠️ THIS CANNOT BE UNDONE!\n\n` +
+        `Enter your password to confirm:`
+    );
+    
+    if (!password) return;
+    
+    const reason = prompt('Please provide a reason for this reset:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Verify password
+        const user = firebase.auth().currentUser;
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+        await user.reauthenticateWithCredential(credential);
+        
+        // Create backup
+        const backup = {
+            type: 'expenses_reset',
+            date: todayString,
+            timestamp: new Date().toISOString(),
+            resetBy: window.currentUserData.displayName,
+            reason: reason,
+            data: cashData.expenses
+        };
+        await db.ref('resetBackups').push(backup);
+        
+        // Delete today's expenses from Firebase
+        const today = new Date().toDateString();
+        const allExpenses = await db.ref('techExpenses').once('value');
+        const updates = {};
+        
+        allExpenses.forEach(child => {
+            const expense = child.val();
+            const expenseDate = new Date(expense.date).toDateString();
+            if (expenseDate === today) {
+                updates[`techExpenses/${child.key}`] = null;
+            }
+        });
+        
+        await db.ref().update(updates);
+        
+        // Log the reset
+        await logActivity('data_reset', 'admin', {
+            resetType: 'expenses',
+            date: todayString,
+            itemsDeleted: cashData.expenses.length,
+            totalAmount: cashData.totals.expenses,
+            reason: reason
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Expenses Reset Complete!\n\n${cashData.expenses.length} expense(s) deleted\n\nBackup saved for recovery if needed.`);
+        
+        // Reload and refresh
+        await loadTechExpenses();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        if (error.code === 'auth/wrong-password') {
+            alert('❌ Incorrect password. Reset cancelled.');
+        } else {
+            console.error('❌ Error resetting expenses:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+/**
+ * Full reset - both payments and expenses (Admin only)
+ */
+async function fullResetToday() {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const todayString = new Date().toISOString().split('T')[0];
+    
+    // Check if today is locked
+    if (!preventBackdating(todayString)) {
+        alert('⚠️ Cannot reset locked date!\n\nToday has been locked. Please unlock it first if you need to make changes.');
+        return;
+    }
+    
+    const cashData = getDailyCashData(todayString);
+    
+    if (cashData.payments.length === 0 && cashData.expenses.length === 0) {
+        alert('ℹ️ No transactions to reset today');
+        return;
+    }
+    
+    // Final confirmation
+    const confirmed = confirm(
+        `⚠️⚠️ FULL RESET - TODAY'S DATA ⚠️⚠️\n\n` +
+        `This will DELETE:\n` +
+        `• ${cashData.payments.length} payment(s) (₱${cashData.totals.payments.toFixed(2)})\n` +
+        `• ${cashData.expenses.length} expense(s) (₱${cashData.totals.expenses.toFixed(2)})\n\n` +
+        `⚠️⚠️ THIS CANNOT BE UNDONE! ⚠️⚠️\n\n` +
+        `Click OK to continue...`
+    );
+    
+    if (!confirmed) return;
+    
+    // Password confirmation
+    const password = prompt('Enter your password to confirm FULL RESET:');
+    if (!password) return;
+    
+    const reason = prompt('Please provide a reason for this FULL RESET:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Verify password
+        const user = firebase.auth().currentUser;
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+        await user.reauthenticateWithCredential(credential);
+        
+        // Create backup
+        const backup = {
+            type: 'full_reset',
+            date: todayString,
+            timestamp: new Date().toISOString(),
+            resetBy: window.currentUserData.displayName,
+            reason: reason,
+            data: {
+                payments: cashData.payments,
+                expenses: cashData.expenses
+            }
+        };
+        await db.ref('resetBackups').push(backup);
+        
+        // Reset payments
+        const updates = {};
+        const today = new Date().toDateString();
+        
+        window.allRepairs.forEach(repair => {
+            if (repair.payments && repair.payments.length > 0) {
+                const filteredPayments = repair.payments.filter(p => {
+                    const paymentDate = new Date(p.paymentDate || p.recordedDate).toDateString();
+                    return paymentDate !== today;
+                });
+                
+                if (filteredPayments.length !== repair.payments.length) {
+                    updates[`repairs/${repair.id}/payments`] = filteredPayments;
+                    updates[`repairs/${repair.id}/lastUpdated`] = new Date().toISOString();
+                    updates[`repairs/${repair.id}/lastUpdatedBy`] = window.currentUserData.displayName;
+                }
+            }
+        });
+        
+        // Reset expenses
+        const allExpenses = await db.ref('techExpenses').once('value');
+        allExpenses.forEach(child => {
+            const expense = child.val();
+            const expenseDate = new Date(expense.date).toDateString();
+            if (expenseDate === today) {
+                updates[`techExpenses/${child.key}`] = null;
+            }
+        });
+        
+        await db.ref().update(updates);
+        
+        // Log the full reset
+        await logActivity('data_reset', 'admin', {
+            resetType: 'full',
+            date: todayString,
+            paymentsDeleted: cashData.payments.length,
+            expensesDeleted: cashData.expenses.length,
+            totalPayments: cashData.totals.payments,
+            totalExpenses: cashData.totals.expenses,
+            reason: reason
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Full Reset Complete!\n\n` +
+              `${cashData.payments.length} payment(s) deleted\n` +
+              `${cashData.expenses.length} expense(s) deleted\n\n` +
+              `Backup saved for recovery if needed.`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        await loadTechExpenses();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        if (error.code === 'auth/wrong-password') {
+            alert('❌ Incorrect password. Reset cancelled.');
+        } else {
+            console.error('❌ Error in full reset:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+// Reset functions exports
+window.resetTodayPayments = resetTodayPayments;
+window.resetTodayExpenses = resetTodayExpenses;
+window.fullResetToday = fullResetToday;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
 window.closePartsCostModal = closePartsCostModal;

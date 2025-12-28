@@ -58,6 +58,14 @@ function buildTabs() {
         availableTabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
     }
     
+    if (role === 'admin') {
+        availableTabs.push({ id: 'admin-tools', label: '🔧 Admin Tools', build: buildAdminToolsTab });
+    }
+    
+    if (role === 'admin') {
+        availableTabs.push({ id: 'admin-logs', label: '📋 Activity Logs', build: buildActivityLogsTab });
+    }
+    
     console.log('✅ Tabs configured:', availableTabs.length);
     renderTabs();
 }
@@ -1177,6 +1185,346 @@ function buildUsersTab(container) {
     `;
 }
 
+/**
+ * Build Admin Tools Tab (Admin only)
+ */
+function buildAdminToolsTab(container) {
+    console.log('🔧 Building Admin Tools tab');
+    window.currentTabRefresh = () => buildAdminToolsTab(document.getElementById('admin-toolsTab'));
+    
+    const todayString = new Date().toISOString().split('T')[0];
+    const cashData = getDailyCashData(todayString);
+    const isLocked = window.dailyCashCounts && window.dailyCashCounts[todayString];
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>🔧 Admin Tools & Reset Functions</h3>
+            
+            <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #ffc107;">
+                <strong>⚠️ WARNING:</strong> Reset functions will permanently delete data. Use with caution!
+                <br><small>All resets are backed up and logged for audit purposes.</small>
+            </div>
+            
+            <!-- TODAY'S STATUS -->
+            <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:20px;">
+                <h4 style="margin:0 0 10px;">📊 Today's Cash Status</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <div>
+                        <small style="color:#666;">Payments</small>
+                        <div style="font-size:18px;font-weight:bold;color:#4caf50;">
+                            ₱${cashData.totals.payments.toFixed(2)}
+                        </div>
+                        <small style="color:#999;">${cashData.payments.length} transaction(s)</small>
+                    </div>
+                    <div>
+                        <small style="color:#666;">Expenses</small>
+                        <div style="font-size:18px;font-weight:bold;color:#f44336;">
+                            ₱${cashData.totals.expenses.toFixed(2)}
+                        </div>
+                        <small style="color:#999;">${cashData.expenses.length} transaction(s)</small>
+                    </div>
+                </div>
+                <div style="border-top:1px solid #ddd;padding-top:10px;margin-top:10px;">
+                    <small style="color:#666;">Net Revenue</small>
+                    <div style="font-size:20px;font-weight:bold;color:#2196f3;">
+                        ₱${cashData.totals.net.toFixed(2)}
+                    </div>
+                    ${isLocked ? '<div style="margin-top:5px;"><span style="background:#4caf50;color:white;padding:3px 8px;border-radius:3px;font-size:12px;">🔒 Locked</span></div>' : ''}
+                </div>
+            </div>
+            
+            ${isLocked ? `
+                <div style="background:#fff9c4;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #ffc107;">
+                    <strong>🔒 Today is Locked</strong>
+                    <p style="margin:5px 0 0;">To make changes, go to the <strong>Cash Count</strong> tab and unlock today's date first.</p>
+                </div>
+            ` : `
+                <!-- RESET BUTTONS -->
+                <div class="form-group">
+                    <h4 style="margin:0 0 10px;">🔄 Reset Functions</h4>
+                    
+                    <button 
+                        onclick="resetTodayPayments()" 
+                        class="btn btn-danger"
+                        style="width:100%;margin-bottom:10px;"
+                        ${cashData.payments.length === 0 ? 'disabled' : ''}>
+                        🗑️ Reset Today's Payments
+                        ${cashData.payments.length === 0 ? '<br><small>(No payments to reset)</small>' : `<br><small>${cashData.payments.length} payment(s) - ₱${cashData.totals.payments.toFixed(2)}</small>`}
+                    </button>
+                    
+                    <button 
+                        onclick="resetTodayExpenses()" 
+                        class="btn btn-danger"
+                        style="width:100%;margin-bottom:10px;"
+                        ${cashData.expenses.length === 0 ? 'disabled' : ''}>
+                        🗑️ Reset Today's Expenses
+                        ${cashData.expenses.length === 0 ? '<br><small>(No expenses to reset)</small>' : `<br><small>${cashData.expenses.length} expense(s) - ₱${cashData.totals.expenses.toFixed(2)}</small>`}
+                    </button>
+                    
+                    <button 
+                        onclick="fullResetToday()" 
+                        class="btn btn-danger"
+                        style="width:100%;background:#d32f2f;"
+                        ${(cashData.payments.length === 0 && cashData.expenses.length === 0) ? 'disabled' : ''}>
+                        ⚠️ FULL RESET - Today's All Data
+                        ${(cashData.payments.length === 0 && cashData.expenses.length === 0) ? '<br><small>(No transactions to reset)</small>' : `<br><small>Will delete ALL transactions (${cashData.payments.length + cashData.expenses.length} total)</small>`}
+                    </button>
+                </div>
+            `}
+            
+            <!-- BACKUP INFO -->
+            <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;">
+                <h4 style="margin:0 0 10px;">💾 Data Safety</h4>
+                <ul style="margin:5px 0;padding-left:20px;">
+                    <li>All resets require your password</li>
+                    <li>Deleted data is backed up to <code>resetBackups</code></li>
+                    <li>All actions are logged with timestamp and reason</li>
+                    <li>Locked dates cannot be modified</li>
+                </ul>
+            </div>
+            
+            <!-- QUICK ACTIONS -->
+            <div class="form-group" style="margin-top:20px;">
+                <h4 style="margin:0 0 10px;">⚡ Quick Actions</h4>
+                <button onclick="window.switchToTab('cash-count')" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
+                    💵 Open Cash Count Tab
+                </button>
+                <button onclick="window.switchToTab('admin-logs')" class="btn btn-primary" style="width:100%;">
+                    📋 View Activity Logs
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Build Activity Logs Tab (Admin only)
+ */
+function buildActivityLogsTab(container) {
+    console.log('📋 Building Activity Logs tab');
+    window.currentTabRefresh = () => buildActivityLogsTab(document.getElementById('admin-logsTab'));
+    
+    if (!window.activityLogs || window.activityLogs.length === 0) {
+        container.innerHTML = `
+            <div class="card">
+                <h3>📋 Activity Logs</h3>
+                <p style="text-align:center;color:#999;padding:40px;">No activity logs yet...</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort logs by timestamp (newest first)
+    const sortedLogs = [...window.activityLogs].sort((a, b) => 
+        new Date(b.timestamp) - new Date(a.timestamp)
+    );
+    
+    // Get filter values (if any)
+    const filterUser = window.logFilterUser || 'all';
+    const filterAction = window.logFilterAction || 'all';
+    const filterDate = window.logFilterDate || 'all';
+    
+    // Apply filters
+    let filteredLogs = sortedLogs;
+    
+    if (filterUser !== 'all') {
+        filteredLogs = filteredLogs.filter(log => log.userId === filterUser);
+    }
+    
+    if (filterAction !== 'all') {
+        filteredLogs = filteredLogs.filter(log => log.action.toLowerCase().includes(filterAction.toLowerCase()));
+    }
+    
+    if (filterDate !== 'all') {
+        filteredLogs = filteredLogs.filter(log => {
+            const logDate = new Date(log.timestamp).toISOString().split('T')[0];
+            return logDate === filterDate;
+        });
+    }
+    
+    // Get unique users and actions for filters
+    const uniqueUsers = [...new Set(sortedLogs.map(log => ({ id: log.userId, name: log.userName })))];
+    const uniqueActions = [...new Set(sortedLogs.map(log => log.action))];
+    
+    // Generate action icon
+    const getActionIcon = (action) => {
+        if (action.includes('Login')) return '🔓';
+        if (action.includes('Logout')) return '🔒';
+        if (action.includes('Payment')) return '💰';
+        if (action.includes('Expense')) return '🏪';
+        if (action.includes('Device')) return '📱';
+        if (action.includes('Repair')) return '🔧';
+        if (action.includes('Lock') || action.includes('Unlock')) return '🔐';
+        if (action.includes('Reset') || action.includes('Delete')) return '🗑️';
+        if (action.includes('Verify')) return '✅';
+        return '📝';
+    };
+    
+    // Generate action color
+    const getActionColor = (action) => {
+        if (action.includes('Login')) return '#4caf50';
+        if (action.includes('Logout')) return '#9e9e9e';
+        if (action.includes('Payment')) return '#4caf50';
+        if (action.includes('Expense')) return '#f44336';
+        if (action.includes('Lock')) return '#2196f3';
+        if (action.includes('Unlock')) return '#ff9800';
+        if (action.includes('Reset') || action.includes('Delete')) return '#d32f2f';
+        if (action.includes('Device')) return '#9c27b0';
+        return '#757575';
+    };
+    
+    // Pagination
+    const logsPerPage = 50;
+    const currentPage = window.logCurrentPage || 1;
+    const totalPages = Math.ceil(filteredLogs.length / logsPerPage);
+    const startIndex = (currentPage - 1) * logsPerPage;
+    const endIndex = startIndex + logsPerPage;
+    const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>📋 Activity Logs</h3>
+            
+            <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:20px;">
+                <strong>Total Logs:</strong> ${sortedLogs.length} activities
+                ${filteredLogs.length !== sortedLogs.length ? `<span style="color:#2196f3;"> (${filteredLogs.length} shown after filters)</span>` : ''}
+            </div>
+            
+            <!-- FILTERS -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:20px;">
+                <div>
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;font-size:14px;">Filter by User</label>
+                    <select id="logFilterUser" onchange="applyLogFilters()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:5px;">
+                        <option value="all">All Users</option>
+                        ${uniqueUsers.map(u => `
+                            <option value="${u.id}" ${filterUser === u.id ? 'selected' : ''}>${u.name}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;font-size:14px;">Filter by Action</label>
+                    <select id="logFilterAction" onchange="applyLogFilters()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:5px;">
+                        <option value="all">All Actions</option>
+                        ${uniqueActions.map(a => `
+                            <option value="${a}" ${filterAction === a ? 'selected' : ''}>${getActionIcon(a)} ${a}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                
+                <div>
+                    <label style="display:block;margin-bottom:5px;font-weight:bold;font-size:14px;">Filter by Date</label>
+                    <input type="date" id="logFilterDate" value="${filterDate !== 'all' ? filterDate : ''}" onchange="applyLogFilters()" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:5px;">
+                </div>
+            </div>
+            
+            <button onclick="clearLogFilters()" class="btn btn-secondary" style="width:100%;margin-bottom:20px;">
+                🔄 Clear All Filters
+            </button>
+            
+            <!-- LOGS LIST -->
+            <div style="max-height:600px;overflow-y:auto;">
+                ${paginatedLogs.map(log => {
+                    const actionColor = getActionColor(log.action);
+                    const actionIcon = getActionIcon(log.action);
+                    
+                    return `
+                        <div style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:10px;border-left:4px solid ${actionColor};">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                                <div style="flex:1;">
+                                    <div style="font-size:16px;font-weight:bold;color:${actionColor};margin-bottom:5px;">
+                                        ${actionIcon} ${log.action}
+                                    </div>
+                                    <div style="font-size:14px;color:#666;margin-bottom:5px;">
+                                        <strong>${log.userName}</strong> <span style="color:#999;">(${log.userRole})</span>
+                                    </div>
+                                    ${log.details ? `<div style="font-size:14px;color:#333;margin-bottom:5px;">${log.details}</div>` : ''}
+                                </div>
+                                <div style="text-align:right;min-width:150px;">
+                                    <div style="font-size:12px;color:#999;">${utils.formatDateTime(log.timestamp)}</div>
+                                    <div style="font-size:11px;color:#bbb;">${utils.timeAgo(log.timestamp)}</div>
+                                </div>
+                            </div>
+                            
+                            ${log.device ? `
+                                <div style="background:#fff;padding:10px;border-radius:5px;font-size:12px;color:#666;">
+                                    <strong>Device Info:</strong>
+                                    ${log.device.deviceType} • ${log.device.os} • ${log.device.browser}
+                                    ${log.device.screenResolution ? ` • ${log.device.screenResolution}` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+            
+            <!-- PAGINATION -->
+            ${totalPages > 1 ? `
+                <div style="display:flex;justify-content:center;align-items:center;gap:10px;margin-top:20px;padding-top:20px;border-top:1px solid #ddd;">
+                    <button 
+                        onclick="changeLogPage(${currentPage - 1})" 
+                        ${currentPage === 1 ? 'disabled' : ''}
+                        class="btn btn-secondary"
+                        style="padding:8px 15px;">
+                        ← Previous
+                    </button>
+                    
+                    <div style="color:#666;font-size:14px;">
+                        Page ${currentPage} of ${totalPages}
+                    </div>
+                    
+                    <button 
+                        onclick="changeLogPage(${currentPage + 1})" 
+                        ${currentPage === totalPages ? 'disabled' : ''}
+                        class="btn btn-secondary"
+                        style="padding:8px 15px;">
+                        Next →
+                    </button>
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Apply log filters
+ */
+function applyLogFilters() {
+    window.logFilterUser = document.getElementById('logFilterUser').value;
+    window.logFilterAction = document.getElementById('logFilterAction').value;
+    const dateInput = document.getElementById('logFilterDate').value;
+    window.logFilterDate = dateInput || 'all';
+    window.logCurrentPage = 1; // Reset to first page
+    
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+/**
+ * Clear log filters
+ */
+function clearLogFilters() {
+    window.logFilterUser = 'all';
+    window.logFilterAction = 'all';
+    window.logFilterDate = 'all';
+    window.logCurrentPage = 1;
+    
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+/**
+ * Change log page
+ */
+function changeLogPage(page) {
+    window.logCurrentPage = page;
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
 // Toggle back job fields
 function toggleBackJobFields() {
     const isBackJob = document.getElementById('isBackJob').checked;
@@ -1383,6 +1731,9 @@ window.toggleBackJobFields = toggleBackJobFields;
 window.togglePreApprovalFields = togglePreApprovalFields;
 window.calculatePreApprovedTotal = calculatePreApprovedTotal;
 window.buildClaimedUnitsPage = buildClaimedUnitsPage;
+window.applyLogFilters = applyLogFilters;
+window.clearLogFilters = clearLogFilters;
+window.changeLogPage = changeLogPage;
 window.handleProblemTypeChange = handleProblemTypeChange;
 
 /**
