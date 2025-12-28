@@ -11,38 +11,48 @@ function buildTabs() {
     const role = window.currentUserData.role;
     availableTabs = [];
     
-    // SHARED PAGES - Everyone can access
-    availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
-    availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
-    availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
-    availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
-
-    availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
-    
-    // ROLE-SPECIFIC PAGES
+    // ROLE-SPECIFIC PAGES - Most used functions FIRST
     if (role === 'cashier') {
+        // Cashier workflow: Receive → Check status → Process payments
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
+        availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
+        availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
+        availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
         availableTabs.push({ id: 'unpaid', label: '💳 Unpaid', build: buildUnpaidTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingPaymentsTab });
         availableTabs.push({ id: 'paid', label: '✅ Paid', build: buildPaidTab });
+        availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
+        availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
         availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
     }
     else if (role === 'admin' || role === 'manager') {
+        // Admin/Manager workflow: Receive → Monitor → Manage
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
+        availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
+        availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
+        availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
         availableTabs.push({ id: 'inventory', label: '📦 Inventory', build: buildInventoryTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
         availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
+        availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
+        availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
         availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
         if (role === 'manager') {
             availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
         }
     }
     else if (role === 'technician') {
+        // Technician workflow: Receive → My Jobs → Use parts
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'my', label: '🔧 My Jobs', build: buildMyRepairsTab });
+        availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
+        availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
+        availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
         availableTabs.push({ id: 'inventory', label: '📦 Inventory', build: buildInventoryTab });
+        availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
+        availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
         availableTabs.push({ id: 'remittance', label: '💸 Daily Remittance', build: buildDailyRemittanceTab });
         availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
     }

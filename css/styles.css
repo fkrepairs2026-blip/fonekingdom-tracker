@@ -2994,3 +2994,281 @@ html {
 [data-theme="dark"] {
     color-scheme: dark;
 }
+
+/* Fix pre-approval fields (green background) - Customer agreed pricing section */
+[data-theme="dark"] #preApprovalFields,
+[data-theme="dark"] [style*="background:#e8f5e9"] {
+    background: rgba(76, 175, 80, 0.15) !important;
+    border-left-color: #66bb6a !important;
+}
+
+[data-theme="dark"] #preApprovalFields *,
+[data-theme="dark"] [style*="background:#e8f5e9"] * {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] #preApprovalFields strong,
+[data-theme="dark"] #preApprovalFields label,
+[data-theme="dark"] #preApprovalFields p {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] #preApprovalFields small {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Fix checkbox label next to pre-approval */
+[data-theme="dark"] #customerPreApproved + span {
+    color: #66bb6a !important;
+    font-weight: bold;
+}
+
+[data-theme="dark"] [style*="color:#4caf50"] {
+    color: #66bb6a !important;
+}
+
+/* Fix light background boxes in dark mode */
+[data-theme="dark"] [style*="background:#fff"],
+[data-theme="dark"] [style*="background:white"],
+[data-theme="dark"] [style*="background:#f8f9fa"],
+[data-theme="dark"] [style*="background:#fafafa"] {
+    background: var(--bg-secondary) !important;
+}
+
+/* Fix yellow/warning backgrounds */
+[data-theme="dark"] [style*="background:#fff3cd"],
+[data-theme="dark"] [style*="background:#fff3e0"],
+[data-theme="dark"] [style*="background:#ffebee"] {
+    background: rgba(255, 152, 0, 0.15) !important;
+}
+
+/* Fix blue info backgrounds */
+[data-theme="dark"] [style*="background:#e3f2fd"],
+[data-theme="dark"] [style*="background:#e1f5fe"] {
+    background: rgba(33, 150, 243, 0.15) !important;
+}
+
+/* Fix red backgrounds */
+[data-theme="dark"] [style*="background:#ffebee"] {
+    background: rgba(244, 67, 54, 0.15) !important;
+}
+
+/* Fix texts with hardcoded dark colors */
+[data-theme="dark"] [style*="color:#666"],
+[data-theme="dark"] [style*="color:#999"],
+[data-theme="dark"] [style*="color:#333"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix stock movements and inventory sections */
+[data-theme="dark"] [style*="background:#e8f5e9"] [style*="background:white"] {
+    background: var(--bg-tertiary) !important;
+}
+
+/* Fix modal content backgrounds */
+[data-theme="dark"] .modal-content [style*="background:#f5f5f5"],
+[data-theme="dark"] .modal-content [style*="background:#fafafa"] {
+    background: var(--bg-tertiary) !important;
+}
+
+/* Fix form sections with colored backgrounds */
+[data-theme="dark"] [style*="border-left:4px solid #4caf50"] {
+    background: rgba(76, 175, 80, 0.15) !important;
+}
+
+[data-theme="dark"] [style*="border-left:4px solid #2196f3"] {
+    background: rgba(33, 150, 243, 0.15) !important;
+}
+
+[data-theme="dark"] [style*="border-left:4px solid #ff9800"] {
+    background: rgba(255, 152, 0, 0.15) !important;
+}
+
+[data-theme="dark"] [style*="border-left:4px solid #f44336"] {
+    background: rgba(244, 67, 54, 0.15) !important;
+}
+
+/* Improve tab visibility and navigation */
+[data-theme="dark"] .tab {
+    background: var(--bg-secondary);
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+}
+
+[data-theme="dark"] .tab:hover {
+    background: var(--bg-hover);
+    color: var(--primary);
+}
+
+[data-theme="dark"] .tab.active {
+    background: var(--bg-hover);
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+    font-weight: 600;
+}
+
+/* Make mobile nav items more visible */
+[data-theme="dark"] .mobile-nav-item {
+    background: var(--bg-secondary);
+    border-top: 2px solid transparent;
+}
+
+[data-theme="dark"] .mobile-nav-item.active {
+    background: var(--bg-hover);
+    color: var(--primary);
+    border-top-color: var(--primary);
+    font-weight: 600;
+}
+
+[data-theme="dark"] .mobile-nav-item:hover {
+    background: var(--bg-hover);
+}
+
+/* Enhance card headers for better contrast */
+[data-theme="dark"] .card h3,
+[data-theme="dark"] .card h4 {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Fix repair card visibility */
+[data-theme="dark"] .repair-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .repair-card h4 {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Fix all small text and helper text */
+[data-theme="dark"] small {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix form labels */
+[data-theme="dark"] label {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+/* Fix paragraph text in cards and forms */
+[data-theme="dark"] p {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] strong {
+    color: var(--text-primary);
+}
+
+/* Fix inventory and stock sections */
+[data-theme="dark"] .inventory-row {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .inventory-row:hover {
+    background: var(--bg-hover);
+}
+
+/* Fix stat cards text */
+[data-theme="dark"] .stat-card h3,
+[data-theme="dark"] .stat-card p {
+    color: white !important;
+}
+
+/* Improve form field visibility */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="tel"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] input[type="text"]:focus,
+[data-theme="dark"] input[type="number"]:focus,
+[data-theme="dark"] input[type="email"]:focus,
+[data-theme="dark"] input[type="tel"]:focus,
+[data-theme="dark"] input[type="password"]:focus,
+[data-theme="dark"] input[type="date"]:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus {
+    background: var(--bg-secondary);
+    border-color: var(--primary);
+}
+
+/* Fix checkbox labels */
+[data-theme="dark"] input[type="checkbox"] + span {
+    color: var(--text-primary);
+}
+
+/* Fix page headers */
+[data-theme="dark"] .page-header h2 {
+    color: var(--text-primary);
+}
+
+/* Fix all divs with colored backgrounds to have proper text */
+[data-theme="dark"] div[style*="background:#f5f5f5"] *,
+[data-theme="dark"] div[style*="background:#fafafa"] *,
+[data-theme="dark"] div[style*="background:#f8f9fa"] * {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] div[style*="background:#e8f5e9"] *,
+[data-theme="dark"] div[style*="background:#e3f2fd"] *,
+[data-theme="dark"] div[style*="background:#fff3cd"] *,
+[data-theme="dark"] div[style*="background:#ffebee"] * {
+    color: var(--text-primary);
+}
+
+/* Fix repair info section */
+[data-theme="dark"] .repair-info div {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] .repair-info strong {
+    color: var(--text-primary);
+}
+
+/* Fix details/summary elements */
+[data-theme="dark"] details {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] summary {
+    color: var(--primary);
+    font-weight: 600;
+}
+
+[data-theme="dark"] details[open] {
+    background: var(--bg-tertiary);
+}
+
+/* Fix table cells */
+[data-theme="dark"] td,
+[data-theme="dark"] th {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .repair-table {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .repair-table thead {
+    background: var(--bg-tertiary);
+}
+
+/* Fix empty state messages */
+[data-theme="dark"] [style*="text-align:center;padding:40px"] {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] [style*="text-align:center;padding:40px"] * {
+    color: var(--text-secondary) !important;
+}
