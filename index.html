@@ -61,6 +61,7 @@
         <!-- Header -->
         <div class="header">
             <div class="header-left">
+                <button onclick="toggleMobileSidebar()" class="hamburger-btn">☰</button>
                 <h2>🔧 Fonekingdom</h2>
             </div>
             <div class="header-right">
@@ -79,14 +80,52 @@
             </div>
         </div>
 
-        <!-- Stats Dashboard -->
-        <div class="stats-container" id="statsSection"></div>
+        <!-- Left Sidebar Navigation -->
+        <div id="sidebar" class="sidebar sidebar-left">
+            <div class="sidebar-header">
+                <button onclick="toggleSidebar()" class="sidebar-toggle" title="Toggle Sidebar">
+                    <span class="toggle-icon">☰</span>
+                </button>
+            </div>
+            <nav class="sidebar-nav" id="sidebarNav">
+                <!-- Sections will be dynamically rendered here -->
+            </nav>
+        </div>
 
-        <!-- Tabs -->
-        <div class="tabs-container" id="tabsContainer"></div>
+        <!-- Right Sidebar (Contextual) -->
+        <div id="rightSidebar" class="sidebar sidebar-right" style="display:none;">
+            <div class="sidebar-right-header">
+                <h3 class="sidebar-right-title">Overview</h3>
+            </div>
+            
+            <!-- Stats Widget Section -->
+            <div class="sidebar-right-section" id="rightSidebarStats">
+                <!-- Live stats will be injected here -->
+            </div>
+            
+            <!-- Divider -->
+            <div class="sidebar-right-divider"></div>
+            
+            <!-- Contextual Controls Section -->
+            <div class="sidebar-right-section" id="rightSidebarControls">
+                <!-- Tab-specific filters/controls will be injected here -->
+            </div>
+        </div>
 
-        <!-- Tab Contents -->
-        <div class="tab-contents" id="contentsContainer"></div>
+        <!-- Sidebar Overlay (mobile - left sidebar only) -->
+        <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+        <!-- Main Content Wrapper -->
+        <div id="mainContent" class="main-content">
+            <!-- Stats Dashboard -->
+            <div class="stats-container" id="statsSection"></div>
+
+            <!-- Tabs (will be hidden, replaced by sidebar) -->
+            <div class="tabs-container" id="tabsContainer" style="display:none;"></div>
+
+            <!-- Tab Contents -->
+            <div class="tab-contents" id="contentsContainer"></div>
+        </div>
 
         <!-- Mobile Bottom Navigation -->
         <div class="mobile-bottom-nav" id="mobileBottomNav"></div>

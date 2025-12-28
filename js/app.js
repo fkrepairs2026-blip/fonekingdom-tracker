@@ -88,6 +88,9 @@ async function initializeApp() {
         console.log('🔖 Building tabs...');
         buildTabs();
         
+        console.log('🎨 Initializing sidebars...');
+        initSidebar();
+        
         // CRITICAL: ALWAYS hide loading at the end
         utils.showLoading(false);
         
@@ -490,6 +493,76 @@ function closePaymentModal() {
     if (modal) modal.style.display = 'none';
 }
 
+// ===== DUAL SIDEBAR CONTROLS =====
+
+/**
+ * Toggle left sidebar collapse
+ */
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    
+    sidebar.classList.toggle('collapsed');
+    
+    // Update body class for CSS adjustments
+    if (sidebar.classList.contains('collapsed')) {
+        document.body.classList.add('left-sidebar-collapsed');
+    } else {
+        document.body.classList.remove('left-sidebar-collapsed');
+    }
+    
+    // Save state to localStorage
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    localStorage.setItem('sidebarCollapsed', isCollapsed);
+    
+    console.log(`Left sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`);
+}
+
+/**
+ * Toggle mobile sidebar
+ */
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (!sidebar || !overlay) return;
+    
+    sidebar.classList.toggle('mobile-open');
+    overlay.classList.toggle('active');
+}
+
+/**
+ * Close mobile sidebar
+ */
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (overlay) overlay.classList.remove('active');
+}
+
+/**
+ * Restore sidebar states on load
+ */
+function initSidebar() {
+    console.log('🎨 Initializing dual sidebar layout...');
+    
+    // Restore left sidebar state
+    const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+    const sidebar = document.getElementById('sidebar');
+    
+    if (sidebar && isCollapsed) {
+        sidebar.classList.add('collapsed');
+        document.body.classList.add('left-sidebar-collapsed');
+    }
+    
+    // Right sidebar visibility will be controlled by updateRightSidebar()
+    // when switching tabs
+    
+    console.log('✅ Dual sidebar initialized');
+}
+
 // Export to global scope
 window.initializeApp = initializeApp;
 window.updateHeaderUserInfo = updateHeaderUserInfo;
@@ -498,5 +571,9 @@ window.closePhotoModal = closePhotoModal;
 window.showPhotoModal = showPhotoModal;
 window.closeUserModal = closeUserModal;
 window.closePaymentModal = closePaymentModal;
+window.toggleSidebar = toggleSidebar;
+window.toggleMobileSidebar = toggleMobileSidebar;
+window.closeMobileSidebar = closeMobileSidebar;
+window.initSidebar = initSidebar;
 
 console.log('✅ app.js loaded');

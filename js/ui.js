@@ -4,88 +4,256 @@ let availableTabs = [];
 let activeTab = '';
 
 /**
- * Build tabs based on user role
+ * Build tabs based on user role - organized into sections for sidebar
  */
 function buildTabs() {
-    console.log('🔖 Building tabs...');
+    console.log('🔖 Building sidebar navigation...');
     const role = window.currentUserData.role;
-    availableTabs = [];
     
-    // ROLE-SPECIFIC PAGES - Most used functions FIRST
+    // Define sections with their tabs
+    const sections = {
+        overview: {
+            title: 'Overview',
+            tabs: []
+        },
+        operations: {
+            title: 'Operations',
+            tabs: []
+        },
+        payments: {
+            title: 'Payments',
+            tabs: []
+        },
+        inventory: {
+            title: 'Inventory & Reports',
+            tabs: []
+        },
+        admin: {
+            title: 'Administration',
+            tabs: []
+        }
+    };
+    
+    // Overview section - Dashboard for all roles
+    sections.overview.tabs.push(
+        { id: 'dashboard', label: 'Dashboard', icon: '📊', build: buildDashboardTab }
+    );
+    
+    // ROLE-SPECIFIC TABS
     if (role === 'cashier') {
-        // Cashier workflow: Receive → Check status → Process payments
-        availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
-        availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
-        availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
-        availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
-        availableTabs.push({ id: 'unpaid', label: '💳 Unpaid', build: buildUnpaidTab });
-        availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingPaymentsTab });
-        availableTabs.push({ id: 'paid', label: '✅ Paid', build: buildPaidTab });
-        availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
-        availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
-        availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
-        availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
+        // Operations
+        sections.operations.tabs.push(
+            { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
+            { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
+            { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
+            { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
+            { id: 'rto', label: 'RTO Devices', icon: '↩️', build: buildRTODevicesTab },
+            { id: 'claimed', label: 'Claimed Units', icon: '✅', build: buildClaimedUnitsPage }
+        );
+        // Payments
+        sections.payments.tabs.push(
+            { id: 'unpaid', label: 'Unpaid', icon: '💳', build: buildUnpaidTab },
+            { id: 'pending', label: 'Pending Verification', icon: '⏳', build: buildPendingPaymentsTab },
+            { id: 'paid', label: 'Paid', icon: '✅', build: buildPaidTab },
+            { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab }
+        );
+        // Inventory & Reports
+        sections.inventory.tabs.push(
+            { id: 'all', label: 'All Repairs', icon: '📋', build: buildAllRepairsTab },
+            { id: 'tech-logs', label: 'Technician Logs', icon: '📊', build: buildTechnicianLogsTab },
+            { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab }
+        );
     }
     else if (role === 'admin' || role === 'manager') {
-        // Admin/Manager workflow: Receive → Monitor → Manage
-        availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
-        availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
-        availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
-        availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
-        availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
-        availableTabs.push({ id: 'inventory', label: '📦 Inventory', build: buildInventoryTab });
-        availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
-        availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
-        availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
-        availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
-        availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
+        // Operations
+        sections.operations.tabs.push(
+            { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
+            { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
+            { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
+            { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
+            { id: 'rto', label: 'RTO Devices', icon: '↩️', build: buildRTODevicesTab },
+            { id: 'claimed', label: 'Claimed Units', icon: '✅', build: buildClaimedUnitsPage }
+        );
+        // Payments
+        sections.payments.tabs.push(
+            { id: 'pending', label: 'Pending Verification', icon: '⏳', build: buildPendingTab },
+            { id: 'cash', label: 'Cash Count', icon: '💵', build: buildCashCountTab },
+            { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab }
+        );
+        // Inventory & Reports
+        sections.inventory.tabs.push(
+            { id: 'all', label: 'All Repairs', icon: '📋', build: buildAllRepairsTab },
+            { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
+            { id: 'suppliers', label: 'Supplier Report', icon: '📊', build: buildSuppliersTab },
+            { id: 'tech-logs', label: 'Technician Logs', icon: '📊', build: buildTechnicianLogsTab }
+        );
         if (role === 'manager') {
-            availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
+            sections.inventory.tabs.push(
+                { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab }
+            );
+        }
+        // Administration (Admin only)
+        if (role === 'admin') {
+            sections.admin.tabs.push(
+                { id: 'users', label: 'Users', icon: '👥', build: buildUsersTab },
+                { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
+                { id: 'admin-tools', label: 'Admin Tools', icon: '🔧', build: buildAdminToolsTab },
+                { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab }
+            );
         }
     }
     else if (role === 'technician') {
-        // Technician workflow: Receive → My Jobs → Use parts
-        availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
-        availableTabs.push({ id: 'my', label: '🔧 My Jobs', build: buildMyRepairsTab });
-        availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
-        availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
-        availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
-        availableTabs.push({ id: 'inventory', label: '📦 Inventory', build: buildInventoryTab });
-        availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
-        availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
-        availableTabs.push({ id: 'remittance', label: '💸 Daily Remittance', build: buildDailyRemittanceTab });
-        availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
+        // Operations
+        sections.operations.tabs.push(
+            { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
+            { id: 'my', label: 'My Jobs', icon: '🔧', build: buildMyRepairsTab },
+            { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
+            { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
+            { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
+            { id: 'rto', label: 'RTO Devices', icon: '↩️', build: buildRTODevicesTab },
+            { id: 'claimed', label: 'Claimed Units', icon: '✅', build: buildClaimedUnitsPage }
+        );
+        // Payments
+        sections.payments.tabs.push(
+            { id: 'remittance', label: 'Daily Remittance', icon: '💸', build: buildDailyRemittanceTab }
+        );
+        // Inventory & Reports
+        sections.inventory.tabs.push(
+            { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
+            { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab }
+        );
     }
     
-    // Cashier/Admin/Manager get remittance verification tab
-    if (role === 'admin' || role === 'manager' || role === 'cashier') {
-        availableTabs.push({ id: 'verify-remittance', label: '✅ Verify Remittance', build: buildRemittanceVerificationTab });
-        availableTabs.push({ id: 'tech-logs', label: '📊 Technician Logs', build: buildTechnicianLogsTab });
+    // Store sections globally for sidebar rendering
+    window.sidebarSections = sections;
+    
+    // Build flat availableTabs array for compatibility
+    availableTabs = [];
+    for (const section of Object.values(sections)) {
+        availableTabs.push(...section.tabs);
     }
     
-    // Admin gets modification requests approval page
-    if (role === 'admin') {
-        availableTabs.push({ id: 'mod-requests', label: '🔔 Mod Requests', build: buildModificationRequestsTab });
-    }
-    
-    if (role === 'admin') {
-        availableTabs.push({ id: 'users', label: '👥 Users', build: buildUsersTab });
-    }
-    
-    if (role === 'admin') {
-        availableTabs.push({ id: 'admin-tools', label: '🔧 Admin Tools', build: buildAdminToolsTab });
-    }
-    
-    if (role === 'admin') {
-        availableTabs.push({ id: 'admin-logs', label: '📋 Activity Logs', build: buildActivityLogsTab });
-    }
-    
-    console.log('✅ Tabs configured:', availableTabs.length);
-    renderTabs();
+    console.log('✅ Sidebar sections configured:', Object.keys(sections).length);
+    console.log('✅ Total tabs:', availableTabs.length);
+    renderSidebar();
 }
 
 /**
- * Render tabs
+ * Render sidebar navigation with sections
+ */
+function renderSidebar() {
+    console.log('🎨 Rendering sidebar navigation...');
+    const sidebarNav = document.getElementById('sidebarNav');
+    const contentsContainer = document.getElementById('contentsContainer');
+    
+    if (!sidebarNav) {
+        console.error('❌ Sidebar nav not found!');
+        return;
+    }
+    
+    if (!contentsContainer) {
+        console.error('❌ Contents container not found!');
+        return;
+    }
+    
+    // Clear existing content
+    sidebarNav.innerHTML = '';
+    contentsContainer.innerHTML = '';
+    
+    let html = '';
+    
+    // Render each section
+    for (const [sectionKey, section] of Object.entries(window.sidebarSections)) {
+        if (section.tabs.length === 0) continue;
+        
+        html += `
+            <div class="sidebar-section">
+                <div class="sidebar-section-title">${section.title}</div>
+                ${section.tabs.map(tab => `
+                    <div class="sidebar-item ${tab.id === activeTab ? 'active' : ''}" 
+                         data-tab="${tab.id}"
+                         id="sidebar-${tab.id}"
+                         onclick="switchTab('${tab.id}')">
+                        <span class="sidebar-item-icon">${tab.icon}</span>
+                        <span class="sidebar-item-label">${tab.label}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    sidebarNav.innerHTML = html;
+    
+    // Build content containers for all tabs
+    availableTabs.forEach((tab, index) => {
+        const contentEl = document.createElement('div');
+        contentEl.id = `${tab.id}Tab`;
+        contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
+        contentsContainer.appendChild(contentEl);
+        
+        console.log('📄 Building content for tab:', tab.label);
+        tab.build(contentEl);
+    });
+    
+    // Set first tab as active
+    if (availableTabs.length > 0) {
+        activeTab = availableTabs[0].id;
+    }
+    
+    // Render mobile bottom nav (keep 4-5 most important tabs)
+    renderMobileBottomNav();
+    
+    console.log('✅ Sidebar rendered successfully');
+}
+
+/**
+ * Render mobile bottom navigation with 4-5 key tabs
+ */
+function renderMobileBottomNav() {
+    const mobileNav = document.getElementById('mobileBottomNav');
+    if (!mobileNav) return;
+    
+    const role = window.currentUserData.role;
+    
+    // Select 4-5 most important tabs for quick access
+    const quickTabs = [];
+    
+    if (role === 'cashier') {
+        quickTabs.push(
+            { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+            { id: 'receive', icon: '➕', label: 'Receive' },
+            { id: 'forrelease', icon: '📦', label: 'Release' },
+            { id: 'unpaid', icon: '💳', label: 'Unpaid' }
+        );
+    } else if (role === 'technician') {
+        quickTabs.push(
+            { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+            { id: 'my', icon: '🔧', label: 'My Jobs' },
+            { id: 'receive', icon: '➕', label: 'Receive' },
+            { id: 'inventory', icon: '📦', label: 'Parts' }
+        );
+    } else if (role === 'admin' || role === 'manager') {
+        quickTabs.push(
+            { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+            { id: 'receive', icon: '➕', label: 'Receive' },
+            { id: 'inprogress', icon: '🔧', label: 'Progress' },
+            { id: 'all', icon: '📋', label: 'All' },
+            { id: 'cash', icon: '💵', label: 'Cash' }
+        );
+    }
+    
+    mobileNav.innerHTML = quickTabs.map(tab => `
+        <div class="mobile-nav-item ${tab.id === activeTab ? 'active' : ''}"
+             id="mobile-tab-${tab.id}"
+             onclick="switchTab('${tab.id}')">
+            <span class="mobile-nav-icon">${tab.icon}</span>
+            <span class="mobile-nav-label">${tab.label}</span>
+        </div>
+    `).join('');
+}
+
+/**
+ * Render tabs (kept for compatibility, now hidden)
  */
 function renderTabs() {
     console.log('🎨 Rendering tabs UI...');
@@ -161,19 +329,37 @@ function renderTabs() {
  */
 function switchTab(tabId) {
     console.log('🔄 Switching to tab:', tabId);
+    
+    // Remove active class from all navigation items
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.mobile-nav-item').forEach(m => m.classList.remove('active'));
+    document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
     
+    // Activate current tab elements
     const tab = document.getElementById(`tab-${tabId}`);
     const content = document.getElementById(`${tabId}Tab`);
     const mobileTab = document.getElementById(`mobile-tab-${tabId}`);
+    const sidebarItem = document.getElementById(`sidebar-${tabId}`);
     
     if (tab) tab.classList.add('active');
     if (content) content.classList.add('active');
     if (mobileTab) mobileTab.classList.add('active');
+    if (sidebarItem) sidebarItem.classList.add('active');
     
     activeTab = tabId;
+    
+    // Update right sidebar based on active tab
+    if (window.updateRightSidebar) {
+        window.updateRightSidebar(tabId);
+    }
+    
+    // Close mobile sidebar if open
+    if (window.innerWidth <= 768) {
+        if (window.closeMobileSidebar) {
+            window.closeMobileSidebar();
+        }
+    }
     
     // For mobile: scroll to show content immediately (above stats at bottom)
     const isMobile = window.innerWidth <= 768;
@@ -527,6 +713,53 @@ function buildRTODevicesTab(container) {
             }
         }
     }, 0);
+}
+
+/**
+ * Build Dashboard Tab (Overview)
+ */
+function buildDashboardTab(container) {
+    console.log('📊 Building dashboard tab...');
+    
+    window.currentTabRefresh = () => buildDashboardTab(
+        document.getElementById('dashboardTab')
+    );
+    
+    if (!container) {
+        console.warn('Container not found for dashboard');
+        return;
+    }
+    
+    // Build dashboard with stats
+    const html = `
+        <div class="dashboard-container">
+            <div class="page-header">
+                <h2>📊 Dashboard Overview</h2>
+                <p>Quick snapshot of repair shop operations</p>
+            </div>
+            <div id="dashboardStats"></div>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Populate stats (reuse existing buildStats function)
+    const statsDiv = document.getElementById('dashboardStats');
+    if (statsDiv && window.buildStats) {
+        // Move stats section content here
+        const statsSection = document.getElementById('statsSection');
+        if (statsSection && statsSection.innerHTML.trim()) {
+            statsDiv.innerHTML = statsSection.innerHTML;
+        } else {
+            buildStats();
+            // Copy stats after building
+            setTimeout(() => {
+                if (statsSection && statsSection.innerHTML.trim()) {
+                    statsDiv.innerHTML = statsSection.innerHTML;
+                }
+            }, 100);
+        }
+    }
 }
 
 /**
@@ -3989,5 +4222,224 @@ window.buildDailyRemittanceTab = buildDailyRemittanceTab;
 window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;
 window.buildTechnicianLogsTab = buildTechnicianLogsTab;
 window.selectTechnicianForLogs = selectTechnicianForLogs;
+
+// ===== RIGHT SIDEBAR MANAGEMENT =====
+
+// Configuration: Which tabs should show the right sidebar
+const RIGHT_SIDEBAR_CONFIG = {
+    'dashboard': {
+        showStats: true,
+        showControls: false,
+        title: 'Overview'
+    },
+    'all': {
+        showStats: true,
+        showControls: true,
+        title: 'All Repairs',
+        controls: [
+            { type: 'status-filter', label: 'Filter by Status' },
+            { type: 'date-range', label: 'Date Range' },
+            { type: 'customer-type', label: 'Customer Type' }
+        ]
+    },
+    'received': {
+        showStats: true,
+        showControls: true,
+        title: 'Received Devices',
+        controls: [
+            { type: 'date-filter', label: 'Received Date' }
+        ]
+    },
+    'inprogress': {
+        showStats: true,
+        showControls: true,
+        title: 'In Progress',
+        controls: [
+            { type: 'technician-filter', label: 'Assigned To' }
+        ]
+    },
+    'unpaid': {
+        showStats: true,
+        showControls: true,
+        title: 'Unpaid Repairs',
+        controls: [
+            { type: 'amount-range', label: 'Amount Range' }
+        ]
+    },
+    'pending': {
+        showStats: true,
+        showControls: true,
+        title: 'Pending Payments',
+        controls: [
+            { type: 'date-range', label: 'Date Range' }
+        ]
+    }
+};
+
+function updateRightSidebar(tabId) {
+    console.log('🎨 Updating right sidebar for tab:', tabId);
+    
+    const rightSidebar = document.getElementById('rightSidebar');
+    const config = RIGHT_SIDEBAR_CONFIG[tabId];
+    
+    if (!rightSidebar) {
+        console.warn('Right sidebar element not found');
+        return;
+    }
+    
+    // Hide if tab doesn't need right sidebar
+    if (!config) {
+        rightSidebar.style.display = 'none';
+        document.body.classList.remove('right-sidebar-visible');
+        return;
+    }
+    
+    // Show right sidebar
+    rightSidebar.style.display = 'block';
+    document.body.classList.add('right-sidebar-visible');
+    
+    // Update title
+    const titleEl = rightSidebar.querySelector('.sidebar-right-title');
+    if (titleEl) {
+        titleEl.textContent = config.title;
+    }
+    
+    // Populate stats section
+    if (config.showStats) {
+        populateRightSidebarStats(tabId);
+    } else {
+        const statsContainer = document.getElementById('rightSidebarStats');
+        if (statsContainer) statsContainer.innerHTML = '';
+    }
+    
+    // Populate controls section
+    if (config.showControls && config.controls) {
+        populateRightSidebarControls(tabId, config.controls);
+    } else {
+        const controlsContainer = document.getElementById('rightSidebarControls');
+        if (controlsContainer) controlsContainer.innerHTML = '';
+    }
+}
+
+function populateRightSidebarStats(tabId) {
+    const statsContainer = document.getElementById('rightSidebarStats');
+    if (!statsContainer) return;
+    
+    // Get relevant stats based on current data
+    const repairs = window.allRepairs || [];
+    
+    // Calculate live stats
+    const today = new Date().toISOString().split('T')[0];
+    const todayRepairs = repairs.filter(r => r.createdAt && r.createdAt.startsWith(today));
+    const todayRevenue = todayRepairs
+        .filter(r => r.paymentStatus === 'paid' && r.totalPaidAmount)
+        .reduce((sum, r) => sum + (parseFloat(r.totalPaidAmount) || 0), 0);
+    
+    const pendingCount = repairs.filter(r => r.paymentStatus === 'pending').length;
+    const inProgressCount = repairs.filter(r => r.status === 'in-progress').length;
+    
+    // Calculate overdue (devices that should have been released)
+    const overdueCount = repairs.filter(r => {
+        if (r.status === 'released' || r.status === 'claimed') return false;
+        if (!r.estimatedCompletion) return false;
+        const estDate = new Date(r.estimatedCompletion);
+        return estDate < new Date();
+    }).length;
+    
+    const statsHTML = `
+        <div class="right-sidebar-stat-card">
+            <span class="right-sidebar-stat-label">Today's Revenue</span>
+            <span class="right-sidebar-stat-value">₱${todayRevenue.toLocaleString()}</span>
+        </div>
+        <div class="right-sidebar-stat-card">
+            <span class="right-sidebar-stat-label">In Progress</span>
+            <span class="right-sidebar-stat-value">${inProgressCount}</span>
+        </div>
+        <div class="right-sidebar-stat-card">
+            <span class="right-sidebar-stat-label">Pending Payments</span>
+            <span class="right-sidebar-stat-value">${pendingCount}</span>
+        </div>
+        ${overdueCount > 0 ? `
+        <div class="right-sidebar-stat-card" style="background:var(--danger-light);">
+            <span class="right-sidebar-stat-label">⚠️ Overdue</span>
+            <span class="right-sidebar-stat-value" style="color:var(--danger);">${overdueCount}</span>
+        </div>
+        ` : ''}
+    `;
+    
+    statsContainer.innerHTML = statsHTML;
+}
+
+function populateRightSidebarControls(tabId, controls) {
+    const controlsContainer = document.getElementById('rightSidebarControls');
+    if (!controlsContainer) return;
+    
+    let controlsHTML = '<h4 style="margin:0 0 15px 0;font-size:14px;color:var(--text-secondary);">Filters & Controls</h4>';
+    
+    controls.forEach(control => {
+        switch(control.type) {
+            case 'status-filter':
+                controlsHTML += `
+                    <div class="control-group" style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Status</label>
+                        <select onchange="filterByStatus(this.value)" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
+                            <option value="all">All Statuses</option>
+                            <option value="received">Received</option>
+                            <option value="in-progress">In Progress</option>
+                            <option value="waiting-parts">Waiting Parts</option>
+                            <option value="ready">Ready</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                `;
+                break;
+            case 'date-range':
+                controlsHTML += `
+                    <div class="control-group" style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Date Range</label>
+                        <div style="display:flex;gap:8px;flex-direction:column;">
+                            <input type="date" placeholder="From" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
+                            <input type="date" placeholder="To" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
+                        </div>
+                    </div>
+                `;
+                break;
+            case 'customer-type':
+                controlsHTML += `
+                    <div class="control-group" style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Customer Type</label>
+                        <select style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
+                            <option value="all">All Types</option>
+                            <option value="walk-in">Walk-in</option>
+                            <option value="dealer">Dealer</option>
+                        </select>
+                    </div>
+                `;
+                break;
+            case 'technician-filter':
+                const technicians = window.allUsers?.filter(u => u.role === 'technician') || [];
+                let options = '<option value="all">All Technicians</option>';
+                technicians.forEach(tech => {
+                    options += `<option value="${tech.uid}">${tech.displayName}</option>`;
+                });
+                
+                controlsHTML += `
+                    <div class="control-group" style="margin-bottom:15px;">
+                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Assigned To</label>
+                        <select style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
+                            ${options}
+                        </select>
+                    </div>
+                `;
+                break;
+        }
+    });
+    
+    controlsContainer.innerHTML = controlsHTML;
+}
+
+// Export right sidebar functions
+window.updateRightSidebar = updateRightSidebar;
+window.RIGHT_SIDEBAR_CONFIG = RIGHT_SIDEBAR_CONFIG;
 
 console.log('✅ ui.js loaded');

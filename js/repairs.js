@@ -3975,6 +3975,26 @@ function closeReleaseDeviceModal() {
     serviceSlipPhoto = null;
 }
 
+// ===== FILTER AND SORT FUNCTIONS (Called from Right Sidebar) =====
+
+let currentFilters = {
+    status: 'all'
+};
+
+function filterByStatus(status) {
+    console.log('Filtering by status:', status);
+    currentFilters.status = status;
+    
+    // Refresh current tab with filter
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+// Export filter functions
+window.filterByStatus = filterByStatus;
+window.currentFilters = currentFilters;
+
 // Export to global scope
 window.loadRepairs = loadRepairs;
 window.submitReceiveDevice = submitReceiveDevice;
