@@ -199,9 +199,18 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
             r.payments && r.payments.some(p => !p.verified)
         );
         
-        const todayRevenue = window.allRepairs
+        // Calculate today's verified payments
+        const todayPayments = window.allRepairs
             .filter(r => r.payments && r.payments.some(p => new Date(p.paymentDate || p.date).toDateString() === today && p.verified))
             .reduce((sum, r) => sum + r.payments.filter(p => new Date(p.paymentDate || p.date).toDateString() === today && p.verified).reduce((s, p) => s + p.amount, 0), 0);
+        
+        // Calculate today's expenses from techExpenses
+        const todayExpenses = (window.techExpenses || [])
+            .filter(e => new Date(e.date).toDateString() === today)
+            .reduce((sum, e) => sum + e.amount, 0);
+        
+        // Net revenue = payments - expenses
+        const todayRevenue = todayPayments - todayExpenses;
         
         container.innerHTML = `
             <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view">
@@ -224,9 +233,10 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
                 <h3>${pendingPayments.length}</h3>
                 <p>⏳ Pending Payment</p>
             </div>
-            <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
+            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
                 <h3>₱${todayRevenue.toFixed(0)}</h3>
-                <p>💰 Today's Revenue</p>
+                <p>💰 Today's Net Revenue</p>
+                <small style="font-size:12px;color:#666;">₱${todayPayments.toFixed(0)} - ₱${todayExpenses.toFixed(0)}</small>
             </div>
         `;
     } catch (error) {
@@ -247,9 +257,18 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
             r.payments && r.payments.some(p => !p.verified)
         );
         
-        const todayRevenue = window.allRepairs
+        // Calculate today's verified payments
+        const todayPayments = window.allRepairs
             .filter(r => r.payments && r.payments.some(p => new Date(p.paymentDate || p.date).toDateString() === today && p.verified))
             .reduce((sum, r) => sum + r.payments.filter(p => new Date(p.paymentDate || p.date).toDateString() === today && p.verified).reduce((s, p) => s + p.amount, 0), 0);
+        
+        // Calculate today's expenses from techExpenses
+        const todayExpenses = (window.techExpenses || [])
+            .filter(e => new Date(e.date).toDateString() === today)
+            .reduce((sum, e) => sum + e.amount, 0);
+        
+        // Net revenue = payments - expenses
+        const todayRevenue = todayPayments - todayExpenses;
         
         container.innerHTML = `
             <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view received devices">
@@ -279,8 +298,8 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
             </div>
             <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
                 <h3>₱${todayRevenue.toFixed(0)}</h3>
-                <p>💰 Today's Revenue</p>
-                <small style="font-size:12px;color:#666;">Verified payments</small>
+                <p>💰 Today's Net Revenue</p>
+                <small style="font-size:12px;color:#666;">₱${todayPayments.toFixed(0)} - ₱${todayExpenses.toFixed(0)}</small>
             </div>
         `;
     } catch (error) {

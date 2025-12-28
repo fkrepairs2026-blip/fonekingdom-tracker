@@ -782,7 +782,7 @@ function displayRepairsInContainer(repairs, container) {
     }
     
     const role = window.currentUserData.role;
-    const hidePayments = role === 'technician';
+    const hidePaymentActions = role === 'technician';
     
     container.innerHTML = repairs.map(r => {
         const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
@@ -795,24 +795,22 @@ function displayRepairsInContainer(repairs, container) {
                 <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
                 <span class="status-badge status-${statusClass}">${r.status}</span>
                 ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
-                ${!hidePayments ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending' : 'Verified'}</span>` : ''}
+                ${!hidePaymentActions ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending' : 'Verified'}</span>` : ''}
                 ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
                 
                 <div class="repair-info">
                     <div><strong>Contact:</strong> ${r.contactNumber}</div>
                     <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
                     ${r.acceptedBy ? `<div><strong>Technician:</strong> ${r.acceptedByName}</div>` : ''}
-                    ${!hidePayments ? `
-                        <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
-                        <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
-                        <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-weight:bold;">₱${balance.toFixed(2)}</span></div>
-                    ` : '<div><strong>Amount:</strong> ***</div>'}
+                    <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
+                    <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
+                    <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-weight:bold;">₱${balance.toFixed(2)}</span></div>
                 </div>
                 
                 <div><strong>Problem:</strong> ${r.problem}</div>
                 
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
-                    ${!hidePayments && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
+                    ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
                     ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
                     ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">🔧 Parts Cost</button>` : ''}
@@ -828,7 +826,10 @@ function buildMyRepairsTab(container) {
     console.log('🔧 Building My Repairs tab');
     window.currentTabRefresh = () => buildMyRepairsTab(document.getElementById('myTab'));
     
-    const myRepairs = window.allRepairs.filter(r => r.acceptedBy === window.currentUser.uid);
+    const myRepairs = window.allRepairs.filter(r => 
+        r.acceptedBy === window.currentUser.uid && 
+        r.status !== 'Claimed'
+    );
     
     container.innerHTML = `
         <div class="card">

@@ -2828,6 +2828,7 @@ async function confirmReleaseDevice() {
     // Build release data
     const releaseData = {
         status: 'Claimed',
+        claimedAt: new Date().toISOString(),
         releaseDate: new Date().toISOString(),
         releasedBy: window.currentUserData.displayName,
         releasedById: window.currentUser.uid,
