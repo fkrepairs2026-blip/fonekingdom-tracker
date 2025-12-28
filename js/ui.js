@@ -1286,7 +1286,7 @@ function buildAdminToolsTab(container) {
             <!-- QUICK ACTIONS -->
             <div class="form-group" style="margin-top:20px;">
                 <h4 style="margin:0 0 10px;">⚡ Quick Actions</h4>
-                <button onclick="window.switchToTab('cash-count')" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
+                <button onclick="window.switchToTab('cash')" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
                     💵 Open Cash Count Tab
                 </button>
                 <button onclick="window.switchToTab('admin-logs')" class="btn btn-primary" style="width:100%;">
