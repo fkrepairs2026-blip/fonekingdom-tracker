@@ -397,66 +397,6 @@ body {
     overflow: hidden;
 }
 
-/* Right Sidebar (Contextual) */
-.sidebar-right {
-    position: fixed;
-    right: 0;
-    top: 60px; /* Below header */
-    width: 350px;
-    height: calc(100vh - 60px);
-    background: var(--bg-white);
-    border-left: 1px solid var(--border-color);
-    transition: transform 0.3s ease;
-    z-index: 850;
-    overflow-y: auto;
-    overflow-x: hidden;
-}
-
-.sidebar-right-header {
-    padding: 20px;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.sidebar-right-title {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--text-primary);
-    margin: 0;
-}
-
-.sidebar-right-section {
-    padding: 20px;
-}
-
-.sidebar-right-divider {
-    height: 1px;
-    background: var(--border-color);
-    margin: 0 20px;
-}
-
-/* Stats Widget in Right Sidebar */
-.right-sidebar-stat-card {
-    background: var(--bg-light);
-    padding: 15px;
-    border-radius: var(--radius-md);
-    margin-bottom: 12px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.right-sidebar-stat-label {
-    font-size: 13px;
-    color: var(--text-secondary);
-    font-weight: 500;
-}
-
-.right-sidebar-stat-value {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--primary);
-}
-
 /* Sidebar Overlay (Mobile) */
 .sidebar-overlay {
     display: none;
@@ -473,11 +413,10 @@ body {
     display: block;
 }
 
-/* Main Content Adjustment for Dual Sidebar */
+/* Main Content Adjustment for Single Sidebar */
 .main-content {
     margin-left: 250px;
-    margin-right: 0;
-    transition: margin-left 0.3s ease, margin-right 0.3s ease;
+    transition: margin-left 0.3s ease;
     padding: 20px;
     min-height: calc(100vh - 60px);
 }
@@ -487,9 +426,15 @@ body.left-sidebar-collapsed .main-content {
     margin-left: 60px;
 }
 
-/* When right sidebar visible */
-body.right-sidebar-visible .main-content {
-    margin-right: 350px;
+/* Stats container adjustment */
+.stats-container {
+    margin-left: 250px;
+    transition: margin-left 0.3s ease;
+    padding: 20px 20px 0 20px;
+}
+
+body.left-sidebar-collapsed .stats-container {
+    margin-left: 60px;
 }
 
 /* ===== MAIN APP ===== */
@@ -3450,7 +3395,7 @@ html {
     background: rgba(76, 175, 80, 0.15) !important;
 }
 
-/* ===== MOBILE DUAL SIDEBAR ===== */
+/* ===== MOBILE SIDEBAR ===== */
 @media (max-width: 768px) {
     /* Left Sidebar - Overlay on mobile */
     .sidebar-left {
@@ -3469,19 +3414,17 @@ html {
         width: 280px; /* Full width on mobile even when "collapsed" */
     }
     
-    /* Right Sidebar - Hidden on mobile */
-    .sidebar-right {
-        display: none !important;
-    }
-    
     .sidebar-overlay.active {
         display: block;
     }
     
     .main-content {
         margin-left: 0 !important;
-        margin-right: 0 !important;
         padding-bottom: 80px; /* Space for bottom nav */
+    }
+    
+    .stats-container {
+        margin-left: 0 !important;
     }
     
     .hamburger-btn {

@@ -349,11 +349,6 @@ function switchTab(tabId) {
     
     activeTab = tabId;
     
-    // Update right sidebar based on active tab
-    if (window.updateRightSidebar) {
-        window.updateRightSidebar(tabId);
-    }
-    
     // Close mobile sidebar if open
     if (window.innerWidth <= 768) {
         if (window.closeMobileSidebar) {
@@ -730,36 +725,78 @@ function buildDashboardTab(container) {
         return;
     }
     
-    // Build dashboard with stats
+    const role = window.currentUserData.role;
+    const userName = window.currentUserData.displayName;
+    
+    // Get recent activity
+    const repairs = window.allRepairs || [];
+    const recentRepairs = repairs
+        .filter(r => !r.deleted)
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 10);
+    
+    // Build clean dashboard with welcome and recent activity
     const html = `
         <div class="dashboard-container">
             <div class="page-header">
-                <h2>📊 Dashboard Overview</h2>
-                <p>Quick snapshot of repair shop operations</p>
+                <h2>👋 Welcome back, ${userName}!</h2>
+                <p style="color:var(--text-secondary);">Here's what's happening in your repair shop</p>
             </div>
-            <div id="dashboardStats"></div>
+            
+            <div style="margin-top:30px;">
+                <h3 style="margin-bottom:15px;color:var(--text-primary);">📋 Recent Activity</h3>
+                ${recentRepairs.length === 0 ? `
+                    <div style="text-align:center;padding:40px;color:var(--text-secondary);">
+                        <div style="font-size:48px;margin-bottom:10px;">📦</div>
+                        <p>No recent repairs yet. Start by receiving a device!</p>
+                    </div>
+                ` : `
+                    <div style="display:grid;gap:12px;">
+                        ${recentRepairs.map(repair => {
+                            const statusColors = {
+                                'received': 'var(--status-received)',
+                                'in-progress': 'var(--status-in-progress)',
+                                'waiting-parts': 'var(--status-waiting-parts)',
+                                'ready': 'var(--status-ready)',
+                                'completed': 'var(--status-completed)',
+                                'claimed': 'var(--status-claimed)',
+                                'rto': 'var(--status-rto)'
+                            };
+                            const statusColor = statusColors[repair.status] || 'var(--text-secondary)';
+                            
+                            return `
+                                <div style="background:var(--bg-white);border:1px solid var(--border-color);border-radius:10px;padding:15px;border-left:4px solid ${statusColor};">
+                                    <div style="display:flex;justify-content:space-between;align-items:start;">
+                                        <div>
+                                            <h4 style="margin:0 0 5px 0;">${repair.customerName}</h4>
+                                            <p style="margin:0;color:var(--text-secondary);font-size:14px;">${repair.deviceType} - ${repair.deviceModel || 'N/A'}</p>
+                                            <p style="margin:5px 0 0 0;color:var(--text-secondary);font-size:13px;">
+                                                ${repair.issueDescription ? repair.issueDescription.substring(0, 60) + (repair.issueDescription.length > 60 ? '...' : '') : 'No description'}
+                                            </p>
+                                        </div>
+                                        <div style="text-align:right;">
+                                            <span style="display:inline-block;padding:4px 12px;background:${statusColor};color:white;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;">
+                                                ${repair.status.replace('-', ' ')}
+                                            </span>
+                                            <p style="margin:8px 0 0 0;color:var(--text-secondary);font-size:12px;">
+                                                ${utils.daysAgo(repair.createdAt)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `}
+            </div>
+            
+            <div style="margin-top:30px;text-align:center;color:var(--text-secondary);">
+                <p>💡 View stats above or navigate using the sidebar →</p>
+            </div>
         </div>
     `;
     
     container.innerHTML = html;
-    
-    // Populate stats (reuse existing buildStats function)
-    const statsDiv = document.getElementById('dashboardStats');
-    if (statsDiv && window.buildStats) {
-        // Move stats section content here
-        const statsSection = document.getElementById('statsSection');
-        if (statsSection && statsSection.innerHTML.trim()) {
-            statsDiv.innerHTML = statsSection.innerHTML;
-        } else {
-            buildStats();
-            // Copy stats after building
-            setTimeout(() => {
-                if (statsSection && statsSection.innerHTML.trim()) {
-                    statsDiv.innerHTML = statsSection.innerHTML;
-                }
-            }, 100);
-        }
-    }
 }
 
 /**
@@ -4222,224 +4259,5 @@ window.buildDailyRemittanceTab = buildDailyRemittanceTab;
 window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;
 window.buildTechnicianLogsTab = buildTechnicianLogsTab;
 window.selectTechnicianForLogs = selectTechnicianForLogs;
-
-// ===== RIGHT SIDEBAR MANAGEMENT =====
-
-// Configuration: Which tabs should show the right sidebar
-const RIGHT_SIDEBAR_CONFIG = {
-    'dashboard': {
-        showStats: true,
-        showControls: false,
-        title: 'Overview'
-    },
-    'all': {
-        showStats: true,
-        showControls: true,
-        title: 'All Repairs',
-        controls: [
-            { type: 'status-filter', label: 'Filter by Status' },
-            { type: 'date-range', label: 'Date Range' },
-            { type: 'customer-type', label: 'Customer Type' }
-        ]
-    },
-    'received': {
-        showStats: true,
-        showControls: true,
-        title: 'Received Devices',
-        controls: [
-            { type: 'date-filter', label: 'Received Date' }
-        ]
-    },
-    'inprogress': {
-        showStats: true,
-        showControls: true,
-        title: 'In Progress',
-        controls: [
-            { type: 'technician-filter', label: 'Assigned To' }
-        ]
-    },
-    'unpaid': {
-        showStats: true,
-        showControls: true,
-        title: 'Unpaid Repairs',
-        controls: [
-            { type: 'amount-range', label: 'Amount Range' }
-        ]
-    },
-    'pending': {
-        showStats: true,
-        showControls: true,
-        title: 'Pending Payments',
-        controls: [
-            { type: 'date-range', label: 'Date Range' }
-        ]
-    }
-};
-
-function updateRightSidebar(tabId) {
-    console.log('🎨 Updating right sidebar for tab:', tabId);
-    
-    const rightSidebar = document.getElementById('rightSidebar');
-    const config = RIGHT_SIDEBAR_CONFIG[tabId];
-    
-    if (!rightSidebar) {
-        console.warn('Right sidebar element not found');
-        return;
-    }
-    
-    // Hide if tab doesn't need right sidebar
-    if (!config) {
-        rightSidebar.style.display = 'none';
-        document.body.classList.remove('right-sidebar-visible');
-        return;
-    }
-    
-    // Show right sidebar
-    rightSidebar.style.display = 'block';
-    document.body.classList.add('right-sidebar-visible');
-    
-    // Update title
-    const titleEl = rightSidebar.querySelector('.sidebar-right-title');
-    if (titleEl) {
-        titleEl.textContent = config.title;
-    }
-    
-    // Populate stats section
-    if (config.showStats) {
-        populateRightSidebarStats(tabId);
-    } else {
-        const statsContainer = document.getElementById('rightSidebarStats');
-        if (statsContainer) statsContainer.innerHTML = '';
-    }
-    
-    // Populate controls section
-    if (config.showControls && config.controls) {
-        populateRightSidebarControls(tabId, config.controls);
-    } else {
-        const controlsContainer = document.getElementById('rightSidebarControls');
-        if (controlsContainer) controlsContainer.innerHTML = '';
-    }
-}
-
-function populateRightSidebarStats(tabId) {
-    const statsContainer = document.getElementById('rightSidebarStats');
-    if (!statsContainer) return;
-    
-    // Get relevant stats based on current data
-    const repairs = window.allRepairs || [];
-    
-    // Calculate live stats
-    const today = new Date().toISOString().split('T')[0];
-    const todayRepairs = repairs.filter(r => r.createdAt && r.createdAt.startsWith(today));
-    const todayRevenue = todayRepairs
-        .filter(r => r.paymentStatus === 'paid' && r.totalPaidAmount)
-        .reduce((sum, r) => sum + (parseFloat(r.totalPaidAmount) || 0), 0);
-    
-    const pendingCount = repairs.filter(r => r.paymentStatus === 'pending').length;
-    const inProgressCount = repairs.filter(r => r.status === 'in-progress').length;
-    
-    // Calculate overdue (devices that should have been released)
-    const overdueCount = repairs.filter(r => {
-        if (r.status === 'released' || r.status === 'claimed') return false;
-        if (!r.estimatedCompletion) return false;
-        const estDate = new Date(r.estimatedCompletion);
-        return estDate < new Date();
-    }).length;
-    
-    const statsHTML = `
-        <div class="right-sidebar-stat-card">
-            <span class="right-sidebar-stat-label">Today's Revenue</span>
-            <span class="right-sidebar-stat-value">₱${todayRevenue.toLocaleString()}</span>
-        </div>
-        <div class="right-sidebar-stat-card">
-            <span class="right-sidebar-stat-label">In Progress</span>
-            <span class="right-sidebar-stat-value">${inProgressCount}</span>
-        </div>
-        <div class="right-sidebar-stat-card">
-            <span class="right-sidebar-stat-label">Pending Payments</span>
-            <span class="right-sidebar-stat-value">${pendingCount}</span>
-        </div>
-        ${overdueCount > 0 ? `
-        <div class="right-sidebar-stat-card" style="background:var(--danger-light);">
-            <span class="right-sidebar-stat-label">⚠️ Overdue</span>
-            <span class="right-sidebar-stat-value" style="color:var(--danger);">${overdueCount}</span>
-        </div>
-        ` : ''}
-    `;
-    
-    statsContainer.innerHTML = statsHTML;
-}
-
-function populateRightSidebarControls(tabId, controls) {
-    const controlsContainer = document.getElementById('rightSidebarControls');
-    if (!controlsContainer) return;
-    
-    let controlsHTML = '<h4 style="margin:0 0 15px 0;font-size:14px;color:var(--text-secondary);">Filters & Controls</h4>';
-    
-    controls.forEach(control => {
-        switch(control.type) {
-            case 'status-filter':
-                controlsHTML += `
-                    <div class="control-group" style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Status</label>
-                        <select onchange="filterByStatus(this.value)" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
-                            <option value="all">All Statuses</option>
-                            <option value="received">Received</option>
-                            <option value="in-progress">In Progress</option>
-                            <option value="waiting-parts">Waiting Parts</option>
-                            <option value="ready">Ready</option>
-                            <option value="completed">Completed</option>
-                        </select>
-                    </div>
-                `;
-                break;
-            case 'date-range':
-                controlsHTML += `
-                    <div class="control-group" style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Date Range</label>
-                        <div style="display:flex;gap:8px;flex-direction:column;">
-                            <input type="date" placeholder="From" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
-                            <input type="date" placeholder="To" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
-                        </div>
-                    </div>
-                `;
-                break;
-            case 'customer-type':
-                controlsHTML += `
-                    <div class="control-group" style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Customer Type</label>
-                        <select style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
-                            <option value="all">All Types</option>
-                            <option value="walk-in">Walk-in</option>
-                            <option value="dealer">Dealer</option>
-                        </select>
-                    </div>
-                `;
-                break;
-            case 'technician-filter':
-                const technicians = window.allUsers?.filter(u => u.role === 'technician') || [];
-                let options = '<option value="all">All Technicians</option>';
-                technicians.forEach(tech => {
-                    options += `<option value="${tech.uid}">${tech.displayName}</option>`;
-                });
-                
-                controlsHTML += `
-                    <div class="control-group" style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:8px;font-size:13px;font-weight:600;">Assigned To</label>
-                        <select style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--border-color);">
-                            ${options}
-                        </select>
-                    </div>
-                `;
-                break;
-        }
-    });
-    
-    controlsContainer.innerHTML = controlsHTML;
-}
-
-// Export right sidebar functions
-window.updateRightSidebar = updateRightSidebar;
-window.RIGHT_SIDEBAR_CONFIG = RIGHT_SIDEBAR_CONFIG;
 
 console.log('✅ ui.js loaded');

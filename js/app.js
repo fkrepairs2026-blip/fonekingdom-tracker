@@ -543,10 +543,10 @@ function closeMobileSidebar() {
 }
 
 /**
- * Restore sidebar states on load
+ * Restore sidebar state on load
  */
 function initSidebar() {
-    console.log('🎨 Initializing dual sidebar layout...');
+    console.log('🎨 Initializing sidebar layout...');
     
     // Restore left sidebar state
     const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
@@ -557,10 +557,7 @@ function initSidebar() {
         document.body.classList.add('left-sidebar-collapsed');
     }
     
-    // Right sidebar visibility will be controlled by updateRightSidebar()
-    // when switching tabs
-    
-    console.log('✅ Dual sidebar initialized');
+    console.log('✅ Sidebar initialized');
 }
 
 // Export to global scope
