@@ -153,15 +153,19 @@ function buildStats() {
             r.status === 'Ready for Pickup' || r.status === 'Completed'
         ).length;
         
-        console.log('Stats calculated:', { receivedDevices, inProgress, forRelease });
+        const rtoDevices = window.allRepairs.filter(r => 
+            r.status === 'RTO' && !r.claimedAt
+        ).length;
+        
+        console.log('Stats calculated:', { receivedDevices, inProgress, forRelease, rtoDevices });
         
         // Build role-specific stats
         if (role === 'cashier') {
-            buildCashierStats(statsSection, receivedDevices, inProgress, forRelease);
+            buildCashierStats(statsSection, receivedDevices, inProgress, forRelease, rtoDevices);
         } else if (role === 'admin' || role === 'manager') {
-            buildAdminStats(statsSection, receivedDevices, inProgress, forRelease);
+            buildAdminStats(statsSection, receivedDevices, inProgress, forRelease, rtoDevices);
         } else if (role === 'technician') {
-            buildTechnicianStats(statsSection, receivedDevices, inProgress, forRelease);
+            buildTechnicianStats(statsSection, receivedDevices, inProgress, forRelease, rtoDevices);
         } else {
             console.warn('⚠️ Unknown role:', role);
             // Default stats for unknown role
@@ -194,7 +198,7 @@ function buildStats() {
 /**
  * Build cashier stats
  */
-function buildCashierStats(container, receivedCount, inProgressCount, forReleaseCount) {
+function buildCashierStats(container, receivedCount, inProgressCount, forReleaseCount, rtoCount) {
     try {
         const today = new Date().toDateString();
         
@@ -237,6 +241,10 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
                 <h3>${forReleaseCount}</h3>
                 <p>📦 For Release</p>
             </div>
+            <div class="stat-card" onclick="switchTab('rto')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view RTO devices">
+                <h3>${rtoCount}</h3>
+                <p>↩️ RTO Devices</p>
+            </div>
             <div class="stat-card" style="background:#ffebee;border-left:4px solid #f44336;">
                 <h3>${unpaidRepairs.length}</h3>
                 <p>💳 Unpaid</p>
@@ -259,7 +267,7 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
 /**
  * Build admin/manager stats
  */
-function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCount) {
+function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCount, rtoCount) {
     try {
         const today = new Date().toDateString();
         
@@ -302,6 +310,11 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
                 <p>📦 For Release</p>
                 <small style="font-size:12px;color:#666;">Ready for pickup</small>
             </div>
+            <div class="stat-card" onclick="switchTab('rto')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view RTO devices">
+                <h3>${rtoCount}</h3>
+                <p>↩️ RTO Devices</p>
+                <small style="font-size:12px;color:#666;">Return to owner</small>
+            </div>
             <div class="stat-card" style="background:#c8e6c9;border-left:4px solid #2e7d32;">
                 <h3>${completed}</h3>
                 <p>✅ Completed</p>
@@ -326,7 +339,7 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
 /**
  * Build technician stats
  */
-function buildTechnicianStats(container, receivedCount, inProgressCount, forReleaseCount) {
+function buildTechnicianStats(container, receivedCount, inProgressCount, forReleaseCount, rtoCount) {
     try {
         console.log('🔧 Building technician stats');
         
@@ -364,6 +377,11 @@ function buildTechnicianStats(container, receivedCount, inProgressCount, forRele
                 <h3>${myReady}</h3>
                 <p>✅ My Ready</p>
                 <small style="font-size:12px;color:#666;">Done, for pickup</small>
+            </div>
+            <div class="stat-card" onclick="switchTab('rto')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view RTO devices">
+                <h3>${rtoCount}</h3>
+                <p>↩️ RTO Devices</p>
+                <small style="font-size:12px;color:#666;">Return to owner</small>
             </div>
             <div class="stat-card" style="background:#c8e6c9;border-left:4px solid #2e7d32;">
                 <h3>${myCompleted}</h3>

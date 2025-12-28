@@ -917,7 +917,7 @@ async function updateRepairStatus(repairId) {
         
         <div class="form-group">
             <label>New Status *</label>
-            <select id="newStatus">
+            <select id="newStatus" onchange="toggleRTOFields()">
                 <option value="">Select Status</option>
                 <option value="Received">Received</option>
                 <option value="In Progress">In Progress</option>
@@ -925,12 +925,40 @@ async function updateRepairStatus(repairId) {
                 <option value="Ready for Pickup">Ready for Pickup</option>
                 <option value="Completed">Completed</option>
                 ${isMicrosoldering ? '<option value="Unsuccessful">Unsuccessful</option>' : ''}
-                <option value="RTO">RTO</option>
+                <option value="RTO">RTO (Return to Owner)</option>
             </select>
         </div>
         
+        <div id="rtoFields" style="display:none;background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
+            <h4 style="margin:0 0 15px;color:#e65100;">↩️ RTO Information</h4>
+            
+            <div class="form-group">
+                <label>RTO Reason *</label>
+                <select id="rtoReason">
+                    <option value="">Select reason</option>
+                    <option value="Unable to repair">Unable to repair (technical limitation)</option>
+                    <option value="Parts unavailable">Parts unavailable or too expensive</option>
+                    <option value="Customer declined cost">Customer declined after seeing cost</option>
+                    <option value="Not economical">Repair cost exceeds device value</option>
+                    <option value="Customer changed mind">Customer changed mind / no longer wants repair</option>
+                    <option value="Other">Other reason</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Additional Notes</label>
+                <textarea id="rtoNotes" rows="3" placeholder="Explain the situation..."></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Diagnosis Fee (₱)</label>
+                <input type="number" id="diagnosisFee" min="0" step="0.01" value="0" placeholder="0.00">
+                <small style="color:#666;display:block;margin-top:5px;">Leave as 0 if no fee will be charged</small>
+            </div>
+        </div>
+        
         <div class="form-group">
-            <label>Notes (Optional)</label>
+            <label>General Notes (Optional)</label>
             <textarea id="statusNotes" rows="3" placeholder="Notes..."></textarea>
         </div>
         
@@ -938,6 +966,18 @@ async function updateRepairStatus(repairId) {
     `;
     
     document.getElementById('statusModal').style.display = 'block';
+}
+
+/**
+ * Toggle RTO-specific fields
+ */
+function toggleRTOFields() {
+    const newStatus = document.getElementById('newStatus').value;
+    const rtoFields = document.getElementById('rtoFields');
+    
+    if (rtoFields) {
+        rtoFields.style.display = newStatus === 'RTO' ? 'block' : 'none';
+    }
 }
 
 /**
@@ -950,6 +990,76 @@ async function saveStatus(repairId) {
     if (!newStatus) {
         alert('Please select a status');
         return;
+    }
+    
+    // Handle RTO status with additional validation and data
+    if (newStatus === 'RTO') {
+        const rtoReason = document.getElementById('rtoReason').value;
+        const rtoNotes = document.getElementById('rtoNotes').value;
+        const diagnosisFee = parseFloat(document.getElementById('diagnosisFee').value) || 0;
+        
+        if (!rtoReason) {
+            alert('⚠️ Please select an RTO reason');
+            return;
+        }
+        
+        try {
+            utils.showLoading(true);
+            
+            const repair = window.allRepairs.find(r => r.id === repairId);
+            const existingNotes = repair.notes || [];
+            
+            const update = {
+                status: 'RTO',
+                rtoReason: rtoReason,
+                rtoDate: new Date().toISOString(),
+                rtoSetBy: window.currentUser.uid,
+                rtoSetByName: window.currentUserData.displayName,
+                rtoNotes: rtoNotes || '',
+                diagnosisFee: diagnosisFee,
+                rtoPaymentStatus: diagnosisFee > 0 ? 'pending' : 'waived',
+                lastUpdated: new Date().toISOString(),
+                lastUpdatedBy: window.currentUserData.displayName
+            };
+            
+            if (notes) {
+                update.notes = [...existingNotes, {
+                    text: notes,
+                    by: window.currentUserData.displayName,
+                    date: new Date().toISOString()
+                }];
+            }
+            
+            await db.ref('repairs/' + repairId).update(update);
+            
+            // Log the RTO action
+            await logActivity('device_marked_rto', 'repair', {
+                repairId: repairId,
+                customerName: repair.customerName,
+                rtoReason: rtoReason,
+                diagnosisFee: diagnosisFee
+            });
+            
+            utils.showLoading(false);
+            alert(`✅ Device set to RTO!\n\nReason: ${rtoReason}\n${diagnosisFee > 0 ? `Diagnosis Fee: ₱${diagnosisFee.toFixed(2)}` : 'No diagnosis fee'}\n\nDevice moved to RTO Devices tab.`);
+            closeStatusModal();
+            
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+                if (window.buildStats) {
+                    window.buildStats();
+                }
+            }, 300);
+            
+            return;
+        } catch (error) {
+            utils.showLoading(false);
+            console.error('Error:', error);
+            alert('Error: ' + error.message);
+            return;
+        }
     }
     
     // Auto-transition: Completed → Ready for Pickup
@@ -4041,6 +4151,333 @@ async function adminUnreleaseDevice(repairId) {
 // Admin correction functions exports
 window.adminAddPaymentToReleased = adminAddPaymentToReleased;
 window.adminUnreleaseDevice = adminUnreleaseDevice;
+
+/**
+ * ============================================
+ * RTO DEVICE FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * Release RTO device to customer
+ */
+async function releaseRTODevice(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    if (repair.status !== 'RTO') {
+        alert('⚠️ This device is not marked as RTO');
+        return;
+    }
+    
+    // Check diagnosis fee status
+    const diagnosisFee = repair.diagnosisFee || 0;
+    const rtoPaymentStatus = repair.rtoPaymentStatus || 'waived';
+    
+    if (diagnosisFee > 0 && rtoPaymentStatus !== 'paid') {
+        alert('⚠️ Please collect diagnosis fee before releasing device\n\nFee: ₱' + diagnosisFee.toFixed(2));
+        return;
+    }
+    
+    // Confirm customer details
+    const customerName = prompt(
+        `↩️ RETURN RTO DEVICE TO CUSTOMER\n\n` +
+        `Device: ${repair.brand} ${repair.model}\n` +
+        `RTO Reason: ${repair.rtoReason}\n` +
+        `${diagnosisFee > 0 ? `Diagnosis Fee: ₱${diagnosisFee.toFixed(2)} (Paid)\n` : 'No diagnosis fee'}\n\n` +
+        `Confirm customer name:`
+    );
+    
+    if (!customerName) return;
+    
+    if (customerName.toLowerCase().trim() !== repair.customerName.toLowerCase().trim()) {
+        const proceed = confirm(
+            `⚠️ Name Mismatch!\n\n` +
+            `Expected: ${repair.customerName}\n` +
+            `Entered: ${customerName}\n\n` +
+            `Continue anyway?`
+        );
+        if (!proceed) return;
+    }
+    
+    // Optional release notes
+    const releaseNotes = prompt('Optional release notes:') || '';
+    
+    // Final confirmation
+    const confirmed = confirm(
+        `✅ Confirm Release?\n\n` +
+        `Returning device to: ${repair.customerName}\n` +
+        `Device: ${repair.brand} ${repair.model}\n\n` +
+        `This will mark the device as returned and move it to Claimed Units.`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        const releaseData = {
+            claimedAt: new Date().toISOString(),
+            claimedBy: window.currentUser.uid,
+            claimedByName: window.currentUserData.displayName,
+            releaseDate: new Date().toISOString(),
+            releasedBy: window.currentUserData.displayName,
+            releasedById: window.currentUser.uid,
+            releaseNotes: releaseNotes || `RTO device returned to customer. Reason: ${repair.rtoReason}`,
+            rtoReleased: true,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        };
+        
+        await db.ref(`repairs/${repairId}`).update(releaseData);
+        
+        // Log the release
+        await logActivity('rto_device_released', 'repair', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            rtoReason: repair.rtoReason,
+            diagnosisFee: diagnosisFee
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ RTO Device Returned!\n\nDevice returned to: ${repair.customerName}\n\nMoved to Claimed Units.`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error releasing RTO device:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Add diagnosis fee to RTO device
+ */
+async function addRTODiagnosisFee(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    if (repair.status !== 'RTO') {
+        alert('⚠️ This device is not marked as RTO');
+        return;
+    }
+    
+    if (repair.diagnosisFee && repair.diagnosisFee > 0) {
+        alert('⚠️ Diagnosis fee already set\n\nUse "Collect Fee" button to record payment');
+        return;
+    }
+    
+    const amount = prompt(
+        `💵 SET DIAGNOSIS FEE\n\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Device: ${repair.brand} ${repair.model}\n` +
+        `RTO Reason: ${repair.rtoReason}\n\n` +
+        `Enter diagnosis fee amount (₱):`
+    );
+    
+    if (!amount) return;
+    
+    const feeAmount = parseFloat(amount);
+    if (isNaN(feeAmount) || feeAmount <= 0) {
+        alert('⚠️ Invalid amount');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        await db.ref(`repairs/${repairId}`).update({
+            diagnosisFee: feeAmount,
+            rtoPaymentStatus: 'pending',
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Diagnosis Fee Set!\n\n₱${feeAmount.toFixed(2)}\n\nStatus: Pending payment`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error setting diagnosis fee:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Collect diagnosis fee for RTO device
+ */
+async function collectRTODiagnosisFee(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    if (repair.status !== 'RTO') {
+        alert('⚠️ This device is not marked as RTO');
+        return;
+    }
+    
+    const diagnosisFee = repair.diagnosisFee || 0;
+    if (diagnosisFee <= 0) {
+        alert('⚠️ No diagnosis fee set for this device');
+        return;
+    }
+    
+    if (repair.rtoPaymentStatus === 'paid') {
+        alert('✅ Diagnosis fee already paid');
+        return;
+    }
+    
+    const paymentMethod = prompt(
+        `💰 COLLECT DIAGNOSIS FEE\n\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Amount: ₱${diagnosisFee.toFixed(2)}\n\n` +
+        `Payment method:\n` +
+        `1 = Cash\n` +
+        `2 = GCash\n` +
+        `3 = Bank Transfer\n` +
+        `4 = Card\n\n` +
+        `Enter 1-4:`
+    );
+    
+    if (!paymentMethod) return;
+    
+    const methodMap = { '1': 'Cash', '2': 'GCash', '3': 'Bank Transfer', '4': 'Card' };
+    const method = methodMap[paymentMethod] || 'Cash';
+    
+    try {
+        utils.showLoading(true);
+        
+        await db.ref(`repairs/${repairId}`).update({
+            rtoPaymentStatus: 'paid',
+            rtoPaymentMethod: method,
+            rtoPaymentDate: new Date().toISOString(),
+            rtoPaymentCollectedBy: window.currentUserData.displayName,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log the fee collection
+        await logActivity('rto_diagnosis_fee_recorded', 'financial', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            amount: diagnosisFee,
+            paymentMethod: method
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Diagnosis Fee Collected!\n\n₱${diagnosisFee.toFixed(2)} (${method})\n\nDevice ready to be returned to customer.`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error collecting diagnosis fee:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Revert RTO status back to In Progress (Admin only)
+ */
+async function revertRTOStatus(repairId) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    if (repair.status !== 'RTO') {
+        alert('⚠️ This device is not marked as RTO');
+        return;
+    }
+    
+    const reason = prompt(
+        `🔄 REVERT RTO STATUS\n\n` +
+        `Device: ${repair.brand} ${repair.model}\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Current RTO Reason: ${repair.rtoReason}\n\n` +
+        `This will change status back to "In Progress"\n\n` +
+        `Reason for reverting:`
+    );
+    
+    if (!reason || !reason.trim()) {
+        return; // User cancelled
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Keep RTO history but change status
+        await db.ref(`repairs/${repairId}`).update({
+            status: 'In Progress',
+            rtoReverted: true,
+            rtoRevertedAt: new Date().toISOString(),
+            rtoRevertedBy: window.currentUserData.displayName,
+            rtoRevertReason: reason,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName,
+            adminNote: `[ADMIN] Reverted from RTO on ${utils.formatDateTime(new Date().toISOString())}. Reason: ${reason}`
+        });
+        
+        utils.showLoading(false);
+        alert(`✅ Status Reverted!\n\nDevice moved back to "In Progress"\n\nRTO history preserved for records.`);
+        
+        // Reload and refresh
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error reverting RTO status:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// RTO functions exports
+window.releaseRTODevice = releaseRTODevice;
+window.addRTODiagnosisFee = addRTODiagnosisFee;
+window.collectRTODiagnosisFee = collectRTODiagnosisFee;
+window.revertRTOStatus = revertRTOStatus;
+window.toggleRTOFields = toggleRTOFields;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
 window.closePartsCostModal = closePartsCostModal;

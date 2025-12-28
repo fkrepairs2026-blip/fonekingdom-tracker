@@ -15,6 +15,7 @@ function buildTabs() {
     availableTabs.push({ id: 'received', label: '📥 Received Devices', build: buildReceivedDevicesPage });
     availableTabs.push({ id: 'inprogress', label: '🔧 In Progress', build: buildInProgressPage });
     availableTabs.push({ id: 'forrelease', label: '📦 For Release', build: buildForReleasePage });
+    availableTabs.push({ id: 'rto', label: '↩️ RTO Devices', build: buildRTODevicesTab });
 
     availableTabs.push({ id: 'claimed', label: '✅ Claimed Units', build: buildClaimedUnitsPage });
     
@@ -382,6 +383,131 @@ function buildForReleasePage(container) {
                             <button onclick="openReleaseDeviceModal('${r.id}')" class="btn-success" style="width:100%;font-size:16px;padding:14px;">
                                 📦 Release Device to Customer
                             </button>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+    }, 0);
+}
+
+/**
+ * Build RTO Devices Tab (SHARED - Everyone can access)
+ */
+function buildRTODevicesTab(container) {
+    console.log('↩️ Building RTO Devices tab');
+    window.currentTabRefresh = () => buildRTODevicesTab(document.getElementById('rtoTab'));
+    
+    const rtoDevices = window.allRepairs.filter(r => r.status === 'RTO' && !r.claimedAt);
+    
+    // Sort by RTO date (most recent first)
+    rtoDevices.sort((a, b) => new Date(b.rtoDate || b.lastUpdated) - new Date(a.rtoDate || a.lastUpdated));
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>↩️ Return to Owner - RTO Devices (${rtoDevices.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Devices that cannot be repaired or customer declined repair</p>
+            <div id="rtoDevicesList"></div>
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const listContainer = document.getElementById('rtoDevicesList');
+        if (listContainer) {
+            if (rtoDevices.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No RTO devices at this time</p>';
+            } else {
+                listContainer.innerHTML = rtoDevices.map(r => {
+                    const rtoDate = r.rtoDate || r.lastUpdated;
+                    const daysSinceRTO = Math.floor((new Date() - new Date(rtoDate)) / (1000 * 60 * 60 * 24));
+                    
+                    // Check diagnosis fee status
+                    const diagnosisFee = r.diagnosisFee || 0;
+                    const rtoPaymentStatus = r.rtoPaymentStatus || 'waived';
+                    const hasFee = diagnosisFee > 0;
+                    const isPaid = rtoPaymentStatus === 'paid' || rtoPaymentStatus === 'waived';
+                    
+                    // Role-based actions
+                    const canRelease = ['admin', 'manager', 'cashier'].includes(window.currentUserData.role);
+                    const canAddFee = ['admin', 'manager', 'cashier'].includes(window.currentUserData.role);
+                    const canRevertStatus = ['admin'].includes(window.currentUserData.role);
+                    
+                    return `
+                        <div class="repair-card rto-card" style="border-left:4px solid #ff9800;">
+                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+                                <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''}</h4>
+                                <span class="status-badge" style="background:#ff9800;color:white;">↩️ RTO</span>
+                            </div>
+                            
+                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;margin-right:5px;">🔄 Back Job</span>' : ''}
+                            
+                            <div class="repair-info" style="margin:15px 0;">
+                                <div><strong>Device:</strong> ${r.brand} ${r.model}</div>
+                                <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                                <div><strong>Problem:</strong> ${r.problemDescription || 'N/A'}</div>
+                            </div>
+                            
+                            ${r.rtoReason ? `
+                                <div style="background:#fff3cd;padding:10px;border-radius:5px;margin:10px 0;border-left:4px solid #ff9800;">
+                                    <strong>RTO Reason:</strong> ${r.rtoReason}
+                                    ${r.rtoNotes ? `<div style="margin-top:5px;font-size:13px;color:#666;">${r.rtoNotes}</div>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            <div style="background:#f8f9fa;padding:10px;border-radius:5px;margin:10px 0;">
+                                <div style="font-size:13px;color:#666;">
+                                    <div><strong>Set to RTO:</strong> ${utils.formatDateTime(rtoDate)} (${daysSinceRTO} day${daysSinceRTO !== 1 ? 's' : ''} ago)</div>
+                                    ${r.rtoSetByName ? `<div><strong>Set by:</strong> ${r.rtoSetByName}</div>` : ''}
+                                </div>
+                            </div>
+                            
+                            ${hasFee ? `
+                                <div style="background:${isPaid ? '#e8f5e9' : '#ffebee'};padding:12px;border-radius:8px;margin:15px 0;border-left:4px solid ${isPaid ? '#4caf50' : '#f44336'};">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                                        <span style="font-weight:600;">Diagnosis Fee:</span>
+                                        <span style="font-size:16px;font-weight:700;color:${isPaid ? '#2e7d32' : '#c62828'};">
+                                            ₱${diagnosisFee.toFixed(2)} ${isPaid ? '✅ PAID' : '⚠️ UNPAID'}
+                                        </span>
+                                    </div>
+                                    ${r.rtoPaymentDate ? `<div style="font-size:12px;color:#666;margin-top:5px;">Paid: ${utils.formatDateTime(r.rtoPaymentDate)}</div>` : ''}
+                                </div>
+                            ` : `
+                                <div style="background:#f1f8e9;padding:10px;border-radius:5px;margin:10px 0;text-align:center;">
+                                    <small style="color:#558b2f;">No diagnosis fee charged</small>
+                                </div>
+                            `}
+                            
+                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px;">
+                                ${canAddFee && hasFee && !isPaid ? `
+                                    <button onclick="collectRTODiagnosisFee('${r.id}')" class="btn btn-primary" style="flex:1;min-width:150px;">
+                                        💰 Collect Fee
+                                    </button>
+                                ` : ''}
+                                
+                                ${canAddFee && !hasFee ? `
+                                    <button onclick="addRTODiagnosisFee('${r.id}')" class="btn btn-secondary" style="flex:1;min-width:150px;">
+                                        💵 Add Diagnosis Fee
+                                    </button>
+                                ` : ''}
+                                
+                                ${canRelease && (!hasFee || isPaid) ? `
+                                    <button onclick="releaseRTODevice('${r.id}')" class="btn btn-success" style="flex:1;min-width:200px;font-weight:bold;">
+                                        ↩️ Return to Customer
+                                    </button>
+                                ` : ''}
+                                
+                                ${canRelease && hasFee && !isPaid ? `
+                                    <button class="btn btn-secondary" disabled style="flex:1;min-width:200px;">
+                                        ⚠️ Collect Fee First
+                                    </button>
+                                ` : ''}
+                                
+                                ${canRevertStatus ? `
+                                    <button onclick="revertRTOStatus('${r.id}')" class="btn btn-warning" style="padding:10px 15px;">
+                                        🔄 Revert to In Progress
+                                    </button>
+                                ` : ''}
+                            </div>
                         </div>
                     `;
                 }).join('');

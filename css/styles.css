@@ -531,9 +531,9 @@ body {
 }
 
 .status-rto { 
-    background: #f44336; 
+    background: #ff9800; 
     color: white; 
-    border: 1px solid #c62828;
+    border: 1px solid #f57c00;
 }
 
 .status-unsuccessful { 
@@ -568,6 +568,72 @@ body {
 .badge-manager { background: #ff9800; color: white; }
 .badge-technician { background: #2196f3; color: white; }
 .badge-cashier { background: #4caf50; color: white; }
+
+/* ===== RTO-SPECIFIC STYLES ===== */
+.rto-card {
+    background: #fff3e0;
+    border-left-color: #ff9800 !important;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.1);
+}
+
+.rto-card:hover {
+    background: #ffe0b2;
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.15);
+}
+
+.diagnosis-fee-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 5px 0;
+}
+
+.diagnosis-fee-paid {
+    background: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #4caf50;
+}
+
+.diagnosis-fee-unpaid {
+    background: #ffebee;
+    color: #c62828;
+    border: 1px solid #f44336;
+}
+
+.diagnosis-fee-waived {
+    background: #f1f8e9;
+    color: #558b2f;
+    border: 1px solid #8bc34a;
+}
+
+.rto-reason-badge {
+    display: inline-block;
+    padding: 10px 15px;
+    background: #fff3cd;
+    border-left: 4px solid #ff9800;
+    border-radius: 5px;
+    margin: 10px 0;
+    font-size: 13px;
+    color: #856404;
+    line-height: 1.5;
+}
+
+.rto-reason-badge strong {
+    color: #e65100;
+    font-weight: 600;
+}
+
+/* RTO Tab specific */
+#rtoTab .repair-card {
+    border-left-color: #ff9800;
+}
+
+#rtoTab .status-badge {
+    background: #ff9800;
+    color: white;
+}
 
 /* ===== FORMS ===== */
 .form-group {
