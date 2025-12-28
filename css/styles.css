@@ -2571,10 +2571,21 @@ html {
 /* Dark mode diagnosis badges */
 [data-theme="dark"] .diagnosis-fee-paid {
     background: var(--status-ready-bg);
+    color: var(--text-primary);
 }
 
 [data-theme="dark"] .diagnosis-fee-unpaid {
     background: var(--status-unsuccessful-bg);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .diagnosis-fee-waived {
+    background: var(--status-ready-bg);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .diagnosis-fee-badge {
+    color: var(--text-primary);
 }
 
 /* Dark mode user profile */
@@ -2642,4 +2653,344 @@ html {
 /* Smooth theme transitions */
 * {
     transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ===============================================
+   TEXT COLOR UTILITIES (THEME-AWARE)
+   =============================================== */
+
+/* These classes automatically adapt to light/dark mode */
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+.text-light-gray {
+    color: var(--text-light) !important;
+}
+
+.text-success {
+    color: var(--success) !important;
+}
+
+.text-danger {
+    color: var(--danger) !important;
+}
+
+.text-warning {
+    color: var(--warning-dark) !important;
+}
+
+.text-primary-color {
+    color: var(--primary) !important;
+}
+
+.text-info {
+    color: var(--info) !important;
+}
+
+/* Fix hardcoded colors that don't work in dark mode */
+[data-theme="dark"] [style*="color:#666"],
+[data-theme="dark"] [style*="color: #666"] {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] [style*="color:#999"],
+[data-theme="dark"] [style*="color: #999"] {
+    color: var(--text-light) !important;
+}
+
+[data-theme="dark"] [style*="color:#c62828"],
+[data-theme="dark"] [style*="color: #c62828"],
+[data-theme="dark"] [style*="color:#d32f2f"],
+[data-theme="dark"] [style*="color: #d32f2f"] {
+    color: var(--danger) !important;
+}
+
+[data-theme="dark"] [style*="color:#2e7d32"],
+[data-theme="dark"] [style*="color: #2e7d32"],
+[data-theme="dark"] [style*="color:#28a745"],
+[data-theme="dark"] [style*="color: #28a745"] {
+    color: var(--success) !important;
+}
+
+[data-theme="dark"] [style*="color:#667eea"],
+[data-theme="dark"] [style*="color: #667eea"] {
+    color: var(--primary) !important;
+}
+
+[data-theme="dark"] [style*="color:#e65100"],
+[data-theme="dark"] [style*="color: #e65100"] {
+    color: var(--warning-dark) !important;
+}
+
+[data-theme="dark"] [style*="color:#558b2f"],
+[data-theme="dark"] [style*="color: #558b2f"] {
+    color: var(--success-light) !important;
+}
+
+/* Fix specific UI elements with hardcoded backgrounds */
+[data-theme="dark"] [style*="background:#fff3cd"],
+[data-theme="dark"] [style*="background: #fff3cd"] {
+    background: var(--status-in-progress-bg) !important;
+}
+
+[data-theme="dark"] [style*="background:#ffebee"],
+[data-theme="dark"] [style*="background: #ffebee"] {
+    background: var(--status-unsuccessful-bg) !important;
+}
+
+[data-theme="dark"] [style*="background:#e8f5e9"],
+[data-theme="dark"] [style*="background: #e8f5e9"] {
+    background: var(--status-ready-bg) !important;
+}
+
+[data-theme="dark"] [style*="background:#e3f2fd"],
+[data-theme="dark"] [style*="background: #e3f2fd"] {
+    background: var(--status-received-bg) !important;
+}
+
+[data-theme="dark"] [style*="background:#fff3e0"],
+[data-theme="dark"] [style*="background: #fff3e0"] {
+    background: var(--status-in-progress-bg) !important;
+}
+
+[data-theme="dark"] [style*="background:#f8f9fa"],
+[data-theme="dark"] [style*="background: #f8f9fa"] {
+    background: var(--bg-light) !important;
+}
+
+[data-theme="dark"] [style*="background:#f1f8e9"],
+[data-theme="dark"] [style*="background: #f1f8e9"] {
+    background: var(--status-ready-bg) !important;
+}
+
+[data-theme="dark"] [style*="background:#fff9c4"],
+[data-theme="dark"] [style*="background: #fff9c4"] {
+    background: var(--status-in-progress-bg) !important;
+}
+
+/* Fix empty state text colors */
+[data-theme="dark"] .empty-state {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .empty-state h2 {
+    opacity: 0.5;
+}
+
+[data-theme="dark"] .empty-state p {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix card description text */
+[data-theme="dark"] .card-description {
+    color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .card p {
+    color: var(--text-secondary);
+}
+
+/* Fix small text visibility */
+[data-theme="dark"] small {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix strong text in dark mode */
+[data-theme="dark"] strong {
+    color: var(--text-primary);
+}
+
+/* Fix select and option colors */
+[data-theme="dark"] select option {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] select optgroup {
+    background: var(--bg-light);
+    color: var(--text-primary);
+    font-weight: bold;
+}
+
+/* Fix button text colors */
+[data-theme="dark"] button:not([class*="btn-"]) {
+    color: var(--text-primary);
+}
+
+/* Fix details/summary elements */
+[data-theme="dark"] details summary {
+    color: var(--primary);
+}
+
+[data-theme="dark"] details div {
+    color: var(--text-secondary);
+}
+
+/* Fix warning/info boxes */
+[data-theme="dark"] [style*="border-left:4px solid #f44336"],
+[data-theme="dark"] [style*="border-left: 4px solid #f44336"] {
+    border-left-color: var(--danger) !important;
+}
+
+[data-theme="dark"] [style*="border-left:4px solid #4caf50"],
+[data-theme="dark"] [style*="border-left: 4px solid #4caf50"] {
+    border-left-color: var(--success) !important;
+}
+
+[data-theme="dark"] [style*="border-left:4px solid #ffc107"],
+[data-theme="dark"] [style*="border-left: 4px solid #ffc107"],
+[data-theme="dark"] [style*="border-left:4px solid #ff9800"],
+[data-theme="dark"] [style*="border-left: 4px solid #ff9800"] {
+    border-left-color: var(--warning) !important;
+}
+
+[data-theme="dark"] [style*="border-left:4px solid #2196f3"],
+[data-theme="dark"] [style*="border-left: 4px solid #2196f3"] {
+    border-left-color: var(--info) !important;
+}
+
+/* Fix form labels in dark mode */
+[data-theme="dark"] label {
+    color: var(--text-primary);
+}
+
+/* Fix heading colors */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6 {
+    color: var(--text-primary);
+}
+
+/* Fix link colors */
+[data-theme="dark"] a {
+    color: var(--primary-light);
+}
+
+[data-theme="dark"] a:hover {
+    color: var(--primary);
+}
+
+/* Fix center-aligned text (often used for empty states) */
+[data-theme="dark"] [style*="text-align:center"] {
+    color: var(--text-secondary);
+}
+
+/* Fix any div/p with just color:#999 or #666 */
+[data-theme="dark"] div[style*="padding:40px"][style*="color:#999"],
+[data-theme="dark"] p[style*="padding:40px"][style*="color:#999"],
+[data-theme="dark"] div[style*="padding:20px"][style*="color:#999"],
+[data-theme="dark"] p[style*="padding:20px"][style*="color:#999"] {
+    color: var(--text-light) !important;
+}
+
+[data-theme="dark"] p[style*="color:#666"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix font-size with color combinations */
+[data-theme="dark"] [style*="font-size:13px"][style*="color:#666"],
+[data-theme="dark"] [style*="font-size:13px"][style*="color:#999"],
+[data-theme="dark"] [style*="font-size:14px"][style*="color:#666"],
+[data-theme="dark"] [style*="font-size:14px"][style*="color:#999"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix margin/padding text combinations */
+[data-theme="dark"] [style*="margin-bottom:15px"][style*="color:#666"],
+[data-theme="dark"] [style*="margin-bottom:20px"][style*="color:#666"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Ensure visibility for all paragraph text */
+[data-theme="dark"] .card p,
+[data-theme="dark"] .repair-card p,
+[data-theme="dark"] .modal-content p {
+    color: var(--text-secondary);
+}
+
+/* Fix display flex/grid text colors */
+[data-theme="dark"] [style*="display:flex"] p,
+[data-theme="dark"] [style*="display:grid"] p {
+    color: var(--text-secondary);
+}
+
+/* Override any remaining hardcoded colors in spans */
+[data-theme="dark"] span[style*="color:#"] {
+    filter: brightness(1.5);
+}
+
+/* Fix button spans */
+[data-theme="dark"] button span {
+    color: inherit;
+}
+
+/* Fix readonly inputs */
+[data-theme="dark"] input[readonly],
+[data-theme="dark"] input[disabled] {
+    background: var(--bg-gray) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* Fix any remaining text with backgrounds */
+[data-theme="dark"] [style*="background:#"] p,
+[data-theme="dark"] [style*="background:#"] div,
+[data-theme="dark"] [style*="background:#"] span {
+    filter: brightness(1.2);
+}
+
+/* Remove filter from buttons to avoid affecting them */
+[data-theme="dark"] button {
+    filter: none !important;
+}
+
+/* Comprehensive dark mode text visibility fixes */
+[data-theme="dark"] .card-header p,
+[data-theme="dark"] .form-group small,
+[data-theme="dark"] .card small {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix any divs with display:flex that might have color issues */
+[data-theme="dark"] div[style*="display:flex;justify-content:space-between"] {
+    color: var(--text-secondary);
+}
+
+/* Fix list items */
+[data-theme="dark"] li {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] ol,
+[data-theme="dark"] ul {
+    color: var(--text-secondary);
+}
+
+/* Fix table-like structures */
+[data-theme="dark"] .remittance-item,
+[data-theme="dark"] .calc-row {
+    color: var(--text-secondary);
+}
+
+/* Ensure all nested text is visible */
+[data-theme="dark"] * {
+    border-color: var(--border-color);
+}
+
+/* Fix specific problem areas with hardcoded dark text */
+[data-theme="dark"] [style*="font-weight:bold"] {
+    color: var(--text-primary);
+}
+
+/* Fix workflow/info text */
+[data-theme="dark"] [style*="border-radius:5px"] p {
+    color: var(--text-secondary);
+}
+
+/* Ensure minimum contrast for all text */
+[data-theme="dark"] {
+    color-scheme: dark;
 }
