@@ -860,6 +860,54 @@ async function saveStatus(repairId) {
         return;
     }
     
+    // Auto-transition: Completed → Ready for Pickup
+    if (newStatus === 'Completed') {
+        try {
+            utils.showLoading(true);
+            
+            const update = {
+                status: 'Ready for Pickup',
+                completedAt: new Date().toISOString(),
+                completedBy: window.currentUserData.displayName,
+                lastUpdated: new Date().toISOString(),
+                lastUpdatedBy: window.currentUserData.displayName
+            };
+            
+            if (notes) {
+                const repair = window.allRepairs.find(r => r.id === repairId);
+                const existingNotes = repair.notes || [];
+                update.notes = [...existingNotes, {
+                    text: notes,
+                    by: window.currentUserData.displayName,
+                    date: new Date().toISOString()
+                }];
+            }
+            
+            await db.ref('repairs/' + repairId).update(update);
+            
+            utils.showLoading(false);
+            alert('✅ Repair completed!\n\nStatus automatically changed to "Ready for Pickup"\n\nDevice is now ready for customer pickup.');
+            closeStatusModal();
+            
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+                if (window.buildStats) {
+                    window.buildStats();
+                }
+            }, 300);
+            
+            return;
+        } catch (error) {
+            utils.showLoading(false);
+            console.error('Error:', error);
+            alert('Error: ' + error.message);
+            return;
+        }
+    }
+    
+    // Regular status update
     const update = {
         status: newStatus,
         lastUpdated: new Date().toISOString(),
@@ -2623,6 +2671,250 @@ function closeVerifyRemittanceModal() {
     document.getElementById('verifyRemittanceModal').style.display = 'none';
 }
 
+/**
+ * Device Release Functions
+ */
+
+let serviceSlipPhoto = null;
+
+/**
+ * Open Release Device Modal
+ */
+function openReleaseDeviceModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) return;
+    
+    // Reset photo
+    serviceSlipPhoto = null;
+    
+    // Calculate payment status
+    const totalPaid = (repair.payments || []).filter(p => p.verified)
+        .reduce((sum, p) => sum + p.amount, 0);
+    const balance = repair.total - totalPaid;
+    const isFullyPaid = balance <= 0;
+    
+    // Set repair ID
+    document.getElementById('releaseRepairId').value = repairId;
+    
+    // Display device info
+    document.getElementById('releaseDeviceInfo').innerHTML = `
+        <div class="release-info-card">
+            <h4>${repair.customerName}</h4>
+            <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p><strong>Problem:</strong> ${repair.problem}</p>
+            <p><strong>Repair:</strong> ${repair.repairType || 'General Repair'}</p>
+            <p><strong>Repair ID:</strong> ${repairId}</p>
+            ${repair.isBackJob ? '<p style="color:#d32f2f;font-weight:bold;">🔄 BACK JOB (Warranty)</p>' : ''}
+        </div>
+    `;
+    
+    // Display payment status
+    const paymentHTML = isFullyPaid ? `
+        <div class="payment-status-card paid">
+            <h4 style="color:#2e7d32;margin:0 0 10px 0;">✅ FULLY PAID</h4>
+            <p style="margin:0;">Total: ₱${repair.total.toFixed(2)} | Paid: ₱${totalPaid.toFixed(2)}</p>
+        </div>
+    ` : `
+        <div class="payment-status-card unpaid">
+            <h4 style="color:#e65100;margin:0 0 10px 0;">⚠️ BALANCE DUE</h4>
+            <p style="margin:5px 0;">Total: ₱${repair.total.toFixed(2)}</p>
+            <p style="margin:5px 0;">Paid: ₱${totalPaid.toFixed(2)}</p>
+            <p style="font-size:20px;font-weight:bold;color:#d32f2f;margin:10px 0;">
+                Balance: ₱${balance.toFixed(2)}
+            </p>
+            <button onclick="openPaymentModal('${repairId}'); closeReleaseDeviceModal();" 
+                    class="btn-primary" style="margin-top:10px;width:100%;">
+                💰 Record Payment First
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('releasePaymentStatus').innerHTML = paymentHTML;
+    
+    // Pre-fill customer info
+    document.getElementById('releaseCustomerName').value = repair.customerName;
+    document.getElementById('releaseContactNumber').value = repair.contactNumber;
+    document.getElementById('releaseCustomerAddress').value = '';
+    
+    // Reset verification method
+    document.getElementById('verificationMethod').value = 'with-slip';
+    toggleVerificationMethod();
+    
+    // Reset photo preview
+    const photoPreview = document.getElementById('serviceSlipPhotoPreview');
+    if (photoPreview) {
+        photoPreview.src = '';
+        photoPreview.style.display = 'none';
+    }
+    
+    // Show modal
+    document.getElementById('releaseDeviceModal').style.display = 'block';
+}
+
+/**
+ * Toggle Verification Method
+ */
+function toggleVerificationMethod() {
+    const method = document.getElementById('verificationMethod').value;
+    const withSlipSection = document.getElementById('withSlipSection');
+    const withoutSlipSection = document.getElementById('withoutSlipSection');
+    
+    if (method === 'with-slip') {
+        withSlipSection.style.display = 'block';
+        withoutSlipSection.style.display = 'none';
+        document.getElementById('releaseCustomerAddress').required = false;
+    } else {
+        withSlipSection.style.display = 'none';
+        withoutSlipSection.style.display = 'block';
+        document.getElementById('releaseCustomerAddress').required = true;
+    }
+}
+
+/**
+ * Upload Service Slip Photo
+ */
+async function uploadServiceSlipPhoto(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        // Compress image
+        const compressed = await utils.compressImage(file, 1024, 768);
+        serviceSlipPhoto = compressed;
+        
+        // Show preview
+        const preview = document.getElementById('serviceSlipPhotoPreview');
+        preview.src = compressed;
+        preview.style.display = 'block';
+        
+        console.log('✅ Service slip photo uploaded');
+    } catch (error) {
+        console.error('Error uploading photo:', error);
+        alert('Error uploading photo: ' + error.message);
+    }
+}
+
+/**
+ * Confirm Release Device
+ */
+async function confirmReleaseDevice() {
+    const repairId = document.getElementById('releaseRepairId').value;
+    const verificationMethod = document.getElementById('verificationMethod').value;
+    const customerName = document.getElementById('releaseCustomerName').value.trim();
+    const contactNumber = document.getElementById('releaseContactNumber').value.trim();
+    const releaseNotes = document.getElementById('releaseNotes').value.trim();
+    
+    // Basic validation
+    if (!customerName || !contactNumber) {
+        alert('Please confirm customer name and contact number');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    // Verify customer info
+    if (customerName.toLowerCase() !== repair.customerName.toLowerCase()) {
+        if (!confirm('⚠️ Customer name does not match!\n\nRecorded: ' + repair.customerName + '\nEntered: ' + customerName + '\n\nContinue anyway?')) {
+            return;
+        }
+    }
+    
+    if (contactNumber !== repair.contactNumber) {
+        if (!confirm('⚠️ Contact number does not match!\n\nRecorded: ' + repair.contactNumber + '\nEntered: ' + contactNumber + '\n\nContinue anyway?')) {
+            return;
+        }
+    }
+    
+    // Build release data
+    const releaseData = {
+        status: 'Claimed',
+        releaseDate: new Date().toISOString(),
+        releasedBy: window.currentUserData.displayName,
+        releasedById: window.currentUser.uid,
+        releaseNotes: releaseNotes,
+        verificationMethod: verificationMethod,
+        lastUpdated: new Date().toISOString(),
+        lastUpdatedBy: window.currentUserData.displayName
+    };
+    
+    // Add verification-specific data
+    if (verificationMethod === 'with-slip') {
+        releaseData.serviceSlipPhoto = serviceSlipPhoto;
+        releaseData.verifiedWithSlip = true;
+    } else {
+        // Without slip - enhanced verification
+        const address = document.getElementById('releaseCustomerAddress').value.trim();
+        if (!address) {
+            alert('Please enter customer address for verification');
+            return;
+        }
+        
+        releaseData.enhancedVerification = {
+            address: address,
+            claimantPhoto: serviceSlipPhoto, // Reusing same photo field
+            verifiedBy: window.currentUserData.displayName,
+            verifiedAt: new Date().toISOString(),
+            method: 'without-slip'
+        };
+    }
+    
+    // Check payment status
+    const totalPaid = (repair.payments || []).filter(p => p.verified)
+        .reduce((sum, p) => sum + p.amount, 0);
+    const balance = repair.total - totalPaid;
+    
+    if (balance > 0) {
+        const proceed = confirm(
+            `⚠️ UNPAID BALANCE WARNING!\n\n` +
+            `Total: ₱${repair.total.toFixed(2)}\n` +
+            `Paid: ₱${totalPaid.toFixed(2)}\n` +
+            `Balance: ₱${balance.toFixed(2)}\n\n` +
+            `Proceed with release anyway?`
+        );
+        if (!proceed) return;
+        
+        releaseData.releasedWithBalance = balance;
+        releaseData.balanceNotes = 'Released with unpaid balance - approved by ' + window.currentUserData.displayName;
+    }
+    
+    // Confirm release
+    const confirmMsg = verificationMethod === 'with-slip'
+        ? `✅ Release device with service slip photo?\n\nCustomer: ${customerName}`
+        : `⚠️ Release device WITHOUT service slip?\n\nCustomer: ${customerName}\n\nEnhanced verification will be recorded.`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        await db.ref(`repairs/${repairId}`).update(releaseData);
+        
+        utils.showLoading(false);
+        
+        const successMsg = verificationMethod === 'with-slip'
+            ? '✅ Device released successfully!\n\n📸 Service slip photo recorded.'
+            : '✅ Device released successfully!\n\n⚠️ Released without slip - Enhanced verification recorded.';
+        
+        alert(successMsg);
+        closeReleaseDeviceModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) window.currentTabRefresh();
+            if (window.buildStats) window.buildStats();
+        }, 300);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error releasing device:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function closeReleaseDeviceModal() {
+    document.getElementById('releaseDeviceModal').style.display = 'none';
+    serviceSlipPhoto = null;
+}
+
 // Export to global scope
 window.loadRepairs = loadRepairs;
 window.submitReceiveDevice = submitReceiveDevice;
@@ -2672,5 +2964,11 @@ window.openVerifyRemittanceModal = openVerifyRemittanceModal;
 window.approveRemittance = approveRemittance;
 window.rejectRemittance = rejectRemittance;
 window.closeVerifyRemittanceModal = closeVerifyRemittanceModal;
+// Device release exports
+window.openReleaseDeviceModal = openReleaseDeviceModal;
+window.toggleVerificationMethod = toggleVerificationMethod;
+window.uploadServiceSlipPhoto = uploadServiceSlipPhoto;
+window.confirmReleaseDevice = confirmReleaseDevice;
+window.closeReleaseDeviceModal = closeReleaseDeviceModal;
 
 console.log('✅ repairs.js loaded');

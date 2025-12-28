@@ -317,5 +317,109 @@
         </div>
     </div>
 
+    <!-- Release Device Modal -->
+    <div id="releaseDeviceModal" class="modal">
+        <div class="modal-content" style="max-width:650px;">
+            <h3>📦 Release Device to Customer</h3>
+            
+            <input type="hidden" id="releaseRepairId">
+            
+            <!-- Device & Customer Info -->
+            <div id="releaseDeviceInfo"></div>
+            
+            <!-- Payment Status -->
+            <div id="releasePaymentStatus"></div>
+            
+            <!-- Verification Method -->
+            <div class="form-group">
+                <label style="font-weight:600;">Verification Method *</label>
+                <select id="verificationMethod" onchange="toggleVerificationMethod()" required style="font-size:15px;">
+                    <option value="with-slip">📄 With Service Slip (Recommended)</option>
+                    <option value="without-slip">⚠️ Without Service Slip (Enhanced Verification)</option>
+                </select>
+            </div>
+            
+            <!-- WITH SERVICE SLIP Section -->
+            <div id="withSlipSection">
+                <div style="background:#e8f5e9;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #4caf50;">
+                    <strong>✅ Service Slip Verification</strong>
+                    <p style="margin:10px 0 0 0;font-size:14px;">
+                        Customer has physical service slip. Take photo for records.
+                    </p>
+                </div>
+                
+                <div class="form-group">
+                    <label>📸 Photo of Service Slip (Recommended)</label>
+                    <input type="file" 
+                           accept="image/*" 
+                           capture="environment"
+                           onchange="uploadServiceSlipPhoto(event)"
+                           style="display:block;margin:10px 0;padding:10px;border:2px dashed #4caf50;border-radius:8px;width:100%;">
+                    <img id="serviceSlipPhotoPreview" 
+                         style="display:none;max-width:100%;margin-top:10px;border-radius:8px;border:2px solid #4caf50;">
+                    <small style="color:#666;">Take photo of customer's service slip for audit trail</small>
+                </div>
+            </div>
+            
+            <!-- WITHOUT SERVICE SLIP Section -->
+            <div id="withoutSlipSection" style="display:none;">
+                <div class="discrepancy-danger" style="margin:15px 0;">
+                    <strong>⚠️ Enhanced Verification Required</strong>
+                    <p style="margin:5px 0 0 0;">Customer does not have service slip. Additional verification needed for security.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label>Customer Address *</label>
+                    <textarea id="releaseCustomerAddress" 
+                              rows="2" 
+                              placeholder="Enter customer's full address for verification"
+                              style="font-size:14px;"></textarea>
+                    <small style="color:#d32f2f;">Required for audit trail when releasing without slip</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>📸 Photo of Claimant (Optional)</label>
+                    <input type="file" 
+                           accept="image/*" 
+                           capture="user"
+                           onchange="uploadServiceSlipPhoto(event)"
+                           style="display:block;margin:10px 0;padding:10px;border:2px dashed #ff9800;border-radius:8px;width:100%;">
+                    <small style="color:#666;">Optional: Photo of person claiming device</small>
+                </div>
+            </div>
+            
+            <!-- Customer Confirmation (Always shown) -->
+            <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
+                <h4 style="margin:0 0 15px 0;">Customer Confirmation</h4>
+                
+                <div class="form-group">
+                    <label>Confirm Customer Name *</label>
+                    <input type="text" id="releaseCustomerName" placeholder="Verify customer name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Confirm Contact Number *</label>
+                    <input type="text" id="releaseContactNumber" placeholder="Verify contact number" required>
+                </div>
+            </div>
+            
+            <!-- Release Notes -->
+            <div class="form-group">
+                <label>Release Notes (Optional)</label>
+                <textarea id="releaseNotes" rows="2" placeholder="Any notes about the release..."></textarea>
+            </div>
+            
+            <!-- Actions -->
+            <div class="form-actions">
+                <button onclick="confirmReleaseDevice()" class="btn-success" style="font-size:16px;">
+                    ✅ Confirm Release
+                </button>
+                <button onclick="closeReleaseDeviceModal()" class="btn-secondary">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>

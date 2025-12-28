@@ -325,31 +325,59 @@ function buildForReleasePage(container) {
     console.log('📦 Building For Release page');
     window.currentTabRefresh = () => buildForReleasePage(document.getElementById('forreleaseTab'));
     
-    const forReleaseDevices = window.allRepairs.filter(r => 
-        r.status === 'Ready for Pickup' || r.status === 'Completed'
-    );
+    const forReleaseRepairs = window.allRepairs.filter(r => r.status === 'Ready for Pickup');
     
     container.innerHTML = `
         <div class="card">
-            <h3>📦 For Release - Ready for Pickup (${forReleaseDevices.length})</h3>
+            <h3>📦 Ready for Customer Pickup (${forReleaseRepairs.length})</h3>
             <p style="color:#666;margin-bottom:15px;">Devices ready to be released to customers</p>
-            ${forReleaseDevices.length === 0 ? `
-                <div style="text-align:center;padding:40px;color:#999;">
-                    <h2 style="font-size:48px;margin:0;">📭</h2>
-                    <p>No devices ready for release</p>
-                </div>
-            ` : `
-                <div id="forReleaseList">
-                    ${displayRepairsInContainer(forReleaseDevices, document.getElementById('forReleaseList'), true)}
-                </div>
-            `}
+            <div id="forReleaseList"></div>
         </div>
     `;
     
     setTimeout(() => {
         const listContainer = document.getElementById('forReleaseList');
-        if (listContainer && forReleaseDevices.length > 0) {
-            displayRepairsInContainer(forReleaseDevices, listContainer);
+        if (listContainer) {
+            if (forReleaseRepairs.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No devices ready for pickup</p>';
+            } else {
+                listContainer.innerHTML = forReleaseRepairs.map(r => {
+                    const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+                    const balance = r.total - totalPaid;
+                    const isFullyPaid = balance <= 0;
+                    
+                    return `
+                        <div class="repair-card" style="border-left-color:#4caf50;">
+                            <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''}</h4>
+                            <span class="status-badge status-ready-for-pickup">✅ Ready for Pickup</span>
+                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
+                            
+                            <div class="repair-info" style="margin:15px 0;">
+                                <div><strong>Device:</strong> ${r.brand} ${r.model}</div>
+                                <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                                <div><strong>Repair:</strong> ${r.repairType || 'General Repair'}</div>
+                                <div><strong>Completed:</strong> ${utils.formatDateTime(r.completedAt || r.lastUpdated)}</div>
+                            </div>
+                            
+                            <div style="background:${isFullyPaid ? '#e8f5e9' : '#fff3cd'};padding:12px;border-radius:8px;margin:15px 0;border-left:4px solid ${isFullyPaid ? '#4caf50' : '#ff9800'};">
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span style="font-weight:600;">Payment Status:</span>
+                                    <span style="font-size:18px;font-weight:700;color:${isFullyPaid ? '#2e7d32' : '#e65100'};">
+                                        ${isFullyPaid ? '✅ PAID' : `⚠️ ₱${balance.toFixed(2)} DUE`}
+                                    </span>
+                                </div>
+                                <div style="font-size:13px;color:#666;margin-top:5px;">
+                                    Total: ₱${r.total.toFixed(2)} | Paid: ₱${totalPaid.toFixed(2)}
+                                </div>
+                            </div>
+                            
+                            <button onclick="openReleaseDeviceModal('${r.id}')" class="btn-success" style="width:100%;font-size:16px;padding:14px;">
+                                📦 Release Device to Customer
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            }
         }
     }, 0);
 }
@@ -962,7 +990,7 @@ function buildClaimedUnitsPage(container) {
                                 <div style="background:#f5f5f5;padding:12px;border-radius:5px;margin:10px 0;">
                                     <h4 style="margin:0 0 8px 0;color:#2e7d32;">📋 Claim & Warranty Info</h4>
                                     <div style="font-size:14px;">
-                                        <div><strong>Claimed:</strong> ${utils.formatDateTime(r.claimedAt)} (${daysSinceClaimed} days ago)</div>
+                                        <div><strong>Claimed:</strong> ${utils.formatDateTime(r.claimedAt || r.releaseDate)} (${daysSinceClaimed} days ago)</div>
                                         <div><strong>Released By:</strong> ${r.releasedBy || 'N/A'}</div>
                                         ${r.warrantyPeriodDays ? `
                                             <div style="margin-top:8px;padding-top:8px;border-top:1px solid #ddd;">
@@ -976,6 +1004,28 @@ function buildClaimedUnitsPage(container) {
                                         ` : '<div style="color:#999;"><strong>Warranty:</strong> None</div>'}
                                     </div>
                                 </div>
+                                
+                                ${r.verificationMethod === 'with-slip' ? `
+                                    <div style="margin:10px 0;padding:10px;background:#e8f5e9;border-radius:5px;border-left:4px solid #4caf50;">
+                                        <strong>✅ Verified with Service Slip</strong>
+                                        ${r.serviceSlipPhoto ? '<div style="font-size:13px;color:#666;">📸 Slip photo on file</div>' : ''}
+                                    </div>
+                                ` : r.verificationMethod === 'without-slip' ? `
+                                    <div style="margin:10px 0;padding:10px;background:#fff3cd;border-radius:5px;border-left:4px solid #ff9800;">
+                                        <strong>⚠️ Released without Service Slip</strong>
+                                        <div style="font-size:13px;margin-top:5px;">
+                                            Enhanced verification performed<br>
+                                            ${r.enhancedVerification ? `Address: ${r.enhancedVerification.address}` : ''}
+                                        </div>
+                                    </div>
+                                ` : ''}
+                                
+                                ${r.releasedWithBalance ? `
+                                    <div style="margin:10px 0;padding:10px;background:#ffebee;border-radius:5px;border-left:4px solid #f44336;">
+                                        <strong>⚠️ Released with Balance</strong>
+                                        <div>Amount: ₱${r.releasedWithBalance.toFixed(2)}</div>
+                                    </div>
+                                ` : ''}
                                 
                                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
                                     ${(role === 'admin' || role === 'manager' || role === 'cashier') ? `
