@@ -7,6 +7,10 @@ async function initializeApp() {
     try {
         console.log('🚀 Starting app initialization...');
         
+        // Initialize theme FIRST (before any UI rendering)
+        utils.initTheme();
+        console.log('✅ Theme initialized');
+        
         // CRITICAL: Force hide any existing loading FIRST
         utils.showLoading(false);
         

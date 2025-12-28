@@ -107,6 +107,70 @@
     --font-weight-bold: 700;
 }
 
+/* ===== DARK MODE VARIABLES ===== */
+[data-theme="dark"] {
+    /* Primary Colors - Slightly adjusted for dark mode */
+    --primary: #8b9aff;
+    --primary-dark: #667eea;
+    --primary-light: #a8b5ff;
+    --primary-lighter: #c4cdff;
+    
+    /* Status Colors - Brightened for dark backgrounds */
+    --success: #6bd18b;
+    --success-light: #9ae6b4;
+    --danger: #ff9999;
+    --danger-dark: #ff6b6b;
+    --warning: #ffc675;
+    --warning-dark: #ffb347;
+    --info: #63b3ed;
+    --info-light: #90cdf4;
+    
+    /* Status Badge Colors - Adjusted */
+    --status-received: #4299e1;
+    --status-received-bg: #2c5282;
+    --status-in-progress: #ed8936;
+    --status-in-progress-bg: #7c2d12;
+    --status-waiting-parts: #b794f6;
+    --status-waiting-parts-bg: #553c9a;
+    --status-ready: #48bb78;
+    --status-ready-bg: #276749;
+    --status-completed: #38a169;
+    --status-completed-bg: #22543d;
+    --status-claimed: #4fd1c5;
+    --status-claimed-bg: #234e52;
+    --status-rto: #ed8936;
+    --status-rto-bg: #7c2d12;
+    --status-unsuccessful: #fc8181;
+    --status-unsuccessful-bg: #742a2a;
+    
+    /* Text Colors - Inverted */
+    --text-primary: #e2e8f0;
+    --text-secondary: #a0aec0;
+    --text-light: #718096;
+    --text-dark: #f7fafc;
+    
+    /* Background Colors - Dark */
+    --bg-white: #1a202c;
+    --bg-light: #2d3748;
+    --bg-gray: #4a5568;
+    --bg-card: #2d3748;
+    --page-bg: #1a202c;
+    
+    /* Border Colors - Darker */
+    --border-color: #4a5568;
+    --border-light: #2d3748;
+    --border-dark: #718096;
+    
+    /* Shadows - Adjusted for dark mode */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.5);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.6);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.7);
+    --shadow-xl: 0 12px 32px rgba(0,0,0,0.8);
+    --shadow-2xl: 0 20px 48px rgba(0,0,0,0.9);
+    --shadow-card-hover: 0 8px 16px rgba(139,154,255,0.2);
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--page-bg);
@@ -117,6 +181,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
     margin: 0;
     padding: 0;
+    transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 /* ===== LOGIN SCREEN ===== */
@@ -2336,4 +2401,245 @@ html {
     margin: 0;
     color: #666;
     font-size: 14px;
+}
+
+/* ===============================================
+   DARK MODE SPECIFIC STYLES
+   =============================================== */
+
+/* ===== THEME TOGGLE BUTTON ===== */
+.theme-toggle {
+    background: var(--bg-light);
+    border: 2px solid var(--border-color);
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: var(--transition-all);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    position: relative;
+    overflow: visible;
+}
+
+.theme-toggle::before {
+    content: none;
+}
+
+.theme-toggle:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.theme-icon {
+    font-size: 18px;
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+
+.theme-toggle:hover .theme-icon {
+    transform: rotate(20deg) scale(1.1);
+}
+
+/* Dark mode body adjustments */
+[data-theme="dark"] body {
+    color: var(--text-primary);
+}
+
+/* Dark mode login container */
+[data-theme="dark"] .login-container {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-2xl);
+}
+
+[data-theme="dark"] .login-container h1 {
+    color: var(--primary);
+}
+
+[data-theme="dark"] .login-container input {
+    background: var(--bg-light);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .login-container input::placeholder {
+    color: var(--text-light);
+}
+
+/* Dark mode modal */
+[data-theme="dark"] .modal {
+    background-color: rgba(0,0,0,0.85);
+}
+
+[data-theme="dark"] .modal-content {
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+
+/* Improve readability in dark mode */
+[data-theme="dark"] .repair-info {
+    background: var(--bg-light);
+}
+
+[data-theme="dark"] .empty-state-icon {
+    opacity: 0.3;
+}
+
+[data-theme="dark"] .empty-state-text {
+    color: var(--text-secondary);
+}
+
+/* Dark mode form elements */
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: var(--bg-light);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: var(--text-light);
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus {
+    background: var(--bg-card);
+}
+
+/* Dark mode profile section */
+[data-theme="dark"] .profile-section {
+    background: var(--bg-light);
+}
+
+[data-theme="dark"] .login-record {
+    background: var(--bg-light);
+}
+
+/* Dark mode release info cards */
+[data-theme="dark"] .release-info-card {
+    background: var(--bg-light);
+}
+
+[data-theme="dark"] .payment-status-card.paid {
+    background: var(--status-ready-bg);
+}
+
+[data-theme="dark"] .payment-status-card.unpaid {
+    background: var(--status-in-progress-bg);
+}
+
+/* Scrollbar for dark mode */
+[data-theme="dark"]::-webkit-scrollbar-track {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"]::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+}
+
+[data-theme="dark"]::-webkit-scrollbar-thumb:hover {
+    background: var(--primary);
+}
+
+/* Dark mode remittance cards */
+[data-theme="dark"] .remittance-summary {
+    background: var(--bg-light);
+}
+
+[data-theme="dark"] .remittance-summary > div {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"] .remittance-summary-section {
+    background: var(--bg-light);
+}
+
+/* Dark mode RTO cards */
+[data-theme="dark"] .rto-card {
+    background: var(--bg-card);
+}
+
+[data-theme="dark"] .rto-reason-badge {
+    background: var(--status-in-progress-bg);
+}
+
+/* Dark mode diagnosis badges */
+[data-theme="dark"] .diagnosis-fee-paid {
+    background: var(--status-ready-bg);
+}
+
+[data-theme="dark"] .diagnosis-fee-unpaid {
+    background: var(--status-unsuccessful-bg);
+}
+
+/* Dark mode user profile */
+[data-theme="dark"] .user-profile {
+    background: var(--bg-light);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .user-profile:hover {
+    background: var(--bg-gray);
+}
+
+/* Dark mode stat cards with gradients */
+[data-theme="dark"] .stat-received {
+    background: linear-gradient(135deg, var(--status-received-bg) 0%, #1e3a8a 100%) !important;
+}
+
+[data-theme="dark"] .stat-in-progress {
+    background: linear-gradient(135deg, var(--status-in-progress-bg) 0%, #92400e 100%) !important;
+}
+
+[data-theme="dark"] .stat-waiting {
+    background: linear-gradient(135deg, var(--status-waiting-parts-bg) 0%, #6b21a8 100%) !important;
+}
+
+[data-theme="dark"] .stat-ready {
+    background: linear-gradient(135deg, var(--status-ready-bg) 0%, #14532d 100%) !important;
+}
+
+[data-theme="dark"] .stat-completed {
+    background: linear-gradient(135deg, var(--status-completed-bg) 0%, #14532d 100%) !important;
+}
+
+[data-theme="dark"] .stat-unsuccessful {
+    background: linear-gradient(135deg, var(--status-unsuccessful-bg) 0%, #991b1b 100%) !important;
+}
+
+[data-theme="dark"] .stat-rto {
+    background: linear-gradient(135deg, var(--status-rto-bg) 0%, #92400e 100%) !important;
+}
+
+/* Dark mode toast notifications */
+[data-theme="dark"] .toast {
+    background: var(--bg-card);
+    box-shadow: var(--shadow-2xl);
+}
+
+[data-theme="dark"] .toast-title {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .toast-message {
+    color: var(--text-secondary);
+}
+
+/* Dark mode photo items */
+[data-theme="dark"] .photo-item {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .photo-item:hover {
+    border-color: var(--primary);
+}
+
+/* Smooth theme transitions */
+* {
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }

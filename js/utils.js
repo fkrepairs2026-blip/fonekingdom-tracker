@@ -332,10 +332,53 @@ const utils = {
                 }
             }, 300);
         }, duration);
+    },
+    
+    /**
+     * Toggle between light and dark theme
+     */
+    toggleTheme: function() {
+        const html = document.documentElement;
+        const currentTheme = html.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        
+        html.setAttribute('data-theme', newTheme);
+        localStorage.setItem('theme', newTheme);
+        
+        // Update toggle button icon
+        const themeIcon = document.querySelector('.theme-icon');
+        if (themeIcon) {
+            themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+        
+        // Show toast notification
+        this.showToast(
+            `${newTheme === 'dark' ? 'Dark' : 'Light'} mode activated`,
+            'success',
+            2000
+        );
+    },
+    
+    /**
+     * Initialize theme from localStorage
+     */
+    initTheme: function() {
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        const html = document.documentElement;
+        html.setAttribute('data-theme', savedTheme);
+        
+        // Update toggle button icon
+        const themeIcon = document.querySelector('.theme-icon');
+        if (themeIcon) {
+            themeIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        }
     }
 };
 
 // Export to global scope
 window.utils = utils;
+
+// Export toggle function to window
+window.toggleTheme = utils.toggleTheme.bind(utils);
 
 console.log('✅ utils.js loaded');

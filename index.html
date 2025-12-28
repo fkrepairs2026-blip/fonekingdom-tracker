@@ -71,6 +71,9 @@
                         <div id="userRole" class="user-role"></div>
                     </div>
                 </div>
+                <button onclick="toggleTheme()" class="btn-small theme-toggle" id="themeToggle" title="Toggle Dark Mode">
+                    <span class="theme-icon">🌙</span>
+                </button>
                 <button onclick="openProfileModal()" class="btn-small">⚙️ Profile</button>
                 <button onclick="handleLogout()" class="btn-danger">Logout</button>
             </div>
@@ -165,6 +168,15 @@
     <script src="js/repairs.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
+
+    <!-- Theme Initialization Script -->
+    <script>
+    // Initialize theme as soon as utils is loaded
+    if (window.utils && window.utils.initTheme) {
+        window.utils.initTheme();
+        console.log('✅ Theme initialized on page load');
+    }
+    </script>
 
     <!-- Cleanup Script (FIX DIMMING) -->
     <script>
