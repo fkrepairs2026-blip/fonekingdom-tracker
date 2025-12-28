@@ -3208,6 +3208,231 @@ html {
     color: var(--text-primary);
 }
 
+/* ===== COMMISSION & REMITTANCE DARK MODE FIXES ===== */
+
+/* Fix stat cards with specific colored backgrounds */
+[data-theme="dark"] .stat-card[style*="background:#e3f2fd"],
+[data-theme="dark"] .stat-card[style*="background:#e8f5e9"],
+[data-theme="dark"] .stat-card[style*="background:#fff3e0"],
+[data-theme="dark"] .stat-card[style*="background:#f3e5f5"] {
+    background: var(--bg-secondary) !important;
+}
+
+/* Fix remittance summary sections */
+[data-theme="dark"] .remittance-summary-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+[data-theme="dark"] .remittance-summary-section h4 {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .remittance-summary-section[style*="background:#e8f5e9"] {
+    background: rgba(76, 175, 80, 0.15) !important;
+}
+
+/* Fix remittance list items */
+[data-theme="dark"] .remittance-list,
+[data-theme="dark"] .remittance-item {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .remittance-item div {
+    color: var(--text-secondary);
+}
+
+/* Fix remittance calculation box */
+[data-theme="dark"] .remittance-calculation {
+    background: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] .calc-row {
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] .calc-row span {
+    color: var(--text-primary);
+}
+
+/* Fix commission breakdown in modals */
+[data-theme="dark"] [style*="background:var(--bg-secondary)"] {
+    background: var(--bg-secondary) !important;
+}
+
+/* Fix manual override warning box */
+[data-theme="dark"] #hasManualCommission + span,
+[data-theme="dark"] [style*="background:#fff3cd"] {
+    background: rgba(255, 152, 0, 0.15) !important;
+}
+
+[data-theme="dark"] [style*="background:#fff3cd"] * {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] [style*="background:#fff3cd"] small {
+    color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Fix green success boxes */
+[data-theme="dark"] [style*="background:#e8f5e9"][style*="padding:10px"] {
+    background: rgba(76, 175, 80, 0.15) !important;
+}
+
+[data-theme="dark"] [style*="background:#e8f5e9"] small {
+    color: rgba(76, 175, 80, 0.9) !important;
+}
+
+/* Fix remittance card backgrounds */
+[data-theme="dark"] .remittance-card {
+    background: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] .remittance-card * {
+    color: var(--text-primary);
+}
+
+/* Fix remittance totals */
+[data-theme="dark"] .remittance-total {
+    background: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .remittance-total[style*="background:#2e7d32"] {
+    background: rgba(76, 175, 80, 0.3) !important;
+    color: var(--text-primary) !important;
+}
+
+/* Fix expected amount display */
+[data-theme="dark"] .remittance-expected,
+[data-theme="dark"] .expected-amount {
+    color: var(--text-primary);
+}
+
+/* Fix commission breakdown modal elements */
+[data-theme="dark"] [style*="border-left:4px solid #4caf50"] {
+    background: rgba(76, 175, 80, 0.1) !important;
+}
+
+[data-theme="dark"] [style*="border-radius:8px"][style*="margin-bottom:15px"] {
+    background: var(--bg-secondary) !important;
+}
+
+/* Fix grid displays in commission breakdowns */
+[data-theme="dark"] [style*="display:grid;grid-template-columns:1fr auto"] div {
+    color: var(--text-secondary);
+}
+
+/* Fix colored texts in commission displays */
+[data-theme="dark"] [style*="color:#f44336"],
+[data-theme="dark"] [style*="color:#ff9800"],
+[data-theme="dark"] [style*="color:#4caf50"] {
+    filter: brightness(1.3);
+}
+
+/* Fix all remittance-related backgrounds */
+[data-theme="dark"] #remittanceSummary *,
+[data-theme="dark"] #remittanceDetails * {
+    color: var(--text-secondary);
+}
+
+[data-theme="dark"] #remittanceSummary strong,
+[data-theme="dark"] #remittanceDetails strong {
+    color: var(--text-primary);
+}
+
+/* Fix commission stat cards text */
+[data-theme="dark"] .stat-card small {
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+/* Fix manual commission fields */
+[data-theme="dark"] #manualCommissionFields {
+    background: var(--bg-tertiary) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] #manualCommissionFields label,
+[data-theme="dark"] #manualCommissionFields small {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix all hardcoded green text colors */
+[data-theme="dark"] [style*="color:#2e7d32"] {
+    color: #66bb6a !important;
+}
+
+[data-theme="dark"] h3[style*="color:#2e7d32"],
+[data-theme="dark"] h4[style*="color:#2e7d32"] {
+    color: var(--text-primary) !important;
+}
+
+/* Fix commission breakdown specific colors */
+[data-theme="dark"] .remittance-summary-section[style*="background:#e8f5e9"] h4 {
+    color: var(--text-primary) !important;
+}
+
+/* Fix inline colored divs in commission breakdowns */
+[data-theme="dark"] [style*="font-size:12px;color:#666"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix all paragraphs with color:#666 */
+[data-theme="dark"] p[style*="color:#666"],
+[data-theme="dark"] small[style*="color:#666"],
+[data-theme="dark"] div[style*="color:#666"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix font-weight bold elements to be visible */
+[data-theme="dark"] [style*="font-weight:bold"] {
+    color: var(--text-primary) !important;
+}
+
+/* Fix commission card within remittance summary */
+[data-theme="dark"] .remittance-summary-section .remittance-item strong {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .remittance-summary-section .remittance-item div[style*="font-size:12px"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix all spans with colored text */
+[data-theme="dark"] span[style*="color:#4caf50"],
+[data-theme="dark"] span[style*="font-weight:bold;color:#4caf50"] {
+    color: #66bb6a !important;
+}
+
+/* Fix button text in commission sections */
+[data-theme="dark"] .remittance-summary-section button {
+    color: white;
+}
+
+/* Fix hr elements in calculations */
+[data-theme="dark"] hr[style*="border-top:2px solid"] {
+    border-top-color: var(--border-color) !important;
+}
+
+/* Fix page header paragraphs */
+[data-theme="dark"] .page-header p {
+    color: var(--text-secondary);
+}
+
+/* Fix all centered paragraphs with color */
+[data-theme="dark"] p[style*="text-align:center;color:#999"] {
+    color: var(--text-secondary) !important;
+}
+
+/* Fix commission value displays */
+[data-theme="dark"] [style*="color:#4caf50;font-weight:bold"] {
+    color: #66bb6a !important;
+}
+
+[data-theme="dark"] [style*="color:#4caf50;font-size:18px"] {
+    color: #66bb6a !important;
+}
+
 /* Fix page headers */
 [data-theme="dark"] .page-header h2 {
     color: var(--text-primary);
