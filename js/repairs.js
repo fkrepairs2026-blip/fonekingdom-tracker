@@ -213,6 +213,16 @@ async function submitReceiveDevice(e) {
         await db.ref('repairs').push(repair);
         console.log('✅ Device received successfully!');
         
+        // Log repair creation
+        await logActivity('repair_created', 'repair', {
+            customerName: repair.customerName,
+            brand: repair.brand,
+            model: repair.model,
+            problemType: repair.problemType,
+            isBackJob: isBackJob || false,
+            customerPreApproved: customerPreApproved || false
+        });
+        
         if (isBackJob) {
             alert(`✅ Back Job Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\n🔄 BACK JOB - Auto-assigned to: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n⚠️ This device will go directly to "${repair.originalTechName}"'s job list with status "In Progress".`);
         } else if (customerPreApproved) {
@@ -301,6 +311,15 @@ async function acceptRepair(repairId) {
             status: 'In Progress',
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log repair acceptance
+        await logActivity('repair_accepted', 'repair', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            brand: repair.brand,
+            model: repair.model,
+            total: repair.total
         });
         
         alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n💰 Total: ₱${repair.total.toFixed(2)}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"`);
@@ -581,6 +600,16 @@ async function savePayment(repairId) {
         lastUpdatedBy: window.currentUserData.displayName
     });
     
+    // Log payment activity
+    await logActivity('payment_recorded', 'financial', {
+        repairId: repairId,
+        customerName: repair.customerName,
+        amount: amount,
+        method: method,
+        paymentDate: utils.formatDate(paymentDate),
+        verified: payment.verified
+    });
+    
     paymentProofPhoto = null;
     
     const newBalance = balance - amount;
@@ -853,6 +882,14 @@ async function verifyPayment(repairId, paymentIndex) {
         payments: payments,
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
+    });
+    
+    // Log payment verification
+    await logActivity('payment_verified', 'financial', {
+        repairId: repairId,
+        customerName: repair.customerName,
+        amount: payments[paymentIndex].amount,
+        method: payments[paymentIndex].method
     });
     
     alert('✅ Payment verified!');
@@ -2280,6 +2317,16 @@ async function lockDailyCashCount(dateString, cashData, notes) {
         
         await db.ref(`dailyCashCounts/${dateString}`).set(lockRecord);
         
+        // Log day lock activity
+        await logActivity('day_locked', 'financial', {
+            date: dateString,
+            totalPayments: cashData.totals.payments,
+            totalExpenses: cashData.totals.expenses,
+            netRevenue: cashData.totals.net,
+            paymentsCount: cashData.payments.length,
+            expensesCount: cashData.expenses.length
+        });
+        
         utils.showLoading(false);
         
         alert(`✅ Day Locked Successfully!\n\n${utils.formatDate(dateString)} is now locked and cannot be modified.`);
@@ -2356,6 +2403,13 @@ async function unlockDailyCashCount(dateString, reason) {
         
         await db.ref(`dailyCashCounts/${dateString}`).set(updatedRecord);
         
+        // Log day unlock activity
+        await logActivity('day_unlocked', 'financial', {
+            date: dateString,
+            reason: reason,
+            originallyLockedBy: lockRecord.lockedByName
+        });
+        
         utils.showLoading(false);
         
         alert(`✅ Day Unlocked\n\n${utils.formatDate(dateString)} has been unlocked.\n\nTransactions can now be modified for this date.`);
@@ -2387,6 +2441,81 @@ function preventBackdating(dateString) {
         return false;  // Cannot add/edit transactions on locked dates
     }
     return true;  // OK to proceed
+}
+
+/**
+ * ============================================
+ * ACTIVITY LOGGING SYSTEM
+ * ============================================
+ */
+
+/**
+ * Log user activity for monitoring and audit trail
+ */
+async function logActivity(action, actionCategory, details = {}, success = true, errorMessage = null) {
+    try {
+        if (!window.currentUser || !window.currentUserData) {
+            console.warn('⚠️ Cannot log activity: No user logged in');
+            return;
+        }
+        
+        const log = {
+            // User Info
+            userId: window.currentUser.uid,
+            userName: window.currentUserData.displayName,
+            userRole: window.currentUserData.role,
+            
+            // Action Info
+            action: action,
+            actionCategory: actionCategory,
+            timestamp: new Date().toISOString(),
+            
+            // Device Info
+            device: utils.getDeviceInfo(),
+            
+            // Action Details
+            details: details,
+            
+            // Result
+            success: success,
+            errorMessage: errorMessage
+        };
+        
+        await db.ref('activityLogs').push(log);
+        console.log('✅ Activity logged:', action);
+    } catch (error) {
+        console.error('❌ Error logging activity:', error);
+        // Don't fail the main action if logging fails
+    }
+}
+
+/**
+ * Load activity logs from Firebase
+ */
+async function loadActivityLogs() {
+    try {
+        const snapshot = await db.ref('activityLogs')
+            .orderByChild('timestamp')
+            .limitToLast(1000)  // Load last 1000 logs
+            .once('value');
+        
+        const logs = [];
+        snapshot.forEach(child => {
+            logs.push({
+                id: child.key,
+                ...child.val()
+            });
+        });
+        
+        // Sort by timestamp descending (newest first)
+        logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        window.activityLogs = logs;
+        console.log('✅ Activity logs loaded:', logs.length);
+    } catch (error) {
+        console.error('❌ Error loading activity logs:', error);
+        window.activityLogs = [];
+    }
 }
 
 /**
@@ -2518,6 +2647,15 @@ async function saveExpense() {
         };
         
         await db.ref('techExpenses').push(expense);
+        
+        // Log expense activity
+        await logActivity('expense_recorded', 'financial', {
+            category: category,
+            amount: amount,
+            description: description,
+            type: type,
+            repairId: expense.repairId
+        });
         
         // Reload expenses
         await loadTechExpenses();
@@ -3293,6 +3431,9 @@ window.lockDailyCashCount = lockDailyCashCount;
 window.openUnlockDayModal = openUnlockDayModal;
 window.unlockDailyCashCount = unlockDailyCashCount;
 window.preventBackdating = preventBackdating;
+// Activity logging exports
+window.logActivity = logActivity;
+window.loadActivityLogs = loadActivityLogs;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
 window.closePartsCostModal = closePartsCostModal;

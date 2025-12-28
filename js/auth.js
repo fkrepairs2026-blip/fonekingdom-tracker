@@ -111,6 +111,18 @@ async function recordLoginEvent(type) {
         
         // Also add to global login history (for admin tracking)
         await db.ref(`loginHistory`).push(event);
+        
+        // Log to activity logs with device info (if available)
+        if (window.logActivity && window.utils && window.utils.getDeviceInfo) {
+            await window.logActivity(
+                type === 'login' ? 'user_login' : 'user_logout',
+                'user',
+                {
+                    email: window.currentUserData.email,
+                    loginTime: event.timestamp
+                }
+            );
+        }
     } catch (error) {
         console.warn('Could not record login event:', error);
     }

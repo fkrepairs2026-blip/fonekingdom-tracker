@@ -203,6 +203,76 @@ const utils = {
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
         };
+    },
+    
+    /**
+     * Get device and browser information
+     */
+    getDeviceInfo: function() {
+        const ua = navigator.userAgent;
+        
+        // Detect browser
+        let browser = "Unknown";
+        let browserVersion = "";
+        if (ua.includes("Chrome") && !ua.includes("Edge")) {
+            browser = "Chrome";
+            const match = ua.match(/Chrome\/(\d+)/);
+            browserVersion = match ? match[1] : "";
+        } else if (ua.includes("Firefox")) {
+            browser = "Firefox";
+            const match = ua.match(/Firefox\/(\d+)/);
+            browserVersion = match ? match[1] : "";
+        } else if (ua.includes("Safari") && !ua.includes("Chrome")) {
+            browser = "Safari";
+            const match = ua.match(/Version\/(\d+)/);
+            browserVersion = match ? match[1] : "";
+        } else if (ua.includes("Edge")) {
+            browser = "Edge";
+            const match = ua.match(/Edge\/(\d+)/);
+            browserVersion = match ? match[1] : "";
+        } else if (ua.includes("Opera") || ua.includes("OPR")) {
+            browser = "Opera";
+        }
+        
+        // Detect OS
+        let os = "Unknown";
+        if (ua.includes("Windows NT 10")) os = "Windows 10/11";
+        else if (ua.includes("Windows NT 6.3")) os = "Windows 8.1";
+        else if (ua.includes("Windows NT 6.2")) os = "Windows 8";
+        else if (ua.includes("Windows NT 6.1")) os = "Windows 7";
+        else if (ua.includes("Mac OS X")) {
+            os = "macOS";
+            const match = ua.match(/Mac OS X (\d+)[._](\d+)/);
+            if (match) os = `macOS ${match[1]}.${match[2]}`;
+        } else if (ua.includes("Android")) {
+            os = "Android";
+            const match = ua.match(/Android (\d+)/);
+            if (match) os = `Android ${match[1]}`;
+        } else if (ua.includes("iOS") || ua.includes("iPhone") || ua.includes("iPad")) {
+            os = "iOS";
+            const match = ua.match(/OS (\d+)_(\d+)/);
+            if (match) os = `iOS ${match[1]}.${match[2]}`;
+        } else if (ua.includes("Linux")) {
+            os = "Linux";
+        }
+        
+        // Detect device type
+        let deviceType = "Desktop";
+        if (/Mobile|Android|iPhone|iPod/.test(ua)) {
+            deviceType = "Mobile";
+        } else if (/Tablet|iPad/.test(ua)) {
+            deviceType = "Tablet";
+        }
+        
+        return {
+            browser: browserVersion ? `${browser} ${browserVersion}` : browser,
+            os: os,
+            deviceType: deviceType,
+            userAgent: ua,
+            screenResolution: `${window.screen.width}x${window.screen.height}`,
+            language: navigator.language || navigator.userLanguage,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
     }
 };
 

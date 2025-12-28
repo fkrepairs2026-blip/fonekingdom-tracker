@@ -58,6 +58,10 @@ async function initializeApp() {
         await loadDailyCashCounts();
         console.log('✅ Daily cash counts loaded:', Object.keys(window.dailyCashCounts || {}).length);
         
+        console.log('📦 Loading activity logs...');
+        await loadActivityLogs();
+        console.log('✅ Activity logs loaded:', window.activityLogs.length);
+        
         console.log('📊 Building stats...');
         buildStats();
         
