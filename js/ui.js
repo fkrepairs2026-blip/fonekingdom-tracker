@@ -2288,7 +2288,8 @@ function buildDailyRemittanceTab(container) {
     // Get today's data
     const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, today);
     const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, today);
-    const expectedAmount = paymentsTotal - expensesTotal;
+    const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, today);
+    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
     
     // Check if already submitted today
     const todayRemittance = window.techRemittances.find(r => {
@@ -2304,8 +2305,8 @@ function buildDailyRemittanceTab(container) {
     
     container.innerHTML = `
         <div class="page-header">
-            <h2>💸 Daily Cash Remittance</h2>
-            <p>Track your collected payments and expenses, then submit daily remittance</p>
+            <h2>💸 Daily Cash Remittance & Commission</h2>
+            <p>Track your collected payments, commission earned, and expenses</p>
         </div>
         
         <!-- Today's Summary -->
@@ -2315,15 +2316,20 @@ function buildDailyRemittanceTab(container) {
                 <p>💰 Payments Collected</p>
                 <small>${payments.length} payment(s) today</small>
             </div>
+            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+                <h3>₱${commissionTotal.toFixed(2)}</h3>
+                <p>🎯 Your Commission (40%)</p>
+                <small>${commissionBreakdown.length} fully-paid repair(s)</small>
+            </div>
             <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
                 <h3>₱${expensesTotal.toFixed(2)}</h3>
-                <p>💸 Expenses</p>
+                <p>💸 Other Expenses</p>
                 <small>${expenses.length} expense(s) today</small>
             </div>
-            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+            <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
                 <h3>₱${expectedAmount.toFixed(2)}</h3>
-                <p>💵 Expected Remittance</p>
-                <small>Payments - Expenses</small>
+                <p>💵 Amount to Remit</p>
+                <small>Payments - Commission - Expenses</small>
             </div>
         </div>
         

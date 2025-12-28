@@ -1002,11 +1002,26 @@ async function verifyPayment(repairId, paymentIndex) {
         verifiedAt: new Date().toISOString()
     };
     
-    await db.ref('repairs/' + repairId).update({
+    // Check if repair is now fully paid
+    const totalPaid = payments.filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+    const balance = repair.total - totalPaid;
+    
+    const updateData = {
         payments: payments,
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
-    });
+    };
+    
+    // If fully paid and has technician, mark commission eligible
+    if (balance <= 0 && repair.acceptedBy) {
+        const commission = calculateRepairCommission(repair, repair.acceptedBy);
+        if (commission.eligible) {
+            updateData.commissionEligible = true;
+            updateData.commissionAmount = commission.amount;
+        }
+    }
+    
+    await db.ref('repairs/' + repairId).update(updateData);
     
     // Log payment verification
     await logActivity('payment_verified', {
@@ -2966,6 +2981,238 @@ function getTechDailyExpenses(techId, date) {
     return { expenses, total };
 }
 
+// ===== COMMISSION CALCULATION FUNCTIONS =====
+
+/**
+ * Calculate parts cost for a repair
+ * Uses inventory partsUsed or manual partsCost field
+ */
+function getRepairPartsCost(repair) {
+    let totalPartsCost = 0;
+    
+    // Get cost from inventory system (Phase 3 partsUsed)
+    if (repair.partsUsed) {
+        const inventoryCost = Object.values(repair.partsUsed).reduce((sum, part) => {
+            return sum + (part.totalCost || 0);
+        }, 0);
+        totalPartsCost += inventoryCost;
+    }
+    
+    // Add manual parts cost if entered
+    if (repair.partsCost) {
+        totalPartsCost += parseFloat(repair.partsCost) || 0;
+    }
+    
+    return totalPartsCost;
+}
+
+/**
+ * Get delivery expenses for a specific repair
+ */
+function getRepairDeliveryExpenses(repairId) {
+    if (!window.techExpenses) return 0;
+    
+    const deliveryExpenses = window.techExpenses.filter(exp => 
+        exp.repairId === repairId && 
+        exp.category === 'Delivery'
+    );
+    
+    return deliveryExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+}
+
+/**
+ * Calculate commission for a single repair
+ * Returns: { eligible, amount, breakdown }
+ */
+function calculateRepairCommission(repair, techId) {
+    const result = {
+        eligible: false,
+        amount: 0,
+        breakdown: {
+            repairTotal: repair.total || 0,
+            partsCost: 0,
+            deliveryExpenses: 0,
+            netAmount: 0,
+            commissionRate: 0.40
+        }
+    };
+    
+    // Check eligibility
+    // 1. Must be assigned to this technician
+    if (repair.acceptedBy !== techId) {
+        return result;
+    }
+    
+    // 2. Must be fully paid
+    const totalPaid = (repair.payments || [])
+        .filter(p => p.verified)
+        .reduce((sum, p) => sum + p.amount, 0);
+    
+    const balance = repair.total - totalPaid;
+    
+    if (balance > 0) {
+        return result;
+    }
+    
+    // 3. Must be claimed (not RTO)
+    if (repair.status === 'RTO') {
+        return result;
+    }
+    
+    // Calculate commission
+    result.eligible = true;
+    result.breakdown.partsCost = getRepairPartsCost(repair);
+    result.breakdown.deliveryExpenses = getRepairDeliveryExpenses(repair.id);
+    result.breakdown.netAmount = 
+        result.breakdown.repairTotal - 
+        result.breakdown.partsCost - 
+        result.breakdown.deliveryExpenses;
+    
+    result.amount = result.breakdown.netAmount * result.breakdown.commissionRate;
+    
+    // Ensure non-negative
+    if (result.amount < 0) {
+        result.amount = 0;
+    }
+    
+    return result;
+}
+
+/**
+ * Get all commission-eligible repairs for a tech on a date
+ */
+function getTechCommissionEligibleRepairs(techId, date) {
+    const targetDate = new Date(date).toDateString();
+    const eligibleRepairs = [];
+    
+    window.allRepairs.forEach(repair => {
+        // Check if repair has payments on this date
+        let hasPaymentToday = false;
+        
+        if (repair.payments) {
+            repair.payments.forEach(payment => {
+                const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toDateString();
+                if (paymentDate === targetDate && payment.verified) {
+                    hasPaymentToday = true;
+                }
+            });
+        }
+        
+        // If payment made today and repair is now fully paid, check commission
+        if (hasPaymentToday) {
+            const commission = calculateRepairCommission(repair, techId);
+            
+            if (commission.eligible && commission.amount > 0) {
+                // Check if not already claimed
+                if (!repair.commissionClaimedBy) {
+                    eligibleRepairs.push({
+                        repair: repair,
+                        commission: commission
+                    });
+                }
+            }
+        }
+    });
+    
+    return eligibleRepairs;
+}
+
+/**
+ * Get total commission earned for the day
+ */
+function getTechDailyCommission(techId, date) {
+    const eligibleRepairs = getTechCommissionEligibleRepairs(techId, date);
+    
+    const breakdown = eligibleRepairs.map(item => ({
+        repairId: item.repair.id,
+        customerName: item.repair.customerName,
+        deviceInfo: `${item.repair.brand} ${item.repair.model}`,
+        repairType: item.repair.repairType || 'General Repair',
+        repairTotal: item.commission.breakdown.repairTotal,
+        partsCost: item.commission.breakdown.partsCost,
+        deliveryExpenses: item.commission.breakdown.deliveryExpenses,
+        netAmount: item.commission.breakdown.netAmount,
+        commission: item.commission.amount
+    }));
+    
+    const total = breakdown.reduce((sum, item) => sum + item.commission, 0);
+    
+    return { breakdown, total };
+}
+
+/**
+ * Toggle manual commission fields
+ */
+function toggleManualCommissionFields() {
+    const checkbox = document.getElementById('hasManualCommission');
+    const fields = document.getElementById('manualCommissionFields');
+    
+    if (fields) {
+        fields.style.display = checkbox.checked ? 'block' : 'none';
+    }
+}
+
+/**
+ * Show detailed commission breakdown
+ */
+function showCommissionBreakdown() {
+    const techId = window.currentUser.uid;
+    const today = new Date();
+    const { breakdown } = getTechDailyCommission(techId, today);
+    
+    if (breakdown.length === 0) {
+        alert('No commission earned today');
+        return;
+    }
+    
+    let html = `
+        <div style="max-height:400px;overflow-y:auto;">
+            <h3 style="margin:0 0 20px;">📊 Commission Breakdown</h3>
+            ${breakdown.map(c => `
+                <div style="background:var(--bg-secondary);padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                    <h4 style="margin:0 0 10px;">${c.customerName}</h4>
+                    <div style="font-size:13px;color:var(--text-secondary);margin-bottom:10px;">
+                        ${c.deviceInfo} - ${c.repairType}
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr auto;gap:5px;font-size:14px;">
+                        <div>Repair Total:</div>
+                        <div style="font-weight:bold;">₱${c.repairTotal.toFixed(2)}</div>
+                        
+                        <div>Parts Cost:</div>
+                        <div style="color:#f44336;">-₱${c.partsCost.toFixed(2)}</div>
+                        
+                        <div>Delivery Expenses:</div>
+                        <div style="color:#ff9800;">-₱${c.deliveryExpenses.toFixed(2)}</div>
+                        
+                        <div style="border-top:1px solid var(--border-color);padding-top:5px;margin-top:5px;"><strong>Net Amount:</strong></div>
+                        <div style="border-top:1px solid var(--border-color);padding-top:5px;margin-top:5px;font-weight:bold;">₱${c.netAmount.toFixed(2)}</div>
+                        
+                        <div><strong>Your Commission (40%):</strong></div>
+                        <div style="color:#4caf50;font-size:18px;font-weight:bold;">₱${c.commission.toFixed(2)}</div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        <div style="margin-top:20px;padding-top:20px;border-top:2px solid var(--border-color);">
+            <div style="display:flex;justify-content:space-between;font-size:20px;font-weight:bold;color:#4caf50;">
+                <span>Total Commission:</span>
+                <span>₱${breakdown.reduce((sum, c) => sum + c.commission, 0).toFixed(2)}</span>
+            </div>
+        </div>
+        <div style="margin-top:20px;">
+            <button onclick="closeUserModal()" class="btn-secondary" style="width:100%;">Close</button>
+        </div>
+    `;
+    
+    const modal = document.getElementById('userModal');
+    const modalTitle = document.getElementById('userModalTitle');
+    const modalContent = document.getElementById('userModalContent');
+    
+    modalTitle.textContent = 'Commission Details';
+    modalContent.innerHTML = html;
+    modal.style.display = 'block';
+}
+
 /**
  * Open Remittance Submission Modal
  */
@@ -2988,6 +3235,7 @@ function openRemittanceModal() {
     // Get today's data
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, today);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
+    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, today);
     
     // Allow submission if either payments or expenses exist
     if (payments.length === 0 && expenses.length === 0) {
@@ -2995,7 +3243,8 @@ function openRemittanceModal() {
         return;
     }
     
-    const expectedAmount = paymentsTotal - expensesTotal;
+    // Calculate expected remittance (Payments - Commission - Expenses)
+    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
     
     // Build summary
     let summary = `
@@ -3016,22 +3265,60 @@ function openRemittanceModal() {
             `}
         </div>
         
+        <div class="remittance-summary-section" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+            <h4>🎯 Your Commission (${commissionBreakdown.length} repairs)</h4>
+            ${commissionBreakdown.length > 0 ? `
+                <div class="remittance-list">
+                    ${commissionBreakdown.map(c => `
+                        <div class="remittance-item">
+                            <div>
+                                <div><strong>${c.customerName}</strong> - ${c.deviceInfo}</div>
+                                <div style="font-size:12px;color:#666;">
+                                    ₱${c.repairTotal.toFixed(0)} - ₱${c.partsCost.toFixed(0)} parts - ₱${c.deliveryExpenses.toFixed(0)} delivery = ₱${c.netAmount.toFixed(0)} × 40%
+                                </div>
+                            </div>
+                            <span style="color:#4caf50;font-weight:bold;">₱${c.commission.toFixed(2)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="remittance-total" style="background:#2e7d32;color:white;">Your Commission: ₱${commissionTotal.toFixed(2)}</div>
+                <button onclick="showCommissionBreakdown()" type="button" class="btn-small" style="margin-top:10px;">📊 View Detailed Breakdown</button>
+            ` : `
+                <p style="text-align:center;color:#999;padding:10px;">No commission earned today (no fully-paid repairs completed)</p>
+            `}
+        </div>
+        
         <div class="remittance-summary-section">
-            <h4>💸 Expenses (${expenses.length})</h4>
+            <h4>💸 Other Expenses (${expenses.length})</h4>
             <div class="remittance-list">
                 ${expenses.length > 0 ? expenses.map(e => `
                     <div class="remittance-item">
                         <span>${e.description}</span>
                         <span>-₱${e.amount.toFixed(2)}</span>
                     </div>
-                `).join('') : '<p style="color:#999;">No expenses recorded</p>'}
+                `).join('') : '<p style="color:#999;">No other expenses recorded</p>'}
             </div>
             <div class="remittance-total">Total: -₱${expensesTotal.toFixed(2)}</div>
         </div>
         
-        <div class="remittance-expected">
-            <strong>Expected Remittance Amount:</strong>
-            <span class="expected-amount">₱${expectedAmount.toFixed(2)}</span>
+        <div class="remittance-calculation" style="background:var(--bg-secondary);padding:15px;border-radius:8px;margin:15px 0;">
+            <div class="calc-row">
+                <span>Payments Collected:</span>
+                <span>₱${paymentsTotal.toFixed(2)}</span>
+            </div>
+            <div class="calc-row" style="color:#4caf50;">
+                <span>Less: Your Commission:</span>
+                <span>-₱${commissionTotal.toFixed(2)}</span>
+            </div>
+            <div class="calc-row">
+                <span>Less: Other Expenses:</span>
+                <span>-₱${expensesTotal.toFixed(2)}</span>
+            </div>
+            <hr style="margin:10px 0;border:none;border-top:2px solid var(--border-color);">
+            <div class="calc-row" style="font-size:18px;font-weight:bold;color:var(--primary);">
+                <span>Amount to Remit:</span>
+                <span>₱${expectedAmount.toFixed(2)}</span>
+            </div>
         </div>
     `;
     
@@ -3050,14 +3337,27 @@ async function confirmRemittance() {
     const actualAmount = parseFloat(document.getElementById('actualRemittanceAmount').value);
     const notes = document.getElementById('remittanceNotes').value.trim();
     
+    // Get manual override fields
+    const hasManualOverride = document.getElementById('hasManualCommission').checked;
+    const manualCommission = hasManualOverride ? parseFloat(document.getElementById('manualCommissionAmount').value) : null;
+    const overrideReason = hasManualOverride ? document.getElementById('manualCommissionReason').value.trim() : '';
+    
     if (isNaN(actualAmount) || actualAmount < 0) {
         alert('Please enter a valid remittance amount');
         return;
     }
     
+    // Validate manual commission if entered
+    if (hasManualOverride && (isNaN(manualCommission) || manualCommission < 0)) {
+        alert('Please enter a valid manual commission amount');
+        return;
+    }
+    
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, today);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
-    const expectedAmount = paymentsTotal - expensesTotal;
+    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, today);
+    
+    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
     const discrepancy = actualAmount - expectedAmount;
     
     // Require notes if there's a discrepancy
@@ -3066,7 +3366,20 @@ async function confirmRemittance() {
         return;
     }
     
-    if (!confirm(`Submit remittance of ₱${actualAmount.toFixed(2)}?${discrepancy !== 0 ? `\n\nDiscrepancy: ₱${discrepancy.toFixed(2)}` : ''}`)) {
+    let confirmMessage = `Submit remittance of ₱${actualAmount.toFixed(2)}?`;
+    if (commissionTotal > 0) {
+        confirmMessage += `\n\nCommission: ₱${commissionTotal.toFixed(2)}`;
+    }
+    if (hasManualOverride) {
+        confirmMessage += `\n\n⚠️ Manual Override: ₱${manualCommission.toFixed(2)}`;
+        confirmMessage += `\n(Auto-calc: ₱${commissionTotal.toFixed(2)})`;
+        confirmMessage += `\n\nThis will be flagged for admin review.`;
+    }
+    if (discrepancy !== 0) {
+        confirmMessage += `\n\nDiscrepancy: ₱${discrepancy.toFixed(2)}`;
+    }
+    
+    if (!confirm(confirmMessage)) {
         return;
     }
     
@@ -3074,6 +3387,8 @@ async function confirmRemittance() {
         utils.showLoading(true);
         
         // Create remittance record
+        const remittanceStatus = hasManualOverride ? 'under_discussion' : 'pending';
+        
         const remittance = {
             techId: techId,
             techName: window.currentUserData.displayName,
@@ -3087,6 +3402,13 @@ async function confirmRemittance() {
                 amount: p.amount,
                 method: p.method
             })),
+            // Commission
+            commissionEarned: commissionTotal,
+            commissionBreakdown: commissionBreakdown,
+            hasManualOverride: hasManualOverride,
+            manualCommission: manualCommission,
+            overrideReason: overrideReason,
+            finalApprovedCommission: hasManualOverride ? null : commissionTotal,
             // Expenses
             expenseIds: expenses.map(e => e.id),
             totalExpenses: expensesTotal,
@@ -3096,17 +3418,21 @@ async function confirmRemittance() {
                 description: e.description
             })),
             // Calculation
-            expectedAmount: expectedAmount,
+            expectedRemittance: expectedAmount,
             actualAmount: actualAmount,
             discrepancy: discrepancy,
-            // Status
-            status: 'pending',
+            // Status & Discussion
+            status: remittanceStatus,
+            discussionThread: [],
             submittedAt: new Date().toISOString(),
             // Verification
             verifiedBy: null,
             verifiedAt: null,
             verificationNotes: '',
-            discrepancyReason: notes
+            discrepancyReason: notes,
+            resolvedBy: null,
+            resolvedAt: null,
+            resolutionNotes: ''
         };
         
         const remittanceRef = await db.ref('techRemittances').push(remittance);
@@ -3124,6 +3450,17 @@ async function confirmRemittance() {
             };
             updatePromises.push(
                 db.ref(`repairs/${p.repairId}`).update({ payments: updatedPayments })
+            );
+        });
+        
+        // Mark commission as claimed for repairs in commission breakdown
+        commissionBreakdown.forEach(c => {
+            updatePromises.push(
+                db.ref(`repairs/${c.repairId}`).update({
+                    commissionClaimedBy: techId,
+                    commissionClaimedAt: new Date().toISOString(),
+                    commissionRemittanceId: remittanceId
+                })
             );
         });
         
@@ -5037,6 +5374,13 @@ window.saveExpense = saveExpense;
 window.closeExpenseModal = closeExpenseModal;
 window.getTechDailyPayments = getTechDailyPayments;
 window.getTechDailyExpenses = getTechDailyExpenses;
+window.getRepairPartsCost = getRepairPartsCost;
+window.getRepairDeliveryExpenses = getRepairDeliveryExpenses;
+window.calculateRepairCommission = calculateRepairCommission;
+window.getTechCommissionEligibleRepairs = getTechCommissionEligibleRepairs;
+window.getTechDailyCommission = getTechDailyCommission;
+window.toggleManualCommissionFields = toggleManualCommissionFields;
+window.showCommissionBreakdown = showCommissionBreakdown;
 window.openRemittanceModal = openRemittanceModal;
 window.confirmRemittance = confirmRemittance;
 window.closeRemittanceModal = closeRemittanceModal;

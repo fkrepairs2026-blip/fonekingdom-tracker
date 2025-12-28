@@ -297,14 +297,39 @@
         <div class="modal-content" style="max-width:700px;">
             <h3>💵 Submit Daily Remittance</h3>
             <div id="remittanceSummary" style="margin:20px 0;"></div>
+            
+            <!-- Manual Override Section -->
+            <div style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                    <input type="checkbox" id="hasManualCommission" onchange="toggleManualCommissionFields()">
+                    <span style="font-weight:600;">⚠️ I believe the commission calculation is incorrect</span>
+                </label>
+                <small style="color:#666;display:block;margin-top:5px;">Check this if you think the auto-calculated commission amount is wrong</small>
+                
+                <div id="manualCommissionFields" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid #e0e0e0;">
+                    <div class="form-group">
+                        <label>My Calculated Commission (₱) *</label>
+                        <input type="number" id="manualCommissionAmount" step="0.01" min="0" placeholder="0.00">
+                        <small style="color:#666;">Enter what you believe your commission should be</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Brief Explanation (Optional)</label>
+                        <textarea id="manualCommissionReason" rows="2" placeholder="e.g., Parts cost seems high, delivery expense missing, etc."></textarea>
+                    </div>
+                    <div style="background:#e8f5e9;padding:10px;border-radius:5px;">
+                        <small style="color:#2e7d32;">✓ This will be sent to admin/cashier for review and discussion</small>
+                    </div>
+                </div>
+            </div>
+            
             <div class="form-group">
                 <label>Actual Amount Remitting (₱) *</label>
                 <input type="number" id="actualRemittanceAmount" step="0.01" min="0" placeholder="0.00" required>
                 <small style="color:#666;display:block;margin-top:5px;">Enter the actual cash amount you are remitting</small>
             </div>
             <div class="form-group">
-                <label>Notes (Required if discrepancy exists)</label>
-                <textarea id="remittanceNotes" rows="3" placeholder="Explain any discrepancy between expected and actual amount..."></textarea>
+                <label>Additional Notes (Optional)</label>
+                <textarea id="remittanceNotes" rows="3" placeholder="Any additional notes about this remittance..."></textarea>
             </div>
             <div class="form-actions">
                 <button onclick="confirmRemittance()" class="btn-primary">Submit Remittance</button>
