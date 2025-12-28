@@ -46,6 +46,18 @@ async function initializeApp() {
         await loadRepairs();
         console.log('✅ Repairs loaded:', window.allRepairs.length);
         
+        console.log('📦 Loading inventory...');
+        await loadInventory();
+        console.log('✅ Inventory loaded:', window.allInventoryItems.length);
+        
+        console.log('📦 Loading suppliers...');
+        await loadSuppliers();
+        console.log('✅ Suppliers loaded:', window.allSuppliers.length);
+        
+        console.log('📦 Loading stock movements...');
+        await loadStockMovements();
+        console.log('✅ Stock movements loaded:', window.stockMovements.length);
+        
         console.log('📦 Loading modification requests...');
         await loadModificationRequests();
         console.log('✅ Modification requests loaded:', window.allModificationRequests.length);

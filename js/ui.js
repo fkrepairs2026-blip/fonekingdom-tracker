@@ -31,6 +31,7 @@ function buildTabs() {
     else if (role === 'admin' || role === 'manager') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'all', label: '📋 All Repairs', build: buildAllRepairsTab });
+        availableTabs.push({ id: 'inventory', label: '📦 Inventory', build: buildInventoryTab });
         availableTabs.push({ id: 'pending', label: '⏳ Pending Verification', build: buildPendingTab });
         availableTabs.push({ id: 'cash', label: '💵 Cash Count', build: buildCashCountTab });
         availableTabs.push({ id: 'suppliers', label: '📊 Supplier Report', build: buildSuppliersTab });
@@ -41,6 +42,7 @@ function buildTabs() {
     else if (role === 'technician') {
         availableTabs.push({ id: 'receive', label: '➕ Receive Device', build: buildReceiveDeviceTab });
         availableTabs.push({ id: 'my', label: '🔧 My Jobs', build: buildMyRepairsTab });
+        availableTabs.push({ id: 'inventory', label: '📦 Inventory', build: buildInventoryTab });
         availableTabs.push({ id: 'remittance', label: '💸 Daily Remittance', build: buildDailyRemittanceTab });
         availableTabs.push({ id: 'requests', label: '📝 My Requests', build: buildMyRequestsTab });
     }
@@ -1190,11 +1192,37 @@ function displayRepairsInContainer(repairs, container) {
                     </details>
                 ` : ''}
                 
+                ${r.partsUsed && Object.keys(r.partsUsed).length > 0 ? `
+                    <details style="margin-top:15px;background:#e8f5e9;padding:10px;border-radius:var(--radius-md);">
+                        <summary style="cursor:pointer;font-weight:600;color:#2e7d32;">🔧 Parts Used</summary>
+                        <div style="margin-top:10px;">
+                            ${Object.values(r.partsUsed).map(part => `
+                                <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:5px;">
+                                    <div>
+                                        <strong>${part.partName}</strong>
+                                        <span class="text-secondary" style="font-size:12px;"> (${part.partNumber})</span>
+                                        <div style="font-size:12px;color:#666;">
+                                            Qty: ${part.quantity} × ₱${part.unitCost.toFixed(2)} = ₱${part.totalCost.toFixed(2)}
+                                        </div>
+                                        <div style="font-size:11px;color:#999;">
+                                            ${part.usedBy} • ${utils.formatDateTime(part.usedAt)}
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;text-align:right;">
+                                <strong>Total Parts Cost: ₱${Object.values(r.partsUsed).reduce((sum, p) => sum + p.totalCost, 0).toFixed(2)}</strong>
+                            </div>
+                        </div>
+                    </details>
+                ` : ''}
+                
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
                     ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
                     ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
-                    ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">🔧 Parts Cost</button>` : ''}
+                    ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
+                    ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
                     ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
                 </div>
@@ -2791,6 +2819,1155 @@ function selectTechnicianForLogs(techId) {
         window.currentTabRefresh();
     }
 }
+
+// ===== INVENTORY MANAGEMENT TAB =====
+
+/**
+ * Build Inventory Management Tab
+ */
+function buildInventoryTab(container) {
+    window.currentTabRefresh = () => buildInventoryTab(document.getElementById('inventoryTab'));
+    
+    const role = window.currentUserData.role;
+    const canManage = role === 'admin' || role === 'manager';
+    
+    // Get low stock items
+    const lowStockItems = getLowStockItems();
+    const outOfStockItems = getOutOfStockItems();
+    
+    // Filter active items
+    const activeItems = window.allInventoryItems.filter(item => !item.deleted);
+    
+    // Calculate total value
+    const totalValue = activeItems.reduce((sum, item) => 
+        sum + (item.quantity * item.unitCost), 0
+    );
+    
+    let html = `
+        <div style="margin-bottom:20px;">
+            <h2>📦 Inventory Management</h2>
+            <p class="text-secondary">Track parts, manage stock levels, and monitor inventory</p>
+        </div>
+    `;
+    
+    // Low Stock Alerts
+    if (lowStockItems.length > 0) {
+        html += `
+            <div class="alert-box" style="background:#fff3cd;border-left:4px solid #ffc107;padding:15px;margin-bottom:20px;border-radius:8px;">
+                <h3 style="margin:0 0 10px;color:#856404;">⚠️ Low Stock Alert</h3>
+                <p style="margin:0;color:#856404;">
+                    ${lowStockItems.length} item(s) are running low on stock.
+                    ${outOfStockItems.length > 0 ? `<strong>${outOfStockItems.length} out of stock!</strong>` : ''}
+                </p>
+            </div>
+        `;
+    }
+    
+    // Inventory Summary Stats
+    html += `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:25px;">
+            <div class="stat-card" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Total Items</div>
+                <div style="font-size:32px;font-weight:bold;">${activeItems.length}</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Low Stock</div>
+                <div style="font-size:32px;font-weight:bold;">${lowStockItems.length}</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Out of Stock</div>
+                <div style="font-size:32px;font-weight:bold;">${outOfStockItems.length}</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#43e97b 0%,#38f9d7 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Total Value</div>
+                <div style="font-size:32px;font-weight:bold;">₱${totalValue.toLocaleString()}</div>
+            </div>
+        </div>
+    `;
+    
+    // Action Buttons
+    html += `
+        <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+    `;
+    
+    if (canManage) {
+        html += `
+            <button onclick="openAddInventoryItemModal()" class="btn-primary">
+                ➕ Add New Part
+            </button>
+            <button onclick="openAddSupplierModal()" class="btn-secondary">
+                📊 Manage Suppliers
+            </button>
+        `;
+    }
+    
+    html += `
+            <button onclick="filterInventory('all')" class="btn-secondary" id="filterAll">
+                📋 All Items
+            </button>
+            <button onclick="filterInventory('lowstock')" class="btn-secondary" id="filterLowStock">
+                ⚠️ Low Stock
+            </button>
+            <button onclick="filterInventory('outofstock')" class="btn-secondary" id="filterOutOfStock">
+                🔴 Out of Stock
+            </button>
+            <button onclick="viewStockMovementsReport()" class="btn-secondary">
+                📊 Stock Movements
+            </button>
+        </div>
+    `;
+    
+    // Search and Filter
+    html += `
+        <div style="margin-bottom:20px;">
+            <input type="text" 
+                   id="inventorySearch" 
+                   placeholder="🔍 Search parts by name, number, brand, or model..." 
+                   style="width:100%;padding:12px;border:1px solid #ddd;border-radius:8px;font-size:14px;"
+                   oninput="filterInventoryTable()">
+        </div>
+    `;
+    
+    // Inventory Table
+    html += `
+        <div style="overflow-x:auto;">
+            <table class="repair-table" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th>Part Name</th>
+                        <th>Part Number</th>
+                        <th>Category</th>
+                        <th>Brand/Model</th>
+                        <th>Quantity</th>
+                        <th>Min Stock</th>
+                        <th>Unit Cost</th>
+                        <th>Selling Price</th>
+                        <th>Total Value</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTableBody">
+    `;
+    
+    if (activeItems.length === 0) {
+        html += `
+            <tr>
+                <td colspan="10" style="text-align:center;padding:40px;">
+                    <div style="font-size:48px;margin-bottom:10px;">📦</div>
+                    <div class="text-secondary">No inventory items yet</div>
+                    ${canManage ? '<div style="margin-top:10px;"><button onclick="openAddInventoryItemModal()" class="btn-primary">Add First Item</button></div>' : ''}
+                </td>
+            </tr>
+        `;
+    } else {
+        // Sort by name
+        activeItems.sort((a, b) => a.partName.localeCompare(b.partName));
+        
+        activeItems.forEach(item => {
+            const isLowStock = item.quantity <= item.minStockLevel;
+            const isOutOfStock = item.quantity === 0;
+            const totalValue = item.quantity * item.unitCost;
+            
+            let stockBadge = '';
+            if (isOutOfStock) {
+                stockBadge = '<span class="status-badge" style="background:#f44336;">Out of Stock</span>';
+            } else if (isLowStock) {
+                stockBadge = '<span class="status-badge" style="background:#ff9800;">Low Stock</span>';
+            } else {
+                stockBadge = '<span class="status-badge" style="background:#4caf50;">In Stock</span>';
+            }
+            
+            html += `
+                <tr class="inventory-row" data-item-id="${item.id}" data-name="${item.partName.toLowerCase()}" data-number="${item.partNumber.toLowerCase()}" data-brand="${(item.brand || '').toLowerCase()}" data-model="${(item.model || '').toLowerCase()}" data-category="${item.category.toLowerCase()}">
+                    <td><strong>${item.partName}</strong></td>
+                    <td><code>${item.partNumber}</code></td>
+                    <td>${item.category}</td>
+                    <td class="text-secondary">${item.brand || 'N/A'} ${item.model || ''}</td>
+                    <td>
+                        <strong style="font-size:16px;${isOutOfStock ? 'color:#f44336;' : isLowStock ? 'color:#ff9800;' : 'color:#4caf50;'}">${item.quantity}</strong>
+                        ${stockBadge}
+                    </td>
+                    <td class="text-secondary">${item.minStockLevel}</td>
+                    <td>₱${item.unitCost.toLocaleString()}</td>
+                    <td>₱${item.sellingPrice.toLocaleString()}</td>
+                    <td><strong>₱${totalValue.toLocaleString()}</strong></td>
+                    <td>
+                        <button onclick="adjustStockModal('${item.id}')" class="btn-small" title="Adjust Stock">
+                            📊 Stock
+                        </button>
+                        ${canManage ? `
+                        <button onclick="editInventoryItemModal('${item.id}')" class="btn-small" title="Edit">
+                            ✏️
+                        </button>
+                        <button onclick="deleteInventoryItem('${item.id}')" class="btn-small btn-danger" title="Delete">
+                            🗑️
+                        </button>
+                        ` : ''}
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+/**
+ * Filter inventory table by search
+ */
+function filterInventoryTable() {
+    const searchTerm = document.getElementById('inventorySearch').value.toLowerCase();
+    const rows = document.querySelectorAll('.inventory-row');
+    
+    rows.forEach(row => {
+        const name = row.dataset.name;
+        const number = row.dataset.number;
+        const brand = row.dataset.brand;
+        const model = row.dataset.model;
+        const category = row.dataset.category;
+        
+        const matches = name.includes(searchTerm) || 
+                        number.includes(searchTerm) || 
+                        brand.includes(searchTerm) || 
+                        model.includes(searchTerm) ||
+                        category.includes(searchTerm);
+        
+        row.style.display = matches ? '' : 'none';
+    });
+}
+
+/**
+ * Filter inventory by status
+ */
+function filterInventory(filter) {
+    const allItems = window.allInventoryItems.filter(item => !item.deleted);
+    let filteredItems = [];
+    
+    if (filter === 'lowstock') {
+        filteredItems = getLowStockItems();
+    } else if (filter === 'outofstock') {
+        filteredItems = getOutOfStockItems();
+    } else {
+        filteredItems = allItems;
+    }
+    
+    // Update button states
+    document.querySelectorAll('[id^="filter"]').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    const activeButton = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
+    if (activeButton) {
+        activeButton.classList.add('active');
+    }
+    
+    // Show/hide rows
+    const rows = document.querySelectorAll('.inventory-row');
+    rows.forEach(row => {
+        const itemId = row.dataset.itemId;
+        const shouldShow = filteredItems.some(item => item.id === itemId);
+        row.style.display = shouldShow ? '' : 'none';
+    });
+}
+
+/**
+ * Open Add Inventory Item Modal
+ */
+function openAddInventoryItemModal() {
+    const modal = document.getElementById('userModal');
+    const modalContent = document.getElementById('userModalContent');
+    const modalTitle = document.getElementById('userModalTitle');
+    
+    modalTitle.textContent = '➕ Add New Part';
+    
+    // Get suppliers for dropdown
+    const activeSuppliers = window.allSuppliers.filter(s => !s.deleted);
+    
+    modalContent.innerHTML = `
+        <form onsubmit="submitAddInventoryItem(event)" id="addInventoryForm">
+            <div class="form-group">
+                <label>Part Name *</label>
+                <input type="text" name="partName" required placeholder="e.g. iPhone 12 Screen">
+            </div>
+            
+            <div class="form-group">
+                <label>Part Number *</label>
+                <input type="text" name="partNumber" required placeholder="e.g. IP12-SCR-001">
+            </div>
+            
+            <div class="form-group">
+                <label>Category *</label>
+                <select name="category" required>
+                    <option value="">Select category</option>
+                    <option value="Screen">Screen/Display</option>
+                    <option value="Battery">Battery</option>
+                    <option value="Charging Port">Charging Port</option>
+                    <option value="Camera">Camera</option>
+                    <option value="Speaker">Speaker</option>
+                    <option value="Microphone">Microphone</option>
+                    <option value="Button">Button</option>
+                    <option value="Housing">Housing/Body</option>
+                    <option value="Motherboard">Motherboard</option>
+                    <option value="Connector">Connector/Flex Cable</option>
+                    <option value="Tool">Tool/Equipment</option>
+                    <option value="Accessory">Accessory</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group">
+                    <label>Brand</label>
+                    <input type="text" name="brand" placeholder="e.g. Apple">
+                </div>
+                
+                <div class="form-group">
+                    <label>Model</label>
+                    <input type="text" name="model" placeholder="e.g. iPhone 12">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Supplier</label>
+                <select name="supplier">
+                    <option value="">None</option>
+                    ${activeSuppliers.map(s => `<option value="${s.supplierName}">${s.supplierName}</option>`).join('')}
+                </select>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group">
+                    <label>Initial Quantity *</label>
+                    <input type="number" name="quantity" required min="0" value="0">
+                </div>
+                
+                <div class="form-group">
+                    <label>Min Stock Level *</label>
+                    <input type="number" name="minStockLevel" required min="1" value="5">
+                </div>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group">
+                    <label>Unit Cost (₱) *</label>
+                    <input type="number" name="unitCost" required min="0" step="0.01" value="0">
+                </div>
+                
+                <div class="form-group">
+                    <label>Selling Price (₱) *</label>
+                    <input type="number" name="sellingPrice" required min="0" step="0.01" value="0">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Storage Location</label>
+                <input type="text" name="location" placeholder="e.g. Shelf A, Bin 3">
+            </div>
+            
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="2" placeholder="Additional notes..."></textarea>
+            </div>
+            
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="submit" class="btn-primary" style="flex:1;">✅ Add Part</button>
+                <button type="button" onclick="closeUserModal()" class="btn-secondary" style="flex:1;">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Submit Add Inventory Item
+ */
+async function submitAddInventoryItem(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    const itemData = {
+        partName: formData.get('partName'),
+        partNumber: formData.get('partNumber'),
+        category: formData.get('category'),
+        brand: formData.get('brand'),
+        model: formData.get('model'),
+        supplier: formData.get('supplier'),
+        quantity: parseInt(formData.get('quantity')),
+        minStockLevel: parseInt(formData.get('minStockLevel')),
+        unitCost: parseFloat(formData.get('unitCost')),
+        sellingPrice: parseFloat(formData.get('sellingPrice')),
+        location: formData.get('location'),
+        notes: formData.get('notes')
+    };
+    
+    try {
+        await addInventoryItem(itemData);
+        closeUserModal();
+    } catch (error) {
+        // Error handling done in addInventoryItem
+    }
+}
+
+/**
+ * Edit Inventory Item Modal
+ */
+function editInventoryItemModal(itemId) {
+    const item = window.allInventoryItems.find(i => i.id === itemId);
+    
+    if (!item) {
+        alert('Item not found');
+        return;
+    }
+    
+    const modal = document.getElementById('userModal');
+    const modalContent = document.getElementById('userModalContent');
+    const modalTitle = document.getElementById('userModalTitle');
+    
+    modalTitle.textContent = '✏️ Edit Part';
+    
+    // Get suppliers for dropdown
+    const activeSuppliers = window.allSuppliers.filter(s => !s.deleted);
+    
+    modalContent.innerHTML = `
+        <form onsubmit="submitEditInventoryItem(event, '${itemId}')" id="editInventoryForm">
+            <div class="form-group">
+                <label>Part Name *</label>
+                <input type="text" name="partName" required value="${item.partName}">
+            </div>
+            
+            <div class="form-group">
+                <label>Part Number *</label>
+                <input type="text" name="partNumber" required value="${item.partNumber}">
+            </div>
+            
+            <div class="form-group">
+                <label>Category *</label>
+                <select name="category" required>
+                    <option value="Screen" ${item.category === 'Screen' ? 'selected' : ''}>Screen/Display</option>
+                    <option value="Battery" ${item.category === 'Battery' ? 'selected' : ''}>Battery</option>
+                    <option value="Charging Port" ${item.category === 'Charging Port' ? 'selected' : ''}>Charging Port</option>
+                    <option value="Camera" ${item.category === 'Camera' ? 'selected' : ''}>Camera</option>
+                    <option value="Speaker" ${item.category === 'Speaker' ? 'selected' : ''}>Speaker</option>
+                    <option value="Microphone" ${item.category === 'Microphone' ? 'selected' : ''}>Microphone</option>
+                    <option value="Button" ${item.category === 'Button' ? 'selected' : ''}>Button</option>
+                    <option value="Housing" ${item.category === 'Housing' ? 'selected' : ''}>Housing/Body</option>
+                    <option value="Motherboard" ${item.category === 'Motherboard' ? 'selected' : ''}>Motherboard</option>
+                    <option value="Connector" ${item.category === 'Connector' ? 'selected' : ''}>Connector/Flex Cable</option>
+                    <option value="Tool" ${item.category === 'Tool' ? 'selected' : ''}>Tool/Equipment</option>
+                    <option value="Accessory" ${item.category === 'Accessory' ? 'selected' : ''}>Accessory</option>
+                    <option value="Other" ${item.category === 'Other' ? 'selected' : ''}>Other</option>
+                </select>
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group">
+                    <label>Brand</label>
+                    <input type="text" name="brand" value="${item.brand || ''}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Model</label>
+                    <input type="text" name="model" value="${item.model || ''}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Supplier</label>
+                <select name="supplier">
+                    <option value="">None</option>
+                    ${activeSuppliers.map(s => `<option value="${s.supplierName}" ${item.supplier === s.supplierName ? 'selected' : ''}>${s.supplierName}</option>`).join('')}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Min Stock Level *</label>
+                <input type="number" name="minStockLevel" required min="1" value="${item.minStockLevel}">
+            </div>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <div class="form-group">
+                    <label>Unit Cost (₱) *</label>
+                    <input type="number" name="unitCost" required min="0" step="0.01" value="${item.unitCost}">
+                </div>
+                
+                <div class="form-group">
+                    <label>Selling Price (₱) *</label>
+                    <input type="number" name="sellingPrice" required min="0" step="0.01" value="${item.sellingPrice}">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Storage Location</label>
+                <input type="text" name="location" value="${item.location || ''}">
+            </div>
+            
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="2">${item.notes || ''}</textarea>
+            </div>
+            
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="submit" class="btn-primary" style="flex:1;">✅ Save Changes</button>
+                <button type="button" onclick="closeUserModal()" class="btn-secondary" style="flex:1;">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Submit Edit Inventory Item
+ */
+async function submitEditInventoryItem(e, itemId) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    const updates = {
+        partName: formData.get('partName'),
+        partNumber: formData.get('partNumber'),
+        category: formData.get('category'),
+        brand: formData.get('brand'),
+        model: formData.get('model'),
+        supplier: formData.get('supplier'),
+        minStockLevel: parseInt(formData.get('minStockLevel')),
+        unitCost: parseFloat(formData.get('unitCost')),
+        sellingPrice: parseFloat(formData.get('sellingPrice')),
+        location: formData.get('location'),
+        notes: formData.get('notes')
+    };
+    
+    try {
+        await updateInventoryItem(itemId, updates);
+        closeUserModal();
+    } catch (error) {
+        // Error handling done in updateInventoryItem
+    }
+}
+
+/**
+ * Adjust Stock Modal
+ */
+function adjustStockModal(itemId) {
+    const item = window.allInventoryItems.find(i => i.id === itemId);
+    
+    if (!item) {
+        alert('Item not found');
+        return;
+    }
+    
+    const modal = document.getElementById('userModal');
+    const modalContent = document.getElementById('userModalContent');
+    const modalTitle = document.getElementById('userModalTitle');
+    
+    modalTitle.textContent = '📊 Adjust Stock';
+    
+    modalContent.innerHTML = `
+        <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px;">
+            <h3 style="margin:0 0 5px;">${item.partName}</h3>
+            <p class="text-secondary" style="margin:0;">Part #: ${item.partNumber}</p>
+            <p style="margin:10px 0 0;font-size:24px;font-weight:bold;">Current Stock: ${item.quantity}</p>
+        </div>
+        
+        <form onsubmit="submitStockAdjustment(event, '${itemId}')" id="adjustStockForm">
+            <div class="form-group">
+                <label>Adjustment Type *</label>
+                <select name="adjustmentType" id="adjustmentType" onchange="updateAdjustmentLabel()" required>
+                    <option value="">Select type</option>
+                    <option value="add">➕ Add Stock (Received from supplier)</option>
+                    <option value="remove">➖ Remove Stock (Used/Damaged/Returned)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label id="quantityLabel">Quantity *</label>
+                <input type="number" name="quantity" id="adjustQuantity" required min="1" value="1">
+            </div>
+            
+            <div class="form-group">
+                <label>Reason *</label>
+                <textarea name="reason" rows="2" required placeholder="Why are you adjusting the stock?"></textarea>
+            </div>
+            
+            <div id="newStockPreview" style="margin:15px 0;padding:15px;background:var(--bg-hover);border-radius:8px;display:none;">
+                <p style="margin:0;"><strong>New Stock Level:</strong> <span id="newStockValue">0</span></p>
+            </div>
+            
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="submit" class="btn-primary" style="flex:1;">✅ Adjust Stock</button>
+                <button type="button" onclick="closeUserModal()" class="btn-secondary" style="flex:1;">Cancel</button>
+            </div>
+        </form>
+        
+        <script>
+            // Update preview when quantity or type changes
+            document.getElementById('adjustQuantity').addEventListener('input', updateStockPreview);
+            document.getElementById('adjustmentType').addEventListener('change', updateStockPreview);
+            
+            function updateStockPreview() {
+                const type = document.getElementById('adjustmentType').value;
+                const qty = parseInt(document.getElementById('adjustQuantity').value) || 0;
+                const currentStock = ${item.quantity};
+                
+                if (type && qty > 0) {
+                    const newStock = type === 'add' ? currentStock + qty : currentStock - qty;
+                    document.getElementById('newStockValue').textContent = newStock;
+                    document.getElementById('newStockPreview').style.display = 'block';
+                    
+                    if (newStock < 0) {
+                        document.getElementById('newStockValue').style.color = '#f44336';
+                        document.getElementById('newStockValue').textContent = newStock + ' (Cannot be negative!)';
+                    } else {
+                        document.getElementById('newStockValue').style.color = newStock <= ${item.minStockLevel} ? '#ff9800' : '#4caf50';
+                    }
+                } else {
+                    document.getElementById('newStockPreview').style.display = 'none';
+                }
+            }
+            
+            function updateAdjustmentLabel() {
+                const type = document.getElementById('adjustmentType').value;
+                const label = document.getElementById('quantityLabel');
+                
+                if (type === 'add') {
+                    label.textContent = 'Quantity to Add *';
+                } else if (type === 'remove') {
+                    label.textContent = 'Quantity to Remove *';
+                } else {
+                    label.textContent = 'Quantity *';
+                }
+            }
+        </script>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Submit Stock Adjustment
+ */
+async function submitStockAdjustment(e, itemId) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    const type = formData.get('adjustmentType');
+    const quantity = parseInt(formData.get('quantity'));
+    const reason = formData.get('reason');
+    
+    const adjustment = type === 'add' ? quantity : -quantity;
+    
+    try {
+        await adjustStock(itemId, adjustment, reason);
+        closeUserModal();
+    } catch (error) {
+        // Error handling done in adjustStock
+    }
+}
+
+/**
+ * Open Add Supplier Modal
+ */
+function openAddSupplierModal() {
+    const modal = document.getElementById('userModal');
+    const modalContent = document.getElementById('userModalContent');
+    const modalTitle = document.getElementById('userModalTitle');
+    
+    modalTitle.textContent = '📊 Manage Suppliers';
+    
+    const activeSuppliers = window.allSuppliers.filter(s => !s.deleted);
+    
+    modalContent.innerHTML = `
+        <div style="margin-bottom:20px;">
+            <button onclick="showAddSupplierForm()" class="btn-primary">➕ Add New Supplier</button>
+        </div>
+        
+        <div id="supplierFormContainer" style="display:none;"></div>
+        
+        <h4>Existing Suppliers</h4>
+        <div id="suppliersList">
+            ${activeSuppliers.length === 0 ? '<p class="text-secondary">No suppliers added yet</p>' : ''}
+            ${activeSuppliers.map(supplier => `
+                <div style="padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:10px;">
+                    <h4 style="margin:0 0 10px;">${supplier.supplierName}</h4>
+                    ${supplier.contactPerson ? `<p style="margin:5px 0;"><strong>Contact:</strong> ${supplier.contactPerson}</p>` : ''}
+                    ${supplier.phone ? `<p style="margin:5px 0;"><strong>Phone:</strong> ${supplier.phone}</p>` : ''}
+                    ${supplier.email ? `<p style="margin:5px 0;"><strong>Email:</strong> ${supplier.email}</p>` : ''}
+                    ${supplier.address ? `<p style="margin:5px 0;"><strong>Address:</strong> ${supplier.address}</p>` : ''}
+                    <div style="margin-top:10px;">
+                        <button onclick="editSupplierForm('${supplier.id}')" class="btn-small">✏️ Edit</button>
+                        <button onclick="deleteSupplier('${supplier.id}')" class="btn-small btn-danger">🗑️ Delete</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+        
+        <div style="margin-top:20px;">
+            <button type="button" onclick="closeUserModal()" class="btn-secondary" style="width:100%;">Close</button>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Show Add Supplier Form
+ */
+function showAddSupplierForm() {
+    const container = document.getElementById('supplierFormContainer');
+    
+    container.innerHTML = `
+        <form onsubmit="submitAddSupplier(event)" id="addSupplierForm" style="padding:15px;background:var(--bg-hover);border-radius:8px;margin-bottom:20px;">
+            <h4 style="margin:0 0 15px;">New Supplier</h4>
+            
+            <div class="form-group">
+                <label>Supplier Name *</label>
+                <input type="text" name="supplierName" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Contact Person</label>
+                <input type="text" name="contactPerson">
+            </div>
+            
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" name="phone">
+            </div>
+            
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email">
+            </div>
+            
+            <div class="form-group">
+                <label>Address</label>
+                <textarea name="address" rows="2"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="2"></textarea>
+            </div>
+            
+            <div style="display:flex;gap:10px;">
+                <button type="submit" class="btn-primary" style="flex:1;">✅ Add Supplier</button>
+                <button type="button" onclick="hideSupplierForm()" class="btn-secondary" style="flex:1;">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    container.style.display = 'block';
+}
+
+/**
+ * Hide Supplier Form
+ */
+function hideSupplierForm() {
+    document.getElementById('supplierFormContainer').style.display = 'none';
+    document.getElementById('supplierFormContainer').innerHTML = '';
+}
+
+/**
+ * Submit Add Supplier
+ */
+async function submitAddSupplier(e) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    const supplierData = {
+        supplierName: formData.get('supplierName'),
+        contactPerson: formData.get('contactPerson'),
+        phone: formData.get('phone'),
+        email: formData.get('email'),
+        address: formData.get('address'),
+        notes: formData.get('notes')
+    };
+    
+    try {
+        await addSupplier(supplierData);
+        // Refresh modal content
+        openAddSupplierModal();
+    } catch (error) {
+        // Error handling done in addSupplier
+    }
+}
+
+/**
+ * Edit Supplier Form
+ */
+function editSupplierForm(supplierId) {
+    const supplier = window.allSuppliers.find(s => s.id === supplierId);
+    
+    if (!supplier) {
+        alert('Supplier not found');
+        return;
+    }
+    
+    const container = document.getElementById('supplierFormContainer');
+    
+    container.innerHTML = `
+        <form onsubmit="submitEditSupplier(event, '${supplierId}')" id="editSupplierForm" style="padding:15px;background:var(--bg-hover);border-radius:8px;margin-bottom:20px;">
+            <h4 style="margin:0 0 15px;">Edit Supplier</h4>
+            
+            <div class="form-group">
+                <label>Supplier Name *</label>
+                <input type="text" name="supplierName" required value="${supplier.supplierName}">
+            </div>
+            
+            <div class="form-group">
+                <label>Contact Person</label>
+                <input type="text" name="contactPerson" value="${supplier.contactPerson || ''}">
+            </div>
+            
+            <div class="form-group">
+                <label>Phone</label>
+                <input type="tel" name="phone" value="${supplier.phone || ''}">
+            </div>
+            
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" value="${supplier.email || ''}">
+            </div>
+            
+            <div class="form-group">
+                <label>Address</label>
+                <textarea name="address" rows="2">${supplier.address || ''}</textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea name="notes" rows="2">${supplier.notes || ''}</textarea>
+            </div>
+            
+            <div style="display:flex;gap:10px;">
+                <button type="submit" class="btn-primary" style="flex:1;">✅ Save Changes</button>
+                <button type="button" onclick="hideSupplierForm()" class="btn-secondary" style="flex:1;">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    container.style.display = 'block';
+}
+
+/**
+ * Submit Edit Supplier
+ */
+async function submitEditSupplier(e, supplierId) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    const updates = {
+        supplierName: formData.get('supplierName'),
+        contactPerson: formData.get('contactPerson'),
+        phone: formData.get('phone'),
+        email: formData.get('email'),
+        address: formData.get('address'),
+        notes: formData.get('notes')
+    };
+    
+    try {
+        await updateSupplier(supplierId, updates);
+        // Refresh modal content
+        openAddSupplierModal();
+    } catch (error) {
+        // Error handling done in updateSupplier
+    }
+}
+
+/**
+ * Open Use Parts Modal for a Repair
+ */
+function openUsePartsModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const modal = document.getElementById('userModal');
+    const modalContent = document.getElementById('userModalContent');
+    const modalTitle = document.getElementById('userModalTitle');
+    
+    modalTitle.textContent = '🔧 Use Parts from Inventory';
+    
+    // Get available inventory items (in stock only)
+    const availableItems = window.allInventoryItems.filter(item => 
+        !item.deleted && item.quantity > 0
+    ).sort((a, b) => a.partName.localeCompare(b.partName));
+    
+    // Get already used parts
+    const usedParts = repair.partsUsed ? Object.values(repair.partsUsed) : [];
+    
+    modalContent.innerHTML = `
+        <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px;">
+            <h4 style="margin:0 0 5px;">${repair.customerName} - ${repair.brand} ${repair.model}</h4>
+            <p class="text-secondary" style="margin:0;">Repair: ${repair.repairType || 'Pending Diagnosis'}</p>
+        </div>
+        
+        ${usedParts.length > 0 ? `
+            <div style="margin-bottom:20px;padding:15px;background:#e8f5e9;border-radius:8px;">
+                <h4 style="margin:0 0 10px;color:#2e7d32;">✅ Parts Already Used</h4>
+                ${usedParts.map(part => `
+                    <div style="padding:8px;background:white;border-radius:4px;margin-bottom:5px;">
+                        <strong>${part.partName}</strong> <span class="text-secondary">(${part.partNumber})</span>
+                        <div style="font-size:12px;color:#666;">Qty: ${part.quantity} | Cost: ₱${part.totalCost.toFixed(2)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+        
+        <form onsubmit="submitUseParts(event, '${repairId}')" id="usePartsForm">
+            <div class="form-group">
+                <label>Select Part *</label>
+                <select name="partId" id="selectedPart" onchange="updatePartDetails()" required>
+                    <option value="">-- Select a part --</option>
+                    ${availableItems.map(item => `
+                        <option value="${item.id}" 
+                                data-name="${item.partName}" 
+                                data-number="${item.partNumber}"
+                                data-stock="${item.quantity}"
+                                data-cost="${item.unitCost}">
+                            ${item.partName} (${item.partNumber}) - Stock: ${item.quantity}
+                        </option>
+                    `).join('')}
+                </select>
+            </div>
+            
+            <div id="partDetailsBox" style="display:none;padding:15px;background:var(--bg-light);border-radius:8px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <div>
+                        <strong>Part Number:</strong>
+                        <div id="displayPartNumber" class="text-secondary"></div>
+                    </div>
+                    <div>
+                        <strong>Available Stock:</strong>
+                        <div id="displayStock" style="color:#4caf50;font-weight:bold;"></div>
+                    </div>
+                </div>
+                <div>
+                    <strong>Unit Cost:</strong>
+                    <div id="displayCost" style="color:#2196f3;font-weight:bold;"></div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Quantity *</label>
+                <input type="number" name="quantity" id="partQuantity" required min="1" value="1" 
+                       oninput="updateTotalCost()">
+                <small class="text-secondary">How many units are being used?</small>
+            </div>
+            
+            <div id="totalCostBox" style="display:none;padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:15px;">
+                <strong>Total Parts Cost:</strong>
+                <div id="displayTotalCost" style="font-size:24px;font-weight:bold;color:#2196f3;margin-top:5px;"></div>
+            </div>
+            
+            <div class="form-group">
+                <label>Notes (Optional)</label>
+                <textarea name="notes" rows="2" placeholder="Any special notes about this part usage..."></textarea>
+            </div>
+            
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="submit" class="btn-primary" style="flex:1;">✅ Use Part</button>
+                <button type="button" onclick="closeUserModal()" class="btn-secondary" style="flex:1;">Cancel</button>
+            </div>
+        </form>
+        
+        ${availableItems.length === 0 ? `
+            <div style="margin-top:20px;padding:20px;background:#fff3cd;border-radius:8px;text-align:center;">
+                <strong>⚠️ No parts available in inventory</strong>
+                <p class="text-secondary" style="margin:10px 0 0;">All parts are out of stock. Please restock inventory first.</p>
+            </div>
+        ` : ''}
+        
+        <script>
+            function updatePartDetails() {
+                const select = document.getElementById('selectedPart');
+                const selectedOption = select.options[select.selectedIndex];
+                
+                if (!selectedOption.value) {
+                    document.getElementById('partDetailsBox').style.display = 'none';
+                    document.getElementById('totalCostBox').style.display = 'none';
+                    return;
+                }
+                
+                const partNumber = selectedOption.dataset.number;
+                const stock = selectedOption.dataset.stock;
+                const cost = parseFloat(selectedOption.dataset.cost);
+                
+                document.getElementById('displayPartNumber').textContent = partNumber;
+                document.getElementById('displayStock').textContent = stock + ' units';
+                document.getElementById('displayCost').textContent = '₱' + cost.toFixed(2) + ' per unit';
+                
+                // Update max quantity
+                document.getElementById('partQuantity').max = stock;
+                
+                document.getElementById('partDetailsBox').style.display = 'block';
+                updateTotalCost();
+            }
+            
+            function updateTotalCost() {
+                const select = document.getElementById('selectedPart');
+                const selectedOption = select.options[select.selectedIndex];
+                const quantity = parseInt(document.getElementById('partQuantity').value) || 0;
+                
+                if (!selectedOption.value || quantity === 0) {
+                    document.getElementById('totalCostBox').style.display = 'none';
+                    return;
+                }
+                
+                const cost = parseFloat(selectedOption.dataset.cost);
+                const stock = parseInt(selectedOption.dataset.stock);
+                const total = cost * quantity;
+                
+                // Check if quantity exceeds stock
+                if (quantity > stock) {
+                    document.getElementById('displayTotalCost').innerHTML = '<span style="color:#f44336;">⚠️ Quantity exceeds available stock!</span>';
+                } else {
+                    document.getElementById('displayTotalCost').textContent = '₱' + total.toFixed(2);
+                }
+                
+                document.getElementById('totalCostBox').style.display = 'block';
+            }
+        </script>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Submit Use Parts
+ */
+async function submitUseParts(e, repairId) {
+    e.preventDefault();
+    
+    const form = e.target;
+    const formData = new FormData(form);
+    
+    const partId = formData.get('partId');
+    const quantity = parseInt(formData.get('quantity'));
+    const notes = formData.get('notes');
+    
+    try {
+        // Use part in repair (this will handle stock deduction and recording)
+        await usePartInRepair(partId, quantity, repairId);
+        
+        closeUserModal();
+        utils.showToast('success', 'Parts Used', `Parts have been recorded and stock updated`);
+    } catch (error) {
+        // Error already handled in usePartInRepair
+    }
+}
+
+/**
+ * View Stock Movements Report
+ */
+function viewStockMovementsReport() {
+    const modal = document.getElementById('userModal');
+    const modalContent = document.getElementById('userModalContent');
+    const modalTitle = document.getElementById('userModalTitle');
+    
+    modalTitle.textContent = '📊 Stock Movements History';
+    
+    // Get recent movements (last 100)
+    const recentMovements = window.stockMovements.slice(0, 100);
+    
+    modalContent.innerHTML = `
+        <div style="margin-bottom:20px;">
+            <p class="text-secondary">Showing last ${recentMovements.length} stock movements</p>
+        </div>
+        
+        <div style="max-height:600px;overflow-y:auto;">
+            ${recentMovements.length === 0 ? `
+                <div style="text-align:center;padding:40px;">
+                    <div style="font-size:48px;margin-bottom:10px;">📦</div>
+                    <div class="text-secondary">No stock movements recorded yet</div>
+                </div>
+            ` : `
+                ${recentMovements.map(movement => {
+                    const isIncrease = movement.adjustment > 0;
+                    const color = isIncrease ? '#4caf50' : '#f44336';
+                    const icon = isIncrease ? '➕' : '➖';
+                    
+                    return `
+                        <div style="padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:10px;border-left:4px solid ${color};">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                                <div style="flex:1;">
+                                    <h4 style="margin:0 0 5px;">${icon} ${movement.partName}</h4>
+                                    <div class="text-secondary" style="font-size:13px;">
+                                        Part #: ${movement.partNumber}
+                                    </div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:20px;font-weight:bold;color:${color};">
+                                        ${isIncrease ? '+' : ''}${movement.adjustment}
+                                    </div>
+                                    <div class="text-secondary" style="font-size:12px;">
+                                        ${movement.previousQuantity} → ${movement.newQuantity}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div style="background:var(--bg-light);padding:10px;border-radius:4px;margin-top:10px;">
+                                <div style="font-size:13px;margin-bottom:5px;">
+                                    <strong>Reason:</strong> ${movement.reason}
+                                </div>
+                                <div style="font-size:12px;color:#666;">
+                                    <strong>By:</strong> ${movement.performedBy} • 
+                                    <strong>On:</strong> ${utils.formatDateTime(movement.timestamp)}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            `}
+        </div>
+        
+        <div style="margin-top:20px;">
+            <button onclick="closeUserModal()" class="btn-secondary" style="width:100%;">Close</button>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+window.viewStockMovementsReport = viewStockMovementsReport;
+window.openUsePartsModal = openUsePartsModal;
+window.submitUseParts = submitUseParts;
+
+window.buildInventoryTab = buildInventoryTab;
+window.filterInventoryTable = filterInventoryTable;
+window.filterInventory = filterInventory;
+window.openAddInventoryItemModal = openAddInventoryItemModal;
+window.submitAddInventoryItem = submitAddInventoryItem;
+window.editInventoryItemModal = editInventoryItemModal;
+window.submitEditInventoryItem = submitEditInventoryItem;
+window.adjustStockModal = adjustStockModal;
+window.submitStockAdjustment = submitStockAdjustment;
+window.openAddSupplierModal = openAddSupplierModal;
+window.showAddSupplierForm = showAddSupplierForm;
+window.hideSupplierForm = hideSupplierForm;
+window.submitAddSupplier = submitAddSupplier;
+window.editSupplierForm = editSupplierForm;
+window.submitEditSupplier = submitEditSupplier;
 
 window.buildDailyRemittanceTab = buildDailyRemittanceTab;
 window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;
