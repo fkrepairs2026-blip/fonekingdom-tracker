@@ -95,6 +95,9 @@ async function submitReceiveDevice(e) {
     // Check if it's a back job
     const isBackJob = document.getElementById('isBackJob').checked;
     
+    // Check if customer has pre-approved pricing
+    const customerPreApproved = document.getElementById('customerPreApproved').checked;
+    
     const repair = {
         customerType: data.get('customerType'),
         customerName: data.get('customerName'),
@@ -130,6 +133,41 @@ async function submitReceiveDevice(e) {
         customerApprovedBy: null
         
     };
+    
+    // Handle PRE-APPROVED devices (customer already agreed to pricing)
+    if (customerPreApproved && !isBackJob) {
+        const repairType = document.getElementById('preApprovedRepairType').value;
+        const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
+        const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
+        const total = partsCost + laborCost;
+        
+        if (!repairType) {
+            alert('⚠️ Please select the repair type for the pre-approved pricing');
+            return;
+        }
+        
+        if (total <= 0) {
+            alert('⚠️ Please enter at least parts cost or labor cost for the pre-approved pricing');
+            return;
+        }
+        
+        // Mark as pre-approved with pricing
+        repair.repairType = repairType;
+        repair.partsCost = partsCost;
+        repair.laborCost = laborCost;
+        repair.total = total;
+        
+        // Mark diagnosis as created and customer approved
+        repair.diagnosisCreated = true;
+        repair.diagnosisCreatedAt = new Date().toISOString();
+        repair.diagnosisCreatedBy = window.currentUser.uid;
+        repair.diagnosisCreatedByName = window.currentUserData.displayName;
+        repair.customerApproved = true;
+        repair.customerApprovedAt = new Date().toISOString();
+        repair.customerApprovedBy = window.currentUser.uid;
+        
+        console.log('✅ Device marked as pre-approved with pricing:', {repairType, partsCost, laborCost, total});
+    }
     
     // Add back job information if checked
     if (isBackJob) {
@@ -177,6 +215,8 @@ async function submitReceiveDevice(e) {
         
         if (isBackJob) {
             alert(`✅ Back Job Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\n🔄 BACK JOB - Auto-assigned to: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n⚠️ This device will go directly to "${repair.originalTechName}"'s job list with status "In Progress".`);
+        } else if (customerPreApproved) {
+            alert(`✅ Device Received & Approved!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n💰 Approved Pricing:\n• ${repair.repairType}\n• Parts: ₱${repair.partsCost.toFixed(2)}\n• Labor: ₱${repair.laborCost.toFixed(2)}\n• Total: ₱${repair.total.toFixed(2)}\n\n✅ Device is ready for technician to accept and start repair!`);
         } else {
             alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n📋 Next Steps:\n1. Tech/Owner will create diagnosis and set pricing\n2. Customer will approve the price\n3. Technician can then accept the repair\n\n✅ Device is now in "📥 Received Devices" waiting for diagnosis.`);
         }
@@ -196,6 +236,14 @@ async function submitReceiveDevice(e) {
         }
         if (document.getElementById('backJobFields')) {
             document.getElementById('backJobFields').style.display = 'none';
+        }
+        
+        // Reset pre-approval fields
+        if (document.getElementById('customerPreApproved')) {
+            document.getElementById('customerPreApproved').checked = false;
+        }
+        if (document.getElementById('preApprovalFields')) {
+            document.getElementById('preApprovalFields').style.display = 'none';
         }
         
         // Force refresh after a short delay to ensure Firebase has processed

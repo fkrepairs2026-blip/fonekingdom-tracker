@@ -525,6 +525,58 @@ function buildReceiveDeviceTab(container) {
                     <div id="receivePreview1" style="display:none;margin-top:10px;"></div>
                 </div>
                 
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px;">
+                        <input type="checkbox" id="customerPreApproved" onchange="togglePreApprovalFields()">
+                        <span style="color:#4caf50;font-weight:bold;">✅ Customer has ALREADY APPROVED the repair price</span>
+                    </label>
+                    <small style="color:#666;display:block;margin-top:5px;">Check this if you already quoted the customer and they agreed to the price</small>
+                </div>
+                
+                <div id="preApprovalFields" style="display:none;background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                    <p style="margin:0 0 15px;"><strong>💰 Enter Agreed Pricing</strong></p>
+                    
+                    <div class="form-group">
+                        <label>Repair Type *</label>
+                        <select id="preApprovedRepairType" name="preApprovedRepairType">
+                            <option value="">Select repair type</option>
+                            <option value="Screen Replacement">Screen Replacement</option>
+                            <option value="Battery Replacement">Battery Replacement</option>
+                            <option value="Charging Port Repair">Charging Port Repair</option>
+                            <option value="Camera Replacement">Camera Replacement</option>
+                            <option value="Speaker/Mic Repair">Speaker/Mic Repair</option>
+                            <option value="Button Repair">Button Repair</option>
+                            <option value="Housing Replacement">Housing Replacement</option>
+                            <option value="Water Damage Repair">Water Damage Repair</option>
+                            <option value="Motherboard Repair">Motherboard Repair</option>
+                            <option value="Software Repair">Software Repair</option>
+                            <option value="Data Recovery">Data Recovery</option>
+                            <option value="Network/Signal Repair">Network/Signal Repair</option>
+                            <option value="Other Repair">Other Repair</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Parts Cost (₱)</label>
+                            <input type="number" id="preApprovedPartsCost" name="preApprovedPartsCost" min="0" step="0.01" value="0" onchange="calculatePreApprovedTotal()">
+                        </div>
+                        <div class="form-group">
+                            <label>Labor Cost (₱)</label>
+                            <input type="number" id="preApprovedLaborCost" name="preApprovedLaborCost" min="0" step="0.01" value="0" onchange="calculatePreApprovedTotal()">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Total Amount (₱)</label>
+                        <input type="number" id="preApprovedTotal" name="preApprovedTotal" readonly style="background:#f5f5f5;font-weight:bold;font-size:18px;" value="0.00">
+                    </div>
+                    
+                    <div style="background:#fff9c4;padding:10px;border-radius:5px;margin-top:10px;">
+                        <small><strong>ℹ️ Note:</strong> This device will be marked as "Received & Approved" - ready for technician to accept and start repair immediately.</small>
+                    </div>
+                </div>
+                
                 <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #2196f3;">
                     <p style="margin:0;"><strong>ℹ️ Workflow:</strong></p>
                     <ol style="margin:5px 0 0 20px;font-size:14px;">
@@ -916,6 +968,44 @@ function toggleBackJobFields() {
     }
 }
 
+/**
+ * Toggle pre-approval pricing fields
+ */
+function togglePreApprovalFields() {
+    const isChecked = document.getElementById('customerPreApproved').checked;
+    const fieldsDiv = document.getElementById('preApprovalFields');
+    
+    if (fieldsDiv) {
+        fieldsDiv.style.display = isChecked ? 'block' : 'none';
+        
+        // If unchecking, clear the fields
+        if (!isChecked) {
+            const repairTypeField = document.getElementById('preApprovedRepairType');
+            const partsCostField = document.getElementById('preApprovedPartsCost');
+            const laborCostField = document.getElementById('preApprovedLaborCost');
+            const totalField = document.getElementById('preApprovedTotal');
+            
+            if (repairTypeField) repairTypeField.value = '';
+            if (partsCostField) partsCostField.value = '0';
+            if (laborCostField) laborCostField.value = '0';
+            if (totalField) totalField.value = '0.00';
+        }
+    }
+}
+
+/**
+ * Calculate pre-approved total (parts + labor)
+ */
+function calculatePreApprovedTotal() {
+    const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
+    const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
+    const total = partsCost + laborCost;
+    
+    const totalField = document.getElementById('preApprovedTotal');
+    if (totalField) {
+        totalField.value = total.toFixed(2);
+    }
+}
 
 /**
  * Handle problem type selection
@@ -1069,6 +1159,8 @@ window.buildCashCountTab = buildCashCountTab;
 window.buildSuppliersTab = buildSuppliersTab;
 window.buildUsersTab = buildUsersTab;
 window.toggleBackJobFields = toggleBackJobFields;
+window.togglePreApprovalFields = togglePreApprovalFields;
+window.calculatePreApprovedTotal = calculatePreApprovedTotal;
 window.buildClaimedUnitsPage = buildClaimedUnitsPage;
 window.handleProblemTypeChange = handleProblemTypeChange;
 
