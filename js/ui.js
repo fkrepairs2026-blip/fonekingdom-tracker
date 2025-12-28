@@ -83,9 +83,10 @@ function buildTabs() {
         // Inventory & Reports
         sections.inventory.tabs.push(
             { id: 'all', label: 'All Repairs', icon: '📋', build: buildAllRepairsTab },
+            { id: 'analytics', label: 'Analytics & Reports', icon: '📊', build: buildAnalyticsTab },
             { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
             { id: 'suppliers', label: 'Supplier Report', icon: '📊', build: buildSuppliersTab },
-            { id: 'tech-logs', label: 'Technician Logs', icon: '📊', build: buildTechnicianLogsTab }
+            { id: 'tech-logs', label: 'Technician Logs', icon: '📈', build: buildTechnicianLogsTab }
         );
         if (role === 'manager') {
             sections.inventory.tabs.push(
@@ -4254,6 +4255,492 @@ window.hideSupplierForm = hideSupplierForm;
 window.submitAddSupplier = submitAddSupplier;
 window.editSupplierForm = editSupplierForm;
 window.submitEditSupplier = submitEditSupplier;
+
+// ===== ANALYTICS & REPORTS TAB =====
+
+/**
+ * Build Analytics Dashboard Tab
+ */
+function buildAnalyticsTab(container) {
+    console.log('📊 Building Analytics tab');
+    window.currentTabRefresh = () => buildAnalyticsTab(document.getElementById('analyticsTab'));
+    
+    // Get date range (default: last 30 days)
+    const startDate = window.analyticsDateRange?.start || new Date(new Date().setDate(new Date().getDate() - 30));
+    const endDate = window.analyticsDateRange?.end || new Date();
+    
+    // Get all analytics data
+    const revenue = getRevenueAnalytics(startDate, endDate);
+    const performance = getTechnicianPerformance(startDate, endDate);
+    const customers = getCustomerAnalytics(startDate, endDate);
+    const repairTypes = getRepairTypeAnalytics(startDate, endDate);
+    const inventory = getInventoryAnalytics(startDate, endDate);
+    const financial = getFinancialReport(startDate, endDate);
+    
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>📊 Analytics & Reports</h2>
+            <p>Comprehensive business intelligence and reporting</p>
+        </div>
+        
+        <!-- Date Range Selector -->
+        <div class="analytics-controls" style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+            <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:center;">
+                <div>
+                    <label style="display:block;margin-bottom:5px;font-weight:600;">Start Date</label>
+                    <input type="date" id="analyticsStartDate" value="${startDate.toISOString().split('T')[0]}" 
+                           style="padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-white);color:var(--text-primary);">
+                </div>
+                <div>
+                    <label style="display:block;margin-bottom:5px;font-weight:600;">End Date</label>
+                    <input type="date" id="analyticsEndDate" value="${endDate.toISOString().split('T')[0]}"
+                           style="padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-white);color:var(--text-primary);">
+                </div>
+                <div style="display:flex;gap:10px;align-items:flex-end;">
+                    <button onclick="updateAnalyticsDateRange()" class="btn-primary">Apply</button>
+                    <button onclick="setQuickDateRange('7days')" class="btn-secondary">Last 7 Days</button>
+                    <button onclick="setQuickDateRange('30days')" class="btn-secondary">Last 30 Days</button>
+                    <button onclick="setQuickDateRange('thisMonth')" class="btn-secondary">This Month</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Revenue Overview Cards -->
+        <h3 style="margin:25px 0 15px;">💰 Revenue Overview</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:30px;">
+            <div class="stat-card" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Total Revenue</div>
+                <div style="font-size:32px;font-weight:bold;">₱${revenue.totalRevenue.toLocaleString()}</div>
+                <div style="font-size:12px;opacity:0.8;margin-top:5px;">${revenue.repairCount} repairs</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Parts Cost</div>
+                <div style="font-size:32px;font-weight:bold;">₱${revenue.totalPartsCost.toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#4facfe 0%,#00f2fe 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Commissions</div>
+                <div style="font-size:32px;font-weight:bold;">₱${revenue.totalCommissions.toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#43e97b 0%,#38f9d7 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Net Profit</div>
+                <div style="font-size:32px;font-weight:bold;">₱${revenue.netProfit.toLocaleString()}</div>
+                <div style="font-size:12px;opacity:0.8;margin-top:5px;">${revenue.profitMargin.toFixed(1)}% margin</div>
+            </div>
+        </div>
+        
+        <!-- Revenue by Type -->
+        <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h3 style="margin:0;">📊 Revenue by Repair Type</h3>
+                <button onclick="exportRevenueByType()" class="btn-small">📥 Export CSV</button>
+            </div>
+            <div class="analytics-table">
+                <table class="repair-table">
+                    <thead>
+                        <tr>
+                            <th>Repair Type</th>
+                            <th>Revenue</th>
+                            <th>% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(revenue.revenueByType)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([type, amount]) => `
+                                <tr>
+                                    <td><strong>${type}</strong></td>
+                                    <td>₱${amount.toLocaleString()}</td>
+                                    <td>${((amount / revenue.totalRevenue) * 100).toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Technician Performance -->
+        <h3 style="margin:25px 0 15px;">⚡ Technician Performance</h3>
+        <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h4 style="margin:0;">Performance Metrics</h4>
+                <button onclick="exportTechPerformance()" class="btn-small">📥 Export CSV</button>
+            </div>
+            <div class="analytics-table">
+                <table class="repair-table">
+                    <thead>
+                        <tr>
+                            <th>Technician</th>
+                            <th>Total Repairs</th>
+                            <th>Completed</th>
+                            <th>Completion Rate</th>
+                            <th>Avg Time (hrs)</th>
+                            <th>Revenue</th>
+                            <th>Commission</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(performance)
+                            .sort((a, b) => b[1].totalRepairs - a[1].totalRepairs)
+                            .map(([tech, stats]) => `
+                                <tr>
+                                    <td><strong>${tech}</strong></td>
+                                    <td>${stats.totalRepairs}</td>
+                                    <td>${stats.completedRepairs}</td>
+                                    <td><span style="color:${stats.completionRate >= 80 ? '#4caf50' : stats.completionRate >= 60 ? '#ff9800' : '#f44336'};">${stats.completionRate.toFixed(1)}%</span></td>
+                                    <td>${stats.avgRepairTime.toFixed(1)}</td>
+                                    <td>₱${stats.totalRevenue.toLocaleString()}</td>
+                                    <td>₱${stats.totalCommission.toLocaleString()}</td>
+                                </tr>
+                            `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Customer Analytics -->
+        <h3 style="margin:25px 0 15px;">👥 Customer Analytics</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px;margin-bottom:25px;">
+            <div class="stat-card" style="background:var(--bg-secondary);padding:20px;border-radius:12px;">
+                <h4 style="margin:0 0 10px;">Total Customers</h4>
+                <div style="font-size:36px;font-weight:bold;color:var(--primary);">${customers.totalCustomers}</div>
+            </div>
+            <div class="stat-card" style="background:var(--bg-secondary);padding:20px;border-radius:12px;">
+                <h4 style="margin:0 0 10px;">Repeat Customers</h4>
+                <div style="font-size:36px;font-weight:bold;color:#4caf50;">${customers.repeatCustomers}</div>
+                <div style="font-size:14px;color:var(--text-secondary);">${customers.repeatRate.toFixed(1)}% repeat rate</div>
+            </div>
+            <div class="stat-card" style="background:var(--bg-secondary);padding:20px;border-radius:12px;">
+                <h4 style="margin:0 0 10px;">Walk-in vs Dealer</h4>
+                <div style="font-size:18px;"><span style="color:#2196f3;font-weight:bold;">${customers.walkinCount}</span> Walk-in</div>
+                <div style="font-size:18px;"><span style="color:#9c27b0;font-weight:bold;">${customers.dealerCount}</span> Dealer</div>
+            </div>
+            <div class="stat-card" style="background:var(--bg-secondary);padding:20px;border-radius:12px;">
+                <h4 style="margin:0 0 10px;">Avg Spend</h4>
+                <div style="font-size:36px;font-weight:bold;color:var(--primary);">₱${customers.avgSpendPerCustomer.toLocaleString()}</div>
+            </div>
+        </div>
+        
+        <!-- Top Customers -->
+        <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h4 style="margin:0;">🏆 Top 10 Customers</h4>
+                <button onclick="exportCustomerAnalytics()" class="btn-small">📥 Export CSV</button>
+            </div>
+            <div class="analytics-table">
+                <table class="repair-table">
+                    <thead>
+                        <tr>
+                            <th>Customer</th>
+                            <th>Type</th>
+                            <th>Total Repairs</th>
+                            <th>Total Spent</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${customers.topCustomers.map((c, index) => `
+                            <tr>
+                                <td>
+                                    ${index < 3 ? ['🥇', '🥈', '🥉'][index] : (index + 1) + '.'} 
+                                    <strong>${c.name}</strong>
+                                    ${c.shopName ? `<br><small style="color:var(--text-secondary);">${c.shopName}</small>` : ''}
+                                </td>
+                                <td><span class="status-badge" style="background:${c.type === 'Dealer' ? '#9c27b0' : '#2196f3'};">${c.type}</span></td>
+                                <td>${c.totalRepairs}</td>
+                                <td><strong>₱${c.totalSpent.toLocaleString()}</strong></td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Repair Type Analytics -->
+        <h3 style="margin:25px 0 15px;">🔧 Repair Type Analytics</h3>
+        <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h4 style="margin:0;">Most Common Repairs</h4>
+                <button onclick="exportRepairTypeAnalytics()" class="btn-small">📥 Export CSV</button>
+            </div>
+            <div class="analytics-table">
+                <table class="repair-table">
+                    <thead>
+                        <tr>
+                            <th>Repair Type</th>
+                            <th>Count</th>
+                            <th>Avg Revenue</th>
+                            <th>Total Revenue</th>
+                            <th>Profit</th>
+                            <th>Completion %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${repairTypes.all.slice(0, 10).map(type => `
+                            <tr>
+                                <td><strong>${type.type}</strong></td>
+                                <td>${type.count}</td>
+                                <td>₱${type.avgRevenue.toLocaleString()}</td>
+                                <td>₱${type.totalRevenue.toLocaleString()}</td>
+                                <td style="color:${type.profit >= 0 ? '#4caf50' : '#f44336'};">₱${type.profit.toLocaleString()}</td>
+                                <td>${type.completionRate.toFixed(1)}%</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Inventory Analytics -->
+        <h3 style="margin:25px 0 15px;">📦 Inventory Analytics</h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+            <div class="stat-card" style="background:var(--bg-secondary);padding:20px;border-radius:12px;">
+                <h4 style="margin:0 0 10px;">Total Parts Cost</h4>
+                <div style="font-size:28px;font-weight:bold;color:#f44336;">₱${inventory.totalPartsCost.toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="background:var(--bg-secondary);padding:20px;border-radius:12px;">
+                <h4 style="margin:0 0 10px;">Current Stock Value</h4>
+                <div style="font-size:28px;font-weight:bold;color:#2196f3;">₱${inventory.totalInventoryValue.toLocaleString()}</div>
+            </div>
+            <div class="stat-card" style="background:var(--bg-secondary);padding:20px;border-radius:12px;">
+                <h4 style="margin:0 0 10px;">Stock Status</h4>
+                <div style="font-size:16px;"><span style="color:#4caf50;font-weight:bold;">${inventory.currentStock}</span> In Stock</div>
+                <div style="font-size:16px;"><span style="color:#ff9800;font-weight:bold;">${inventory.lowStock}</span> Low Stock</div>
+                <div style="font-size:16px;"><span style="color:#f44336;font-weight:bold;">${inventory.outOfStock}</span> Out of Stock</div>
+            </div>
+        </div>
+        
+        <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                <h4 style="margin:0;">Most Used Parts</h4>
+                <button onclick="exportInventoryAnalytics()" class="btn-small">📥 Export CSV</button>
+            </div>
+            <div class="analytics-table">
+                <table class="repair-table">
+                    <thead>
+                        <tr>
+                            <th>Part Name</th>
+                            <th>Part Number</th>
+                            <th>Times Used</th>
+                            <th>Total Qty</th>
+                            <th>Total Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${inventory.mostUsedParts.map(part => `
+                            <tr>
+                                <td><strong>${part.partName}</strong></td>
+                                <td><code>${part.partNumber}</code></td>
+                                <td>${part.timesUsed}</td>
+                                <td>${part.totalQuantity}</td>
+                                <td>₱${part.totalCost.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Financial Summary -->
+        <h3 style="margin:25px 0 15px;">💰 Financial Summary (P&L)</h3>
+        <div style="background:var(--bg-secondary);padding:25px;border-radius:12px;margin-bottom:25px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h4 style="margin:0;">Profit & Loss Statement</h4>
+                <button onclick="exportFinancialReport()" class="btn-small">📥 Export CSV</button>
+            </div>
+            <div style="max-width:600px;">
+                <div class="financial-row" style="display:flex;justify-content:space-between;padding:12px;background:var(--bg-white);border-radius:8px;margin-bottom:10px;">
+                    <span style="font-weight:600;">Total Revenue</span>
+                    <span style="font-weight:bold;color:#4caf50;font-size:18px;">₱${financial.revenue.total.toLocaleString()}</span>
+                </div>
+                <div style="margin-left:20px;margin-bottom:15px;">
+                    <div style="display:flex;justify-content:space-between;padding:8px;">
+                        <span class="text-secondary">Cash Payments</span>
+                        <span>₱${financial.revenue.byCash.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px;">
+                        <span class="text-secondary">GCash Payments</span>
+                        <span>₱${financial.revenue.byGCash.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px;">
+                        <span class="text-secondary">Bank Transfer</span>
+                        <span>₱${financial.revenue.byBank.toLocaleString()}</span>
+                    </div>
+                </div>
+                
+                <div class="financial-row" style="display:flex;justify-content:space-between;padding:12px;background:var(--bg-white);border-radius:8px;margin-bottom:10px;">
+                    <span style="font-weight:600;">Total Expenses</span>
+                    <span style="font-weight:bold;color:#f44336;font-size:18px;">₱${financial.expenses.total.toLocaleString()}</span>
+                </div>
+                <div style="margin-left:20px;margin-bottom:15px;">
+                    <div style="display:flex;justify-content:space-between;padding:8px;">
+                        <span class="text-secondary">Parts Cost</span>
+                        <span>₱${financial.expenses.parts.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px;">
+                        <span class="text-secondary">Commissions</span>
+                        <span>₱${financial.expenses.commissions.toLocaleString()}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;padding:8px;">
+                        <span class="text-secondary">General Expenses</span>
+                        <span>₱${financial.expenses.general.toLocaleString()}</span>
+                    </div>
+                </div>
+                
+                <div style="padding:20px;background:${financial.profit.net >= 0 ? '#e8f5e9' : '#ffebee'};border-radius:8px;border-left:4px solid ${financial.profit.net >= 0 ? '#4caf50' : '#f44336'};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div style="font-size:14px;margin-bottom:5px;color:${financial.profit.net >= 0 ? '#2e7d32' : '#c62828'};">Net Profit</div>
+                            <div style="font-size:36px;font-weight:bold;color:${financial.profit.net >= 0 ? '#2e7d32' : '#c62828'};">₱${financial.profit.net.toLocaleString()}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:14px;margin-bottom:5px;color:${financial.profit.net >= 0 ? '#2e7d32' : '#c62828'};">Profit Margin</div>
+                            <div style="font-size:28px;font-weight:bold;color:${financial.profit.net >= 0 ? '#2e7d32' : '#c62828'};">${financial.profit.margin.toFixed(1)}%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Update analytics date range
+ */
+function updateAnalyticsDateRange() {
+    const startDate = document.getElementById('analyticsStartDate').value;
+    const endDate = document.getElementById('analyticsEndDate').value;
+    
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates');
+        return;
+    }
+    
+    window.analyticsDateRange = {
+        start: new Date(startDate),
+        end: new Date(endDate)
+    };
+    
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+/**
+ * Set quick date range
+ */
+function setQuickDateRange(range) {
+    const end = new Date();
+    let start = new Date();
+    
+    switch (range) {
+        case '7days':
+            start.setDate(end.getDate() - 7);
+            break;
+        case '30days':
+            start.setDate(end.getDate() - 30);
+            break;
+        case 'thisMonth':
+            start = new Date(end.getFullYear(), end.getMonth(), 1);
+            break;
+    }
+    
+    window.analyticsDateRange = { start, end };
+    
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+// Export functions
+function exportRevenueByType() {
+    const revenue = getRevenueAnalytics(window.analyticsDateRange.start, window.analyticsDateRange.end);
+    const data = Object.entries(revenue.revenueByType).map(([type, amount]) => ({
+        'Repair Type': type,
+        'Revenue': amount,
+        'Percentage': ((amount / revenue.totalRevenue) * 100).toFixed(2)
+    }));
+    exportToCSV(data, 'revenue_by_type');
+}
+
+function exportTechPerformance() {
+    const performance = getTechnicianPerformance(window.analyticsDateRange.start, window.analyticsDateRange.end);
+    const data = Object.entries(performance).map(([tech, stats]) => ({
+        'Technician': tech,
+        'Total Repairs': stats.totalRepairs,
+        'Completed': stats.completedRepairs,
+        'Completion Rate': stats.completionRate.toFixed(2),
+        'Avg Time (hrs)': stats.avgRepairTime.toFixed(2),
+        'Revenue': stats.totalRevenue,
+        'Commission': stats.totalCommission
+    }));
+    exportToCSV(data, 'technician_performance');
+}
+
+function exportCustomerAnalytics() {
+    const customers = getCustomerAnalytics(window.analyticsDateRange.start, window.analyticsDateRange.end);
+    const data = customers.allCustomers.map(c => ({
+        'Customer Name': c.name,
+        'Phone': c.phone,
+        'Type': c.type,
+        'Shop Name': c.shopName || 'N/A',
+        'Total Repairs': c.totalRepairs,
+        'Total Spent': c.totalSpent
+    }));
+    exportToCSV(data, 'customer_analytics');
+}
+
+function exportRepairTypeAnalytics() {
+    const repairTypes = getRepairTypeAnalytics(window.analyticsDateRange.start, window.analyticsDateRange.end);
+    const data = repairTypes.all.map(type => ({
+        'Repair Type': type.type,
+        'Count': type.count,
+        'Avg Revenue': type.avgRevenue.toFixed(2),
+        'Total Revenue': type.totalRevenue,
+        'Total Cost': type.totalCost,
+        'Profit': type.profit,
+        'Profit Margin': type.profitMargin.toFixed(2),
+        'Completion Rate': type.completionRate.toFixed(2)
+    }));
+    exportToCSV(data, 'repair_type_analytics');
+}
+
+function exportInventoryAnalytics() {
+    const inventory = getInventoryAnalytics(window.analyticsDateRange.start, window.analyticsDateRange.end);
+    const data = inventory.allPartsUsage.map(part => ({
+        'Part Name': part.partName,
+        'Part Number': part.partNumber,
+        'Times Used': part.timesUsed,
+        'Total Quantity': part.totalQuantity,
+        'Total Cost': part.totalCost
+    }));
+    exportToCSV(data, 'inventory_analytics');
+}
+
+function exportFinancialReport() {
+    const financial = getFinancialReport(window.analyticsDateRange.start, window.analyticsDateRange.end);
+    const data = [
+        { 'Category': 'Revenue - Cash', 'Amount': financial.revenue.byCash },
+        { 'Category': 'Revenue - GCash', 'Amount': financial.revenue.byGCash },
+        { 'Category': 'Revenue - Bank Transfer', 'Amount': financial.revenue.byBank },
+        { 'Category': 'Total Revenue', 'Amount': financial.revenue.total },
+        { 'Category': 'Expenses - Parts', 'Amount': -financial.expenses.parts },
+        { 'Category': 'Expenses - Commissions', 'Amount': -financial.expenses.commissions },
+        { 'Category': 'Expenses - General', 'Amount': -financial.expenses.general },
+        { 'Category': 'Total Expenses', 'Amount': -financial.expenses.total },
+        { 'Category': 'Net Profit', 'Amount': financial.profit.net },
+        { 'Category': 'Profit Margin (%)', 'Amount': financial.profit.margin.toFixed(2) }
+    ];
+    exportToCSV(data, 'financial_report');
+}
+
+window.buildAnalyticsTab = buildAnalyticsTab;
+window.updateAnalyticsDateRange = updateAnalyticsDateRange;
+window.setQuickDateRange = setQuickDateRange;
+window.exportRevenueByType = exportRevenueByType;
+window.exportTechPerformance = exportTechPerformance;
+window.exportCustomerAnalytics = exportCustomerAnalytics;
+window.exportRepairTypeAnalytics = exportRepairTypeAnalytics;
+window.exportInventoryAnalytics = exportInventoryAnalytics;
+window.exportFinancialReport = exportFinancialReport;
 
 window.buildDailyRemittanceTab = buildDailyRemittanceTab;
 window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;

@@ -3647,6 +3647,101 @@ html {
     color: #66bb6a !important;
 }
 
+/* ===== ANALYTICS & REPORTS STYLING ===== */
+
+.analytics-controls {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.analytics-table {
+    overflow-x: auto;
+}
+
+.analytics-table table {
+    width: 100%;
+    min-width: 600px;
+}
+
+.financial-row {
+    transition: var(--transition-fast);
+}
+
+.financial-row:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Analytics dark mode fixes */
+[data-theme="dark"] .analytics-controls {
+    background: var(--bg-secondary);
+}
+
+[data-theme="dark"] .financial-row {
+    background: var(--bg-tertiary) !important;
+}
+
+[data-theme="dark"] [style*="background:#e8f5e9"],
+[data-theme="dark"] [style*="background:#ffebee"] {
+    background: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] [style*="color:#2e7d32"],
+[data-theme="dark"] [style*="color:#c62828"] {
+    filter: brightness(1.3);
+}
+
+/* Keep stat cards with gradients visible */
+[data-theme="dark"] .stat-card[style*="linear-gradient"] * {
+    color: white !important;
+}
+
+/* Analytics table rows */
+[data-theme="dark"] .analytics-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+/* Date inputs in analytics */
+[data-theme="dark"] #analyticsStartDate,
+[data-theme="dark"] #analyticsEndDate {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+/* Export buttons */
+[data-theme="dark"] .analytics-table .btn-small,
+[data-theme="dark"] .analytics-controls .btn-small {
+    background: var(--primary);
+    color: white;
+}
+
+/* Financial summary specific styling */
+[data-theme="dark"] .financial-row span {
+    color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] [style*="background:#e8f5e9"][style*="border-left:4px solid #4caf50"],
+[data-theme="dark"] [style*="background:#ffebee"][style*="border-left:4px solid #f44336"] {
+    background: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] [style*="background:#e8f5e9"] [style*="font-size:36px"],
+[data-theme="dark"] [style*="background:#ffebee"] [style*="font-size:36px"] {
+    color: var(--text-primary) !important;
+    filter: none;
+}
+
+/* Analytics page headers */
+[data-theme="dark"] .analytics-table h4 {
+    color: var(--text-primary);
+}
+
+/* Status badges in analytics */
+[data-theme="dark"] .analytics-table .status-badge {
+    color: white !important;
+}
+
 /* Fix page headers */
 [data-theme="dark"] .page-header h2 {
     color: var(--text-primary);
