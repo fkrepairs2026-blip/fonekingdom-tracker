@@ -273,6 +273,65 @@ const utils = {
             language: navigator.language || navigator.userLanguage,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         };
+    },
+    
+    /**
+     * Show toast notification
+     * @param {string} message - The message to display
+     * @param {string} type - Type of toast: 'success', 'error', 'warning', 'info'
+     * @param {number} duration - Duration in milliseconds (default: 4000)
+     */
+    showToast: function(message, type = 'info', duration = 4000) {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Define icons for each type
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+        
+        // Define titles for each type
+        const titles = {
+            success: 'Success',
+            error: 'Error',
+            warning: 'Warning',
+            info: 'Info'
+        };
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <div class="toast-icon">${icons[type] || icons.info}</div>
+            <div class="toast-content">
+                <div class="toast-title">${titles[type] || titles.info}</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <div class="toast-close" onclick="this.parentElement.remove()">×</div>
+        `;
+        
+        // Add toast to container
+        toastContainer.appendChild(toast);
+        
+        // Auto-remove after duration
+        setTimeout(() => {
+            toast.classList.add('hiding');
+            setTimeout(() => {
+                toast.remove();
+                // Remove container if no toasts left
+                if (toastContainer.children.length === 0) {
+                    toastContainer.remove();
+                }
+            }, 300);
+        }, duration);
     }
 };
 

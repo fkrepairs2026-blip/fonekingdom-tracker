@@ -233,34 +233,40 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
         const todayLocked = window.dailyCashCounts[todayString] && window.dailyCashCounts[todayString].locked;
         
         container.innerHTML = `
-            <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view">
+            <div class="stat-card stat-received" onclick="switchTab('received')" title="Click to view received devices">
                 <h3>${receivedCount}</h3>
-                <p>📥 Received Devices</p>
+                <p>📥 Received</p>
+                <small>Awaiting diagnosis</small>
             </div>
-            <div class="stat-card" onclick="switchTab('inprogress')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view">
+            <div class="stat-card stat-in-progress" onclick="switchTab('inprogress')" title="Click to view repairs in progress">
                 <h3>${inProgressCount}</h3>
                 <p>🔧 In Progress</p>
+                <small>Active repairs</small>
             </div>
-            <div class="stat-card" onclick="switchTab('forrelease')" style="background:#e8f5e9;border-left:4px solid #4caf50;cursor:pointer;" title="Click to view">
+            <div class="stat-card stat-ready" onclick="switchTab('forrelease')" title="Click to view devices ready for pickup">
                 <h3>${forReleaseCount}</h3>
                 <p>📦 For Release</p>
+                <small>Ready for pickup</small>
             </div>
-            <div class="stat-card" onclick="switchTab('rto')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view RTO devices">
+            <div class="stat-card stat-rto" onclick="switchTab('rto')" title="Click to view RTO devices">
                 <h3>${rtoCount}</h3>
-                <p>↩️ RTO Devices</p>
+                <p>↩️ RTO</p>
+                <small>Returned to owner</small>
             </div>
-            <div class="stat-card" style="background:#ffebee;border-left:4px solid #f44336;">
+            <div class="stat-card" style="background:linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);" onclick="switchTab('unpaid')">
                 <h3>${unpaidRepairs.length}</h3>
                 <p>💳 Unpaid</p>
+                <small>Outstanding balance</small>
             </div>
-            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+            <div class="stat-card" style="background:linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);" onclick="switchTab('pending')">
                 <h3>${pendingPayments.length}</h3>
-                <p>⏳ Pending Payment</p>
+                <p>⏳ Pending</p>
+                <small>Awaiting verification</small>
             </div>
-            <div class="stat-card" onclick="switchTab('cash')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view cash count">
-                <h3>₱${todayRevenue.toFixed(0)}</h3>
-                <p>💰 Today's Net Revenue ${todayLocked ? '🔒' : ''}</p>
-                <small style="font-size:12px;color:#666;">₱${todayPayments.toFixed(0)} - ₱${todayExpenses.toFixed(0)}</small>
+            <div class="stat-card" style="background:linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);" onclick="switchTab('cash')" title="Click to view cash count">
+                <h3>₱${todayRevenue.toLocaleString()}</h3>
+                <p>💰 Today's Net ${todayLocked ? '🔒' : ''}</p>
+                <small>₱${todayPayments.toLocaleString()} - ₱${todayExpenses.toLocaleString()}</small>
             </div>
         `;
     } catch (error) {
@@ -299,40 +305,40 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
         const todayLocked = window.dailyCashCounts[todayString] && window.dailyCashCounts[todayString].locked;
         
         container.innerHTML = `
-            <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view received devices">
+            <div class="stat-card stat-received" onclick="switchTab('received')" title="Click to view received devices">
                 <h3>${receivedCount}</h3>
-                <p>📥 Received Devices</p>
-                <small style="font-size:12px;color:#666;">Waiting for tech</small>
+                <p>📥 Received</p>
+                <small>Waiting for tech</small>
             </div>
-            <div class="stat-card" onclick="switchTab('inprogress')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view in progress">
+            <div class="stat-card stat-in-progress" onclick="switchTab('inprogress')" title="Click to view repairs in progress">
                 <h3>${inProgressCount}</h3>
                 <p>🔧 In Progress</p>
-                <small style="font-size:12px;color:#666;">Active repairs</small>
+                <small>Active repairs</small>
             </div>
-            <div class="stat-card" onclick="switchTab('forrelease')" style="background:#e8f5e9;border-left:4px solid #4caf50;cursor:pointer;" title="Click to view ready units">
+            <div class="stat-card stat-ready" onclick="switchTab('forrelease')" title="Click to view devices ready for pickup">
                 <h3>${forReleaseCount}</h3>
                 <p>📦 For Release</p>
-                <small style="font-size:12px;color:#666;">Ready for pickup</small>
+                <small>Ready for pickup</small>
             </div>
-            <div class="stat-card" onclick="switchTab('rto')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view RTO devices">
+            <div class="stat-card stat-rto" onclick="switchTab('rto')" title="Click to view RTO devices">
                 <h3>${rtoCount}</h3>
-                <p>↩️ RTO Devices</p>
-                <small style="font-size:12px;color:#666;">Return to owner</small>
+                <p>↩️ RTO</p>
+                <small>Returned to owner</small>
             </div>
-            <div class="stat-card" style="background:#c8e6c9;border-left:4px solid #2e7d32;">
+            <div class="stat-card stat-completed" onclick="switchTab('claimed')">
                 <h3>${completed}</h3>
                 <p>✅ Completed</p>
-                <small style="font-size:12px;color:#666;">Total done</small>
+                <small>Total finished</small>
             </div>
-            <div class="stat-card" style="background:#fff3cd;border-left:4px solid #fbc02d;">
+            <div class="stat-card" style="background:linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);" onclick="switchTab('pending')">
                 <h3>${pendingPayments.length}</h3>
-                <p>⏳ Pending Payment</p>
-                <small style="font-size:12px;color:#666;">Need verification</small>
+                <p>⏳ Pending</p>
+                <small>Needs verification</small>
             </div>
-            <div class="stat-card" onclick="switchTab('cash')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view cash count">
-                <h3>₱${todayRevenue.toFixed(0)}</h3>
-                <p>💰 Today's Net Revenue ${todayLocked ? '🔒' : ''}</p>
-                <small style="font-size:12px;color:#666;">₱${todayPayments.toFixed(0)} - ₱${todayExpenses.toFixed(0)}</small>
+            <div class="stat-card" style="background:linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);" onclick="switchTab('cash')" title="Click to view cash count">
+                <h3>₱${todayRevenue.toLocaleString()}</h3>
+                <p>💰 Today's Net ${todayLocked ? '🔒' : ''}</p>
+                <small>₱${todayPayments.toLocaleString()} - ₱${todayExpenses.toLocaleString()}</small>
             </div>
         `;
     } catch (error) {
@@ -378,45 +384,45 @@ function buildTechnicianStats(container, receivedCount, inProgressCount, forRele
         console.log('Stats:', { myJobs: myJobs.length, myInProgress, myCompleted, myReady, todayCashCollected });
         
         container.innerHTML = `
-            <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view and accept">
+            <div class="stat-card stat-received" onclick="switchTab('received')" title="Click to view and accept jobs">
                 <h3>${receivedCount}</h3>
-                <p>📥 Received Devices</p>
-                <small style="font-size:12px;color:#666;">Click to accept</small>
+                <p>📥 Available</p>
+                <small>Click to accept</small>
             </div>
-            <div class="stat-card" onclick="switchTab('my')" style="background:#fff9c4;border-left:4px solid #fbc02d;cursor:pointer;" title="Click to view your jobs">
+            <div class="stat-card" style="background:linear-gradient(135deg, #fff9c4 0%, #fff59d 100%);" onclick="switchTab('my')" title="Click to view your jobs">
                 <h3>${myJobs.length}</h3>
-                <p>🔧 My Total Jobs</p>
-                <small style="font-size:12px;color:#666;">Your workload</small>
+                <p>🔧 My Jobs</p>
+                <small>Total assigned</small>
             </div>
-            <div class="stat-card" onclick="switchTab('remittance')" style="background:#c8e6c9;border-left:4px solid #2e7d32;cursor:pointer;" title="Click to view and submit remittance">
-                <h3>₱${todayCashCollected.toFixed(2)}</h3>
+            <div class="stat-card stat-completed" onclick="switchTab('remittance')" title="Click to view and submit remittance">
+                <h3>₱${todayCashCollected.toLocaleString()}</h3>
                 <p>💰 Today's Cash</p>
-                <small style="font-size:12px;color:#666;">Collected today</small>
+                <small>Collected today</small>
             </div>
-            <div class="stat-card" onclick="switchTab('inprogress')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="All repairs in progress">
+            <div class="stat-card stat-in-progress" onclick="switchTab('inprogress')" title="Your repairs in progress">
                 <h3>${myInProgress}</h3>
-                <p>⚙️ My In Progress</p>
-                <small style="font-size:12px;color:#666;">Active work</small>
+                <p>⚙️ In Progress</p>
+                <small>Active work</small>
             </div>
-            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+            <div class="stat-card stat-ready">
                 <h3>${myReady}</h3>
-                <p>✅ My Ready</p>
-                <small style="font-size:12px;color:#666;">Done, for pickup</small>
+                <p>✅ Ready</p>
+                <small>Done, for pickup</small>
             </div>
-            <div class="stat-card" onclick="switchTab('rto')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="Click to view RTO devices">
+            <div class="stat-card stat-rto" onclick="switchTab('rto')" title="Click to view RTO devices">
                 <h3>${rtoCount}</h3>
-                <p>↩️ RTO Devices</p>
-                <small style="font-size:12px;color:#666;">Return to owner</small>
+                <p>↩️ RTO</p>
+                <small>Returned to owner</small>
             </div>
-            <div class="stat-card" style="background:#c8e6c9;border-left:4px solid #2e7d32;">
+            <div class="stat-card stat-completed">
                 <h3>${myCompleted}</h3>
-                <p>🎉 My Completed</p>
-                <small style="font-size:12px;color:#666;">Total finished</small>
+                <p>🎉 Completed</p>
+                <small>Total finished</small>
             </div>
-            <div class="stat-card" onclick="switchTab('forrelease')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="All ready for release">
+            <div class="stat-card stat-received" onclick="switchTab('forrelease')" title="All devices ready for release">
                 <h3>${forReleaseCount}</h3>
-                <p>📦 Shop For Release</p>
-                <small style="font-size:12px;color:#666;">All ready units</small>
+                <p>📦 All Ready</p>
+                <small>Shop-wide</small>
             </div>
         `;
         
