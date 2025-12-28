@@ -207,6 +207,28 @@ async function submitReceiveDevice(e) {
         contactNumber: data.get('contactNumber'),
         brand: data.get('brand'),
         model: data.get('model'),
+        
+        // NEW: Device Details (Phase 2)
+        imei: data.get('imei') || '',
+        deviceColor: data.get('deviceColor') || 'N/A',
+        storageCapacity: data.get('storageCapacity') || 'N/A',
+        devicePasscode: data.get('devicePasscode') || '',
+        
+        // NEW: Pre-Repair Checklist (Phase 2)
+        preRepairChecklist: {
+            screen: data.get('checklistScreen') || 'Not Checked',
+            battery: data.get('checklistBattery') || 'Not Checked',
+            buttons: data.get('checklistButtons') || 'Not Checked',
+            camera: data.get('checklistCamera') || 'Not Checked',
+            speaker: data.get('checklistSpeaker') || 'Not Checked',
+            chargingPort: data.get('checklistChargingPort') || 'Not Checked',
+            waterDamage: data.get('checklistWaterDamage') || 'None',
+            physicalDamage: data.get('checklistPhysicalDamage') || 'None',
+            simCard: data.get('checklistSimCard') || 'Not Checked',
+            accessories: data.get('checklistAccessories') || '',
+            notes: data.get('checklistNotes') || ''
+        },
+        
         problemType: data.get('problemType') || 'Pending Diagnosis',
         problem: data.get('problem'),
         repairType: 'Pending Diagnosis',
