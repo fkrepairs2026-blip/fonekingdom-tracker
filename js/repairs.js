@@ -5,6 +5,10 @@ window.allRepairs = [];
 let photoData = [];
 // Global modification requests
 window.allModificationRequests = [];
+// Global activity logs
+window.allActivityLogs = [];
+// Global users list
+window.allUsers = [];
 
 /**
  * Load all repairs from Firebase
@@ -78,6 +82,104 @@ async function loadModificationRequests() {
 }
 
 window.loadModificationRequests = loadModificationRequests;
+
+/**
+ * Load activity logs from Firebase
+ */
+async function loadActivityLogs() {
+    return new Promise((resolve) => {
+        console.log('📦 Loading activity logs...');
+        
+        db.ref('activityLogs').orderByChild('timestamp').limitToLast(100).on('value', (snapshot) => {
+            window.allActivityLogs = [];
+            
+            snapshot.forEach((child) => {
+                window.allActivityLogs.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Sort by timestamp descending (newest first)
+            window.allActivityLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+            
+            console.log('✅ Activity logs loaded:', window.allActivityLogs.length);
+            
+            // Refresh current tab if it's activity logs tab
+            if (window.currentTabRefresh && window.activeTab === 'admin-logs') {
+                window.currentTabRefresh();
+            }
+            
+            resolve(window.allActivityLogs);
+        });
+    });
+}
+
+window.loadActivityLogs = loadActivityLogs;
+
+/**
+ * Log activity to Firebase
+ * @param {string} type - Activity type (repair_created, payment_recorded, etc.)
+ * @param {object} details - Type-specific details
+ * @param {string} summary - Human-readable summary
+ */
+async function logActivity(type, details, summary) {
+    try {
+        if (!window.currentUser || !window.currentUserData) {
+            console.warn('⚠️ Cannot log activity: user not logged in');
+            return;
+        }
+        
+        const activityLog = {
+            type: type,
+            timestamp: new Date().toISOString(),
+            userId: window.currentUser.uid,
+            userName: window.currentUserData.displayName,
+            userRole: window.currentUserData.role,
+            details: details || {},
+            summary: summary
+        };
+        
+        await db.ref('activityLogs').push(activityLog);
+        console.log('✅ Activity logged:', type, summary);
+    } catch (error) {
+        console.error('❌ Error logging activity:', error);
+        // Don't throw - logging errors shouldn't break the main flow
+    }
+}
+
+window.logActivity = logActivity;
+
+/**
+ * Load all users from Firebase
+ */
+async function loadUsers() {
+    return new Promise((resolve) => {
+        console.log('📦 Loading users...');
+        
+        db.ref('users').on('value', (snapshot) => {
+            window.allUsers = [];
+            
+            snapshot.forEach((child) => {
+                window.allUsers.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            console.log('✅ Users loaded:', window.allUsers.length);
+            
+            // Refresh users tab if currently viewing
+            if (window.currentTabRefresh && window.activeTab === 'users') {
+                window.currentTabRefresh();
+            }
+            
+            resolve(window.allUsers);
+        });
+    });
+}
+
+window.loadUsers = loadUsers;
 
 /**
  * Submit receive device (NEW WORKFLOW - No assignment)
@@ -214,14 +316,14 @@ async function submitReceiveDevice(e) {
         console.log('✅ Device received successfully!');
         
         // Log repair creation
-        await logActivity('repair_created', 'repair', {
+        await logActivity('repair_created', {
             customerName: repair.customerName,
             brand: repair.brand,
             model: repair.model,
             problemType: repair.problemType,
             isBackJob: isBackJob || false,
             customerPreApproved: customerPreApproved || false
-        });
+        }, `${repair.customerName} - ${repair.brand} ${repair.model} received by ${window.currentUserData.displayName}`);
         
         if (isBackJob) {
             alert(`✅ Back Job Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\n🔄 BACK JOB - Auto-assigned to: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n⚠️ This device will go directly to "${repair.originalTechName}"'s job list with status "In Progress".`);
@@ -601,14 +703,14 @@ async function savePayment(repairId) {
     });
     
     // Log payment activity
-    await logActivity('payment_recorded', 'financial', {
+    await logActivity('payment_recorded', {
         repairId: repairId,
         customerName: repair.customerName,
         amount: amount,
         method: method,
         paymentDate: utils.formatDate(paymentDate),
         verified: payment.verified
-    });
+    }, `₱${amount.toFixed(2)} payment recorded for ${repair.customerName} by ${window.currentUserData.displayName}`);
     
     paymentProofPhoto = null;
     
@@ -885,12 +987,12 @@ async function verifyPayment(repairId, paymentIndex) {
     });
     
     // Log payment verification
-    await logActivity('payment_verified', 'financial', {
+    await logActivity('payment_verified', {
         repairId: repairId,
         customerName: repair.customerName,
         amount: payments[paymentIndex].amount,
         method: payments[paymentIndex].method
-    });
+    }, `₱${payments[paymentIndex].amount.toFixed(2)} payment verified for ${repair.customerName} by ${window.currentUserData.displayName}`);
     
     alert('✅ Payment verified!');
     setTimeout(() => openPaymentModal(repairId), 100);
@@ -2865,8 +2967,9 @@ function openRemittanceModal() {
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, today);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
     
-    if (payments.length === 0) {
-        alert('No payments collected today to remit.');
+    // Allow submission if either payments or expenses exist
+    if (payments.length === 0 && expenses.length === 0) {
+        alert('⚠️ No payments or expenses to remit today.');
         return;
     }
     
@@ -2876,15 +2979,19 @@ function openRemittanceModal() {
     let summary = `
         <div class="remittance-summary-section">
             <h4>📥 Payments Collected (${payments.length})</h4>
-            <div class="remittance-list">
-                ${payments.map(p => `
-                    <div class="remittance-item">
-                        <span>${p.customerName}</span>
-                        <span>₱${p.amount.toFixed(2)}</span>
-                    </div>
-                `).join('')}
-            </div>
-            <div class="remittance-total">Total: ₱${paymentsTotal.toFixed(2)}</div>
+            ${payments.length > 0 ? `
+                <div class="remittance-list">
+                    ${payments.map(p => `
+                        <div class="remittance-item">
+                            <span>${p.customerName}</span>
+                            <span>₱${p.amount.toFixed(2)}</span>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="remittance-total">Total: ₱${paymentsTotal.toFixed(2)}</div>
+            ` : `
+                <p style="text-align:center;color:#999;padding:10px;">No payments collected today</p>
+            `}
         </div>
         
         <div class="remittance-summary-section">
@@ -3006,6 +3113,16 @@ async function confirmRemittance() {
         });
         
         await Promise.all(updatePromises);
+        
+        // Log remittance submission
+        await logActivity('remittance_submitted', {
+            remittanceId: remittanceId,
+            paymentsCollected: paymentsTotal,
+            expenses: expensesTotal,
+            expectedAmount: expectedAmount,
+            actualAmount: actualAmount,
+            discrepancy: discrepancy
+        }, `${window.currentUserData.displayName} submitted remittance: ₱${actualAmount.toFixed(2)}${Math.abs(discrepancy) > 0.01 ? ` (discrepancy: ₱${discrepancy.toFixed(2)})` : ''}`);
         
         // Reload data
         await loadTechRemittances();
@@ -4480,6 +4597,418 @@ window.revertRTOStatus = revertRTOStatus;
 window.toggleRTOFields = toggleRTOFields;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
+
+// ===== USER MANAGEMENT FUNCTIONS =====
+
+let newUserProfilePicture = null;
+let editUserProfilePicture = null;
+
+/**
+ * Open Create User Modal
+ */
+function openCreateUserModal() {
+    document.getElementById('createUserModal').style.display = 'block';
+    document.getElementById('createUserForm').reset();
+    newUserProfilePicture = null;
+    document.getElementById('newUserProfilePreview').style.display = 'none';
+    document.getElementById('technicianNameField').style.display = 'none';
+}
+
+/**
+ * Close Create User Modal
+ */
+function closeCreateUserModal() {
+    document.getElementById('createUserModal').style.display = 'none';
+}
+
+/**
+ * Handle role change in create user form
+ */
+function handleRoleChange() {
+    const role = document.getElementById('newUserRole').value;
+    const techField = document.getElementById('technicianNameField');
+    techField.style.display = role === 'technician' ? 'block' : 'none';
+    
+    if (role === 'technician') {
+        document.getElementById('newUserTechnicianName').required = true;
+    } else {
+        document.getElementById('newUserTechnicianName').required = false;
+    }
+}
+
+/**
+ * Toggle password visibility
+ */
+function togglePasswordVisibility(inputId) {
+    const input = document.getElementById(inputId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+/**
+ * Handle new user profile picture upload
+ */
+async function handleNewUserProfilePicture(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        // Compress and convert to base64
+        const compressed = await utils.compressImage(file, 300, 300);
+        newUserProfilePicture = compressed;
+        
+        // Show preview
+        const preview = document.getElementById('newUserProfilePreview');
+        preview.src = compressed;
+        preview.style.display = 'block';
+    } catch (error) {
+        console.error('Error processing profile picture:', error);
+        alert('Error processing image. Please try another file.');
+    }
+}
+
+/**
+ * Create new user
+ */
+async function createUser(event) {
+    event.preventDefault();
+    
+    const email = document.getElementById('newUserEmail').value.trim();
+    const password = document.getElementById('newUserPassword').value;
+    const passwordConfirm = document.getElementById('newUserPasswordConfirm').value;
+    const displayName = document.getElementById('newUserDisplayName').value.trim();
+    const role = document.getElementById('newUserRole').value;
+    const technicianName = document.getElementById('newUserTechnicianName').value.trim();
+    
+    // Validation
+    if (!email || !password || !displayName || !role) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    if (password !== passwordConfirm) {
+        alert('⚠️ Passwords do not match!');
+        return;
+    }
+    
+    if (password.length < 6) {
+        alert('⚠️ Password must be at least 6 characters');
+        return;
+    }
+    
+    if (role === 'technician' && !technicianName) {
+        alert('⚠️ Please enter technician name');
+        return;
+    }
+    
+    if (!confirm(`Create new ${role} account for ${displayName}?`)) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Create Firebase Auth account
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = userCredential.user.uid;
+        
+        // Create user record in database
+        const userData = {
+            displayName: displayName,
+            email: email,
+            role: role,
+            technicianName: role === 'technician' ? technicianName : null,
+            status: 'active',
+            profilePicture: newUserProfilePicture || null,
+            createdAt: new Date().toISOString(),
+            createdBy: window.currentUser.uid,
+            createdByName: window.currentUserData.displayName,
+            lastLogin: null,
+            loginHistory: {}
+        };
+        
+        await db.ref(`users/${uid}`).set(userData);
+        
+        // Log activity
+        await logActivity('user_created', {
+            userId: uid,
+            email: email,
+            role: role,
+            displayName: displayName
+        }, `${window.currentUserData.displayName} created new ${role} account: ${displayName}`);
+        
+        utils.showLoading(false);
+        alert(`✅ User created successfully!\n\nEmail: ${email}\nName: ${displayName}\nRole: ${role}\n\nThe user can now log in with their credentials.`);
+        
+        closeCreateUserModal();
+        
+        // Refresh users tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error creating user:', error);
+        
+        let errorMessage = 'Error creating user: ';
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage += 'This email is already registered';
+        } else if (error.code === 'auth/invalid-email') {
+            errorMessage += 'Invalid email address';
+        } else if (error.code === 'auth/weak-password') {
+            errorMessage += 'Password is too weak';
+        } else {
+            errorMessage += error.message;
+        }
+        
+        alert(errorMessage);
+    }
+}
+
+/**
+ * Open Edit User Modal
+ */
+function openEditUserModal(userId) {
+    const user = window.allUsers.find(u => u.id === userId);
+    if (!user) {
+        alert('User not found');
+        return;
+    }
+    
+    document.getElementById('editUserId').value = userId;
+    document.getElementById('editUserEmail').value = user.email;
+    document.getElementById('editUserDisplayName').value = user.displayName;
+    document.getElementById('editUserRole').value = user.role;
+    document.getElementById('editUserStatus').value = user.status || 'active';
+    
+    // Handle technician name field
+    const techField = document.getElementById('editTechnicianNameField');
+    if (user.role === 'technician') {
+        techField.style.display = 'block';
+        document.getElementById('editUserTechnicianName').value = user.technicianName || '';
+    } else {
+        techField.style.display = 'none';
+    }
+    
+    // Show profile picture if exists
+    editUserProfilePicture = null;
+    const preview = document.getElementById('editUserProfilePreview');
+    if (user.profilePicture) {
+        preview.src = user.profilePicture;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+    
+    document.getElementById('editUserModal').style.display = 'block';
+}
+
+/**
+ * Close Edit User Modal
+ */
+function closeEditUserModal() {
+    document.getElementById('editUserModal').style.display = 'none';
+}
+
+/**
+ * Handle role change in edit user form
+ */
+function handleEditRoleChange() {
+    const role = document.getElementById('editUserRole').value;
+    const techField = document.getElementById('editTechnicianNameField');
+    techField.style.display = role === 'technician' ? 'block' : 'none';
+}
+
+/**
+ * Handle edit user profile picture upload
+ */
+async function handleEditUserProfilePicture(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    try {
+        const compressed = await utils.compressImage(file, 300, 300);
+        editUserProfilePicture = compressed;
+        
+        const preview = document.getElementById('editUserProfilePreview');
+        preview.src = compressed;
+        preview.style.display = 'block';
+    } catch (error) {
+        console.error('Error processing profile picture:', error);
+        alert('Error processing image. Please try another file.');
+    }
+}
+
+/**
+ * Update user
+ */
+async function updateUser(event) {
+    event.preventDefault();
+    
+    const userId = document.getElementById('editUserId').value;
+    const displayName = document.getElementById('editUserDisplayName').value.trim();
+    const role = document.getElementById('editUserRole').value;
+    const status = document.getElementById('editUserStatus').value;
+    const technicianName = document.getElementById('editUserTechnicianName').value.trim();
+    
+    const user = window.allUsers.find(u => u.id === userId);
+    if (!user) {
+        alert('User not found');
+        return;
+    }
+    
+    if (!displayName || !role) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    if (role === 'technician' && !technicianName) {
+        alert('⚠️ Please enter technician name');
+        return;
+    }
+    
+    // Check if role is changing
+    const roleChanged = user.role !== role;
+    if (roleChanged && !confirm(`⚠️ Change user role from ${user.role} to ${role}?\n\nThis will change their access permissions.`)) {
+        return;
+    }
+    
+    // Check if status is changing
+    const statusChanged = user.status !== status;
+    if (statusChanged && status === 'inactive' && !confirm(`⚠️ Deactivate ${user.displayName}?\n\nThey will not be able to log in.`)) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const updates = {
+            displayName: displayName,
+            role: role,
+            technicianName: role === 'technician' ? technicianName : null,
+            status: status,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        };
+        
+        // Update profile picture if changed
+        if (editUserProfilePicture) {
+            updates.profilePicture = editUserProfilePicture;
+        }
+        
+        await db.ref(`users/${userId}`).update(updates);
+        
+        // Log activity
+        const changes = [];
+        if (user.displayName !== displayName) changes.push(`name: ${user.displayName} → ${displayName}`);
+        if (roleChanged) changes.push(`role: ${user.role} → ${role}`);
+        if (statusChanged) changes.push(`status: ${user.status} → ${status}`);
+        
+        await logActivity('user_updated', {
+            userId: userId,
+            changes: changes
+        }, `${window.currentUserData.displayName} updated user ${displayName}${changes.length > 0 ? ': ' + changes.join(', ') : ''}`);
+        
+        utils.showLoading(false);
+        alert(`✅ User updated successfully!`);
+        
+        closeEditUserModal();
+        
+        // Refresh users tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error updating user:', error);
+        alert('Error updating user: ' + error.message);
+    }
+}
+
+/**
+ * Toggle user status (activate/deactivate)
+ */
+async function toggleUserStatus(userId) {
+    const user = window.allUsers.find(u => u.id === userId);
+    if (!user) {
+        alert('User not found');
+        return;
+    }
+    
+    const newStatus = user.status === 'active' ? 'inactive' : 'active';
+    const action = newStatus === 'active' ? 'activate' : 'deactivate';
+    
+    const confirmMsg = newStatus === 'inactive' 
+        ? `⚠️ Deactivate ${user.displayName}?\n\nThey will not be able to log in until reactivated.`
+        : `✅ Reactivate ${user.displayName}?\n\nThey will be able to log in again.`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        await db.ref(`users/${userId}`).update({
+            status: newStatus,
+            statusChangedAt: new Date().toISOString(),
+            statusChangedBy: window.currentUserData.displayName
+        });
+        
+        // Log activity
+        await logActivity('user_status_changed', {
+            userId: userId,
+            oldStatus: user.status,
+            newStatus: newStatus
+        }, `${window.currentUserData.displayName} ${action}d ${user.displayName}`);
+        
+        utils.showLoading(false);
+        alert(`✅ User ${action}d successfully!`);
+        
+        // Refresh users tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error(`❌ Error ${action}ing user:`, error);
+        alert(`Error ${action}ing user: ` + error.message);
+    }
+}
+
+/**
+ * View user profile (opens existing profile modal)
+ */
+function viewUserProfile(userId) {
+    const user = window.allUsers.find(u => u.id === userId);
+    if (!user) {
+        alert('User not found');
+        return;
+    }
+    
+    // Use existing showUserProfile function if available
+    if (window.showUserProfile) {
+        window.showUserProfile(userId);
+    } else {
+        // Fallback: show basic info
+        alert(`User Profile\n\nName: ${user.displayName}\nEmail: ${user.email}\nRole: ${user.role}\nStatus: ${user.status}\nCreated: ${utils.formatDate(user.createdAt)}`);
+    }
+}
+
+// Export user management functions
+window.openCreateUserModal = openCreateUserModal;
+window.closeCreateUserModal = closeCreateUserModal;
+window.handleRoleChange = handleRoleChange;
+window.togglePasswordVisibility = togglePasswordVisibility;
+window.handleNewUserProfilePicture = handleNewUserProfilePicture;
+window.createUser = createUser;
+window.openEditUserModal = openEditUserModal;
+window.closeEditUserModal = closeEditUserModal;
+window.handleEditRoleChange = handleEditRoleChange;
+window.handleEditUserProfilePicture = handleEditUserProfilePicture;
+window.updateUser = updateUser;
+window.toggleUserStatus = toggleUserStatus;
+window.viewUserProfile = viewUserProfile;
 window.closePartsCostModal = closePartsCostModal;
 window.openExpenseModal = openExpenseModal;
 window.saveExpense = saveExpense;

@@ -60,7 +60,11 @@ async function initializeApp() {
         
         console.log('📦 Loading activity logs...');
         await loadActivityLogs();
-        console.log('✅ Activity logs loaded:', window.activityLogs.length);
+        console.log('✅ Activity logs loaded:', window.allActivityLogs.length);
+        
+        console.log('📦 Loading users...');
+        await loadUsers();
+        console.log('✅ Users loaded:', window.allUsers.length);
         
         console.log('📊 Building stats...');
         buildStats();
@@ -355,7 +359,23 @@ function buildTechnicianStats(container, receivedCount, inProgressCount, forRele
         const myCompleted = myJobs.filter(r => r.status === 'Completed').length;
         const myReady = myJobs.filter(r => r.status === 'Ready for Pickup').length;
         
-        console.log('Stats:', { myJobs: myJobs.length, myInProgress, myCompleted, myReady });
+        // Calculate today's collected cash
+        const today = new Date().toDateString();
+        const todayCashCollected = window.allRepairs
+            .filter(r => r.payments && r.payments.some(p => 
+                p.receivedById === techUserId && 
+                p.collectedByTech === true &&
+                new Date(p.paymentDate || p.recordedDate).toDateString() === today
+            ))
+            .reduce((sum, r) => {
+                return sum + r.payments
+                    .filter(p => p.receivedById === techUserId && 
+                                 p.collectedByTech === true &&
+                                 new Date(p.paymentDate || p.recordedDate).toDateString() === today)
+                    .reduce((s, p) => s + p.amount, 0);
+            }, 0);
+        
+        console.log('Stats:', { myJobs: myJobs.length, myInProgress, myCompleted, myReady, todayCashCollected });
         
         container.innerHTML = `
             <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view and accept">
@@ -367,6 +387,11 @@ function buildTechnicianStats(container, receivedCount, inProgressCount, forRele
                 <h3>${myJobs.length}</h3>
                 <p>🔧 My Total Jobs</p>
                 <small style="font-size:12px;color:#666;">Your workload</small>
+            </div>
+            <div class="stat-card" onclick="switchTab('remittance')" style="background:#c8e6c9;border-left:4px solid #2e7d32;cursor:pointer;" title="Click to view and submit remittance">
+                <h3>₱${todayCashCollected.toFixed(2)}</h3>
+                <p>💰 Today's Cash</p>
+                <small style="font-size:12px;color:#666;">Collected today</small>
             </div>
             <div class="stat-card" onclick="switchTab('inprogress')" style="background:#fff3e0;border-left:4px solid #ff9800;cursor:pointer;" title="All repairs in progress">
                 <h3>${myInProgress}</h3>

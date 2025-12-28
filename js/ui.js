@@ -48,6 +48,7 @@ function buildTabs() {
     // Cashier/Admin/Manager get remittance verification tab
     if (role === 'admin' || role === 'manager' || role === 'cashier') {
         availableTabs.push({ id: 'verify-remittance', label: '✅ Verify Remittance', build: buildRemittanceVerificationTab });
+        availableTabs.push({ id: 'tech-logs', label: '📊 Technician Logs', build: buildTechnicianLogsTab });
     }
     
     // Admin gets modification requests approval page
@@ -1303,10 +1304,108 @@ function buildUsersTab(container) {
     console.log('👥 Building Users tab');
     window.currentTabRefresh = () => buildUsersTab(document.getElementById('usersTab'));
     
+    // Get all users
+    const users = window.allUsers || [];
+    const activeUsers = users.filter(u => u.status === 'active');
+    const inactiveUsers = users.filter(u => u.status !== 'active');
+    
+    // Group by role
+    const admins = users.filter(u => u.role === 'admin');
+    const managers = users.filter(u => u.role === 'manager');
+    const cashiers = users.filter(u => u.role === 'cashier');
+    const technicians = users.filter(u => u.role === 'technician');
+    
     container.innerHTML = `
-        <div class="card">
-            <h3>👥 User Management</h3>
-            <p style="text-align:center;color:#999;padding:40px;">User management feature coming soon...</p>
+        <div class="page-header">
+            <h2>👥 User Management</h2>
+            <button onclick="openCreateUserModal()" class="btn-primary" style="margin-top:10px;">
+                ➕ Create New User
+            </button>
+        </div>
+        
+        <!-- Summary Stats -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:20px 0;">
+            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                <h3>${users.length}</h3>
+                <p>Total Users</p>
+            </div>
+            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+                <h3>${activeUsers.length}</h3>
+                <p>✅ Active</p>
+            </div>
+            <div class="stat-card" style="background:#ffebee;border-left:4px solid #f44336;">
+                <h3>${inactiveUsers.length}</h3>
+                <p>❌ Inactive</p>
+            </div>
+            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+                <h3>${technicians.length}</h3>
+                <p>🔧 Technicians</p>
+            </div>
+        </div>
+        
+        <!-- Users List -->
+        <div class="card" style="margin:20px 0;">
+            <h3>All Users</h3>
+            
+            ${users.length === 0 ? `
+                <p style="text-align:center;color:#999;padding:40px;">No users found</p>
+            ` : `
+                <div class="repairs-list">
+                    ${users.map(user => {
+                        const roleColors = {
+                            admin: '#f44336',
+                            manager: '#ff9800',
+                            cashier: '#2196f3',
+                            technician: '#4caf50'
+                        };
+                        const roleColor = roleColors[user.role] || '#999';
+                        const isActive = user.status === 'active';
+                        
+                        return `
+                            <div class="repair-card" style="border-left-color:${roleColor};">
+                                <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
+                                    <div style="flex:1;">
+                                        <h4 style="margin:0 0 10px 0;">${user.displayName}</h4>
+                                        <div style="font-size:13px;color:#666;line-height:1.6;">
+                                            <div><strong>Email:</strong> ${user.email}</div>
+                                            <div><strong>Role:</strong> 
+                                                <span style="background:${roleColor};color:white;padding:2px 8px;border-radius:3px;font-size:11px;text-transform:uppercase;">
+                                                    ${user.role}
+                                                </span>
+                                            </div>
+                                            ${user.role === 'technician' && user.technicianName ? `
+                                                <div><strong>Tech Name:</strong> ${user.technicianName}</div>
+                                            ` : ''}
+                                            <div><strong>Status:</strong> 
+                                                <span style="color:${isActive ? '#4caf50' : '#f44336'};font-weight:600;">
+                                                    ${isActive ? '✅ Active' : '❌ Inactive'}
+                                                </span>
+                                            </div>
+                                            ${user.lastLogin ? `
+                                                <div><strong>Last Login:</strong> ${utils.formatDateTime(user.lastLogin)}</div>
+                                            ` : ''}
+                                            <div style="font-size:11px;color:#999;margin-top:5px;">
+                                                Created: ${utils.formatDate(user.createdAt)} ${user.createdByName ? `by ${user.createdByName}` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;flex-direction:column;gap:8px;">
+                                        <button onclick="openEditUserModal('${user.id}')" class="btn-small" style="background:#667eea;color:white;">
+                                            ✏️ Edit
+                                        </button>
+                                        <button onclick="toggleUserStatus('${user.id}')" class="btn-small" style="background:${isActive ? '#f44336' : '#4caf50'};color:white;">
+                                            ${isActive ? '❌ Deactivate' : '✅ Activate'}
+                                        </button>
+                                        <button onclick="viewUserProfile('${user.id}')" class="btn-small" style="background:#2196f3;color:white;">
+                                            👤 Profile
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `}
         </div>
     `;
 }
@@ -2001,10 +2100,15 @@ function buildDailyRemittanceTab(container) {
             <button onclick="openExpenseModal()" class="btn-primary">
                 ➕ Record General Expense
             </button>
-            ${payments.length > 0 && !todayRemittance ? `
+            ${(payments.length > 0 || expenses.length > 0) && !todayRemittance ? `
                 <button onclick="openRemittanceModal()" class="btn-success">
                     📤 Submit Today's Remittance
                 </button>
+            ` : ''}
+            ${payments.length === 0 && expenses.length > 0 && !todayRemittance ? `
+                <p style="color:#ff9800;font-size:13px;margin:10px 0;">
+                    ⚠️ Note: You can submit expense-only remittance (negative amount)
+                </p>
             ` : ''}
         </div>
         
@@ -2237,7 +2341,266 @@ function buildRemittanceVerificationTab(container) {
     `;
 }
 
+/**
+ * Build Technician Logs Tab (Admin/Cashier/Manager)
+ */
+function buildTechnicianLogsTab(container) {
+    console.log('📊 Building Technician Logs tab');
+    window.currentTabRefresh = () => buildTechnicianLogsTab(document.getElementById('tech-logsTab'));
+    
+    // Get all technicians
+    const technicians = (window.allUsers || []).filter(u => u.role === 'technician');
+    
+    // Get selected technician from dropdown (or first one)
+    const selectedTechId = window.selectedTechForLogs || (technicians.length > 0 ? technicians[0].id : null);
+    
+    if (technicians.length === 0) {
+        container.innerHTML = `
+            <div class="page-header">
+                <h2>📊 Technician Logs</h2>
+            </div>
+            <div class="card">
+                <p style="text-align:center;color:#999;padding:40px;">No technicians found in the system</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const selectedTech = technicians.find(t => t.id === selectedTechId) || technicians[0];
+    
+    // Get date range (default: last 7 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 7);
+    
+    // Filter data for selected technician
+    const techPayments = window.allRepairs
+        .filter(r => r.payments && r.payments.some(p => p.receivedById === selectedTech.id))
+        .map(r => {
+            return r.payments
+                .filter(p => p.receivedById === selectedTech.id)
+                .map((p, idx) => ({
+                    ...p,
+                    repairId: r.id,
+                    customerName: r.customerName,
+                    paymentIndex: idx
+                }));
+        })
+        .flat()
+        .sort((a, b) => new Date(b.paymentDate || b.recordedDate) - new Date(a.paymentDate || a.recordedDate));
+    
+    const techExpenses = (window.techExpenses || [])
+        .filter(e => e.techId === selectedTech.id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    const techRemittances = (window.techRemittances || [])
+        .filter(r => r.techId === selectedTech.id)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    const techJobs = window.allRepairs.filter(r => r.acceptedBy === selectedTech.id);
+    const completedJobs = techJobs.filter(r => r.status === 'Completed' || r.status === 'Claimed');
+    
+    // Calculate totals
+    const totalCollected = techPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalExpenses = techExpenses.reduce((sum, e) => sum + e.amount, 0);
+    const totalRemitted = techRemittances
+        .filter(r => r.status === 'approved')
+        .reduce((sum, r) => sum + r.actualAmount, 0);
+    const pendingRemittance = techPayments
+        .filter(p => p.remittanceStatus === 'pending')
+        .reduce((sum, p) => sum + p.amount, 0);
+    
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>📊 Technician Transaction Logs</h2>
+            <p>View detailed transaction history for each technician</p>
+        </div>
+        
+        <!-- Technician Selector -->
+        <div class="card" style="margin:20px 0;">
+            <label style="font-weight:600;margin-bottom:10px;display:block;">Select Technician:</label>
+            <select id="technicianSelector" onchange="selectTechnicianForLogs(this.value)" style="width:100%;max-width:400px;padding:10px;font-size:15px;">
+                ${technicians.map(t => `
+                    <option value="${t.id}" ${t.id === selectedTech.id ? 'selected' : ''}>
+                        ${t.displayName} (${t.technicianName || 'N/A'})
+                    </option>
+                `).join('')}
+            </select>
+        </div>
+        
+        <!-- Summary Stats -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
+            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+                <h3>₱${totalCollected.toFixed(2)}</h3>
+                <p>💰 Total Collected</p>
+                <small>${techPayments.length} payment(s)</small>
+            </div>
+            <div class="stat-card" style="background:#ffebee;border-left:4px solid #f44336;">
+                <h3>₱${totalExpenses.toFixed(2)}</h3>
+                <p>💸 Total Expenses</p>
+                <small>${techExpenses.length} expense(s)</small>
+            </div>
+            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                <h3>₱${totalRemitted.toFixed(2)}</h3>
+                <p>✅ Total Remitted</p>
+                <small>${techRemittances.filter(r => r.status === 'approved').length} approved</small>
+            </div>
+            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+                <h3>₱${pendingRemittance.toFixed(2)}</h3>
+                <p>⏳ Pending Remittance</p>
+                <small>Not yet submitted</small>
+            </div>
+            <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
+                <h3>${techJobs.length}</h3>
+                <p>🔧 Total Jobs</p>
+                <small>${completedJobs.length} completed</small>
+            </div>
+        </div>
+        
+        <!-- Payments Collected -->
+        <div class="card" style="margin:20px 0;">
+            <h3>💰 Payments Collected (${techPayments.length})</h3>
+            ${techPayments.length > 0 ? `
+                <div style="max-height:400px;overflow-y:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead style="background:#f5f5f5;position:sticky;top:0;">
+                            <tr>
+                                <th style="padding:10px;text-align:left;border-bottom:2px solid #ddd;">Date</th>
+                                <th style="padding:10px;text-align:left;border-bottom:2px solid #ddd;">Customer</th>
+                                <th style="padding:10px;text-align:left;border-bottom:2px solid #ddd;">Method</th>
+                                <th style="padding:10px;text-align:right;border-bottom:2px solid #ddd;">Amount</th>
+                                <th style="padding:10px;text-align:center;border-bottom:2px solid #ddd;">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${techPayments.map(p => `
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:10px;">${utils.formatDate(p.paymentDate || p.recordedDate)}</td>
+                                    <td style="padding:10px;">${p.customerName}</td>
+                                    <td style="padding:10px;">${p.method}</td>
+                                    <td style="padding:10px;text-align:right;font-weight:600;color:#4caf50;">₱${p.amount.toFixed(2)}</td>
+                                    <td style="padding:10px;text-align:center;">
+                                        ${p.remittanceStatus === 'verified' ? '<span style="color:#4caf50;">✅ Verified</span>' : 
+                                          p.remittanceStatus === 'remitted' ? '<span style="color:#ff9800;">📤 Remitted</span>' : 
+                                          '<span style="color:#999;">⏳ Pending</span>'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : '<p style="text-align:center;color:#999;padding:20px;">No payments collected</p>'}
+        </div>
+        
+        <!-- Expenses Recorded -->
+        <div class="card" style="margin:20px 0;">
+            <h3>💸 Expenses Recorded (${techExpenses.length})</h3>
+            ${techExpenses.length > 0 ? `
+                <div style="max-height:400px;overflow-y:auto;">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <thead style="background:#f5f5f5;position:sticky;top:0;">
+                            <tr>
+                                <th style="padding:10px;text-align:left;border-bottom:2px solid #ddd;">Date</th>
+                                <th style="padding:10px;text-align:left;border-bottom:2px solid #ddd;">Category</th>
+                                <th style="padding:10px;text-align:left;border-bottom:2px solid #ddd;">Description</th>
+                                <th style="padding:10px;text-align:right;border-bottom:2px solid #ddd;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${techExpenses.map(e => `
+                                <tr style="border-bottom:1px solid #eee;">
+                                    <td style="padding:10px;">${utils.formatDate(e.date)}</td>
+                                    <td style="padding:10px;">${e.category}</td>
+                                    <td style="padding:10px;">${e.description}</td>
+                                    <td style="padding:10px;text-align:right;font-weight:600;color:#f44336;">-₱${e.amount.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            ` : '<p style="text-align:center;color:#999;padding:20px;">No expenses recorded</p>'}
+        </div>
+        
+        <!-- Remittances Submitted -->
+        <div class="card" style="margin:20px 0;">
+            <h3>📤 Remittances Submitted (${techRemittances.length})</h3>
+            ${techRemittances.length > 0 ? `
+                <div class="repairs-list">
+                    ${techRemittances.map(r => `
+                        <div class="repair-card" style="border-left-color:${r.status === 'approved' ? '#4caf50' : (r.status === 'rejected' ? '#f44336' : '#ff9800')};">
+                            <div style="display:flex;justify-content:space-between;align-items:start;">
+                                <div style="flex:1;">
+                                    <h4>${utils.formatDate(r.date)}</h4>
+                                    <div style="font-size:13px;color:#666;line-height:1.6;margin-top:5px;">
+                                        <div><strong>Payments:</strong> ₱${r.totalPaymentsCollected.toFixed(2)} (${r.paymentsList.length})</div>
+                                        <div><strong>Expenses:</strong> ₱${r.totalExpenses.toFixed(2)} (${r.expensesList.length})</div>
+                                        <div><strong>Expected:</strong> ₱${r.expectedAmount.toFixed(2)}</div>
+                                        <div><strong>Actual:</strong> ₱${r.actualAmount.toFixed(2)}</div>
+                                        ${Math.abs(r.discrepancy) > 0.01 ? `
+                                            <div style="color:#ff9800;font-weight:600;">
+                                                <strong>Discrepancy:</strong> ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}
+                                            </div>
+                                        ` : ''}
+                                        <div style="font-size:11px;color:#999;margin-top:5px;">
+                                            Submitted: ${utils.formatDateTime(r.submittedAt)}
+                                        </div>
+                                        ${r.verifiedBy ? `
+                                            <div style="font-size:11px;color:#999;">
+                                                Verified by: ${r.verifiedBy} on ${utils.formatDateTime(r.verifiedAt)}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                                <div>
+                                    <span class="status-badge" style="background:${r.status === 'approved' ? '#4caf50' : (r.status === 'rejected' ? '#f44336' : '#ff9800')};color:white;">
+                                        ${r.status === 'approved' ? '✅ Approved' : (r.status === 'rejected' ? '❌ Rejected' : '⏳ Pending')}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            ` : '<p style="text-align:center;color:#999;padding:20px;">No remittances submitted</p>'}
+        </div>
+        
+        <!-- Job Performance -->
+        <div class="card" style="margin:20px 0;">
+            <h3>🔧 Job Performance</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-top:15px;">
+                <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
+                    <div style="font-size:24px;font-weight:600;color:#667eea;">${techJobs.length}</div>
+                    <div style="font-size:13px;color:#666;">Total Jobs</div>
+                </div>
+                <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
+                    <div style="font-size:24px;font-weight:600;color:#4caf50;">${completedJobs.length}</div>
+                    <div style="font-size:13px;color:#666;">Completed</div>
+                </div>
+                <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
+                    <div style="font-size:24px;font-weight:600;color:#ff9800;">${techJobs.filter(r => r.status === 'In Progress' || r.status === 'Waiting for Parts').length}</div>
+                    <div style="font-size:13px;color:#666;">In Progress</div>
+                </div>
+                <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
+                    <div style="font-size:24px;font-weight:600;color:#2196f3;">${techJobs.filter(r => r.status === 'Ready for Pickup').length}</div>
+                    <div style="font-size:13px;color:#666;">Ready</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Select technician for logs
+ */
+function selectTechnicianForLogs(techId) {
+    window.selectedTechForLogs = techId;
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
 window.buildDailyRemittanceTab = buildDailyRemittanceTab;
 window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;
+window.buildTechnicianLogsTab = buildTechnicianLogsTab;
+window.selectTechnicianForLogs = selectTechnicianForLogs;
 
 console.log('✅ ui.js loaded');

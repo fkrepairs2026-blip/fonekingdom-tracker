@@ -421,5 +421,135 @@
         </div>
     </div>
 
+    <!-- Create User Modal -->
+    <div id="createUserModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" onclick="closeCreateUserModal()">&times;</span>
+            <h3>➕ Create New User</h3>
+            
+            <form id="createUserForm" onsubmit="createUser(event)">
+                <div class="form-group">
+                    <label>Email Address *</label>
+                    <input type="email" id="newUserEmail" required placeholder="user@example.com">
+                </div>
+                
+                <div class="form-group">
+                    <label>Password *</label>
+                    <div style="position:relative;">
+                        <input type="password" id="newUserPassword" required minlength="6" placeholder="Minimum 6 characters">
+                        <button type="button" onclick="togglePasswordVisibility('newUserPassword')" 
+                                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;">
+                            👁️
+                        </button>
+                    </div>
+                    <small style="color:#666;">Minimum 6 characters</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Confirm Password *</label>
+                    <input type="password" id="newUserPasswordConfirm" required minlength="6" placeholder="Re-enter password">
+                </div>
+                
+                <div class="form-group">
+                    <label>Display Name *</label>
+                    <input type="text" id="newUserDisplayName" required placeholder="Full name">
+                </div>
+                
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="newUserRole" onchange="handleRoleChange()" required>
+                        <option value="">-- Select Role --</option>
+                        <option value="admin">Admin (Full Access)</option>
+                        <option value="manager">Manager (Operational)</option>
+                        <option value="cashier">Cashier (Customer Service)</option>
+                        <option value="technician">Technician (Repair Work)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="technicianNameField" style="display:none;">
+                    <label>Technician Name *</label>
+                    <input type="text" id="newUserTechnicianName" placeholder="e.g., Tech1, Tech2">
+                    <small style="color:#666;">Short name used in system (e.g., Tech1, Tech2)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Profile Picture (Optional)</label>
+                    <input type="file" accept="image/*" onchange="handleNewUserProfilePicture(event)">
+                    <img id="newUserProfilePreview" style="display:none;max-width:150px;margin-top:10px;border-radius:50%;">
+                </div>
+                
+                <div style="display:flex;gap:10px;margin-top:20px;">
+                    <button type="submit" class="btn-primary" style="flex:1;">
+                        ✅ Create User
+                    </button>
+                    <button type="button" onclick="closeCreateUserModal()" class="btn-secondary" style="flex:1;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="editUserModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <span class="close" onclick="closeEditUserModal()">&times;</span>
+            <h3>✏️ Edit User</h3>
+            
+            <input type="hidden" id="editUserId">
+            
+            <form id="editUserForm" onsubmit="updateUser(event)">
+                <div class="form-group">
+                    <label>Email Address</label>
+                    <input type="email" id="editUserEmail" disabled style="background:#f5f5f5;cursor:not-allowed;">
+                    <small style="color:#999;">Email cannot be changed (Firebase limitation)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Display Name *</label>
+                    <input type="text" id="editUserDisplayName" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select id="editUserRole" onchange="handleEditRoleChange()" required>
+                        <option value="admin">Admin (Full Access)</option>
+                        <option value="manager">Manager (Operational)</option>
+                        <option value="cashier">Cashier (Customer Service)</option>
+                        <option value="technician">Technician (Repair Work)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group" id="editTechnicianNameField" style="display:none;">
+                    <label>Technician Name *</label>
+                    <input type="text" id="editUserTechnicianName">
+                </div>
+                
+                <div class="form-group">
+                    <label>Status *</label>
+                    <select id="editUserStatus" required>
+                        <option value="active">✅ Active (Can Login)</option>
+                        <option value="inactive">❌ Inactive (Cannot Login)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    <input type="file" accept="image/*" onchange="handleEditUserProfilePicture(event)">
+                    <img id="editUserProfilePreview" style="display:none;max-width:150px;margin-top:10px;border-radius:50%;">
+                </div>
+                
+                <div style="display:flex;gap:10px;margin-top:20px;">
+                    <button type="submit" class="btn-primary" style="flex:1;">
+                        ✅ Save Changes
+                    </button>
+                    <button type="button" onclick="closeEditUserModal()" class="btn-secondary" style="flex:1;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
 </body>
 </html>
