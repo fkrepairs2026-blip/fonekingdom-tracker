@@ -826,11 +826,6 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <div class="form-group">
-                    <label>Problem Description *</label>
-                    <textarea name="problem" rows="3" required placeholder="Describe the issue..."></textarea>
-                </div>
-                
-                <div class="form-group">
                     <label>Device Photo (Optional)</label>
                     <input type="file" accept="image/*" id="receivePhoto1" onchange="handlePhotoUpload(this,'receivePreview1')">
                     <div id="receivePreview1" style="display:none;margin-top:10px;"></div>
