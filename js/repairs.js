@@ -543,6 +543,13 @@ async function savePayment(repairId) {
     const selectedDate = new Date(paymentDateInput.value + 'T00:00:00');
     const paymentDate = selectedDate.toISOString();
     
+    // Check if date is locked (prevent backdating)
+    const dateString = paymentDateInput.value;  // Already in YYYY-MM-DD format
+    if (!preventBackdating(dateString)) {
+        alert('⚠️ Cannot record payment on locked date!\n\nThis date has been locked and finalized. Please contact admin if you need to make corrections.');
+        return;
+    }
+    
     // Check if payment is collected by technician
     const isTechnician = window.currentUserData.role === 'technician';
     const isAdminOrManager = window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager';
@@ -2110,6 +2117,279 @@ async function loadTechRemittances() {
 }
 
 /**
+ * Load daily cash counts (locked day records)
+ */
+async function loadDailyCashCounts() {
+    try {
+        const snapshot = await db.ref('dailyCashCounts').once('value');
+        window.dailyCashCounts = snapshot.val() || {};
+        console.log('✅ Daily cash counts loaded:', Object.keys(window.dailyCashCounts).length);
+    } catch (error) {
+        console.error('❌ Error loading daily cash counts:', error);
+        window.dailyCashCounts = {};
+    }
+}
+
+/**
+ * Get daily cash data for a specific date
+ */
+function getDailyCashData(dateString) {
+    const targetDate = new Date(dateString + 'T00:00:00').toDateString();
+    
+    // Get payments for this date
+    const payments = [];
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach(payment => {
+                if (payment.verified) {
+                    const paymentDate = new Date(payment.paymentDate || payment.recordedDate).toDateString();
+                    if (paymentDate === targetDate) {
+                        payments.push({
+                            repairId: repair.id,
+                            customerName: repair.customerName,
+                            amount: payment.amount,
+                            method: payment.method,
+                            receivedByName: payment.receivedByName || payment.receivedBy,
+                            paymentDate: payment.paymentDate
+                        });
+                    }
+                }
+            });
+        }
+    });
+    
+    // Get expenses for this date
+    const expenses = [];
+    (window.techExpenses || []).forEach(expense => {
+        const expenseDate = new Date(expense.date).toDateString();
+        if (expenseDate === targetDate) {
+            expenses.push({
+                id: expense.id,
+                techName: expense.techName,
+                category: expense.category,
+                amount: expense.amount,
+                description: expense.description,
+                date: expense.date
+            });
+        }
+    });
+    
+    // Calculate totals
+    const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
+    const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
+    const netRevenue = totalPayments - totalExpenses;
+    
+    // Check if locked
+    const lockRecord = window.dailyCashCounts[dateString];
+    const isLocked = lockRecord && lockRecord.locked;
+    
+    return {
+        payments,
+        expenses,
+        totals: {
+            payments: totalPayments,
+            expenses: totalExpenses,
+            net: netRevenue
+        },
+        locked: isLocked,
+        lockedInfo: isLocked ? lockRecord : null
+    };
+}
+
+/**
+ * Open lock day confirmation modal
+ */
+function openLockDayModal(dateString) {
+    const cashData = getDailyCashData(dateString);
+    const displayDate = utils.formatDate(dateString);
+    
+    // Check if already locked
+    if (cashData.locked) {
+        alert('This day is already locked');
+        return;
+    }
+    
+    // Check if future date
+    const selectedDate = new Date(dateString + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (selectedDate > today) {
+        alert('Cannot lock future dates');
+        return;
+    }
+    
+    // Warn if no transactions
+    if (cashData.payments.length === 0 && cashData.expenses.length === 0) {
+        if (!confirm('⚠️ No transactions recorded for this date.\n\nAre you sure you want to lock this day?')) {
+            return;
+        }
+    }
+    
+    // Warn if negative balance
+    let warningMessage = '';
+    if (cashData.totals.net < 0) {
+        warningMessage = '\n\n⚠️ WARNING: Negative balance (Expenses exceed payments)';
+    }
+    
+    const notes = prompt(
+        `🔒 Lock Daily Cash Count for ${displayDate}?\n\n` +
+        `Summary:\n` +
+        `• Payments: ₱${cashData.totals.payments.toFixed(2)} (${cashData.payments.length} trans)\n` +
+        `• Expenses: ₱${cashData.totals.expenses.toFixed(2)} (${cashData.expenses.length} trans)\n` +
+        `• Net Revenue: ₱${cashData.totals.net.toFixed(2)}${warningMessage}\n\n` +
+        `⚠️ Once locked, no transactions can be added or modified for this date.\n\n` +
+        `Enter notes (optional):`
+    );
+    
+    if (notes !== null) {  // User didn't cancel
+        lockDailyCashCount(dateString, cashData, notes);
+    }
+}
+
+/**
+ * Lock a daily cash count
+ */
+async function lockDailyCashCount(dateString, cashData, notes) {
+    try {
+        utils.showLoading(true);
+        
+        const lockRecord = {
+            date: dateString,
+            dateISO: new Date(dateString + 'T00:00:00').toISOString(),
+            
+            // Payments breakdown
+            totalPayments: cashData.totals.payments,
+            paymentsCount: cashData.payments.length,
+            paymentsList: cashData.payments,
+            
+            // Expenses breakdown
+            totalExpenses: cashData.totals.expenses,
+            expensesCount: cashData.expenses.length,
+            expensesList: cashData.expenses,
+            
+            // Calculation
+            netRevenue: cashData.totals.net,
+            
+            // Lock status
+            locked: true,
+            lockedAt: new Date().toISOString(),
+            lockedBy: window.currentUser.uid,
+            lockedByName: window.currentUserData.displayName,
+            notes: notes || ''
+        };
+        
+        await db.ref(`dailyCashCounts/${dateString}`).set(lockRecord);
+        
+        utils.showLoading(false);
+        
+        alert(`✅ Day Locked Successfully!\n\n${utils.formatDate(dateString)} is now locked and cannot be modified.`);
+        
+        // Reload cash counts and refresh
+        await loadDailyCashCounts();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error locking day:', error);
+        alert('Error locking day: ' + error.message);
+    }
+}
+
+/**
+ * Open unlock day modal (Admin only)
+ */
+function openUnlockDayModal(dateString) {
+    const role = window.currentUserData.role;
+    if (role !== 'admin') {
+        alert('⚠️ Only admins can unlock days');
+        return;
+    }
+    
+    const cashData = getDailyCashData(dateString);
+    if (!cashData.locked) {
+        alert('This day is not locked');
+        return;
+    }
+    
+    const displayDate = utils.formatDate(dateString);
+    const reason = prompt(
+        `⚠️ UNLOCK ${displayDate}?\n\n` +
+        `This will allow modifications to historical data.\n\n` +
+        `Please provide a reason for unlocking:`
+    );
+    
+    if (reason && reason.trim()) {
+        unlockDailyCashCount(dateString, reason);
+    } else if (reason !== null) {
+        alert('Reason is required to unlock a day');
+    }
+}
+
+/**
+ * Unlock a daily cash count (Admin only)
+ */
+async function unlockDailyCashCount(dateString, reason) {
+    try {
+        utils.showLoading(true);
+        
+        const lockRecord = window.dailyCashCounts[dateString];
+        if (!lockRecord) {
+            alert('No lock record found');
+            utils.showLoading(false);
+            return;
+        }
+        
+        // Update lock record with unlock info
+        const updatedRecord = {
+            ...lockRecord,
+            locked: false,
+            unlockedAt: new Date().toISOString(),
+            unlockedBy: window.currentUser.uid,
+            unlockedByName: window.currentUserData.displayName,
+            unlockReason: reason
+        };
+        
+        await db.ref(`dailyCashCounts/${dateString}`).set(updatedRecord);
+        
+        utils.showLoading(false);
+        
+        alert(`✅ Day Unlocked\n\n${utils.formatDate(dateString)} has been unlocked.\n\nTransactions can now be modified for this date.`);
+        
+        // Reload and refresh
+        await loadDailyCashCounts();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error unlocking day:', error);
+        alert('Error unlocking day: ' + error.message);
+    }
+}
+
+/**
+ * Check if a date is locked (prevent backdating)
+ * Returns true if editing is allowed, false if locked
+ */
+function preventBackdating(dateString) {
+    // Check if the date is locked
+    const lockRecord = window.dailyCashCounts[dateString];
+    if (lockRecord && lockRecord.locked) {
+        return false;  // Cannot add/edit transactions on locked dates
+    }
+    return true;  // OK to proceed
+}
+
+/**
  * Open Parts Cost Modal
  */
 function openPartsCostModal(repairId) {
@@ -2210,6 +2490,13 @@ async function saveExpense() {
     
     if (!description) {
         alert('Please enter expense description');
+        return;
+    }
+    
+    // Check if today's date is locked (prevent backdating)
+    const todayString = new Date().toISOString().split('T')[0];
+    if (!preventBackdating(todayString)) {
+        alert('⚠️ Cannot record expense on locked date!\n\nToday has been locked and finalized. Please contact admin.');
         return;
     }
     
@@ -2998,6 +3285,14 @@ window.approveDiagnosis = approveDiagnosis;
 // Remittance system exports
 window.loadTechExpenses = loadTechExpenses;
 window.loadTechRemittances = loadTechRemittances;
+window.loadDailyCashCounts = loadDailyCashCounts;
+// Cash count lock system exports
+window.getDailyCashData = getDailyCashData;
+window.openLockDayModal = openLockDayModal;
+window.lockDailyCashCount = lockDailyCashCount;
+window.openUnlockDayModal = openUnlockDayModal;
+window.unlockDailyCashCount = unlockDailyCashCount;
+window.preventBackdating = preventBackdating;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
 window.closePartsCostModal = closePartsCostModal;

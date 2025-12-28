@@ -54,6 +54,10 @@ async function initializeApp() {
         await loadTechRemittances();
         console.log('✅ Tech remittances loaded:', window.techRemittances.length);
         
+        console.log('📦 Loading daily cash counts...');
+        await loadDailyCashCounts();
+        console.log('✅ Daily cash counts loaded:', Object.keys(window.dailyCashCounts || {}).length);
+        
         console.log('📊 Building stats...');
         buildStats();
         
@@ -212,6 +216,10 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
         // Net revenue = payments - expenses
         const todayRevenue = todayPayments - todayExpenses;
         
+        // Check if today is locked
+        const todayString = new Date().toISOString().split('T')[0];
+        const todayLocked = window.dailyCashCounts[todayString] && window.dailyCashCounts[todayString].locked;
+        
         container.innerHTML = `
             <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view">
                 <h3>${receivedCount}</h3>
@@ -233,9 +241,9 @@ function buildCashierStats(container, receivedCount, inProgressCount, forRelease
                 <h3>${pendingPayments.length}</h3>
                 <p>⏳ Pending Payment</p>
             </div>
-            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+            <div class="stat-card" onclick="switchTab('cash')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view cash count">
                 <h3>₱${todayRevenue.toFixed(0)}</h3>
-                <p>💰 Today's Net Revenue</p>
+                <p>💰 Today's Net Revenue ${todayLocked ? '🔒' : ''}</p>
                 <small style="font-size:12px;color:#666;">₱${todayPayments.toFixed(0)} - ₱${todayExpenses.toFixed(0)}</small>
             </div>
         `;
@@ -270,6 +278,10 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
         // Net revenue = payments - expenses
         const todayRevenue = todayPayments - todayExpenses;
         
+        // Check if today is locked
+        const todayString = new Date().toISOString().split('T')[0];
+        const todayLocked = window.dailyCashCounts[todayString] && window.dailyCashCounts[todayString].locked;
+        
         container.innerHTML = `
             <div class="stat-card" onclick="switchTab('received')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view received devices">
                 <h3>${receivedCount}</h3>
@@ -296,9 +308,9 @@ function buildAdminStats(container, receivedCount, inProgressCount, forReleaseCo
                 <p>⏳ Pending Payment</p>
                 <small style="font-size:12px;color:#666;">Need verification</small>
             </div>
-            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+            <div class="stat-card" onclick="switchTab('cash')" style="background:#e3f2fd;border-left:4px solid #2196f3;cursor:pointer;" title="Click to view cash count">
                 <h3>₱${todayRevenue.toFixed(0)}</h3>
-                <p>💰 Today's Net Revenue</p>
+                <p>💰 Today's Net Revenue ${todayLocked ? '🔒' : ''}</p>
                 <small style="font-size:12px;color:#666;">₱${todayPayments.toFixed(0)} - ₱${todayExpenses.toFixed(0)}</small>
             </div>
         `;

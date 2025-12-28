@@ -926,12 +926,231 @@ function buildCashCountTab(container) {
     console.log('💵 Building Cash Count tab');
     window.currentTabRefresh = () => buildCashCountTab(document.getElementById('cashTab'));
     
+    // Get current selected date or default to today
+    const selectedDate = window.selectedCashCountDate || new Date();
+    const dateString = selectedDate.toISOString().split('T')[0];
+    const displayDate = utils.formatDate(selectedDate.toISOString());
+    
+    // Get cash data for selected date
+    const cashData = getDailyCashData(dateString);
+    const isLocked = cashData.locked;
+    const lockInfo = cashData.lockedInfo;
+    
+    const role = window.currentUserData.role;
+    const canLock = role === 'admin' || role === 'manager';
+    const canUnlock = role === 'admin';
+    
     container.innerHTML = `
         <div class="card">
-            <h3>💵 Cash Count</h3>
-            <p style="text-align:center;color:#999;padding:40px;">Cash count feature coming soon...</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h3>💵 Daily Cash Count</h3>
+                <div>
+                    <input type="date" id="cashCountDate" value="${dateString}" 
+                           onchange="updateCashCountDate(this.value)"
+                           style="padding:8px;border:1px solid #ddd;border-radius:4px;">
+                </div>
+            </div>
+            
+            <div style="background:${isLocked ? '#f5f5f5' : '#e3f2fd'};padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid ${isLocked ? '#9e9e9e' : '#2196f3'};">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <strong>${displayDate}</strong>
+                        ${isLocked ? `
+                            <span style="margin-left:10px;padding:4px 12px;background:#9e9e9e;color:white;border-radius:12px;font-size:12px;">
+                                🔒 LOCKED
+                            </span>
+                        ` : `
+                            <span style="margin-left:10px;padding:4px 12px;background:#4caf50;color:white;border-radius:12px;font-size:12px;">
+                                🔓 Unlocked
+                            </span>
+                        `}
+                    </div>
+                    ${isLocked && lockInfo ? `
+                        <small style="color:#666;">
+                            Locked ${utils.formatDateTime(lockInfo.lockedAt)} by ${lockInfo.lockedByName}
+                        </small>
+                    ` : ''}
+                </div>
+                ${isLocked && lockInfo && lockInfo.notes ? `
+                    <div style="margin-top:10px;font-size:14px;color:#666;">
+                        <strong>Notes:</strong> ${lockInfo.notes}
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Payments Section -->
+            <div class="card" style="background:#e8f5e9;margin-bottom:15px;">
+                <h4 style="margin:0 0 15px;color:#2e7d32;">💵 Payments Collected</h4>
+                <div style="font-size:24px;font-weight:bold;color:#2e7d32;margin-bottom:15px;">
+                    ₱${cashData.totals.payments.toFixed(2)}
+                    <small style="font-size:14px;color:#666;font-weight:normal;">(${cashData.payments.length} transactions)</small>
+                </div>
+                ${cashData.payments.length > 0 ? `
+                    <div style="max-height:300px;overflow-y:auto;">
+                        ${cashData.payments.map(p => `
+                            <div style="padding:10px;background:white;border-radius:4px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <strong>${p.customerName}</strong>
+                                    <span style="color:#666;font-size:13px;"> • ${p.method}</span>
+                                    ${p.receivedByName ? `<span style="color:#666;font-size:13px;"> • by ${p.receivedByName}</span>` : ''}
+                                </div>
+                                <div style="font-weight:bold;color:#2e7d32;">₱${p.amount.toFixed(2)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <p style="text-align:center;color:#999;padding:20px;">No payments recorded for this date</p>
+                `}
+            </div>
+            
+            <!-- Expenses Section -->
+            <div class="card" style="background:#ffebee;margin-bottom:15px;">
+                <h4 style="margin:0 0 15px;color:#c62828;">💸 Expenses</h4>
+                <div style="font-size:24px;font-weight:bold;color:#c62828;margin-bottom:15px;">
+                    ₱${cashData.totals.expenses.toFixed(2)}
+                    <small style="font-size:14px;color:#666;font-weight:normal;">(${cashData.expenses.length} transactions)</small>
+                </div>
+                ${cashData.expenses.length > 0 ? `
+                    <div style="max-height:300px;overflow-y:auto;">
+                        ${cashData.expenses.map(e => `
+                            <div style="padding:10px;background:white;border-radius:4px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <strong>${e.category}</strong>
+                                    ${e.description ? `<span style="color:#666;font-size:13px;"> • ${e.description}</span>` : ''}
+                                    ${e.techName ? `<span style="color:#666;font-size:13px;"> • ${e.techName}</span>` : ''}
+                                </div>
+                                <div style="font-weight:bold;color:#c62828;">₱${e.amount.toFixed(2)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <p style="text-align:center;color:#999;padding:20px;">No expenses recorded for this date</p>
+                `}
+            </div>
+            
+            <!-- Net Revenue Section -->
+            <div class="card" style="background:${cashData.totals.net >= 0 ? '#e3f2fd' : '#fff3cd'};border-left:4px solid ${cashData.totals.net >= 0 ? '#2196f3' : '#fbc02d'};">
+                <h4 style="margin:0 0 15px;">📊 Net Revenue</h4>
+                <div style="font-size:32px;font-weight:bold;color:${cashData.totals.net >= 0 ? '#1976d2' : '#f57c00'};margin-bottom:10px;">
+                    ₱${cashData.totals.net.toFixed(2)}
+                </div>
+                <div style="color:#666;font-size:14px;">
+                    ₱${cashData.totals.payments.toFixed(2)} (payments) - ₱${cashData.totals.expenses.toFixed(2)} (expenses)
+                </div>
+                ${cashData.totals.net < 0 ? `
+                    <div style="margin-top:10px;padding:10px;background:#fff9c4;border-radius:4px;color:#f57c00;">
+                        ⚠️ <strong>Negative Balance:</strong> Expenses exceed payments
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Lock/Unlock Actions -->
+            ${!isLocked && canLock ? `
+                <div style="margin-top:20px;">
+                    ${cashData.payments.length === 0 && cashData.expenses.length === 0 ? `
+                        <div style="padding:15px;background:#fff3cd;border-radius:4px;margin-bottom:15px;color:#f57c00;">
+                            ⚠️ No transactions recorded for this date
+                        </div>
+                    ` : ''}
+                    <button onclick="openLockDayModal('${dateString}')" 
+                            style="width:100%;padding:12px;background:#4caf50;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">
+                        🔒 Lock This Day
+                    </button>
+                    <p style="text-align:center;color:#666;font-size:13px;margin-top:10px;">
+                        Once locked, no transactions can be added or modified for this date
+                    </p>
+                </div>
+            ` : ''}
+            
+            ${isLocked && canUnlock ? `
+                <div style="margin-top:20px;">
+                    <button onclick="openUnlockDayModal('${dateString}')" 
+                            style="width:100%;padding:12px;background:#ff9800;color:white;border:none;border-radius:4px;font-size:16px;cursor:pointer;">
+                        🔓 Unlock This Day (Admin Only)
+                    </button>
+                    <p style="text-align:center;color:#999;font-size:13px;margin-top:10px;">
+                        ⚠️ Unlocking will allow modifications to historical data
+                    </p>
+                </div>
+            ` : ''}
+        </div>
+        
+        <!-- Historical Locked Days -->
+        ${renderHistoricalCashCounts()}
+    `;
+}
+
+/**
+ * Render historical locked days
+ */
+function renderHistoricalCashCounts() {
+    const lockedDays = Object.entries(window.dailyCashCounts || {})
+        .filter(([_, data]) => data.locked)
+        .sort((a, b) => b[0].localeCompare(a[0]))  // Sort by date descending
+        .slice(0, 10);  // Show last 10 locked days
+    
+    if (lockedDays.length === 0) {
+        return '';
+    }
+    
+    return `
+        <div class="card" style="margin-top:20px;">
+            <h4 style="margin:0 0 15px;">📚 Recent Locked Days</h4>
+            <div style="overflow-x:auto;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <thead>
+                        <tr style="background:#f5f5f5;text-align:left;">
+                            <th style="padding:10px;border-bottom:2px solid #ddd;">Date</th>
+                            <th style="padding:10px;border-bottom:2px solid #ddd;">Payments</th>
+                            <th style="padding:10px;border-bottom:2px solid #ddd;">Expenses</th>
+                            <th style="padding:10px;border-bottom:2px solid #ddd;">Net</th>
+                            <th style="padding:10px;border-bottom:2px solid #ddd;">Locked By</th>
+                            <th style="padding:10px;border-bottom:2px solid #ddd;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${lockedDays.map(([date, data]) => `
+                            <tr style="border-bottom:1px solid #eee;">
+                                <td style="padding:10px;">${utils.formatDate(date)}</td>
+                                <td style="padding:10px;color:#2e7d32;">₱${data.totalPayments.toFixed(0)}</td>
+                                <td style="padding:10px;color:#c62828;">₱${data.totalExpenses.toFixed(0)}</td>
+                                <td style="padding:10px;font-weight:bold;color:${data.netRevenue >= 0 ? '#1976d2' : '#f57c00'};">
+                                    ₱${data.netRevenue.toFixed(0)}
+                                </td>
+                                <td style="padding:10px;font-size:13px;color:#666;">${data.lockedByName || 'Unknown'}</td>
+                                <td style="padding:10px;">
+                                    <button onclick="viewLockedDay('${date}')" 
+                                            style="padding:6px 12px;background:#2196f3;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px;">
+                                        View
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
         </div>
     `;
+}
+
+/**
+ * Update cash count date selector
+ */
+function updateCashCountDate(dateString) {
+    window.selectedCashCountDate = new Date(dateString + 'T00:00:00');
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+/**
+ * View specific locked day
+ */
+function viewLockedDay(dateString) {
+    window.selectedCashCountDate = new Date(dateString + 'T00:00:00');
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
 }
 
 function buildSuppliersTab(container) {
@@ -1156,6 +1375,8 @@ window.buildAllRepairsTab = buildAllRepairsTab;
 window.buildMyRepairsTab = buildMyRepairsTab;
 window.buildPendingTab = buildPendingTab;
 window.buildCashCountTab = buildCashCountTab;
+window.updateCashCountDate = updateCashCountDate;
+window.viewLockedDay = viewLockedDay;
 window.buildSuppliersTab = buildSuppliersTab;
 window.buildUsersTab = buildUsersTab;
 window.toggleBackJobFields = toggleBackJobFields;
