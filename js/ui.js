@@ -571,9 +571,9 @@ function buildDashboardTab(container) {
                                     <div style="display:flex;justify-content:space-between;align-items:start;">
                                         <div>
                                             <h4 style="margin:0 0 5px 0;">${repair.customerName}</h4>
-                                            <p style="margin:0;color:var(--text-secondary);font-size:14px;">${repair.deviceType} - ${repair.deviceModel || 'N/A'}</p>
+                                            <p style="margin:0;color:var(--text-secondary);font-size:14px;">${repair.brand} ${repair.model}</p>
                                             <p style="margin:5px 0 0 0;color:var(--text-secondary);font-size:13px;">
-                                                ${repair.issueDescription ? repair.issueDescription.substring(0, 60) + (repair.issueDescription.length > 60 ? '...' : '') : 'No description'}
+                                                ${repair.problem ? repair.problem.substring(0, 60) + (repair.problem.length > 60 ? '...' : '') : 'No description'}
                                             </p>
                                             <p style="margin:5px 0 0 0;color:var(--text-secondary);font-size:12px;">
                                                 📥 Received by: ${repair.receivedBy || 'Unknown'}
