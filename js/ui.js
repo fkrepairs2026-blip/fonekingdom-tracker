@@ -915,21 +915,16 @@ function buildReceiveDeviceTab(container) {
                     <div id="receivePreview1" style="display:none;margin-top:10px;"></div>
                 </div>
                 
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;">
-                        <input type="checkbox" id="customerPreApproved" onchange="togglePreApprovalFields()">
-                        <span style="color:#4caf50;font-weight:bold;">✅ Customer has ALREADY APPROVED the repair price</span>
-                    </label>
-                    <small style="color:#666;display:block;margin-top:5px;">Check this if you already quoted the customer and they agreed to the price</small>
-                </div>
-                
-                <div id="preApprovalFields" style="display:none;background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
-                    <p style="margin:0 0 15px;"><strong>💰 Enter Agreed Pricing</strong></p>
+                <div id="preApprovalFields" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                    <p style="margin:0 0 10px;"><strong>💰 Pricing (Optional)</strong></p>
+                    <p style="margin:0 0 15px;font-size:13px;color:#666;">
+                        If customer has already approved pricing, enter it here. Device will be marked as ready for technician to accept immediately.
+                    </p>
                     
                     <div class="form-group">
-                        <label>Repair Type *</label>
+                        <label>Repair Type</label>
                         <select id="preApprovedRepairType" name="preApprovedRepairType">
-                            <option value="">Select repair type</option>
+                            <option value="">Select repair type (if pricing known)</option>
                             <option value="Screen Replacement">Screen Replacement</option>
                             <option value="Battery Replacement">Battery Replacement</option>
                             <option value="Charging Port Repair">Charging Port Repair</option>
@@ -963,17 +958,15 @@ function buildReceiveDeviceTab(container) {
                     </div>
                     
                     <div style="background:#fff9c4;padding:10px;border-radius:5px;margin-top:10px;">
-                        <small><strong>ℹ️ Note:</strong> This device will be marked as "Received & Approved" - ready for technician to accept and start repair immediately.</small>
+                        <small><strong>ℹ️ Auto-Approval:</strong> If you enter pricing, device will be marked as "Received & Approved". If left empty, tech/owner will create diagnosis later.</small>
                     </div>
                 </div>
                 
                 <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #2196f3;">
                     <p style="margin:0;"><strong>ℹ️ Workflow:</strong></p>
                     <ol style="margin:5px 0 0 20px;font-size:14px;">
-                        <li>Device received (no pricing yet)</li>
-                        <li>Tech/Owner creates diagnosis and sets price</li>
-                        <li>Customer approves the price</li>
-                        <li>Technician accepts and starts repair</li>
+                        <li><strong>With Pricing:</strong> Device marked as approved → Tech accepts → Starts repair</li>
+                        <li><strong>Without Pricing:</strong> Device received → Tech/Owner creates diagnosis → Customer approves → Tech accepts</li>
                     </ol>
                 </div>
                 
@@ -2555,31 +2548,6 @@ function toggleBackJobFields() {
 }
 
 /**
- * Toggle pre-approval pricing fields
- */
-function togglePreApprovalFields() {
-    const isChecked = document.getElementById('customerPreApproved').checked;
-    const fieldsDiv = document.getElementById('preApprovalFields');
-    
-    if (fieldsDiv) {
-        fieldsDiv.style.display = isChecked ? 'block' : 'none';
-        
-        // If unchecking, clear the fields
-        if (!isChecked) {
-            const repairTypeField = document.getElementById('preApprovedRepairType');
-            const partsCostField = document.getElementById('preApprovedPartsCost');
-            const laborCostField = document.getElementById('preApprovedLaborCost');
-            const totalField = document.getElementById('preApprovedTotal');
-            
-            if (repairTypeField) repairTypeField.value = '';
-            if (partsCostField) partsCostField.value = '0';
-            if (laborCostField) laborCostField.value = '0';
-            if (totalField) totalField.value = '0.00';
-        }
-    }
-}
-
-/**
  * Calculate pre-approved total (parts + labor)
  */
 function calculatePreApprovedTotal() {
@@ -2677,7 +2645,6 @@ window.viewLockedDay = viewLockedDay;
 window.buildSuppliersTab = buildSuppliersTab;
 window.buildUsersTab = buildUsersTab;
 window.toggleBackJobFields = toggleBackJobFields;
-window.togglePreApprovalFields = togglePreApprovalFields;
 window.calculatePreApprovedTotal = calculatePreApprovedTotal;
 window.buildClaimedUnitsPage = buildClaimedUnitsPage;
 window.applyLogFilters = applyLogFilters;

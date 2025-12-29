@@ -197,9 +197,6 @@ async function submitReceiveDevice(e) {
     // Check if it's a back job
     const isBackJob = document.getElementById('isBackJob').checked;
     
-    // Check if customer has pre-approved pricing
-    const customerPreApproved = document.getElementById('customerPreApproved').checked;
-    
     const repair = {
         customerType: data.get('customerType'),
         customerName: data.get('customerName'),
@@ -258,23 +255,15 @@ async function submitReceiveDevice(e) {
         
     };
     
+    // Check if pricing was provided (auto-approve if pricing present)
+    const repairType = document.getElementById('preApprovedRepairType').value;
+    const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
+    const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
+    const total = partsCost + laborCost;
+    const hasPricing = repairType && total > 0;
+    
     // Handle PRE-APPROVED devices (customer already agreed to pricing)
-    if (customerPreApproved && !isBackJob) {
-        const repairType = document.getElementById('preApprovedRepairType').value;
-        const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
-        const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
-        const total = partsCost + laborCost;
-        
-        if (!repairType) {
-            alert('⚠️ Please select the repair type for the pre-approved pricing');
-            return;
-        }
-        
-        if (total <= 0) {
-            alert('⚠️ Please enter at least parts cost or labor cost for the pre-approved pricing');
-            return;
-        }
-        
+    if (hasPricing && !isBackJob) {
         // Mark as pre-approved with pricing
         repair.repairType = repairType;
         repair.partsCost = partsCost;
@@ -344,12 +333,12 @@ async function submitReceiveDevice(e) {
             model: repair.model,
             problemType: repair.problemType,
             isBackJob: isBackJob || false,
-            customerPreApproved: customerPreApproved || false
+            customerPreApproved: hasPricing || false
         }, `${repair.customerName} - ${repair.brand} ${repair.model} received by ${window.currentUserData.displayName}`);
         
         if (isBackJob) {
             alert(`✅ Back Job Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\n🔄 BACK JOB - Auto-assigned to: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n⚠️ This device will go directly to "${repair.originalTechName}"'s job list with status "In Progress".`);
-        } else if (customerPreApproved) {
+        } else if (hasPricing) {
             alert(`✅ Device Received & Approved!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n💰 Approved Pricing:\n• ${repair.repairType}\n• Parts: ₱${repair.partsCost.toFixed(2)}\n• Labor: ₱${repair.laborCost.toFixed(2)}\n• Total: ₱${repair.total.toFixed(2)}\n\n✅ Device is ready for technician to accept and start repair!`);
         } else {
             alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n📋 Next Steps:\n1. Tech/Owner will create diagnosis and set pricing\n2. Customer will approve the price\n3. Technician can then accept the repair\n\n✅ Device is now in "📥 Received Devices" waiting for diagnosis.`);
@@ -372,12 +361,18 @@ async function submitReceiveDevice(e) {
             document.getElementById('backJobFields').style.display = 'none';
         }
         
-        // Reset pre-approval fields
-        if (document.getElementById('customerPreApproved')) {
-            document.getElementById('customerPreApproved').checked = false;
+        // Reset pricing fields (they stay visible but need to be cleared)
+        if (document.getElementById('preApprovedRepairType')) {
+            document.getElementById('preApprovedRepairType').value = '';
         }
-        if (document.getElementById('preApprovalFields')) {
-            document.getElementById('preApprovalFields').style.display = 'none';
+        if (document.getElementById('preApprovedPartsCost')) {
+            document.getElementById('preApprovedPartsCost').value = '0';
+        }
+        if (document.getElementById('preApprovedLaborCost')) {
+            document.getElementById('preApprovedLaborCost').value = '0';
+        }
+        if (document.getElementById('preApprovedTotal')) {
+            document.getElementById('preApprovedTotal').value = '0.00';
         }
         
         // Force refresh after a short delay to ensure Firebase has processed
