@@ -855,6 +855,152 @@ body.left-sidebar-collapsed .main-content {
     gap: var(--spacing-xs);
 }
 
+/* ===== COMPACT REPAIR LIST STYLES ===== */
+.repair-list-item-compact {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--spacing-sm);
+    overflow: hidden;
+    transition: var(--transition-all);
+    box-shadow: var(--shadow-xs);
+}
+
+.repair-list-item-compact:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--primary-light);
+}
+
+.repair-list-item-compact.expanded {
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary);
+}
+
+.repair-compact-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-fast);
+}
+
+.repair-compact-header:hover {
+    background: var(--bg-light);
+}
+
+.repair-list-item-compact.expanded .repair-compact-header {
+    background: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.repair-compact-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.repair-compact-title {
+    font-size: var(--font-size-base);
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.repair-compact-title strong {
+    color: var(--text-dark);
+    font-weight: var(--font-weight-bold);
+}
+
+.repair-compact-customer {
+    color: var(--text-secondary);
+    font-weight: var(--font-weight-normal);
+    font-size: var(--font-size-sm);
+}
+
+.repair-compact-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin: 6px 0;
+}
+
+.repair-compact-problem {
+    font-size: var(--font-size-sm);
+    color: var(--text-secondary);
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+.expand-indicator {
+    font-size: 16px;
+    color: var(--primary);
+    transition: var(--transition-fast);
+    padding: 0 10px;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.repair-list-item-compact:hover .expand-indicator {
+    color: var(--primary-dark);
+}
+
+.repair-detail-content {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--border-color);
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        max-height: 0;
+    }
+    to {
+        opacity: 1;
+        max-height: 2000px;
+    }
+}
+
+/* Mobile responsiveness for compact list */
+@media (max-width: 768px) {
+    .repair-compact-header {
+        padding: var(--spacing-sm);
+    }
+    
+    .repair-compact-title {
+        font-size: var(--font-size-sm);
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    
+    .repair-compact-customer {
+        font-size: var(--font-size-xs);
+    }
+    
+    .repair-compact-badges {
+        gap: 4px;
+    }
+    
+    .repair-compact-badges .status-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+    
+    .repair-detail-content {
+        padding: var(--spacing-md);
+    }
+    
+    .expand-indicator {
+        font-size: 14px;
+        padding: 0 5px;
+    }
+}
+
 /* ===== BADGES ===== */
 .status-badge {
     display: inline-block;

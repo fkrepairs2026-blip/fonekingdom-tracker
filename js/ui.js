@@ -507,9 +507,7 @@ function buildInProgressPage(container) {
                     <p>No active repairs - All done!</p>
                 </div>
             ` : `
-                <div id="inProgressList">
-                    ${displayRepairsInContainer(inProgressDevices, document.getElementById('inProgressList'), true)}
-                </div>
+                <div id="inProgressList"></div>
             `}
         </div>
     `;
@@ -517,7 +515,7 @@ function buildInProgressPage(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('inProgressList');
         if (listContainer && inProgressDevices.length > 0) {
-            displayRepairsInContainer(inProgressDevices, listContainer);
+            displayCompactRepairsList(inProgressDevices, listContainer);
         }
     }, 0);
 }
@@ -545,42 +543,7 @@ function buildForReleasePage(container) {
             if (forReleaseRepairs.length === 0) {
                 listContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No devices ready for pickup</p>';
             } else {
-                listContainer.innerHTML = forReleaseRepairs.map(r => {
-                    const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
-                    const balance = r.total - totalPaid;
-                    const isFullyPaid = balance <= 0;
-                    
-                    return `
-                        <div class="repair-card" style="border-left-color:#4caf50;">
-                            <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''}</h4>
-                            <span class="status-badge status-ready-for-pickup">✅ Ready for Pickup</span>
-                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
-                            
-                            <div class="repair-info" style="margin:15px 0;">
-                                <div><strong>Device:</strong> ${r.brand} ${r.model}</div>
-                                <div><strong>Contact:</strong> ${r.contactNumber}</div>
-                                <div><strong>Repair:</strong> ${r.repairType || 'General Repair'}</div>
-                                <div><strong>Completed:</strong> ${utils.formatDateTime(r.completedAt || r.lastUpdated)}</div>
-                            </div>
-                            
-                            <div style="background:${isFullyPaid ? '#e8f5e9' : '#fff3cd'};padding:12px;border-radius:8px;margin:15px 0;border-left:4px solid ${isFullyPaid ? '#4caf50' : '#ff9800'};">
-                                <div style="display:flex;justify-content:space-between;align-items:center;">
-                                    <span style="font-weight:600;">Payment Status:</span>
-                                    <span style="font-size:18px;font-weight:700;color:${isFullyPaid ? '#2e7d32' : '#e65100'};">
-                                        ${isFullyPaid ? '✅ PAID' : `⚠️ ₱${balance.toFixed(2)} DUE`}
-                                    </span>
-                                </div>
-                                <div style="font-size:13px;color:#666;margin-top:5px;">
-                                    Total: ₱${r.total.toFixed(2)} | Paid: ₱${totalPaid.toFixed(2)}
-                                </div>
-                            </div>
-                            
-                            <button onclick="openReleaseDeviceModal('${r.id}')" class="btn-success" style="width:100%;font-size:16px;padding:14px;">
-                                📦 Release Device to Customer
-                            </button>
-                        </div>
-                    `;
-                }).join('');
+                displayCompactRepairsList(forReleaseRepairs, listContainer);
             }
         }
     }, 0);
@@ -1329,7 +1292,7 @@ function buildUnpaidTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('unpaidRepairsList');
         if (listContainer) {
-            displayRepairsInContainer(unpaidRepairs, listContainer);
+            displayCompactRepairsList(unpaidRepairs, listContainer);
         }
     }, 0);
 }
@@ -1353,7 +1316,7 @@ function buildPendingPaymentsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('pendingPaymentsList');
         if (listContainer) {
-            displayRepairsInContainer(pendingRepairs, listContainer);
+            displayCompactRepairsList(pendingRepairs, listContainer);
         }
     }, 0);
 }
@@ -1378,7 +1341,7 @@ function buildPaidTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('paidRepairsList');
         if (listContainer) {
-            displayRepairsInContainer(paidRepairs, listContainer);
+            displayCompactRepairsList(paidRepairs, listContainer);
         }
     }, 0);
 }
@@ -1514,6 +1477,201 @@ function displayRepairsInContainer(repairs, container) {
     }).join('');
 }
 
+/**
+ * Display repairs in a compact, expandable list format
+ * Shows minimal info (brand/model, customer, problem) and expands on click
+ */
+function displayCompactRepairsList(repairs, container) {
+    // Safety check
+    if (!container) {
+        console.warn('⚠️ Container not found, skipping display');
+        return;
+    }
+    
+    if (!repairs || repairs.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No repairs found</p>';
+        return;
+    }
+    
+    const role = window.currentUserData.role;
+    
+    container.innerHTML = repairs.map(r => {
+        const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
+        const isExpanded = window.expandedRepairId === r.id;
+        
+        // Truncate problem description for compact view
+        const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
+        
+        return `
+            <div class="repair-list-item-compact ${isExpanded ? 'expanded' : ''}" 
+                 id="repair-item-${r.id}"
+                 data-repair-id="${r.id}">
+                <div class="repair-compact-header" onclick="toggleRepairDetails('${r.id}')">
+                    <div class="repair-compact-main">
+                        <div class="repair-compact-title">
+                            <strong>${r.brand} ${r.model}</strong>
+                            <span class="repair-compact-customer">| ${r.customerName}${r.shopName ? ` (${r.shopName})` : ''}</span>
+                        </div>
+                        <div class="repair-compact-badges">
+                            <span class="status-badge status-${statusClass}">${r.status}</span>
+                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
+                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
+                        </div>
+                        <div class="repair-compact-problem">
+                            <strong>Problem:</strong> ${problemPreview}
+                        </div>
+                    </div>
+                    <div class="expand-indicator">
+                        ${isExpanded ? '▲' : '▼'}
+                    </div>
+                </div>
+                
+                <div class="repair-detail-content" style="display:${isExpanded ? 'block' : 'none'};">
+                    ${isExpanded ? renderExpandedRepairDetails(r, role) : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Render full details for an expanded repair item
+ */
+function renderExpandedRepairDetails(repair, role) {
+    const r = repair;
+    const hidePaymentActions = role === 'technician';
+    const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+    const balance = r.total - totalPaid;
+    const paymentStatus = balance === 0 && r.total > 0 ? 'verified' : (r.payments && r.payments.some(p => !p.verified)) ? 'pending' : 'unpaid';
+    
+    return `
+        <div class="repair-expanded-details">
+            <div class="repair-info">
+                <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                ${r.imei ? `<div><strong>📱 IMEI/Serial:</strong> ${r.imei}</div>` : ''}
+                ${r.deviceColor && r.deviceColor !== 'N/A' ? `<div><strong>🎨 Color:</strong> ${r.deviceColor}</div>` : ''}
+                ${r.storageCapacity && r.storageCapacity !== 'N/A' ? `<div><strong>💾 Storage:</strong> ${r.storageCapacity}</div>` : ''}
+                ${r.devicePasscode ? `<div><strong>🔐 Passcode:</strong> ${r.devicePasscode}</div>` : ''}
+                <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
+                ${r.acceptedBy ? `<div><strong>Technician:</strong> ${r.acceptedByName}</div>` : ''}
+                <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
+                ${!hidePaymentActions ? `
+                    <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
+                    <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-weight:bold;">₱${balance.toFixed(2)}</span></div>
+                    <span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending' : 'Verified'}</span>
+                ` : ''}
+            </div>
+            
+            <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem}</div>
+            
+            ${r.preRepairChecklist ? `
+                <details style="margin-top:15px;background:var(--bg-light);padding:10px;border-radius:var(--radius-md);">
+                    <summary style="cursor:pointer;font-weight:600;color:var(--primary);">📋 Pre-Repair Checklist</summary>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px;font-size:13px;">
+                        ${r.preRepairChecklist.screen !== 'Not Checked' ? `<div><strong>📱 Screen:</strong> ${r.preRepairChecklist.screen}</div>` : ''}
+                        ${r.preRepairChecklist.battery !== 'Not Checked' ? `<div><strong>🔋 Battery:</strong> ${r.preRepairChecklist.battery}</div>` : ''}
+                        ${r.preRepairChecklist.buttons !== 'Not Checked' ? `<div><strong>🔘 Buttons:</strong> ${r.preRepairChecklist.buttons}</div>` : ''}
+                        ${r.preRepairChecklist.camera !== 'Not Checked' ? `<div><strong>📷 Camera:</strong> ${r.preRepairChecklist.camera}</div>` : ''}
+                        ${r.preRepairChecklist.speaker !== 'Not Checked' ? `<div><strong>🔊 Speaker:</strong> ${r.preRepairChecklist.speaker}</div>` : ''}
+                        ${r.preRepairChecklist.chargingPort !== 'Not Checked' ? `<div><strong>🔌 Port:</strong> ${r.preRepairChecklist.chargingPort}</div>` : ''}
+                        ${r.preRepairChecklist.waterDamage !== 'None' ? `<div><strong>💧 Water:</strong> ${r.preRepairChecklist.waterDamage}</div>` : ''}
+                        ${r.preRepairChecklist.physicalDamage !== 'None' ? `<div><strong>🔨 Physical:</strong> ${r.preRepairChecklist.physicalDamage}</div>` : ''}
+                        ${r.preRepairChecklist.simCard !== 'Not Checked' ? `<div><strong>📱 SIM:</strong> ${r.preRepairChecklist.simCard}</div>` : ''}
+                        ${r.preRepairChecklist.accessories ? `<div style="grid-column:1/-1;"><strong>📦 Accessories:</strong> ${r.preRepairChecklist.accessories}</div>` : ''}
+                        ${r.preRepairChecklist.notes ? `<div style="grid-column:1/-1;"><strong>📝 Notes:</strong> ${r.preRepairChecklist.notes}</div>` : ''}
+                    </div>
+                </details>
+            ` : ''}
+            
+            ${r.partsUsed && Object.keys(r.partsUsed).length > 0 ? `
+                <details style="margin-top:15px;background:#e8f5e9;padding:10px;border-radius:var(--radius-md);">
+                    <summary style="cursor:pointer;font-weight:600;color:#2e7d32;">🔧 Parts Used</summary>
+                    <div style="margin-top:10px;">
+                        ${Object.values(r.partsUsed).map(part => `
+                            <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:5px;">
+                                <div>
+                                    <strong>${part.partName}</strong>
+                                    <span class="text-secondary" style="font-size:12px;"> (${part.partNumber})</span>
+                                    <div style="font-size:12px;color:#666;">
+                                        Qty: ${part.quantity} × ₱${part.unitCost.toFixed(2)} = ₱${part.totalCost.toFixed(2)}
+                                    </div>
+                                    <div style="font-size:11px;color:#999;">
+                                        ${part.usedBy} • ${utils.formatDateTime(part.usedAt)}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;text-align:right;">
+                            <strong>Total Parts Cost: ₱${Object.values(r.partsUsed).reduce((sum, p) => sum + p.totalCost, 0).toFixed(2)}</strong>
+                        </div>
+                    </div>
+                </details>
+            ` : ''}
+            
+            <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
+                ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
+                ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
+                ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
+                ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
+                ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
+                ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
+                ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Toggle repair details expansion/collapse
+ */
+function toggleRepairDetails(repairId) {
+    // Get the repair item
+    const repairItem = document.getElementById(`repair-item-${repairId}`);
+    if (!repairItem) return;
+    
+    // Check if this item is already expanded
+    const isCurrentlyExpanded = window.expandedRepairId === repairId;
+    
+    // Collapse all items first
+    document.querySelectorAll('.repair-list-item-compact').forEach(item => {
+        item.classList.remove('expanded');
+        const detailContent = item.querySelector('.repair-detail-content');
+        if (detailContent) detailContent.style.display = 'none';
+        const indicator = item.querySelector('.expand-indicator');
+        if (indicator) indicator.textContent = '▼';
+    });
+    
+    // If was not expanded, expand it
+    if (!isCurrentlyExpanded) {
+        window.expandedRepairId = repairId;
+        repairItem.classList.add('expanded');
+        
+        const detailContent = repairItem.querySelector('.repair-detail-content');
+        if (detailContent) {
+            // If content is empty, render it
+            if (!detailContent.innerHTML.trim()) {
+                const repair = window.allRepairs.find(r => r.id === repairId);
+                const role = window.currentUserData.role;
+                if (repair) {
+                    detailContent.innerHTML = renderExpandedRepairDetails(repair, role);
+                }
+            }
+            detailContent.style.display = 'block';
+        }
+        
+        const indicator = repairItem.querySelector('.expand-indicator');
+        if (indicator) indicator.textContent = '▲';
+        
+        // Scroll into view smoothly
+        setTimeout(() => {
+            repairItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 100);
+    } else {
+        // Collapsed - clear the expanded ID
+        window.expandedRepairId = null;
+    }
+}
+
 function buildMyRepairsTab(container) {
     console.log('🔧 Building My Repairs tab');
     window.currentTabRefresh = () => buildMyRepairsTab(document.getElementById('myTab'));
@@ -1534,7 +1692,7 @@ function buildMyRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('myRepairsList');
         if (listContainer) {
-            displayRepairsInContainer(myRepairs, listContainer);
+            displayCompactRepairsList(myRepairs, listContainer);
         }
     }, 0);
 }
@@ -1557,7 +1715,7 @@ function buildPendingTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('pendingRepairsList');
         if (listContainer) {
-            displayRepairsInContainer(pendingRepairs, listContainer);
+            displayCompactRepairsList(pendingRepairs, listContainer);
         }
     }, 0);
 }
@@ -2420,8 +2578,6 @@ function buildClaimedUnitsPage(container) {
     const claimedUnits = window.allRepairs.filter(r => r.claimedAt);
     claimedUnits.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
     
-    const role = window.currentUserData.role;
-    
     container.innerHTML = `
         <div class="card">
             <h3>✅ Claimed Units - Released to Customers (${claimedUnits.length})</h3>
@@ -2433,8 +2589,18 @@ function buildClaimedUnitsPage(container) {
                     <p>No claimed units yet</p>
                 </div>
             ` : `
-                <div>
-                    ${claimedUnits.map(r => {
+                <div id="claimedUnitsList"></div>
+            `}
+        </div>
+    `;
+    
+    setTimeout(() => {
+        const listContainer = document.getElementById('claimedUnitsList');
+        if (listContainer && claimedUnits.length > 0) {
+            displayCompactRepairsList(claimedUnits, listContainer);
+        }
+    }, 0);
+}
                         const warrantyEndDate = r.warrantyEndDate ? new Date(r.warrantyEndDate) : null;
                         const isWarrantyActive = warrantyEndDate && warrantyEndDate > new Date();
                         const daysSinceClaimed = Math.floor((new Date() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
@@ -2530,6 +2696,9 @@ window.buildUnpaidTab = buildUnpaidTab;
 window.buildPendingPaymentsTab = buildPendingPaymentsTab;
 window.buildPaidTab = buildPaidTab;
 window.displayRepairsInContainer = displayRepairsInContainer;
+window.displayCompactRepairsList = displayCompactRepairsList;
+window.renderExpandedRepairDetails = renderExpandedRepairDetails;
+window.toggleRepairDetails = toggleRepairDetails;
 window.buildAllRepairsTab = buildAllRepairsTab;
 window.buildMyRepairsTab = buildMyRepairsTab;
 window.buildPendingTab = buildPendingTab;
