@@ -754,14 +754,16 @@ function buildDashboardTab(container) {
                 ` : `
                     <div style="display:grid;gap:12px;">
                         ${recentRepairs.map(repair => {
+                            // Map actual status values to color variables
                             const statusColors = {
-                                'received': 'var(--status-received)',
-                                'in-progress': 'var(--status-in-progress)',
-                                'waiting-parts': 'var(--status-waiting-parts)',
-                                'ready': 'var(--status-ready)',
-                                'completed': 'var(--status-completed)',
-                                'claimed': 'var(--status-claimed)',
-                                'rto': 'var(--status-rto)'
+                                'Received': 'var(--status-received)',
+                                'In Progress': 'var(--status-in-progress)',
+                                'Waiting for Parts': 'var(--status-waiting-parts)',
+                                'Ready for Pickup': 'var(--status-ready)',
+                                'Completed': 'var(--status-completed)',
+                                'Claimed': 'var(--status-claimed)',
+                                'RTO': 'var(--status-rto)',
+                                'Pending Customer Approval': 'var(--status-waiting-parts)'
                             };
                             const statusColor = statusColors[repair.status] || 'var(--text-secondary)';
                             
