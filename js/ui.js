@@ -715,126 +715,6 @@ function buildReceiveDeviceTab(container) {
                     </div>
                 </div>
                 
-                <!-- NEW: PRE-REPAIR CHECKLIST -->
-                <div style="background:var(--bg-light);padding:20px;border-radius:var(--radius-md);margin:20px 0;border-left:4px solid var(--info);">
-                    <h4 style="margin:0 0 15px 0;color:var(--info);">✅ Pre-Repair Device Checklist</h4>
-                    <p style="margin:0 0 15px;font-size:13px;color:var(--text-secondary);">Check the device condition before starting repair - helps document existing issues</p>
-                    
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;">
-                        <div class="form-group">
-                            <label>📱 Screen Condition</label>
-                            <select name="checklistScreen">
-                                <option value="Not Checked">Not Checked</option>
-                                <option value="Good">✅ Good</option>
-                                <option value="Minor Scratches">Minor Scratches</option>
-                                <option value="Cracked">❌ Cracked</option>
-                                <option value="Lines">Lines Visible</option>
-                                <option value="Black/Dead">Black/Dead</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>🔋 Battery Condition</label>
-                            <select name="checklistBattery">
-                                <option value="Not Checked">Not Checked</option>
-                                <option value="Good">✅ Good</option>
-                                <option value="Drains Fast">Drains Fast</option>
-                                <option value="Won't Charge">❌ Won't Charge</option>
-                                <option value="Swollen">⚠️ Swollen</option>
-                                <option value="Dead">Dead</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>🔘 Buttons Functionality</label>
-                            <select name="checklistButtons">
-                                <option value="Not Checked">Not Checked</option>
-                                <option value="All Working">✅ All Working</option>
-                                <option value="Power Button Issue">Power Button Issue</option>
-                                <option value="Volume Issue">Volume Issue</option>
-                                <option value="Home Button Issue">Home Button Issue</option>
-                                <option value="Multiple Issues">Multiple Issues</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>📷 Camera Status</label>
-                            <select name="checklistCamera">
-                                <option value="Not Checked">Not Checked</option>
-                                <option value="Working">✅ Working</option>
-                                <option value="Blurry">Blurry</option>
-                                <option value="Not Working">❌ Not Working</option>
-                                <option value="Cracked Lens">Cracked Lens</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>🔊 Speakers/Microphone</label>
-                            <select name="checklistSpeaker">
-                                <option value="Not Checked">Not Checked</option>
-                                <option value="Working">✅ Working</option>
-                                <option value="Distorted">Distorted</option>
-                                <option value="No Sound">❌ No Sound</option>
-                                <option value="Low Volume">Low Volume</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>🔌 Charging Port</label>
-                            <select name="checklistChargingPort">
-                                <option value="Not Checked">Not Checked</option>
-                                <option value="Working">✅ Working</option>
-                                <option value="Loose">Loose Connection</option>
-                                <option value="Damaged">❌ Damaged</option>
-                                <option value="Dirty">Needs Cleaning</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>💧 Water Damage</label>
-                            <select name="checklistWaterDamage">
-                                <option value="None">✅ None</option>
-                                <option value="Minor">⚠️ Minor Signs</option>
-                                <option value="Severe">❌ Severe</option>
-                                <option value="Indicators Triggered">Indicators Triggered</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>🔨 Physical Damage</label>
-                            <select name="checklistPhysicalDamage">
-                                <option value="None">✅ None</option>
-                                <option value="Minor Scratches">Minor Scratches</option>
-                                <option value="Dents">Dents</option>
-                                <option value="Cracks">Cracks</option>
-                                <option value="Broken Parts">❌ Broken Parts</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>📱 SIM Card Present?</label>
-                            <select name="checklistSimCard">
-                                <option value="Not Checked">Not Checked</option>
-                                <option value="Yes - Kept with device">✅ Yes - Kept with device</option>
-                                <option value="Yes - Returned to customer">Yes - Returned to customer</option>
-                                <option value="No SIM">❌ No SIM</option>
-                                <option value="SIM Tray Issue">SIM Tray Issue</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <div class="form-group" style="margin-top:15px;">
-                        <label>📦 Accessories/Inclusions</label>
-                        <input type="text" name="checklistAccessories" placeholder="e.g., Case, Charger, Cable, Memory Card, Box, etc.">
-                        <small>List any items the customer left with the device</small>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label>📝 Additional Pre-Repair Notes</label>
-                        <textarea name="checklistNotes" rows="2" placeholder="Any other observations or concerns about device condition..."></textarea>
-                    </div>
-                </div>
-
                 <div class="form-group">
                     <label>Problem Type *</label>
                     <select id="problemType" name="problemType" onchange="handleProblemTypeChange()" required>
@@ -1568,7 +1448,7 @@ function renderReceivedDeviceButtons(r, role) {
     let buttons = '';
     if (r.customerApproved && canAccept) {
         buttons += `
-            <button class="btn-small btn-success" onclick="acceptRepair('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+            <button class="btn-small btn-success" onclick="openAcceptRepairModal('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
                 ✅ Accept This Repair
             </button>
         `;

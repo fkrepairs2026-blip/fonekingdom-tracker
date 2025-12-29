@@ -211,20 +211,8 @@ async function submitReceiveDevice(e) {
         storageCapacity: data.get('storageCapacity') || 'N/A',
         devicePasscode: data.get('devicePasscode') || '',
         
-        // NEW: Pre-Repair Checklist (Phase 2)
-        preRepairChecklist: {
-            screen: data.get('checklistScreen') || 'Not Checked',
-            battery: data.get('checklistBattery') || 'Not Checked',
-            buttons: data.get('checklistButtons') || 'Not Checked',
-            camera: data.get('checklistCamera') || 'Not Checked',
-            speaker: data.get('checklistSpeaker') || 'Not Checked',
-            chargingPort: data.get('checklistChargingPort') || 'Not Checked',
-            waterDamage: data.get('checklistWaterDamage') || 'None',
-            physicalDamage: data.get('checklistPhysicalDamage') || 'None',
-            simCard: data.get('checklistSimCard') || 'Not Checked',
-            accessories: data.get('checklistAccessories') || '',
-            notes: data.get('checklistNotes') || ''
-        },
+        // Pre-Repair Checklist - filled when technician accepts repair
+        preRepairChecklist: null,
         
         problemType: data.get('problemType') || 'Pending Diagnosis',
         problem: data.get('problem'),
@@ -1645,6 +1633,243 @@ function closeAdditionalRepairModal() {
 
 function closePaymentModal() {
     document.getElementById('paymentModal').style.display = 'none';
+}
+
+function closeAcceptRepairModal() {
+    document.getElementById('acceptRepairModal').style.display = 'none';
+}
+
+/**
+ * Open accept repair modal with pre-repair checklist
+ */
+function openAcceptRepairModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    if (repair.acceptedBy) {
+        alert(`This repair has already been accepted by ${repair.acceptedByName}`);
+        return;
+    }
+    
+    // Check if diagnosis has been created
+    if (!repair.diagnosisCreated || repair.total === 0 || repair.repairType === 'Pending Diagnosis') {
+        alert('⚠️ Diagnosis Required!\n\nPlease create a diagnosis and set pricing before accepting this repair.\n\nUse "📝 Create Diagnosis" button to set the repair details and price.');
+        return;
+    }
+    
+    // Check if customer has approved the price
+    if (!repair.customerApproved) {
+        alert('⚠️ Customer Approval Required!\n\nCustomer must approve the diagnosis and pricing before you can accept this repair.\n\nCurrent Price: ₱' + repair.total.toFixed(2) + '\n\nPlease wait for customer approval or use "✅ Mark Customer Approved" button if customer has verbally approved.');
+        return;
+    }
+    
+    const content = document.getElementById('acceptRepairModalContent');
+    content.innerHTML = `
+        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #4caf50;">
+            <h4 style="margin:0 0 10px 0;color:#2e7d32;">📱 Repair Details</h4>
+            <p style="margin:5px 0;"><strong>Customer:</strong> ${repair.customerName}</p>
+            <p style="margin:5px 0;"><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p style="margin:5px 0;"><strong>Problem:</strong> ${repair.problemType || repair.problem}</p>
+            <p style="margin:5px 0;"><strong>Repair Type:</strong> ${repair.repairType}</p>
+            <p style="margin:5px 0;"><strong>Total:</strong> ₱${repair.total.toFixed(2)}</p>
+        </div>
+        
+        <form id="acceptRepairForm" onsubmit="submitAcceptRepair(event, '${repairId}')">
+            <div style="background:var(--bg-light);padding:20px;border-radius:var(--radius-md);margin-bottom:20px;border-left:4px solid var(--info);">
+                <h4 style="margin:0 0 15px 0;color:var(--info);">✅ Pre-Repair Device Checklist</h4>
+                <p style="margin:0 0 15px;font-size:13px;color:var(--text-secondary);">Before starting repair, inspect the device and document its condition</p>
+                
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;">
+                    <div class="form-group">
+                        <label>📱 Screen Condition</label>
+                        <select name="checklistScreen">
+                            <option value="Not Checked">Not Checked</option>
+                            <option value="Good">✅ Good</option>
+                            <option value="Minor Scratches">Minor Scratches</option>
+                            <option value="Cracked">❌ Cracked</option>
+                            <option value="Lines">Lines Visible</option>
+                            <option value="Black/Dead">Black/Dead</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🔋 Battery Condition</label>
+                        <select name="checklistBattery">
+                            <option value="Not Checked">Not Checked</option>
+                            <option value="Good">✅ Good</option>
+                            <option value="Drains Fast">Drains Fast</option>
+                            <option value="Won't Charge">❌ Won't Charge</option>
+                            <option value="Swollen">⚠️ Swollen</option>
+                            <option value="Dead">Dead</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🔘 Buttons Functionality</label>
+                        <select name="checklistButtons">
+                            <option value="Not Checked">Not Checked</option>
+                            <option value="All Working">✅ All Working</option>
+                            <option value="Power Button Issue">Power Button Issue</option>
+                            <option value="Volume Issue">Volume Issue</option>
+                            <option value="Home Button Issue">Home Button Issue</option>
+                            <option value="Multiple Issues">Multiple Issues</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>📷 Camera Status</label>
+                        <select name="checklistCamera">
+                            <option value="Not Checked">Not Checked</option>
+                            <option value="Working">✅ Working</option>
+                            <option value="Blurry">Blurry</option>
+                            <option value="Not Working">❌ Not Working</option>
+                            <option value="Cracked Lens">Cracked Lens</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🔊 Speakers/Microphone</label>
+                        <select name="checklistSpeaker">
+                            <option value="Not Checked">Not Checked</option>
+                            <option value="Working">✅ Working</option>
+                            <option value="Distorted">Distorted</option>
+                            <option value="No Sound">❌ No Sound</option>
+                            <option value="Low Volume">Low Volume</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🔌 Charging Port</label>
+                        <select name="checklistChargingPort">
+                            <option value="Not Checked">Not Checked</option>
+                            <option value="Working">✅ Working</option>
+                            <option value="Loose">Loose Connection</option>
+                            <option value="Damaged">❌ Damaged</option>
+                            <option value="Dirty">Needs Cleaning</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>💧 Water Damage</label>
+                        <select name="checklistWaterDamage">
+                            <option value="None">✅ None</option>
+                            <option value="Minor">⚠️ Minor Signs</option>
+                            <option value="Severe">❌ Severe</option>
+                            <option value="Indicators Triggered">Indicators Triggered</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>🔨 Physical Damage</label>
+                        <select name="checklistPhysicalDamage">
+                            <option value="None">✅ None</option>
+                            <option value="Minor Scratches">Minor Scratches</option>
+                            <option value="Dents">Dents</option>
+                            <option value="Cracks">Cracks</option>
+                            <option value="Broken Parts">❌ Broken Parts</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>📱 SIM Card Present?</label>
+                        <select name="checklistSimCard">
+                            <option value="Not Checked">Not Checked</option>
+                            <option value="Yes - Kept with device">✅ Yes - Kept with device</option>
+                            <option value="Yes - Returned to customer">Yes - Returned to customer</option>
+                            <option value="No SIM">❌ No SIM</option>
+                            <option value="SIM Tray Issue">SIM Tray Issue</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group" style="margin-top:15px;">
+                    <label>📦 Accessories/Inclusions</label>
+                    <input type="text" name="checklistAccessories" placeholder="e.g., Case, Charger, Cable, Memory Card, Box, etc.">
+                    <small>List any items the customer left with the device</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>📝 Additional Pre-Repair Notes</label>
+                    <textarea name="checklistNotes" rows="2" placeholder="Any other observations or concerns about device condition..."></textarea>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-success" style="flex:1;">
+                    ✅ Accept Repair & Start Work
+                </button>
+                <button type="button" onclick="closeAcceptRepairModal()" class="btn-secondary" style="flex:1;">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    `;
+    
+    document.getElementById('acceptRepairModal').style.display = 'block';
+}
+
+/**
+ * Submit accept repair with checklist
+ */
+async function submitAcceptRepair(e, repairId) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    
+    try {
+        utils.showLoading(true);
+        
+        await db.ref('repairs/' + repairId).update({
+            acceptedBy: window.currentUser.uid,
+            acceptedByName: window.currentUserData.displayName,
+            acceptedAt: new Date().toISOString(),
+            status: 'In Progress',
+            preRepairChecklist: {
+                screen: data.get('checklistScreen') || 'Not Checked',
+                battery: data.get('checklistBattery') || 'Not Checked',
+                buttons: data.get('checklistButtons') || 'Not Checked',
+                camera: data.get('checklistCamera') || 'Not Checked',
+                speaker: data.get('checklistSpeaker') || 'Not Checked',
+                chargingPort: data.get('checklistChargingPort') || 'Not Checked',
+                waterDamage: data.get('checklistWaterDamage') || 'None',
+                physicalDamage: data.get('checklistPhysicalDamage') || 'None',
+                simCard: data.get('checklistSimCard') || 'Not Checked',
+                accessories: data.get('checklistAccessories') || '',
+                notes: data.get('checklistNotes') || ''
+            },
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        
+        // Log repair acceptance
+        await logActivity('repair_accepted', 'repair', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            brand: repair.brand,
+            model: repair.model,
+            total: repair.total
+        });
+        
+        utils.showLoading(false);
+        closeAcceptRepairModal();
+        
+        alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n💰 Total: ₱${repair.total.toFixed(2)}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"\n✅ Pre-repair inspection completed`);
+        
+        console.log('✅ Repair accepted successfully with checklist');
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        console.error('❌ Error accepting repair:', error);
+        utils.showLoading(false);
+        alert('Error: ' + error.message);
+    }
 }
 
 /**
@@ -4011,6 +4236,9 @@ window.deleteRepair = deleteRepair;
 window.closeStatusModal = closeStatusModal;
 window.closeAdditionalRepairModal = closeAdditionalRepairModal;
 window.closePaymentModal = closePaymentModal;
+window.closeAcceptRepairModal = closeAcceptRepairModal;
+window.openAcceptRepairModal = openAcceptRepairModal;
+window.submitAcceptRepair = submitAcceptRepair;
 window.openClaimModal = openClaimModal;
 window.updateWarrantyInfo = updateWarrantyInfo;
 window.claimDevice = claimDevice;
