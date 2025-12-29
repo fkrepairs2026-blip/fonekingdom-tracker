@@ -608,6 +608,16 @@ function buildReceiveDeviceTab(container) {
     console.log('📥 Building Receive Device tab');
     window.currentTabRefresh = () => buildReceiveDeviceTab(document.getElementById('receiveTab'));
     
+    // Load suppliers for dropdown if not already loaded
+    if (!window.allSuppliers) {
+        loadSuppliers().then(() => {
+            setTimeout(() => populateReceiveSupplierDropdown(), 100);
+        });
+    } else {
+        // Suppliers already loaded, just populate
+        setTimeout(() => populateReceiveSupplierDropdown(), 100);
+    }
+    
     // Get list of techs who have worked on repairs (for back jobs)
     const techsWithJobs = {};
     window.allRepairs.forEach(r => {
@@ -776,8 +786,23 @@ function buildReceiveDeviceTab(container) {
                 <div id="preApprovalFields" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
                     <p style="margin:0 0 10px;"><strong>💰 Pricing (Optional)</strong></p>
                     <p style="margin:0 0 15px;font-size:13px;color:#666;">
-                        If customer has already approved pricing, enter it here. Device will be marked as ready for technician to accept immediately.
+                        If customer has already approved pricing, enter it here. Call suppliers for current quotes.
                     </p>
+                    
+                    <div class="form-group">
+                        <label>Parts Supplier</label>
+                        <div style="display:flex;gap:10px;">
+                            <select id="receiveSupplier" name="receiveSupplier" style="flex:1;">
+                                <option value="">Select supplier (or use stock)</option>
+                                <option value="Stock">From Stock (Already Owned)</option>
+                                <option value="Customer Provided">Customer Provided</option>
+                            </select>
+                            <button type="button" onclick="openAddSupplierFromReceive()" class="btn-secondary" style="white-space:nowrap;">
+                                ➕ New
+                            </button>
+                        </div>
+                        <small style="color:#666;">Which supplier did you get the quote from?</small>
+                    </div>
                     
                     <div class="form-group">
                         <label>Actual Repair Solution</label>
@@ -802,8 +827,9 @@ function buildReceiveDeviceTab(container) {
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Parts Cost (₱)</label>
+                            <label>Quoted Parts Cost (₱)</label>
                             <input type="number" id="preApprovedPartsCost" name="preApprovedPartsCost" min="0" step="0.01" value="0" onchange="calculatePreApprovedTotal()">
+                            <small style="color:#666;">Price supplier quoted today</small>
                         </div>
                         <div class="form-group">
                             <label>Labor Cost (₱)</label>
@@ -817,7 +843,7 @@ function buildReceiveDeviceTab(container) {
                     </div>
                     
                     <div style="background:#fff9c4;padding:10px;border-radius:5px;margin-top:10px;">
-                        <small><strong>ℹ️ Auto-Approval:</strong> If you enter pricing, device will be marked as "Received & Approved". If left empty, tech/owner will create diagnosis later.</small>
+                        <small><strong>ℹ️ Note:</strong> This is the quoted price. Actual cost can be recorded later when parts are purchased (prices may vary daily).</small>
                     </div>
                 </div>
                 
@@ -858,6 +884,27 @@ function buildReceiveDeviceTab(container) {
             </form>
         </div>
     `;
+}
+
+/**
+ * Populate supplier dropdown in receive device form
+ */
+function populateReceiveSupplierDropdown() {
+    const supplierSelect = document.getElementById('receiveSupplier');
+    if (!supplierSelect || !window.allSuppliers) return;
+    
+    // Clear existing dynamic options (keep first 3: blank, Stock, Customer Provided)
+    while (supplierSelect.options.length > 3) {
+        supplierSelect.remove(3);
+    }
+    
+    // Add suppliers from Firebase
+    window.allSuppliers.forEach(supplier => {
+        const option = new Option(supplier.name, supplier.name);
+        supplierSelect.add(option);
+    });
+    
+    console.log(`✅ Loaded ${window.allSuppliers.length} suppliers into receive form`);
 }
 
 /**
@@ -1270,7 +1317,6 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
                 <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
                 ${r.acceptedBy ? `<div><strong>Technician:</strong> ${r.acceptedByName}</div>` : ''}
                 <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
-                ${r.partsCostSupplier ? `<div><strong>📦 Parts Supplier:</strong> ${r.partsCostSupplier}</div>` : ''}
                 ${!hidePaymentActions ? `
                     <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
                     <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-weight:bold;">₱${balance.toFixed(2)}</span></div>
@@ -1279,6 +1325,30 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             </div>
             
             <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem || r.problemDescription || 'N/A'}</div>
+            
+            ${r.quotedSupplier ? `
+                <div style="margin-top:15px;background:#f5f5f5;padding:12px;border-radius:5px;">
+                    <h4 style="margin:0 0 10px 0;">💰 Parts Pricing</h4>
+                    <div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;font-size:14px;">
+                        <strong>Quoted:</strong>
+                        <span>${r.quotedSupplier}</span>
+                        <span>₱${r.quotedPartsCost.toFixed(2)}</span>
+                        
+                        ${r.actualPartsCost ? `
+                            <strong>Actual:</strong>
+                            <span>${r.actualSupplier}</span>
+                            <span style="color:${r.costVariance > 0 ? '#f44336' : r.costVariance < 0 ? '#4caf50' : '#666'};">
+                                ₱${r.actualPartsCost.toFixed(2)}
+                                ${r.costVariance !== 0 ? `(${r.costVariance > 0 ? '+' : ''}₱${r.costVariance.toFixed(2)})` : ''}
+                            </span>
+                        ` : `
+                            <em style="grid-column:2/4;color:#999;">Actual cost not yet recorded</em>
+                        `}
+                    </div>
+                </div>
+            ` : r.partsCostSupplier ? `
+                <div style="margin-top:15px;"><strong>📦 Parts Supplier:</strong> ${r.partsCostSupplier}</div>
+            ` : ''}
             
             ${context === 'rto' ? renderRTOSpecificInfo(r) : ''}
             
@@ -2519,6 +2589,7 @@ window.buildReceivedDevicesPage = buildReceivedDevicesPage;
 window.buildInProgressPage = buildInProgressPage;
 window.buildForReleasePage = buildForReleasePage;
 window.buildReceiveDeviceTab = buildReceiveDeviceTab;
+window.populateReceiveSupplierDropdown = populateReceiveSupplierDropdown;
 window.buildMyRequestsTab = buildMyRequestsTab;
 window.buildModificationRequestsTab = buildModificationRequestsTab;
 window.buildUnpaidTab = buildUnpaidTab;

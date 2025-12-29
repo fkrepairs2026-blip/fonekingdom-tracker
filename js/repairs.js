@@ -252,11 +252,24 @@ async function submitReceiveDevice(e) {
     
     // Handle PRE-APPROVED devices (customer already agreed to pricing)
     if (hasPricing && !isBackJob) {
+        // Get quoted supplier info
+        const quotedSupplier = document.getElementById('receiveSupplier')?.value || null;
+        
         // Mark as pre-approved with pricing
         repair.repairType = repairType;
         repair.partsCost = partsCost;
         repair.laborCost = laborCost;
         repair.total = total;
+        
+        // Quote information (for tracking vs actual)
+        repair.quotedSupplier = quotedSupplier;
+        repair.quotedPartsCost = partsCost;
+        repair.quotedDate = new Date().toISOString();
+        
+        // Actual costs (to be filled later when recording actual parts cost)
+        repair.actualPartsCost = null;
+        repair.actualSupplier = null;
+        repair.costVariance = null;
         
         // Mark diagnosis as created and customer approved
         repair.diagnosisCreated = true;
@@ -267,7 +280,7 @@ async function submitReceiveDevice(e) {
         repair.customerApprovedAt = new Date().toISOString();
         repair.customerApprovedBy = window.currentUser.uid;
         
-        console.log('✅ Device marked as pre-approved with pricing:', {repairType, partsCost, laborCost, total});
+        console.log('✅ Device marked as pre-approved with pricing:', {repairType, partsCost, laborCost, total, quotedSupplier});
     }
     
     // Add back job information if checked
@@ -3026,6 +3039,47 @@ async function loadSuppliers() {
 }
 
 /**
+ * Quick add supplier from receive device form
+ */
+async function openAddSupplierFromReceive() {
+    const name = prompt('Enter supplier name:');
+    if (!name || !name.trim()) return;
+    
+    const contact = prompt('Contact number (optional):');
+    
+    try {
+        utils.showLoading(true);
+        
+        const newSupplierRef = db.ref('suppliers').push();
+        await newSupplierRef.set({
+            name: name.trim(),
+            contactNumber: contact?.trim() || '',
+            active: true,
+            createdAt: new Date().toISOString(),
+            createdBy: window.currentUser.uid,
+            createdByName: window.currentUserData.displayName
+        });
+        
+        await loadSuppliers();
+        utils.showLoading(false);
+        
+        alert(`✅ Supplier "${name.trim()}" added!`);
+        
+        // Refresh dropdown and select new supplier
+        if (window.populateReceiveSupplierDropdown) {
+            window.populateReceiveSupplierDropdown();
+            const select = document.getElementById('receiveSupplier');
+            if (select) select.value = name.trim();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error adding supplier:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
  * Quick add supplier from parts cost modal
  */
 async function openAddSupplierQuick() {
@@ -3112,39 +3166,57 @@ async function openPartsCostModal(repairId) {
 }
 
 /**
- * Save Parts Cost
+ * Save Parts Cost (Actual)
  */
 async function savePartsCost() {
     const repairId = document.getElementById('partsCostRepairId').value;
-    const amount = parseFloat(document.getElementById('partsCostAmount').value);
-    const supplier = document.getElementById('partsCostSupplier').value;
+    const actualAmount = parseFloat(document.getElementById('partsCostAmount').value);
+    const actualSupplier = document.getElementById('partsCostSupplier').value;
     const notes = document.getElementById('partsCostNotes').value.trim();
     
-    if (!amount || amount <= 0) {
+    if (!actualAmount || actualAmount <= 0) {
         alert('Please enter a valid parts cost');
         return;
     }
     
-    if (!supplier) {
+    if (!actualSupplier) {
         alert('Please select a supplier');
         return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    // Calculate variance from quote
+    let costVariance = null;
+    if (repair && repair.quotedPartsCost) {
+        costVariance = actualAmount - repair.quotedPartsCost;
     }
     
     try {
         utils.showLoading(true);
         
         await db.ref(`repairs/${repairId}`).update({
-            partsCost: amount,
-            partsCostSupplier: supplier,
+            actualPartsCost: actualAmount,
+            actualSupplier: actualSupplier,
+            partsCostSupplier: actualSupplier,  // For backward compatibility
             partsCostNotes: notes,
             partsCostRecordedBy: window.currentUserData.displayName,
             partsCostRecordedAt: new Date().toISOString(),
+            costVariance: costVariance,
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
         
         utils.showLoading(false);
-        alert(`✅ Parts cost recorded!\n\n₱${amount.toFixed(2)}\nSupplier: ${supplier}`);
+        
+        let message = `✅ Actual parts cost recorded!\n\n₱${actualAmount.toFixed(2)}\nSupplier: ${actualSupplier}`;
+        
+        if (costVariance !== null && costVariance !== 0) {
+            const varianceText = costVariance > 0 ? `+₱${costVariance.toFixed(2)} higher` : `₱${Math.abs(costVariance).toFixed(2)} lower`;
+            message += `\n\nVariance from quote: ${varianceText}`;
+        }
+        
+        alert(message);
         closePartsCostModal();
         
         setTimeout(() => {
@@ -5316,6 +5388,7 @@ window.collectRTODiagnosisFee = collectRTODiagnosisFee;
 window.revertRTOStatus = revertRTOStatus;
 window.toggleRTOFields = toggleRTOFields;
 window.loadSuppliers = loadSuppliers;
+window.openAddSupplierFromReceive = openAddSupplierFromReceive;
 window.openAddSupplierQuick = openAddSupplierQuick;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
