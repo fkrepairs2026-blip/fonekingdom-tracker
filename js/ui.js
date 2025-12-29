@@ -2337,7 +2337,11 @@ function buildActivityLogsTab(container) {
     // Get filter values (if any)
     const filterUser = window.logFilterUser || 'all';
     const filterAction = window.logFilterAction || 'all';
-    const filterDate = window.logFilterDate || 'all';
+    // Ensure filterDate is a string, not an element
+    let filterDate = window.logFilterDate || 'all';
+    if (typeof filterDate !== 'string') {
+        filterDate = 'all';
+    }
     
     // Apply filters
     let filteredLogs = sortedLogs;
@@ -3238,8 +3242,10 @@ function buildTechnicianLogsTab(container) {
  */
 function selectTechnicianForLogs(techId) {
     window.selectedTechForLogs = techId;
-    if (window.currentTabRefresh) {
-        window.currentTabRefresh();
+    // Directly call the Technician Logs tab build function
+    const container = document.getElementById('tech-logsTab');
+    if (container) {
+        buildTechnicianLogsTab(container);
     }
 }
 

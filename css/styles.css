@@ -3700,6 +3700,25 @@ html {
     color: rgba(255, 255, 255, 0.8) !important;
 }
 
+/* Fix table visibility in dark mode */
+[data-theme="dark"] table thead {
+    background: var(--bg-secondary) !important;
+}
+
+[data-theme="dark"] table th,
+[data-theme="dark"] table td {
+    color: var(--text-primary) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] table tbody tr {
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] table tbody tr:hover {
+    background: var(--bg-hover) !important;
+}
+
 /* Fix manual commission fields */
 [data-theme="dark"] #manualCommissionFields {
     background: var(--bg-tertiary) !important;
