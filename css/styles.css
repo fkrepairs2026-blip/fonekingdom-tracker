@@ -420,6 +420,7 @@ body {
 /* Main Content Adjustment for Single Sidebar */
 .main-content {
     margin-left: 250px;
+    margin-top: 60px; /* Space for fixed header */
     transition: margin-left 0.3s ease;
     padding: 20px;
     min-height: calc(100vh - 60px);
@@ -433,30 +434,38 @@ body.left-sidebar-collapsed .main-content {
 
 /* ===== MAIN APP ===== */
 #app {
-    max-width: 1600px;
-    margin: 0 auto;
-    padding: var(--spacing-lg);
-    padding-bottom: var(--spacing-lg);
+    /* Remove max-width and centering for proper sidebar layout */
+    width: 100%;
+    padding: 0; /* No padding on main container - padding handled by main-content */
 }
 
 /* ===== HEADER ===== */
 .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
     background: var(--bg-card);
-    padding: var(--spacing-lg) var(--spacing-xl);
-    border-radius: var(--radius-xl);
-    margin-bottom: var(--spacing-xl);
+    padding: 0 var(--spacing-xl);
     box-shadow: var(--shadow-sm);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
     gap: var(--spacing-md);
-    border-bottom: 3px solid var(--primary);
+    border-bottom: 2px solid var(--border-color);
+    z-index: 1000;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
 }
 
 .header-left h2 {
     color: var(--primary);
-    font-size: var(--font-size-3xl);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-bold);
     margin: 0;
     letter-spacing: -0.5px;
@@ -1491,18 +1500,17 @@ button:disabled {
 @media (max-width: 768px) {
     #app {
         padding: 0;
-        padding-top: var(--spacing-sm);
+        padding-top: 60px; /* Space for fixed header */
         padding-bottom: 75px; /* Space for mobile bottom nav */
         display: flex;
         flex-direction: column;
     }
 
     .header {
-        padding: var(--spacing-sm);
-        margin: 0 var(--spacing-sm);
-        flex-direction: row;
+        padding: var(--spacing-sm) var(--spacing-md);
+        height: 60px;
+        flex-wrap: nowrap;
         gap: var(--spacing-xs);
-        flex-wrap: wrap;
     }
 
     .header-left {
@@ -3409,6 +3417,7 @@ html {
     
     .main-content {
         margin-left: 0 !important;
+        margin-top: 60px; /* Space for fixed header */
         padding-bottom: 80px; /* Space for bottom nav */
     }
     
