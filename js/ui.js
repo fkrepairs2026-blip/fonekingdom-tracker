@@ -388,9 +388,6 @@ function buildReceivedDevicesPage(container) {
         (r.status === 'Received' || r.status === 'Pending Customer Approval') && !r.acceptedBy
     );
     
-    const role = window.currentUserData.role;
-    const canAccept = (role === 'admin' || role === 'manager' || role === 'technician');
-    
     container.innerHTML = `
         <div class="card">
             <h3>📥 Received Devices (${receivedDevices.length})</h3>
@@ -403,87 +400,17 @@ function buildReceivedDevicesPage(container) {
                     <p>No devices waiting - All caught up!</p>
                 </div>
             ` : `
-                <div id="receivedDevicesList">
-                    ${receivedDevices.map(r => `
-                        <div class="repair-card" style="border-left:4px solid ${r.isBackJob ? '#f44336' : r.status === 'Pending Customer Approval' ? '#ff9800' : '#2196f3'};">
-                            <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
-                            ${r.status === 'Pending Customer Approval' ? 
-                                '<span class="status-badge status-pending-customer-approval">⏳ Pending Customer Approval</span>' : 
-                                '<span class="status-badge status-received">📥 Received</span>'
-                            }
-                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 BACK JOB</span>' : ''}
-                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
-                            ${r.customerApproved ? '<span class="status-badge" style="background:#d4edda;color:#155724;">✅ Customer Approved</span>' : ''}
-                            
-                            <div class="repair-info">
-                                <div><strong>Contact:</strong> ${r.contactNumber}</div>
-                                <div><strong>Problem:</strong> ${r.problem}</div>
-                                ${r.isBackJob ? `<div style="color:#c62828;"><strong>⚠️ Back Job:</strong> ${r.backJobReason}</div>` : ''}
-                                ${r.isBackJob && r.originalTechName ? `<div style="color:#c62828;"><strong>Original Tech:</strong> ${r.originalTechName}</div>` : ''}
-                                <div><strong>Received by:</strong> ${r.receivedBy || r.createdByName}</div>
-                                <div><strong>Received on:</strong> ${utils.formatDateTime(r.createdAt)}</div>
-                                ${r.diagnosisCreated && r.diagnosisCreatedAt ? `<div><strong>Diagnosis created:</strong> ${utils.formatDateTime(r.diagnosisCreatedAt)} by ${r.diagnosisCreatedByName || 'N/A'}</div>` : ''}
-                                ${r.repairType && r.repairType !== 'Pending Diagnosis' ? `<div><strong>Repair Type:</strong> ${r.repairType}</div>` : '<div style="color:#999;"><strong>Repair Type:</strong> Pending Diagnosis</div>'}
-                                ${r.total > 0 ? `<div><strong>Total Cost:</strong> <span style="font-weight:bold;color:#667eea;">₱${r.total.toFixed(2)}</span></div>` : '<div style="color:#999;"><strong>Cost:</strong> Pending diagnosis</div>'}
-                                ${r.customerApproved && r.customerApprovedAt ? `<div style="color:#28a745;"><strong>✅ Approved:</strong> ${utils.formatDateTime(r.customerApprovedAt)}</div>` : ''}
-                            </div>
-                            
-                            ${r.photos && r.photos.length > 0 ? `
-                                <div style="margin:10px 0;">
-                                    <strong>Photos:</strong>
-                                    <div style="display:flex;gap:10px;margin-top:5px;">
-                                        ${r.photos.map(p => `<img src="${p}" onclick="showPhotoModal('${p}')" style="width:80px;height:80px;object-fit:cover;border-radius:5px;cursor:pointer;">`).join('')}
-                                    </div>
-                                </div>
-                            ` : ''}
-                            
-                            <div class="repair-actions">
-                                ${!r.diagnosisCreated || r.repairType === 'Pending Diagnosis' ? `
-                                    ${(role === 'admin' || role === 'manager' || role === 'technician') ? `
-                                        <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
-                                            📋 Create Diagnosis
-                                        </button>
-                                    ` : ''}
-                                ` : `
-                                    ${r.status === 'Pending Customer Approval' ? `
-                                        ${(role === 'admin' || role === 'manager' || role === 'cashier') ? `
-                                            <button class="btn-small btn-success" onclick="approveDiagnosis('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
-                                                ✅ Mark Customer Approved
-                                            </button>
-                                        ` : ''}
-                                        ${(role === 'admin' || role === 'manager' || role === 'technician') ? `
-                                            <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
-                                                ✏️ Update Diagnosis
-                                            </button>
-                                        ` : ''}
-                                    ` : `
-                                        ${r.customerApproved ? `
-                                            ${canAccept ? `
-                                                <button class="btn-small btn-success" onclick="acceptRepair('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
-                                                    ✅ Accept This Repair
-                                                </button>
-                                            ` : ''}
-                                        ` : `
-                                            ${(role === 'admin' || role === 'manager' || role === 'cashier') ? `
-                                                <button class="btn-small btn-success" onclick="approveDiagnosis('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
-                                                    ✅ Mark Customer Approved
-                                                </button>
-                                            ` : ''}
-                                        `}
-                                        ${(role === 'admin' || role === 'manager' || role === 'technician') ? `
-                                            <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
-                                                ✏️ Update Diagnosis
-                                            </button>
-                                        ` : ''}
-                                    `}
-                                `}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
+                <div id="receivedDevicesList"></div>
             `}
         </div>
     `;
+    
+    setTimeout(() => {
+        const listContainer = document.getElementById('receivedDevicesList');
+        if (listContainer && receivedDevices.length > 0) {
+            displayCompactRepairsList(receivedDevices, listContainer, 'received');
+        }
+    }, 0);
 }
 
 /**
@@ -565,111 +492,20 @@ function buildRTODevicesTab(container) {
         <div class="card">
             <h3>↩️ Return to Owner - RTO Devices (${rtoDevices.length})</h3>
             <p style="color:#666;margin-bottom:15px;">Devices that cannot be repaired or customer declined repair</p>
-            <div id="rtoDevicesList"></div>
+            ${rtoDevices.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <p>No RTO devices at this time</p>
+                </div>
+            ` : `
+                <div id="rtoDevicesList"></div>
+            `}
         </div>
     `;
     
     setTimeout(() => {
         const listContainer = document.getElementById('rtoDevicesList');
-        if (listContainer) {
-            if (rtoDevices.length === 0) {
-                listContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No RTO devices at this time</p>';
-            } else {
-                listContainer.innerHTML = rtoDevices.map(r => {
-                    const rtoDate = r.rtoDate || r.lastUpdated;
-                    const daysSinceRTO = Math.floor((new Date() - new Date(rtoDate)) / (1000 * 60 * 60 * 24));
-                    
-                    // Check diagnosis fee status
-                    const diagnosisFee = r.diagnosisFee || 0;
-                    const rtoPaymentStatus = r.rtoPaymentStatus || 'waived';
-                    const hasFee = diagnosisFee > 0;
-                    const isPaid = rtoPaymentStatus === 'paid' || rtoPaymentStatus === 'waived';
-                    
-                    // Role-based actions
-                    const canRelease = ['admin', 'manager', 'cashier'].includes(window.currentUserData.role);
-                    const canAddFee = ['admin', 'manager', 'cashier'].includes(window.currentUserData.role);
-                    const canRevertStatus = ['admin'].includes(window.currentUserData.role);
-                    
-                    return `
-                        <div class="repair-card rto-card" style="border-left:4px solid #ff9800;">
-                            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
-                                <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''}</h4>
-                                <span class="status-badge" style="background:#ff9800;color:white;">↩️ RTO</span>
-                            </div>
-                            
-                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;margin-right:5px;">🔄 Back Job</span>' : ''}
-                            
-                            <div class="repair-info" style="margin:15px 0;">
-                                <div><strong>Device:</strong> ${r.brand} ${r.model}</div>
-                                <div><strong>Contact:</strong> ${r.contactNumber}</div>
-                                <div><strong>Problem:</strong> ${r.problemDescription || 'N/A'}</div>
-                            </div>
-                            
-                            ${r.rtoReason ? `
-                                <div style="background:#fff3cd;padding:10px;border-radius:5px;margin:10px 0;border-left:4px solid #ff9800;">
-                                    <strong>RTO Reason:</strong> ${r.rtoReason}
-                                    ${r.rtoNotes ? `<div style="margin-top:5px;font-size:13px;color:#666;">${r.rtoNotes}</div>` : ''}
-                                </div>
-                            ` : ''}
-                            
-                            <div style="background:#f8f9fa;padding:10px;border-radius:5px;margin:10px 0;">
-                                <div style="font-size:13px;color:#666;">
-                                    <div><strong>Set to RTO:</strong> ${utils.formatDateTime(rtoDate)} (${daysSinceRTO} day${daysSinceRTO !== 1 ? 's' : ''} ago)</div>
-                                    ${r.rtoSetByName ? `<div><strong>Set by:</strong> ${r.rtoSetByName}</div>` : ''}
-                                </div>
-                            </div>
-                            
-                            ${hasFee ? `
-                                <div style="background:${isPaid ? '#e8f5e9' : '#ffebee'};padding:12px;border-radius:8px;margin:15px 0;border-left:4px solid ${isPaid ? '#4caf50' : '#f44336'};">
-                                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                                        <span style="font-weight:600;">Diagnosis Fee:</span>
-                                        <span style="font-size:16px;font-weight:700;color:${isPaid ? '#2e7d32' : '#c62828'};">
-                                            ₱${diagnosisFee.toFixed(2)} ${isPaid ? '✅ PAID' : '⚠️ UNPAID'}
-                                        </span>
-                                    </div>
-                                    ${r.rtoPaymentDate ? `<div style="font-size:12px;color:#666;margin-top:5px;">Paid: ${utils.formatDateTime(r.rtoPaymentDate)}</div>` : ''}
-                                </div>
-                            ` : `
-                                <div style="background:#f1f8e9;padding:10px;border-radius:5px;margin:10px 0;text-align:center;">
-                                    <small style="color:#558b2f;">No diagnosis fee charged</small>
-                                </div>
-                            `}
-                            
-                            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:15px;">
-                                ${canAddFee && hasFee && !isPaid ? `
-                                    <button onclick="collectRTODiagnosisFee('${r.id}')" class="btn btn-primary" style="flex:1;min-width:150px;">
-                                        💰 Collect Fee
-                                    </button>
-                                ` : ''}
-                                
-                                ${canAddFee && !hasFee ? `
-                                    <button onclick="addRTODiagnosisFee('${r.id}')" class="btn btn-secondary" style="flex:1;min-width:150px;">
-                                        💵 Add Diagnosis Fee
-                                    </button>
-                                ` : ''}
-                                
-                                ${canRelease && (!hasFee || isPaid) ? `
-                                    <button onclick="releaseRTODevice('${r.id}')" class="btn btn-success" style="flex:1;min-width:200px;font-weight:bold;">
-                                        ↩️ Return to Customer
-                                    </button>
-                                ` : ''}
-                                
-                                ${canRelease && hasFee && !isPaid ? `
-                                    <button class="btn btn-secondary" disabled style="flex:1;min-width:200px;">
-                                        ⚠️ Collect Fee First
-                                    </button>
-                                ` : ''}
-                                
-                                ${canRevertStatus ? `
-                                    <button onclick="revertRTOStatus('${r.id}')" class="btn btn-warning" style="padding:10px 15px;">
-                                        🔄 Revert to In Progress
-                                    </button>
-                                ` : ''}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            }
+        if (listContainer && rtoDevices.length > 0) {
+            displayCompactRepairsList(rtoDevices, listContainer, 'rto');
         }
     }, 0);
 }
@@ -1481,7 +1317,7 @@ function displayRepairsInContainer(repairs, container) {
  * Display repairs in a compact, expandable list format
  * Shows minimal info (brand/model, customer, problem) and expands on click
  */
-function displayCompactRepairsList(repairs, container) {
+function displayCompactRepairsList(repairs, container, context = 'default') {
     // Safety check
     if (!container) {
         console.warn('⚠️ Container not found, skipping display');
@@ -1492,6 +1328,9 @@ function displayCompactRepairsList(repairs, container) {
         container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No repairs found</p>';
         return;
     }
+    
+    // Store context in container dataset for access in toggle function
+    container.dataset.context = context;
     
     const role = window.currentUserData.role;
     
@@ -1505,8 +1344,9 @@ function displayCompactRepairsList(repairs, container) {
         return `
             <div class="repair-list-item-compact ${isExpanded ? 'expanded' : ''}" 
                  id="repair-item-${r.id}"
-                 data-repair-id="${r.id}">
-                <div class="repair-compact-header" onclick="toggleRepairDetails('${r.id}')">
+                 data-repair-id="${r.id}"
+                 data-context="${context}">
+                <div class="repair-compact-header" onclick="toggleRepairDetails('${r.id}', '${context}')"
                     <div class="repair-compact-main">
                         <div class="repair-compact-title">
                             <strong>${r.brand} ${r.model}</strong>
@@ -1537,7 +1377,7 @@ function displayCompactRepairsList(repairs, container) {
 /**
  * Render full details for an expanded repair item
  */
-function renderExpandedRepairDetails(repair, role) {
+function renderExpandedRepairDetails(repair, role, context = 'default') {
     const r = repair;
     const hidePaymentActions = role === 'technician';
     const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
@@ -1562,7 +1402,9 @@ function renderExpandedRepairDetails(repair, role) {
                 ` : ''}
             </div>
             
-            <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem}</div>
+            <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem || r.problemDescription || 'N/A'}</div>
+            
+            ${context === 'rto' ? renderRTOSpecificInfo(r) : ''}
             
             ${r.preRepairChecklist ? `
                 <details style="margin-top:15px;background:var(--bg-light);padding:10px;border-radius:var(--radius-md);">
@@ -1609,25 +1451,229 @@ function renderExpandedRepairDetails(repair, role) {
             ` : ''}
             
             <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
-                ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
-                ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
-                ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
-                ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
-                ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
-                ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
-                ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
+                ${renderContextButtons(r, role, context)}
             </div>
         </div>
     `;
 }
 
 /**
+ * Render RTO-specific information
+ */
+function renderRTOSpecificInfo(r) {
+    const rtoDate = r.rtoDate || r.lastUpdated;
+    const daysSinceRTO = Math.floor((new Date() - new Date(rtoDate)) / (1000 * 60 * 60 * 24));
+    const diagnosisFee = r.diagnosisFee || 0;
+    const rtoPaymentStatus = r.rtoPaymentStatus || 'waived';
+    const hasFee = diagnosisFee > 0;
+    const isPaid = rtoPaymentStatus === 'paid' || rtoPaymentStatus === 'waived';
+    
+    return `
+        ${r.rtoReason ? `
+            <div style="background:#fff3cd;padding:12px;border-radius:8px;margin:15px 0;border-left:4px solid #ff9800;">
+                <strong>↩️ RTO Reason:</strong> ${r.rtoReason}
+                ${r.rtoNotes ? `<div style="margin-top:8px;font-size:13px;color:#666;"><strong>Notes:</strong> ${r.rtoNotes}</div>` : ''}
+            </div>
+        ` : ''}
+        
+        <div style="background:#f8f9fa;padding:12px;border-radius:8px;margin:15px 0;">
+            <div style="font-size:14px;color:#666;">
+                <div><strong>Set to RTO:</strong> ${utils.formatDateTime(rtoDate)} (${daysSinceRTO} day${daysSinceRTO !== 1 ? 's' : ''} ago)</div>
+                ${r.rtoSetByName ? `<div><strong>Set by:</strong> ${r.rtoSetByName}</div>` : ''}
+            </div>
+        </div>
+        
+        ${hasFee ? `
+            <div style="background:${isPaid ? '#e8f5e9' : '#ffebee'};padding:12px;border-radius:8px;margin:15px 0;border-left:4px solid ${isPaid ? '#4caf50' : '#f44336'};">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:600;">💵 Diagnosis Fee:</span>
+                    <span style="font-size:18px;font-weight:700;color:${isPaid ? '#2e7d32' : '#c62828'};">
+                        ₱${diagnosisFee.toFixed(2)} ${isPaid ? '✅ PAID' : '⚠️ UNPAID'}
+                    </span>
+                </div>
+                ${r.rtoPaymentDate ? `<div style="font-size:13px;color:#666;margin-top:5px;"><strong>Paid:</strong> ${utils.formatDateTime(r.rtoPaymentDate)}</div>` : ''}
+            </div>
+        ` : `
+            <div style="background:#f1f8e9;padding:12px;border-radius:8px;margin:15px 0;text-align:center;border-left:4px solid #7cb342;">
+                <span style="color:#558b2f;font-weight:600;">✅ No diagnosis fee charged</span>
+            </div>
+        `}
+    `;
+}
+
+/**
+ * Render context-specific action buttons based on repair context
+ */
+function renderContextButtons(repair, role, context) {
+    switch(context) {
+        case 'received':
+            return renderReceivedDeviceButtons(repair, role);
+        case 'rto':
+            return renderRTODeviceButtons(repair, role);
+        default:
+            return renderStandardButtons(repair, role);
+    }
+}
+
+/**
+ * Render standard action buttons (default context)
+ */
+function renderStandardButtons(r, role) {
+    const hidePaymentActions = role === 'technician';
+    return `
+        ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
+        ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
+        ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
+        ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
+        ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
+        ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
+        ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
+    `;
+}
+
+/**
+ * Render buttons for Received Devices (workflow context)
+ */
+function renderReceivedDeviceButtons(r, role) {
+    const canAccept = (role === 'admin' || role === 'manager' || role === 'technician');
+    
+    // If no diagnosis created yet
+    if (!r.diagnosisCreated || r.repairType === 'Pending Diagnosis') {
+        if (role === 'admin' || role === 'manager' || role === 'technician') {
+            return `
+                <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
+                    📋 Create Diagnosis
+                </button>
+            `;
+        }
+        return '';
+    }
+    
+    // Diagnosis created - check approval status
+    if (r.status === 'Pending Customer Approval') {
+        let buttons = '';
+        // Show approval button for admin/manager/cashier
+        if (role === 'admin' || role === 'manager' || role === 'cashier') {
+            buttons += `
+                <button class="btn-small btn-success" onclick="approveDiagnosis('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+                    ✅ Mark Customer Approved
+                </button>
+            `;
+        }
+        // Show update diagnosis button for admin/manager/technician
+        if (role === 'admin' || role === 'manager' || role === 'technician') {
+            buttons += `
+                <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
+                    ✏️ Update Diagnosis
+                </button>
+            `;
+        }
+        return buttons;
+    }
+    
+    // Customer approved - show accept or approval button
+    let buttons = '';
+    if (r.customerApproved && canAccept) {
+        buttons += `
+            <button class="btn-small btn-success" onclick="acceptRepair('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+                ✅ Accept This Repair
+            </button>
+        `;
+    } else if (!r.customerApproved && (role === 'admin' || role === 'manager' || role === 'cashier')) {
+        buttons += `
+            <button class="btn-small btn-success" onclick="approveDiagnosis('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
+                ✅ Mark Customer Approved
+            </button>
+        `;
+    }
+    
+    // Always show update diagnosis button for admin/manager/technician
+    if (role === 'admin' || role === 'manager' || role === 'technician') {
+        buttons += `
+            <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
+                ✏️ Update Diagnosis
+            </button>
+        `;
+    }
+    
+    return buttons;
+}
+
+/**
+ * Render buttons for RTO Devices (RTO context)
+ */
+function renderRTODeviceButtons(r, role) {
+    const diagnosisFee = r.diagnosisFee || 0;
+    const rtoPaymentStatus = r.rtoPaymentStatus || 'waived';
+    const hasFee = diagnosisFee > 0;
+    const isPaid = rtoPaymentStatus === 'paid' || rtoPaymentStatus === 'waived';
+    
+    const canRelease = ['admin', 'manager', 'cashier'].includes(role);
+    const canAddFee = ['admin', 'manager', 'cashier'].includes(role);
+    const canRevertStatus = role === 'admin';
+    
+    let buttons = '';
+    
+    // Collect fee button (if unpaid)
+    if (canAddFee && hasFee && !isPaid) {
+        buttons += `
+            <button onclick="collectRTODiagnosisFee('${r.id}')" class="btn btn-primary" style="flex:1;min-width:150px;">
+                💰 Collect Fee
+            </button>
+        `;
+    }
+    
+    // Add diagnosis fee button (if no fee)
+    if (canAddFee && !hasFee) {
+        buttons += `
+            <button onclick="addRTODiagnosisFee('${r.id}')" class="btn btn-secondary" style="flex:1;min-width:150px;">
+                💵 Add Diagnosis Fee
+            </button>
+        `;
+    }
+    
+    // Return to customer button (if paid or no fee)
+    if (canRelease && (!hasFee || isPaid)) {
+        buttons += `
+            <button onclick="releaseRTODevice('${r.id}')" class="btn btn-success" style="flex:1;min-width:200px;font-weight:bold;">
+                ↩️ Return to Customer
+            </button>
+        `;
+    }
+    
+    // Disabled button if fee not paid
+    if (canRelease && hasFee && !isPaid) {
+        buttons += `
+            <button class="btn btn-secondary" disabled style="flex:1;min-width:200px;">
+                ⚠️ Collect Fee First
+            </button>
+        `;
+    }
+    
+    // Revert status button (admin only)
+    if (canRevertStatus) {
+        buttons += `
+            <button onclick="revertRTOStatus('${r.id}')" class="btn btn-warning" style="padding:10px 15px;">
+                🔄 Revert to In Progress
+            </button>
+        `;
+    }
+    
+    return buttons;
+}
+
+/**
  * Toggle repair details expansion/collapse
  */
-function toggleRepairDetails(repairId) {
+function toggleRepairDetails(repairId, context = 'default') {
     // Get the repair item
     const repairItem = document.getElementById(`repair-item-${repairId}`);
     if (!repairItem) return;
+    
+    // Get context from data attribute if not provided
+    if (context === 'default' && repairItem.dataset.context) {
+        context = repairItem.dataset.context;
+    }
     
     // Check if this item is already expanded
     const isCurrentlyExpanded = window.expandedRepairId === repairId;
@@ -1653,7 +1699,7 @@ function toggleRepairDetails(repairId) {
                 const repair = window.allRepairs.find(r => r.id === repairId);
                 const role = window.currentUserData.role;
                 if (repair) {
-                    detailContent.innerHTML = renderExpandedRepairDetails(repair, role);
+                    detailContent.innerHTML = renderExpandedRepairDetails(repair, role, context);
                 }
             }
             detailContent.style.display = 'block';
