@@ -1201,7 +1201,7 @@ function buildAllRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
-            displayRepairsInContainer(repairs, listContainer);
+            displayCompactRepairsList(repairs, listContainer);
         }
     }, 0);
 }
