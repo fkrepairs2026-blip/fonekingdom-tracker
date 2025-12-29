@@ -1483,6 +1483,8 @@ function renderContextButtons(repair, role, context) {
             return renderRTODeviceButtons(repair, role);
         case 'forrelease':
             return renderForReleaseButtons(repair, role);
+        case 'claimed':
+            return renderClaimedButtons(repair, role);
         default:
             return renderStandardButtons(repair, role);
     }
@@ -1515,7 +1517,7 @@ function renderForReleaseButtons(r, role) {
     
     let buttons = '';
     
-    // Payment button if not fully paid (not for technicians)
+    // Payment button if not fully paid (not for technicians who will collect during release)
     if (!isFullyPaid && role !== 'technician') {
         buttons += `
             <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">
@@ -1524,18 +1526,19 @@ function renderForReleaseButtons(r, role) {
         `;
     }
     
-    // Release button - ALL roles can release
-    if (isFullyPaid) {
+    // Release button - ALL roles can ALWAYS release (payment collection happens during release)
+    buttons += `
+        <button class="btn-small btn-success" onclick="openReleaseDeviceModal('${r.id}')" style="background:#2e7d32;color:white;font-weight:bold;">
+            ✅ Release to Customer${!isFullyPaid ? ' (Collect Payment)' : ''}
+        </button>
+    `;
+    
+    // Show balance warning if unpaid
+    if (!isFullyPaid) {
         buttons += `
-            <button class="btn-small btn-success" onclick="openReleaseDeviceModal('${r.id}')" style="background:#2e7d32;color:white;font-weight:bold;">
-                ✅ Release to Customer
-            </button>
-        `;
-    } else {
-        buttons += `
-            <button class="btn-small" disabled style="opacity:0.5;background:#999;color:white;">
-                ⚠️ Payment Required (₱${balance.toFixed(2)} balance)
-            </button>
+            <span style="display:block;margin-top:5px;color:#f44336;font-size:12px;font-weight:600;">
+                ⚠️ Outstanding Balance: ₱${balance.toFixed(2)} - Will collect during release
+            </span>
         `;
     }
     
@@ -1558,6 +1561,45 @@ function renderForReleaseButtons(r, role) {
     }
     
     // Admin delete button
+    if (role === 'admin') {
+        buttons += `
+            <button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">
+                🗑️ Delete
+            </button>
+        `;
+    }
+    
+    return buttons;
+}
+
+/**
+ * Render buttons for Claimed Units context
+ */
+function renderClaimedButtons(r, role) {
+    let buttons = '';
+    
+    // Warranty claim button (admin/manager only)
+    if (role === 'admin' || role === 'manager') {
+        const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
+        if (warrantyActive) {
+            buttons += `
+                <button class="btn-small" onclick="openWarrantyClaimModal('${r.id}')" 
+                        style="background:#ff9800;color:white;">
+                    🛡️ Warranty Claim
+                </button>
+            `;
+        }
+    }
+    
+    // View claim details button
+    buttons += `
+        <button class="btn-small" onclick="viewClaimDetails('${r.id}')" 
+                style="background:#2196f3;color:white;">
+            📄 View Details
+        </button>
+    `;
+    
+    // Admin tools
     if (role === 'admin') {
         buttons += `
             <button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">
@@ -2658,7 +2700,7 @@ function buildClaimedUnitsPage(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('claimedUnitsList');
         if (listContainer && claimedUnits.length > 0) {
-            displayCompactRepairsList(claimedUnits, listContainer);
+            displayCompactRepairsList(claimedUnits, listContainer, 'claimed');
         }
     }, 0);
 }
@@ -2680,6 +2722,7 @@ window.displayRepairsInContainer = displayRepairsInContainer;
 window.displayCompactRepairsList = displayCompactRepairsList;
 window.renderExpandedRepairDetails = renderExpandedRepairDetails;
 window.renderForReleaseButtons = renderForReleaseButtons;
+window.renderClaimedButtons = renderClaimedButtons;
 window.toggleRepairDetails = toggleRepairDetails;
 window.buildAllRepairsTab = buildAllRepairsTab;
 window.buildMyRepairsTab = buildMyRepairsTab;
