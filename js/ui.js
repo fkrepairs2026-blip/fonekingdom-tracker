@@ -622,29 +622,6 @@ function buildReceiveDeviceTab(container) {
             <p style="color:#666;margin-bottom:20px;">Receive new device from customer - Technician will accept it later</p>
             
             <form onsubmit="submitReceiveDevice(event)">
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;">
-                        <input type="checkbox" id="isBackJob" onchange="toggleBackJobFields()">
-                        <span style="color:#c62828;font-weight:bold;">🔄 This is a BACK JOB (returning for same issue)</span>
-                    </label>
-                </div>
-                
-                <div id="backJobFields" style="display:none;background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
-                    <div class="form-group">
-                        <label>Assign to Original Technician *</label>
-                        <select id="backJobTech" name="backJobTech">
-                            <option value="">Select technician who worked on this before</option>
-                            ${Object.entries(techsWithJobs).map(([uid, name]) => 
-                                `<option value="${uid}">${name}</option>`
-                            ).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Back Job Reason *</label>
-                        <textarea id="backJobReason" name="backJobReason" rows="2" placeholder="Why is this coming back? (English or Tagalog OK)"></textarea>
-                    </div>
-                </div>
-                
                 <div class="form-row">
                     <div class="form-group">
                         <label>Customer Type *</label>
@@ -959,6 +936,29 @@ function buildReceiveDeviceTab(container) {
                     
                     <div style="background:#fff9c4;padding:10px;border-radius:5px;margin-top:10px;">
                         <small><strong>ℹ️ Auto-Approval:</strong> If you enter pricing, device will be marked as "Received & Approved". If left empty, tech/owner will create diagnosis later.</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px;">
+                        <input type="checkbox" id="isBackJob" onchange="toggleBackJobFields()">
+                        <span style="color:#c62828;font-weight:bold;">🔄 This is a BACK JOB (returning for same issue)</span>
+                    </label>
+                </div>
+                
+                <div id="backJobFields" style="display:none;background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                    <div class="form-group">
+                        <label>Assign to Original Technician *</label>
+                        <select id="backJobTech" name="backJobTech">
+                            <option value="">Select technician who worked on this before</option>
+                            ${Object.entries(techsWithJobs).map(([uid, name]) => 
+                                `<option value="${uid}">${name}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Back Job Reason *</label>
+                        <textarea id="backJobReason" name="backJobReason" rows="2" placeholder="Why is this coming back? (English or Tagalog OK)"></textarea>
                     </div>
                 </div>
                 
