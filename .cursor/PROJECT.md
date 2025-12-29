@@ -256,13 +256,15 @@ styles.css      → Styling
 | Receive Devices | ✅ | ✅ | ✅ | ✅ |
 | Accept Repairs | ✅ | ✅ | ❌ | ✅ |
 | Set Pricing | ✅ | ✅ | ❌ | ✅ |
-| Record Payments | ✅ | ✅ | ✅ | ❌ |
+| Record Payments | ✅ (auto-verified) | ✅ (auto-verified) | ✅ (auto-verified) | ✅ (needs remittance) |
 | Verify Payments | ✅ | ✅ | ❌ | ❌ |
 | Update Status | ✅ | ✅ | ❌ | ✅ |
-| Release Device | ✅ | ✅ | ✅ | ❌ |
+| Release Device | ✅ | ✅ | ✅ | ✅ |
 | Process Warranty | ✅ | ✅ | ❌ | ❌ |
 | User Management | ✅ | ❌ | ❌ | ❌ |
 | Modification Approval | ✅ | ✅ | ❌ | ❌ |
+
+**Note:** Technicians can now record payments and release devices. Payments collected by technicians go through their daily remittance process for verification.
 
 ---
 

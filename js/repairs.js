@@ -4294,6 +4294,47 @@ async function confirmReleaseDevice() {
         }
     }
     
+    // Check payment status and offer to collect payment at release
+    const totalPaidBefore = (repair.payments || []).filter(p => p.verified)
+        .reduce((sum, p) => sum + p.amount, 0);
+    const balanceBefore = repair.total - totalPaidBefore;
+    let paymentCollected = null;
+    
+    if (balanceBefore > 0) {
+        const collectPayment = confirm(
+            `💰 Outstanding Balance: ₱${balanceBefore.toFixed(2)}\n\n` +
+            `Total: ₱${repair.total.toFixed(2)}\n` +
+            `Paid: ₱${totalPaidBefore.toFixed(2)}\n` +
+            `Balance: ₱${balanceBefore.toFixed(2)}\n\n` +
+            `Collect payment now during release?`
+        );
+        
+        if (collectPayment) {
+            const amountStr = prompt(`Enter amount to collect (Balance: ₱${balanceBefore.toFixed(2)}):`, balanceBefore.toFixed(2));
+            if (amountStr) {
+                const amount = parseFloat(amountStr);
+                if (isNaN(amount) || amount <= 0) {
+                    alert('Invalid amount entered. Proceeding without payment collection.');
+                } else if (amount > balanceBefore) {
+                    alert('⚠️ Amount exceeds balance! Proceeding without payment collection.');
+                } else {
+                    const method = prompt('Payment method:\n1 = Cash\n2 = GCash\n3 = Bank Transfer\n4 = PayMaya', '1');
+                    const methodMap = {'1': 'Cash', '2': 'GCash', '3': 'Bank Transfer', '4': 'PayMaya'};
+                    const paymentMethod = methodMap[method] || 'Cash';
+                    
+                    paymentCollected = {
+                        amount: amount,
+                        method: paymentMethod,
+                        collectedBy: window.currentUserData.displayName,
+                        collectedById: window.currentUser.uid,
+                        collectedByRole: window.currentUserData.role,
+                        collectedAt: new Date().toISOString()
+                    };
+                }
+            }
+        }
+    }
+    
     // Build release data
     const releaseData = {
         status: 'Claimed',
@@ -4301,6 +4342,10 @@ async function confirmReleaseDevice() {
         releaseDate: new Date().toISOString(),
         releasedBy: window.currentUserData.displayName,
         releasedById: window.currentUser.uid,
+        releasedByRole: window.currentUserData.role,
+        // Preserve who actually repaired the device for commission tracking
+        repairedBy: repair.acceptedByName || 'Unknown',
+        repairedById: repair.acceptedBy || null,
         releaseNotes: releaseNotes,
         verificationMethod: verificationMethod,
         lastUpdated: new Date().toISOString(),
@@ -4328,23 +4373,11 @@ async function confirmReleaseDevice() {
         };
     }
     
-    // Check payment status
-    const totalPaid = (repair.payments || []).filter(p => p.verified)
-        .reduce((sum, p) => sum + p.amount, 0);
-    const balance = repair.total - totalPaid;
-    
-    if (balance > 0) {
-        const proceed = confirm(
-            `⚠️ UNPAID BALANCE WARNING!\n\n` +
-            `Total: ₱${repair.total.toFixed(2)}\n` +
-            `Paid: ₱${totalPaid.toFixed(2)}\n` +
-            `Balance: ₱${balance.toFixed(2)}\n\n` +
-            `Proceed with release anyway?`
-        );
-        if (!proceed) return;
-        
-        releaseData.releasedWithBalance = balance;
-        releaseData.balanceNotes = 'Released with unpaid balance - approved by ' + window.currentUserData.displayName;
+    // Add balance tracking if still unpaid after optional payment collection
+    const finalBalance = paymentCollected ? (balanceBefore - paymentCollected.amount) : balanceBefore;
+    if (finalBalance > 0) {
+        releaseData.releasedWithBalance = finalBalance;
+        releaseData.balanceNotes = 'Released with unpaid balance of ₱' + finalBalance.toFixed(2) + ' - approved by ' + window.currentUserData.displayName;
     }
     
     // Confirm release
@@ -4357,13 +4390,79 @@ async function confirmReleaseDevice() {
     try {
         utils.showLoading(true);
         
+        // Update device release status
         await db.ref(`repairs/${repairId}`).update(releaseData);
+        
+        // If payment was collected during release, save it
+        if (paymentCollected) {
+            const role = window.currentUserData.role;
+            const payment = {
+                amount: paymentCollected.amount,
+                method: paymentCollected.method,
+                paymentDate: paymentCollected.collectedAt,
+                recordedDate: paymentCollected.collectedAt,
+                receivedBy: paymentCollected.collectedBy,
+                receivedById: paymentCollected.collectedById,
+                notes: 'Payment collected at device release by ' + paymentCollected.collectedBy,
+                // Auto-verify for cashier/admin/manager
+                verified: ['admin', 'manager', 'cashier'].includes(role),
+                verificationDate: ['admin', 'manager', 'cashier'].includes(role) ? paymentCollected.collectedAt : null,
+                verifiedBy: ['admin', 'manager', 'cashier'].includes(role) ? paymentCollected.collectedBy : null,
+                // Technician payments need remittance
+                collectedByTech: role === 'technician',
+                remittanceStatus: role === 'technician' ? 'pending' : 'verified'
+            };
+            
+            const existingPayments = repair.payments || [];
+            await db.ref(`repairs/${repairId}`).update({
+                payments: [...existingPayments, payment]
+            });
+            
+            // Log payment collection
+            await logActivity('payment_recorded', {
+                repairId: repairId,
+                amount: payment.amount,
+                method: payment.method,
+                collectedAt: 'device_release',
+                collectedBy: paymentCollected.collectedBy,
+                collectedByRole: role,
+                customerName: repair.customerName
+            }, `Payment of ₱${payment.amount.toFixed(2)} collected at release by ${paymentCollected.collectedBy}`);
+        }
+        
+        // Log device release activity
+        await logActivity('device_released', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            device: `${repair.brand} ${repair.model}`,
+            releasedBy: window.currentUserData.displayName,
+            releasedByRole: window.currentUserData.role,
+            repairedBy: repair.acceptedByName || 'Unknown',
+            repairedById: repair.acceptedBy,
+            verificationMethod: verificationMethod,
+            paymentCollected: paymentCollected ? paymentCollected.amount : 0,
+            hadBalance: balanceBefore > 0
+        }, `Device released to ${repair.customerName} by ${window.currentUserData.displayName} (${window.currentUserData.role})${paymentCollected ? ` - Collected ₱${paymentCollected.amount.toFixed(2)}` : ''}`);
         
         utils.showLoading(false);
         
-        const successMsg = verificationMethod === 'with-slip'
+        let successMsg = verificationMethod === 'with-slip'
             ? '✅ Device released successfully!\n\n📸 Service slip photo recorded.'
             : '✅ Device released successfully!\n\n⚠️ Released without slip - Enhanced verification recorded.';
+        
+        if (paymentCollected) {
+            const newBalance = balanceBefore - paymentCollected.amount;
+            successMsg += `\n\n💰 Payment Collected: ₱${paymentCollected.amount.toFixed(2)}`;
+            if (newBalance > 0) {
+                successMsg += `\n⚠️ Remaining Balance: ₱${newBalance.toFixed(2)}`;
+            } else {
+                successMsg += `\n✅ Fully Paid!`;
+            }
+            
+            if (window.currentUserData.role === 'technician') {
+                successMsg += `\n\n📋 Payment will be included in your daily remittance.`;
+            }
+        }
         
         alert(successMsg);
         closeReleaseDeviceModal();

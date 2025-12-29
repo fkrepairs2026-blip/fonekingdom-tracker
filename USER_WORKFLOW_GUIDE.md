@@ -277,6 +277,62 @@
 
 ---
 
+### 📦 Releasing Devices (Technician)
+
+**✨ NEW: Technicians can now release devices directly!**
+
+**When a device you repaired is ready for pickup:**
+
+1. **Go to "📦 For Release" Tab**
+   - See all devices ready for customer pickup
+   - Your own repairs will be listed
+   - Click on any device to expand details
+
+2. **Check the Device**
+   - Review repair details
+   - Check payment status
+   - Verify device is ready
+
+3. **Click "✅ Release to Customer"**
+   - Release button appears if device is ready
+   - You can release devices you repaired OR devices others repaired
+
+4. **Collect Payment (If Balance Exists)**
+   - System will ask if you want to collect payment
+   - **Important for Technicians:**
+     - Payments you collect go to your daily remittance
+     - You must remit this cash at end of day
+     - Payment stays "Pending" until remittance is verified
+   - Enter amount and payment method
+   - Keep the cash for your remittance
+
+5. **Complete Release**
+   - Upload service slip photo OR enter customer address
+   - Confirm customer details
+   - Click "Release Device"
+   - Device is now claimed
+
+6. **Commission Tracking**
+   - ✅ Commission goes to whoever REPAIRED the device
+   - Even if someone else released it
+   - System tracks:
+     - **Released by**: Who handed over the device (you)
+     - **Repaired by**: Who actually fixed it (for commission)
+
+7. **Payment Remittance**
+   - Any payment you collected during release:
+     - Shows in your "💰 Daily Remittance" tab
+     - Must be included when you submit remittance
+     - Cashier will verify it later
+
+**💡 Pro Tips:**
+- You can release devices even if you didn't repair them
+- Commission always goes to the technician who did the repair
+- Payments you collect must be remitted same day
+- Keep track of cash collected for accurate remittance
+
+---
+
 ### 💰 Daily Remittance Process
 
 **At the end of your shift:**
@@ -666,84 +722,74 @@ Action: Reject and ask to recount ❌
 
 **When customer comes to pick up their repaired device:**
 
-1. **Verify Device is Ready**
-   - Status: "Ready for Pickup" or "Completed"
-   - Payment status: FULLY PAID (balance = ₱0)
+> **✨ NEW: All staff (Admin, Manager, Cashier, Technician) can now release devices!**
 
-2. **If Not Fully Paid**
-   - Cannot release yet
-   - Customer must pay remaining balance first
-   - Record final payment
-   - Then proceed with release
+1. **Go to "📦 For Release" Tab**
+   - Shows all devices with status "Ready for Pickup"
+   - Click on the device to expand details
+   - Review repair information and payment status
 
-3. **Click "✅ Release to Customer"**
+2. **Check Payment Status**
+   - **Fully Paid (Balance ₱0)**: ✅ Ready to release
+   - **Has Balance**: Can collect payment during release or release with balance
+
+3. **Click "✅ Release to Customer" Button**
+   - Button appears in the expanded device details
+   - Only visible if you have proper access
 
 4. **Release Modal Opens**
    - Shows device summary
-   - Shows payment history
+   - Shows payment status
    - Shows repair details
 
-5. **Select Warranty Period**
-   - **No Warranty (0 days)**: For software repairs, customer-provided parts
-   - **7 days**: Short warranty for minor repairs
-   - **15 days**: 
-   - **30 days**: Standard warranty (most common)
-   - **60 days**: 
-   - **90 days**: Extended warranty
-   - **180 days**: 6 months (rare, quality parts)
-   - **365 days**: 1 year (very rare, premium service)
-
-6. **Warranty Dates**
-   - System auto-calculates start and end dates
-   - Start: Today
-   - End: Today + warranty period
-
-7. **Add Warranty Terms** (Optional but Recommended)
+5. **Payment Collection (NEW!)**
+   - If device has outstanding balance, system will ask:
+     - "Collect payment now during release?"
+   - **If YES**: Enter amount and payment method
+   - **If NO**: Proceed with release (balance remains)
    
-   **Quick Bilingual Templates:**
-   
-   English:
-   ```
-   Warranty covers parts and labor for same issue only.
-   Does not cover physical damage or water damage.
-   Customer must return device in same condition.
-   ```
-   
-   Tagalog:
-   ```
-   Warranty para sa parehong issue lang.
-   Hindi kasali ang physical damage o tubig.
-   Kailangan ibalik ang device sa parehong kondisyon.
-   ```
+   **Payment Handling by Role:**
+   - **Cashier/Admin/Manager**: Payment auto-verified ✅
+   - **Technician**: Payment goes to daily remittance ⏳
 
-8. **Add Release Notes** (Optional)
-   - Any special instructions to customer
-   - "Keep device dry for 24 hours"
-   - "Charge fully before first use"
-   - "Do not update software yet"
+6. **Verification Method**
+   - **With Service Slip**: Upload photo of signed service slip
+   - **Without Slip**: Enter customer address for verification
 
-9. **Customer Signature**
-   - Check the box to confirm customer signed
-   - (Physical signature on paper receipt)
+7. **Confirm Customer Details**
+   - Verify customer name matches
+   - Verify contact number matches
+   - Add optional release notes
 
-10. **Click "Release Device"**
-    - Device moves to "✅ Claimed Units" tab
-    - Status changes to "Claimed"
-    - Warranty becomes active
-    - Customer can now take their device
+8. **Complete Release**
+   - Click "Release Device"
+   - System records:
+     - Who released the device (you)
+     - Who repaired the device (technician)
+     - Payment collected (if any)
+     - Timestamp of release
+   - Device moves to "✅ Claimed Units" tab
+   - Status changes to "Claimed"
 
-11. **Inform Customer**
-    - "Your warranty is X days"
-    - "If same problem returns, bring it back for free repair"
-    - "Keep your receipt"
-    - "Call us if any issues"
+9. **After Release**
+   - Success message shows:
+     - Release confirmation
+     - Payment collected (if any)
+     - Remaining balance (if any)
+   - For technicians: Reminds about remittance
+
+10. **Inform Customer**
+    - Hand over the device
+    - Explain any remaining balance
+    - Remind about proper device care
+    - Thank them for their business
 
 **💡 Pro Tips:**
-- Most repairs: 30-day warranty
-- Software repairs: Often no warranty (data-related issues may recur)
-- Customer-provided parts: No warranty or short warranty
-- Explain warranty terms clearly to customer
-- Make sure they understand what's covered and what's not
+- **For Cashiers**: Your payments are auto-verified and count immediately
+- **For Technicians**: Payments you collect go to your daily remittance
+- **Commission**: Always goes to the technician who repaired, not who released
+- **Track Release**: System tracks who released vs who repaired separately
+- **Payment Optional**: You can release with balance if authorized
 
 ---
 
