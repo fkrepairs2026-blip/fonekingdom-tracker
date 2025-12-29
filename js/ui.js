@@ -716,9 +716,9 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <div class="form-group">
-                    <label>Problem Type *</label>
+                    <label>Reported Issue / Customer Complaint *</label>
                     <select id="problemType" name="problemType" onchange="handleProblemTypeChange()" required>
-                        <option value="">Select problem type</option>
+                        <option value="">Select what customer reported</option>
                         <optgroup label="🔧 Hardware Issues">
                             <option value="Screen">Screen (Cracked, Lines, Black)</option>
                             <option value="Battery">Battery (Drain, Not Charging, Swollen)</option>
@@ -748,6 +748,7 @@ function buildReceiveDeviceTab(container) {
                             <option value="Pending Diagnosis">Pending Diagnosis</option>
                         </optgroup>
                     </select>
+                    <small style="color:#666;">What the customer says is wrong with the device</small>
                 </div>
                 
                 <div id="softwareWarningBox" style="display:none;background:#fff3cd;padding:12px;border-radius:5px;margin:10px 0;border-left:4px solid #ffc107;">
@@ -779,9 +780,9 @@ function buildReceiveDeviceTab(container) {
                     </p>
                     
                     <div class="form-group">
-                        <label>Repair Type</label>
+                        <label>Actual Repair Solution</label>
                         <select id="preApprovedRepairType" name="preApprovedRepairType">
-                            <option value="">Select repair type (if pricing known)</option>
+                            <option value="">Select actual repair to be performed</option>
                             <option value="Screen Replacement">Screen Replacement</option>
                             <option value="Battery Replacement">Battery Replacement</option>
                             <option value="Charging Port Repair">Charging Port Repair</option>
@@ -796,6 +797,7 @@ function buildReceiveDeviceTab(container) {
                             <option value="Network/Signal Repair">Network/Signal Repair</option>
                             <option value="Other Repair">Other Repair</option>
                         </select>
+                        <small style="color:#666;">💡 Auto-suggested based on reported issue (you can change if actual repair differs)</small>
                     </div>
                     
                     <div class="form-row">
@@ -2463,6 +2465,15 @@ function handleProblemTypeChange() {
     
     if (frpWarning) {
         frpWarning.style.display = lockIssues.includes(problemType) ? 'block' : 'none';
+    }
+    
+    // Auto-suggest repair type in pricing section based on reported problem
+    const repairTypeSelect = document.getElementById('preApprovedRepairType');
+    if (repairTypeSelect && utils && utils.suggestRepairType) {
+        const suggestedRepair = utils.suggestRepairType(problemType);
+        if (suggestedRepair) {
+            repairTypeSelect.value = suggestedRepair;
+        }
     }
 }
 

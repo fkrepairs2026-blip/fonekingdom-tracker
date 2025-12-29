@@ -380,6 +380,39 @@ const utils = {
         if (themeIcon) {
             themeIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
         }
+    },
+    
+    /**
+     * Suggest repair type based on reported problem
+     * Maps customer complaint to likely repair solution
+     */
+    suggestRepairType: function(problemType) {
+        const mapping = {
+            'Screen': 'Screen Replacement',
+            'Battery': 'Battery Replacement',
+            'Charging Port': 'Charging Port Repair',
+            'Camera': 'Camera Replacement',
+            'Speaker': 'Speaker/Mic Repair',
+            'Button': 'Button Repair',
+            'Housing': 'Housing Replacement',
+            'Water Damage': 'Water Damage Repair',
+            'Motherboard': 'Motherboard Repair',
+            'FRP Lock': 'Software Repair',
+            'Password Lock': 'Software Repair',
+            'iCloud Lock': 'Software Repair',
+            'Software Restore': 'Software Repair',
+            'Virus/Malware': 'Software Repair',
+            'OS Update': 'Software Repair',
+            'App Issues': 'Software Repair',
+            'Slow Performance': 'Software Repair',
+            'Data Recovery': 'Data Recovery',
+            'Network': 'Network/Signal Repair',
+            'Other Hardware': 'Other Repair',
+            'Other Software': 'Software Repair',
+            'Pending Diagnosis': ''
+        };
+        
+        return mapping[problemType] || '';
     }
 };
 

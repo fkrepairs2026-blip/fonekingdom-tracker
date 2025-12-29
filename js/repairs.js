@@ -2380,10 +2380,14 @@ function openEditRepairModal(repairId) {
         `}
         
         <form id="editPricingForm" onsubmit="submitPricingUpdate(event, '${repairId}')">
+            <div style="background:#f5f5f5;padding:10px;border-radius:5px;margin-bottom:15px;">
+                <p style="margin:0;font-size:13px;"><strong>Reported Issue:</strong> ${repair.problemType || repair.problem || 'N/A'}</p>
+            </div>
+            
             <div class="form-group">
-                <label>Repair Type *</label>
-                <select name="repairType" required>
-                    <option value="">Select repair type</option>
+                <label>Actual Repair Solution *</label>
+                <select id="editRepairType" name="repairType" required>
+                    <option value="">Select actual repair to be performed</option>
                     <option value="Screen Replacement" ${repair.repairType === 'Screen Replacement' ? 'selected' : ''}>Screen Replacement</option>
                     <option value="Battery Replacement" ${repair.repairType === 'Battery Replacement' ? 'selected' : ''}>Battery Replacement</option>
                     <option value="Charging Port Repair" ${repair.repairType === 'Charging Port Repair' ? 'selected' : ''}>Charging Port Repair</option>
@@ -2456,6 +2460,17 @@ function openEditRepairModal(repairId) {
     
     partsCostInput.addEventListener('input', updateTotal);
     laborCostInput.addEventListener('input', updateTotal);
+    
+    // Auto-suggest repair type based on reported problem (if not already set)
+    if (isNewDiagnosis && utils && utils.suggestRepairType && repair.problemType) {
+        const repairTypeSelect = content.querySelector('#editRepairType');
+        if (repairTypeSelect && (!repair.repairType || repair.repairType === 'Pending Diagnosis')) {
+            const suggestedRepair = utils.suggestRepairType(repair.problemType);
+            if (suggestedRepair) {
+                repairTypeSelect.value = suggestedRepair;
+            }
+        }
+    }
     
     document.getElementById('statusModal').style.display = 'block';
 }
