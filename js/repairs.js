@@ -3003,11 +3003,107 @@ async function loadActivityLogs() {
 }
 
 /**
+ * Load suppliers from Firebase
+ */
+async function loadSuppliers() {
+    return new Promise((resolve) => {
+        db.ref('suppliers').orderByChild('active').equalTo(true).once('value', (snapshot) => {
+            const suppliers = [];
+            snapshot.forEach((child) => {
+                suppliers.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Sort by name
+            suppliers.sort((a, b) => a.name.localeCompare(b.name));
+            
+            window.allSuppliers = suppliers;
+            resolve(suppliers);
+        });
+    });
+}
+
+/**
+ * Quick add supplier from parts cost modal
+ */
+async function openAddSupplierQuick() {
+    const name = prompt('Enter supplier name:');
+    if (!name || !name.trim()) return;
+    
+    const contact = prompt('Contact number (optional):');
+    
+    try {
+        utils.showLoading(true);
+        
+        // Add to Firebase suppliers
+        const newSupplierRef = db.ref('suppliers').push();
+        await newSupplierRef.set({
+            name: name.trim(),
+            contactNumber: contact?.trim() || '',
+            active: true,
+            createdAt: new Date().toISOString(),
+            createdBy: window.currentUser.uid,
+            createdByName: window.currentUserData.displayName
+        });
+        
+        // Reload suppliers
+        await loadSuppliers();
+        
+        utils.showLoading(false);
+        alert(`✅ Supplier "${name.trim()}" added!`);
+        
+        // Select the new supplier
+        const supplierSelect = document.getElementById('partsCostSupplier');
+        if (supplierSelect) {
+            // Find the option with this name and select it
+            for (let i = 0; i < supplierSelect.options.length; i++) {
+                if (supplierSelect.options[i].value === name.trim()) {
+                    supplierSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error adding supplier:', error);
+        alert('Error adding supplier: ' + error.message);
+    }
+}
+
+/**
  * Open Parts Cost Modal
  */
-function openPartsCostModal(repairId) {
+async function openPartsCostModal(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) return;
+    
+    // Load suppliers if not already loaded
+    if (!window.allSuppliers) {
+        await loadSuppliers();
+    }
+    
+    // Populate supplier dropdown
+    const supplierSelect = document.getElementById('partsCostSupplier');
+    if (supplierSelect) {
+        // Clear existing options except default ones (first 3)
+        while (supplierSelect.options.length > 3) {
+            supplierSelect.remove(3);
+        }
+        
+        // Add suppliers from Firebase
+        window.allSuppliers.forEach(supplier => {
+            const option = new Option(supplier.name, supplier.name);
+            supplierSelect.add(option);
+        });
+        
+        // Pre-select if already recorded
+        if (repair.partsCostSupplier) {
+            supplierSelect.value = repair.partsCostSupplier;
+        }
+    }
     
     document.getElementById('partsCostRepairId').value = repairId;
     document.getElementById('partsCostAmount').value = repair.partsCost || '';
@@ -3021,10 +3117,16 @@ function openPartsCostModal(repairId) {
 async function savePartsCost() {
     const repairId = document.getElementById('partsCostRepairId').value;
     const amount = parseFloat(document.getElementById('partsCostAmount').value);
+    const supplier = document.getElementById('partsCostSupplier').value;
     const notes = document.getElementById('partsCostNotes').value.trim();
     
     if (!amount || amount <= 0) {
         alert('Please enter a valid parts cost');
+        return;
+    }
+    
+    if (!supplier) {
+        alert('Please select a supplier');
         return;
     }
     
@@ -3033,6 +3135,7 @@ async function savePartsCost() {
         
         await db.ref(`repairs/${repairId}`).update({
             partsCost: amount,
+            partsCostSupplier: supplier,
             partsCostNotes: notes,
             partsCostRecordedBy: window.currentUserData.displayName,
             partsCostRecordedAt: new Date().toISOString(),
@@ -3041,7 +3144,7 @@ async function savePartsCost() {
         });
         
         utils.showLoading(false);
-        alert(`✅ Parts cost recorded!\n\n₱${amount.toFixed(2)}`);
+        alert(`✅ Parts cost recorded!\n\n₱${amount.toFixed(2)}\nSupplier: ${supplier}`);
         closePartsCostModal();
         
         setTimeout(() => {
@@ -5212,6 +5315,8 @@ window.addRTODiagnosisFee = addRTODiagnosisFee;
 window.collectRTODiagnosisFee = collectRTODiagnosisFee;
 window.revertRTOStatus = revertRTOStatus;
 window.toggleRTOFields = toggleRTOFields;
+window.loadSuppliers = loadSuppliers;
+window.openAddSupplierQuick = openAddSupplierQuick;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
 

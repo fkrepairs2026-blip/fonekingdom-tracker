@@ -266,6 +266,20 @@
                 <input type="number" id="partsCostAmount" step="0.01" min="0" placeholder="0.00" required>
             </div>
             <div class="form-group">
+                <label>Supplier *</label>
+                <div style="display:flex;gap:10px;">
+                    <select id="partsCostSupplier" style="flex:1;" required>
+                        <option value="">Select supplier</option>
+                        <option value="Stock">From Stock (Already Owned)</option>
+                        <option value="Customer Provided">Customer Provided</option>
+                    </select>
+                    <button type="button" onclick="openAddSupplierQuick()" class="btn-secondary" style="white-space:nowrap;">
+                        ➕ New
+                    </button>
+                </div>
+                <small style="color:#666;">Where did you get the parts?</small>
+            </div>
+            <div class="form-group">
                 <label>Parts Description</label>
                 <textarea id="partsCostNotes" rows="3" placeholder="List of parts used..."></textarea>
             </div>

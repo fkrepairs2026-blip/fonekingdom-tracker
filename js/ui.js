@@ -1270,6 +1270,7 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
                 <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
                 ${r.acceptedBy ? `<div><strong>Technician:</strong> ${r.acceptedByName}</div>` : ''}
                 <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
+                ${r.partsCostSupplier ? `<div><strong>📦 Parts Supplier:</strong> ${r.partsCostSupplier}</div>` : ''}
                 ${!hidePaymentActions ? `
                     <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
                     <div><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-weight:bold;">₱${balance.toFixed(2)}</span></div>
