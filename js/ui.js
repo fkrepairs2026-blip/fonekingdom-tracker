@@ -231,7 +231,8 @@ function renderMobileBottomNav() {
             { id: 'dashboard', icon: '📊', label: 'Dashboard' },
             { id: 'my', icon: '🔧', label: 'My Jobs' },
             { id: 'receive', icon: '➕', label: 'Receive' },
-            { id: 'inventory', icon: '📦', label: 'Parts' }
+            { id: 'remittance', icon: '💸', label: 'Remittance' },
+            { id: 'inprogress', icon: '⚙️', label: 'Progress' }
         );
     } else if (role === 'admin' || role === 'manager') {
         quickTabs.push(

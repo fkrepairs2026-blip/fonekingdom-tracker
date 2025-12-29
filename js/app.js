@@ -175,12 +175,19 @@ function closePaymentModal() {
 // ===== DUAL SIDEBAR CONTROLS =====
 
 /**
- * Toggle left sidebar collapse
+ * Toggle left sidebar collapse (desktop) or close (mobile)
  */
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
     
+    // On mobile, close the sidebar instead of collapsing
+    if (window.innerWidth <= 768) {
+        closeMobileSidebar();
+        return;
+    }
+    
+    // Desktop: toggle collapse
     sidebar.classList.toggle('collapsed');
     
     // Update body class for CSS adjustments
