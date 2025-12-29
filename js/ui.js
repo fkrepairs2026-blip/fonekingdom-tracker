@@ -1315,6 +1315,7 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             <div class="repair-info">
                 <div><strong>Contact:</strong> ${r.contactNumber}</div>
                 <div><strong>📥 Received by:</strong> ${r.receivedBy || 'Unknown'}</div>
+                ${r.lastEditedAt ? `<div style="font-size:12px;color:#999;"><em>Last edited: ${utils.formatDateTime(r.lastEditedAt)} by ${r.lastEditedByName}</em></div>` : ''}
                 ${r.imei ? `<div><strong>📱 IMEI/Serial:</strong> ${r.imei}</div>` : ''}
                 ${r.deviceColor && r.deviceColor !== 'N/A' ? `<div><strong>🎨 Color:</strong> ${r.deviceColor}</div>` : ''}
                 ${r.storageCapacity && r.storageCapacity !== 'N/A' ? `<div><strong>💾 Storage:</strong> ${r.storageCapacity}</div>` : ''}
@@ -1330,6 +1331,25 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             </div>
             
             <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem || r.problemDescription || 'N/A'}</div>
+            
+            ${r.diagnosisUpdates && r.diagnosisUpdates.length > 0 ? `
+                <details style="margin-top:15px;background:#fff3cd;padding:10px;border-radius:var(--radius-md);border-left:4px solid #ff9800;">
+                    <summary style="cursor:pointer;font-weight:600;color:#e65100;">📝 Diagnosis Updates (${r.diagnosisUpdates.length})</summary>
+                    <div style="margin-top:10px;">
+                        ${r.diagnosisUpdates.map((update, index) => `
+                            <div style="background:white;padding:10px;border-radius:5px;margin-bottom:8px;border-left:3px solid #ff9800;">
+                                <div style="font-size:12px;color:#666;margin-bottom:5px;">
+                                    ${utils.formatDateTime(update.updatedAt)} • ${update.updatedByName}
+                                </div>
+                                <div style="font-weight:600;color:#e65100;margin-bottom:5px;">
+                                    ${update.problemFound}
+                                </div>
+                                ${update.notes ? `<div style="font-size:13px;color:#666;">${update.notes}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </details>
+            ` : ''}
             
             ${r.quotedSupplier ? `
                 <div style="margin-top:15px;background:#f5f5f5;padding:12px;border-radius:5px;">
@@ -1474,6 +1494,7 @@ function renderStandardButtons(r, role) {
     return `
         ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
         ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
+        ${r.acceptedBy && (role === 'admin' || role === 'manager' || role === 'technician') ? `<button class="btn-small" onclick="openUpdateDiagnosisModal('${r.id}')" style="background:#667eea;color:white;">📝 Update Diagnosis</button>` : ''}
         ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
         ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
         ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
@@ -1487,22 +1508,29 @@ function renderStandardButtons(r, role) {
  */
 function renderReceivedDeviceButtons(r, role) {
     const canAccept = (role === 'admin' || role === 'manager' || role === 'technician');
+    let buttons = '';
+    
+    // Always show Edit Details button for all roles (to fix input errors)
+    buttons += `
+        <button class="btn-small" onclick="openEditReceivedDetails('${r.id}')" style="background:#ff9800;color:white;">
+            ✏️ Edit Details
+        </button>
+    `;
     
     // If no diagnosis created yet
     if (!r.diagnosisCreated || r.repairType === 'Pending Diagnosis') {
         if (role === 'admin' || role === 'manager' || role === 'technician') {
-            return `
+            buttons += `
                 <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
                     📋 Create Diagnosis
                 </button>
             `;
         }
-        return '';
+        return buttons;
     }
     
     // Diagnosis created - check approval status
     if (r.status === 'Pending Customer Approval') {
-        let buttons = '';
         // Show approval button for admin/manager/cashier
         if (role === 'admin' || role === 'manager' || role === 'cashier') {
             buttons += `
@@ -1511,19 +1539,10 @@ function renderReceivedDeviceButtons(r, role) {
                 </button>
             `;
         }
-        // Show update diagnosis button for admin/manager/technician
-        if (role === 'admin' || role === 'manager' || role === 'technician') {
-            buttons += `
-                <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
-                    ✏️ Update Diagnosis
-                </button>
-            `;
-        }
         return buttons;
     }
     
     // Customer approved - show accept or approval button
-    let buttons = '';
     if (r.customerApproved && canAccept) {
         buttons += `
             <button class="btn-small btn-success" onclick="openAcceptRepairModal('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
@@ -1534,15 +1553,6 @@ function renderReceivedDeviceButtons(r, role) {
         buttons += `
             <button class="btn-small btn-success" onclick="approveDiagnosis('${r.id}')" style="background:#4caf50;color:white;font-weight:bold;">
                 ✅ Mark Customer Approved
-            </button>
-        `;
-    }
-    
-    // Always show update diagnosis button for admin/manager/technician
-    if (role === 'admin' || role === 'manager' || role === 'technician') {
-        buttons += `
-            <button class="btn-small btn-primary" onclick="openEditRepairModal('${r.id}')" style="background:#667eea;color:white;">
-                ✏️ Update Diagnosis
             </button>
         `;
     }

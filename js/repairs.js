@@ -5824,11 +5824,326 @@ window.openVerifyRemittanceModal = openVerifyRemittanceModal;
 window.approveRemittance = approveRemittance;
 window.rejectRemittance = rejectRemittance;
 window.closeVerifyRemittanceModal = closeVerifyRemittanceModal;
+/**
+ * ============================================
+ * EDIT RECEIVED DETAILS FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * Open Edit Details Modal for received devices
+ */
+function openEditReceivedDetails(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    const modal = document.getElementById('editDetailsModal');
+    const content = document.getElementById('editDetailsModalContent');
+    
+    content.innerHTML = `
+        <form onsubmit="submitEditReceivedDetails(event, '${repairId}')">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Customer Type *</label>
+                    <select name="customerType" id="editCustomerType" onchange="document.getElementById('editShopNameGroup').style.display=this.value==='Dealer'?'block':'none'" required>
+                        <option value="Walk-in" ${repair.customerType === 'Walk-in' ? 'selected' : ''}>Walk-in</option>
+                        <option value="Dealer" ${repair.customerType === 'Dealer' ? 'selected' : ''}>Dealer</option>
+                    </select>
+                </div>
+                <div class="form-group" id="editShopNameGroup" style="display:${repair.customerType === 'Dealer' ? 'block' : 'none'};">
+                    <label>Shop Name ${repair.customerType === 'Dealer' ? '*' : ''}</label>
+                    <input type="text" name="shopName" value="${repair.shopName || ''}" placeholder="Dealer shop name">
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Customer Name *</label>
+                    <input type="text" name="customerName" value="${repair.customerName}" required>
+                </div>
+                <div class="form-group">
+                    <label>Contact Number *</label>
+                    <input type="text" name="contactNumber" value="${repair.contactNumber}" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Brand *</label>
+                    <input type="text" name="brand" value="${repair.brand}" required>
+                </div>
+                <div class="form-group">
+                    <label>Model *</label>
+                    <input type="text" name="model" value="${repair.model}" required>
+                </div>
+            </div>
+            
+            <div style="background:var(--bg-light);padding:15px;border-radius:var(--radius-md);margin:15px 0;">
+                <h4 style="margin:0 0 15px 0;color:var(--primary);">📱 Device Details</h4>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>IMEI / Serial Number</label>
+                        <input type="text" name="imei" value="${repair.imei || ''}" placeholder="Enter IMEI or Serial">
+                    </div>
+                    <div class="form-group">
+                        <label>Device Passcode</label>
+                        <input type="text" name="devicePasscode" value="${repair.devicePasscode || ''}" placeholder="Pattern, PIN, or Password">
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Device Color</label>
+                        <select name="deviceColor">
+                            <option value="N/A" ${repair.deviceColor === 'N/A' ? 'selected' : ''}>N/A (Unknown/Dead device)</option>
+                            <option value="Black" ${repair.deviceColor === 'Black' ? 'selected' : ''}>Black</option>
+                            <option value="White" ${repair.deviceColor === 'White' ? 'selected' : ''}>White</option>
+                            <option value="Silver" ${repair.deviceColor === 'Silver' ? 'selected' : ''}>Silver</option>
+                            <option value="Gold" ${repair.deviceColor === 'Gold' ? 'selected' : ''}>Gold</option>
+                            <option value="Rose Gold" ${repair.deviceColor === 'Rose Gold' ? 'selected' : ''}>Rose Gold</option>
+                            <option value="Space Gray" ${repair.deviceColor === 'Space Gray' ? 'selected' : ''}>Space Gray</option>
+                            <option value="Blue" ${repair.deviceColor === 'Blue' ? 'selected' : ''}>Blue</option>
+                            <option value="Red" ${repair.deviceColor === 'Red' ? 'selected' : ''}>Red</option>
+                            <option value="Green" ${repair.deviceColor === 'Green' ? 'selected' : ''}>Green</option>
+                            <option value="Purple" ${repair.deviceColor === 'Purple' ? 'selected' : ''}>Purple</option>
+                            <option value="Pink" ${repair.deviceColor === 'Pink' ? 'selected' : ''}>Pink</option>
+                            <option value="Yellow" ${repair.deviceColor === 'Yellow' ? 'selected' : ''}>Yellow</option>
+                            <option value="Orange" ${repair.deviceColor === 'Orange' ? 'selected' : ''}>Orange</option>
+                            <option value="Other" ${repair.deviceColor === 'Other' ? 'selected' : ''}>Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Storage Capacity</label>
+                        <select name="storageCapacity">
+                            <option value="N/A" ${repair.storageCapacity === 'N/A' ? 'selected' : ''}>N/A (Unknown/Dead device)</option>
+                            <option value="8GB" ${repair.storageCapacity === '8GB' ? 'selected' : ''}>8GB</option>
+                            <option value="16GB" ${repair.storageCapacity === '16GB' ? 'selected' : ''}>16GB</option>
+                            <option value="32GB" ${repair.storageCapacity === '32GB' ? 'selected' : ''}>32GB</option>
+                            <option value="64GB" ${repair.storageCapacity === '64GB' ? 'selected' : ''}>64GB</option>
+                            <option value="128GB" ${repair.storageCapacity === '128GB' ? 'selected' : ''}>128GB</option>
+                            <option value="256GB" ${repair.storageCapacity === '256GB' ? 'selected' : ''}>256GB</option>
+                            <option value="512GB" ${repair.storageCapacity === '512GB' ? 'selected' : ''}>512GB</option>
+                            <option value="1TB" ${repair.storageCapacity === '1TB' ? 'selected' : ''}>1TB</option>
+                            <option value="2TB" ${repair.storageCapacity === '2TB' ? 'selected' : ''}>2TB</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin:15px 0;">
+                <small><strong>ℹ️ Note:</strong> This will update the device details. Problem description and pricing are not editable here.</small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">💾 Save Changes</button>
+                <button type="button" onclick="closeEditDetailsModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Submit edited details for received device
+ */
+async function submitEditReceivedDetails(e, repairId) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    
+    try {
+        utils.showLoading(true);
+        
+        const updates = {
+            customerType: data.get('customerType'),
+            customerName: data.get('customerName'),
+            shopName: data.get('shopName') || '',
+            contactNumber: data.get('contactNumber'),
+            brand: data.get('brand'),
+            model: data.get('model'),
+            imei: data.get('imei') || '',
+            deviceColor: data.get('deviceColor') || 'N/A',
+            storageCapacity: data.get('storageCapacity') || 'N/A',
+            devicePasscode: data.get('devicePasscode') || '',
+            lastEditedBy: window.currentUser.uid,
+            lastEditedByName: window.currentUserData.displayName,
+            lastEditedAt: new Date().toISOString()
+        };
+        
+        await db.ref(`repairs/${repairId}`).update(updates);
+        
+        // Log activity
+        await logActivity('repair_details_edited', {
+            repairId: repairId,
+            customerName: updates.customerName,
+            brand: updates.brand,
+            model: updates.model
+        }, `Device details updated for ${updates.customerName} - ${updates.brand} ${updates.model}`);
+        
+        utils.showLoading(false);
+        closeEditDetailsModal();
+        
+        alert('✅ Device details updated successfully!');
+        
+        // Auto-refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        console.error('Error updating details:', error);
+        utils.showLoading(false);
+        alert('Error updating details: ' + error.message);
+    }
+}
+
+/**
+ * Close Edit Details Modal
+ */
+function closeEditDetailsModal() {
+    document.getElementById('editDetailsModal').style.display = 'none';
+}
+
+/**
+ * ============================================
+ * UPDATE DIAGNOSIS FUNCTIONS (For Accepted Repairs)
+ * ============================================
+ */
+
+/**
+ * Open Update Diagnosis Modal for accepted repairs
+ */
+function openUpdateDiagnosisModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    if (!repair.acceptedBy) {
+        alert('This repair has not been accepted yet. Use "Create Diagnosis" for received devices.');
+        return;
+    }
+    
+    const modal = document.getElementById('updateDiagnosisModal');
+    const content = document.getElementById('updateDiagnosisModalContent');
+    
+    content.innerHTML = `
+        <div style="background:#e3f2fd;padding:12px;border-radius:5px;margin-bottom:15px;">
+            <strong>📱 ${repair.brand} ${repair.model}</strong><br>
+            <span style="font-size:13px;color:#666;">Customer: ${repair.customerName}</span><br>
+            <span style="font-size:13px;color:#666;">Original Problem: ${repair.problem}</span>
+        </div>
+        
+        <form onsubmit="submitDiagnosisUpdate(event, '${repairId}')">
+            <div class="form-group">
+                <label>Additional Problem Found *</label>
+                <input type="text" name="problemFound" required placeholder="e.g., Battery also swollen, Charging port damaged">
+                <small style="color:#666;">Describe the additional issue discovered during repair</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Notes / Details</label>
+                <textarea name="notes" rows="3" placeholder="Additional details, customer approval status, pricing adjustments, etc."></textarea>
+                <small style="color:#666;">Any relevant information about this update</small>
+            </div>
+            
+            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin:15px 0;">
+                <small><strong>ℹ️ Note:</strong> This update will be added to the repair timeline and visible to all users. No admin approval needed.</small>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn-primary">📝 Add Update</button>
+                <button type="button" onclick="closeUpdateDiagnosisModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Submit diagnosis update
+ */
+async function submitDiagnosisUpdate(e, repairId) {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+    
+    try {
+        utils.showLoading(true);
+        
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        if (!repair) {
+            throw new Error('Repair not found');
+        }
+        
+        const update = {
+            problemFound: data.get('problemFound'),
+            notes: data.get('notes') || '',
+            updatedBy: window.currentUser.uid,
+            updatedByName: window.currentUserData.displayName,
+            updatedAt: new Date().toISOString()
+        };
+        
+        // Get existing updates or create new array
+        const existingUpdates = repair.diagnosisUpdates || [];
+        existingUpdates.push(update);
+        
+        await db.ref(`repairs/${repairId}`).update({
+            diagnosisUpdates: existingUpdates,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log activity
+        await logActivity('diagnosis_updated', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            problemFound: update.problemFound
+        }, `Diagnosis updated for ${repair.customerName}: ${update.problemFound}`);
+        
+        utils.showLoading(false);
+        closeUpdateDiagnosisModal();
+        
+        alert('✅ Diagnosis update added successfully!');
+        
+        // Auto-refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        console.error('Error updating diagnosis:', error);
+        utils.showLoading(false);
+        alert('Error updating diagnosis: ' + error.message);
+    }
+}
+
+/**
+ * Close Update Diagnosis Modal
+ */
+function closeUpdateDiagnosisModal() {
+    document.getElementById('updateDiagnosisModal').style.display = 'none';
+}
+
 // Device release exports
 window.openReleaseDeviceModal = openReleaseDeviceModal;
 window.toggleVerificationMethod = toggleVerificationMethod;
 window.uploadServiceSlipPhoto = uploadServiceSlipPhoto;
 window.confirmReleaseDevice = confirmReleaseDevice;
 window.closeReleaseDeviceModal = closeReleaseDeviceModal;
+// Edit details and update diagnosis exports
+window.openEditReceivedDetails = openEditReceivedDetails;
+window.submitEditReceivedDetails = submitEditReceivedDetails;
+window.closeEditDetailsModal = closeEditDetailsModal;
+window.openUpdateDiagnosisModal = openUpdateDiagnosisModal;
+window.submitDiagnosisUpdate = submitDiagnosisUpdate;
+window.closeUpdateDiagnosisModal = closeUpdateDiagnosisModal;
 
 console.log('✅ repairs.js loaded');
