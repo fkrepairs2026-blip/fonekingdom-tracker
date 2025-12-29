@@ -124,13 +124,21 @@ const utils = {
     },  // ✅ COMMA ADDED HERE!
     
     /**
-     * Calculate days ago
+     * Calculate days ago - Fixed to compare calendar days, not timestamps
      */
     daysAgo: function(isoString) {
         if (!isoString) return 'N/A';
+        
+        // Parse the input date
         const date = new Date(isoString);
         const now = new Date();
-        const diff = now - date;
+        
+        // Set both dates to midnight (start of day) for accurate day comparison
+        const dateAtMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const nowAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        // Calculate difference in days
+        const diff = nowAtMidnight - dateAtMidnight;
         const days = Math.floor(diff / (1000 * 60 * 60 * 24));
         
         if (days === 0) return 'Today';

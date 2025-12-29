@@ -426,16 +426,6 @@ body.left-sidebar-collapsed .main-content {
     margin-left: 60px;
 }
 
-/* Stats container adjustment */
-.stats-container {
-    margin-left: 250px;
-    transition: margin-left 0.3s ease;
-    padding: 20px 20px 0 20px;
-}
-
-body.left-sidebar-collapsed .stats-container {
-    margin-left: 60px;
-}
 
 /* ===== MAIN APP ===== */
 #app {
@@ -524,12 +514,7 @@ body.left-sidebar-collapsed .stats-container {
 }
 
 /* ===== STATS DASHBOARD ===== */
-.stats-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: var(--spacing-lg);
-    margin-bottom: var(--spacing-xl);
-}
+/* Stats removed - now accessible via sidebar navigation */
 
 .stat-card {
     background: var(--bg-card);
@@ -3421,10 +3406,6 @@ html {
     .main-content {
         margin-left: 0 !important;
         padding-bottom: 80px; /* Space for bottom nav */
-    }
-    
-    .stats-container {
-        margin-left: 0 !important;
     }
     
     .hamburger-btn {
