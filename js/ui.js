@@ -1346,7 +1346,7 @@ function displayCompactRepairsList(repairs, container, context = 'default') {
                  id="repair-item-${r.id}"
                  data-repair-id="${r.id}"
                  data-context="${context}">
-                <div class="repair-compact-header" onclick="toggleRepairDetails('${r.id}', '${context}')"
+                <div class="repair-compact-header" onclick="toggleRepairDetails('${r.id}', '${context}')">
                     <div class="repair-compact-main">
                         <div class="repair-compact-title">
                             <strong>${r.brand} ${r.model}</strong>
