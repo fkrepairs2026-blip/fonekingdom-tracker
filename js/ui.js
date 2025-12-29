@@ -575,6 +575,9 @@ function buildDashboardTab(container) {
                                             <p style="margin:5px 0 0 0;color:var(--text-secondary);font-size:13px;">
                                                 ${repair.issueDescription ? repair.issueDescription.substring(0, 60) + (repair.issueDescription.length > 60 ? '...' : '') : 'No description'}
                                             </p>
+                                            <p style="margin:5px 0 0 0;color:var(--text-secondary);font-size:12px;">
+                                                📥 Received by: ${repair.receivedBy || 'Unknown'}
+                                            </p>
                                         </div>
                                         <div style="text-align:right;">
                                             <span style="display:inline-block;padding:4px 12px;background:${statusColor};color:white;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;">
@@ -1310,6 +1313,7 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
         <div class="repair-expanded-details">
             <div class="repair-info">
                 <div><strong>Contact:</strong> ${r.contactNumber}</div>
+                <div><strong>📥 Received by:</strong> ${r.receivedBy || 'Unknown'}</div>
                 ${r.imei ? `<div><strong>📱 IMEI/Serial:</strong> ${r.imei}</div>` : ''}
                 ${r.deviceColor && r.deviceColor !== 'N/A' ? `<div><strong>🎨 Color:</strong> ${r.deviceColor}</div>` : ''}
                 ${r.storageCapacity && r.storageCapacity !== 'N/A' ? `<div><strong>💾 Storage:</strong> ${r.storageCapacity}</div>` : ''}
