@@ -157,6 +157,10 @@ function renderSidebar() {
         return;
     }
     
+    // Calculate pending deletion requests count
+    const pendingDeletions = window.allModificationRequests ? 
+        window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request').length : 0;
+    
     // Clear existing content
     sidebarNav.innerHTML = '';
     contentsContainer.innerHTML = '';
@@ -170,15 +174,21 @@ function renderSidebar() {
         html += `
             <div class="sidebar-section">
                 <div class="sidebar-section-title">${section.title}</div>
-                ${section.tabs.map(tab => `
-                    <div class="sidebar-item ${tab.id === activeTab ? 'active' : ''}" 
-                         data-tab="${tab.id}"
-                         id="sidebar-${tab.id}"
-                         onclick="switchTab('${tab.id}')">
-                        <span class="sidebar-item-icon">${tab.icon}</span>
-                        <span class="sidebar-item-label">${tab.label}</span>
-                    </div>
-                `).join('')}
+                ${section.tabs.map(tab => {
+                    // Add badge for mod-requests tab if there are pending deletions
+                    const hasBadge = tab.id === 'mod-requests' && pendingDeletions > 0;
+                    
+                    return `
+                        <div class="sidebar-item ${tab.id === activeTab ? 'active' : ''}" 
+                             data-tab="${tab.id}"
+                             id="sidebar-${tab.id}"
+                             onclick="switchTab('${tab.id}')">
+                            <span class="sidebar-item-icon">${tab.icon}</span>
+                            <span class="sidebar-item-label">${tab.label}</span>
+                            ${hasBadge ? `<span class="sidebar-badge-alert">${pendingDeletions}</span>` : ''}
+                        </div>
+                    `;
+                }).join('')}
             </div>
         `;
     }
@@ -529,6 +539,10 @@ function buildDashboardTab(container) {
     const role = window.currentUserData.role;
     const userName = window.currentUserData.displayName;
     
+    // Count pending deletion requests (admin only)
+    const pendingDeletions = role === 'admin' && window.allModificationRequests ? 
+        window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request') : [];
+    
     // Get recent activity
     const repairs = window.allRepairs || [];
     const recentRepairs = repairs
@@ -543,6 +557,24 @@ function buildDashboardTab(container) {
                 <h2>👋 Welcome back, ${userName}!</h2>
                 <p style="color:var(--text-secondary);">Here's what's happening in your repair shop</p>
             </div>
+            
+            ${pendingDeletions.length > 0 ? `
+                <div class="stat-badge-alert" style="background:#ffebee;border-left:4px solid #d32f2f;padding:15px;border-radius:8px;margin-top:20px;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <div style="font-size:32px;">🗑️</div>
+                        <div style="flex:1;">
+                            <h4 style="margin:0;color:#d32f2f;">⚠️ ${pendingDeletions.length} Deletion Request${pendingDeletions.length > 1 ? 's' : ''} Pending</h4>
+                            <p style="margin:5px 0 0 0;color:#666;font-size:14px;">
+                                Technicians have requested deletion of ${pendingDeletions.length} repair${pendingDeletions.length > 1 ? 's' : ''}. Please review in 
+                                <a href="#" onclick="switchTab('mod-requests');return false;" style="color:#d32f2f;font-weight:bold;text-decoration:underline;">Mod Requests</a> tab.
+                            </p>
+                        </div>
+                        <button onclick="switchTab('mod-requests')" style="background:#d32f2f;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;white-space:nowrap;">
+                            Review Now
+                        </button>
+                    </div>
+                </div>
+            ` : ''}
             
             <div style="margin-top:30px;">
                 <h3 style="margin-bottom:15px;color:var(--text-primary);">📋 Recent Activity</h3>
@@ -1010,26 +1042,70 @@ function buildModificationRequestsTab(container) {
     console.log('🔔 Building Modification Requests tab');
     window.currentTabRefresh = () => buildModificationRequestsTab(document.getElementById('mod-requestsTab'));
     
-    const pendingRequests = window.allModificationRequests ?
-        window.allModificationRequests.filter(r => r.status === 'pending') : [];
+    // Separate deletion requests from other requests
+    const pendingDeletionRequests = window.allModificationRequests ?
+        window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request') : [];
+    
+    const pendingOtherRequests = window.allModificationRequests ?
+        window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType !== 'deletion_request') : [];
+    
+    const totalPending = pendingDeletionRequests.length + pendingOtherRequests.length;
     
     const processedRequests = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.status !== 'pending').slice(0, 20) : [];
     
     container.innerHTML = `
         <div class="card">
-            <h3>🔔 Modification Requests (${pendingRequests.length} pending)</h3>
+            <h3>🔔 Modification Requests (${totalPending} pending)</h3>
             <p style="color:#666;margin-bottom:15px;">Review and approve/reject modification requests from users</p>
             
-            ${pendingRequests.length === 0 && processedRequests.length === 0 ? `
+            ${totalPending === 0 && processedRequests.length === 0 ? `
                 <div style="text-align:center;padding:40px;color:#999;">
                     <h2 style="font-size:48px;margin:0;">✅</h2>
                     <p>No modification requests</p>
                 </div>
             ` : `
-                ${pendingRequests.length > 0 ? `
-                    <h4 style="margin-top:20px;">⏳ Pending Requests</h4>
-                    ${pendingRequests.map(req => `
+                ${pendingDeletionRequests.length > 0 ? `
+                    <h4 style="margin-top:20px;color:#d32f2f;">🗑️ PENDING DELETION REQUESTS (${pendingDeletionRequests.length})</h4>
+                    ${pendingDeletionRequests.map(req => `
+                        <div class="deletion-request-card" style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #d32f2f;">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                                <strong style="color:#d32f2f;font-size:16px;">🗑️ DELETION REQUEST</strong>
+                                <span style="background:#d32f2f;color:white;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                    ⚠️ REQUIRES APPROVAL
+                                </span>
+                            </div>
+                            <div style="font-size:14px;color:#333;margin-bottom:12px;">
+                                <div><strong>Requested by:</strong> ${req.requestedByName}</div>
+                                <div><strong>Date:</strong> ${utils.formatDateTime(req.requestedAt)} (${utils.daysAgo(req.requestedAt)})</div>
+                            </div>
+                            <div style="background:white;padding:12px;border-radius:5px;margin-bottom:12px;">
+                                <div style="font-size:14px;margin-bottom:8px;">
+                                    <div><strong>Customer:</strong> ${req.repairDetails.customerName}</div>
+                                    <div><strong>Device:</strong> ${req.repairDetails.device}</div>
+                                    <div><strong>Status:</strong> <span style="background:#ff9800;color:white;padding:2px 6px;border-radius:3px;font-size:12px;">${req.repairDetails.status}</span></div>
+                                    <div><strong>Problem:</strong> ${req.repairDetails.problem}</div>
+                                </div>
+                            </div>
+                            <div style="background:#fff9c4;padding:10px;border-radius:5px;border-left:3px solid #f57c00;margin-bottom:12px;">
+                                <strong style="color:#e65100;">Deletion Reason:</strong>
+                                <div style="margin-top:5px;color:#333;">${req.reason}</div>
+                            </div>
+                            <div style="display:flex;gap:10px;">
+                                <button onclick="processDeletionRequest('${req.id}', 'approve')" style="background:#d32f2f;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;flex:1;">
+                                    ✅ Approve Delete
+                                </button>
+                                <button onclick="processDeletionRequest('${req.id}', 'reject')" style="background:#757575;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;flex:1;">
+                                    ❌ Reject Request
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                ` : ''}
+                
+                ${pendingOtherRequests.length > 0 ? `
+                    <h4 style="margin-top:20px;">⏳ Other Pending Requests (${pendingOtherRequests.length})</h4>
+                    ${pendingOtherRequests.map(req => `
                         <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
                             <div style="margin-bottom:10px;">
                                 <strong>${req.requestType === 'payment-date' ? '📅 Payment Date Change' : req.requestType === 'recorded-date' ? '🕒 Recorded Date Change' : '📝 Data Modification'}</strong>
@@ -1060,9 +1136,9 @@ function buildModificationRequestsTab(container) {
                         <div style="background:${req.status === 'approved' ? '#e8f5e9' : '#ffebee'};padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid ${req.status === 'approved' ? '#4caf50' : '#f44336'};">
                             <div style="display:flex;justify-content:space-between;font-size:14px;">
                                 <div>
-                                    <strong>${req.requestType === 'payment-date' ? '📅' : req.requestType === 'recorded-date' ? '🕒' : '📝'} ${req.requestedByName}</strong> - ${req.reason.substring(0, 50)}...
+                                    <strong>${req.requestType === 'deletion_request' ? '🗑️' : req.requestType === 'payment-date' ? '📅' : req.requestType === 'recorded-date' ? '🕒' : '📝'} ${req.requestedByName}</strong> - ${req.reason.substring(0, 50)}...
                                 </div>
-                                <span style="font-size:12px;color:#666;">${utils.formatDate(req.processedAt)}</span>
+                                <span style="font-size:12px;color:#666;">${utils.formatDate(req.reviewedAt || req.processedAt)}</span>
                             </div>
                         </div>
                     `).join('')}
@@ -1563,6 +1639,21 @@ function renderContextButtons(repair, role, context) {
  */
 function renderStandardButtons(r, role) {
     const hidePaymentActions = role === 'technician';
+    
+    // Check if there's a pending deletion request for this repair
+    const hasPendingDeletion = window.allModificationRequests.some(
+        req => req.repairId === r.id && 
+        req.requestType === 'deletion_request' && 
+        req.status === 'pending'
+    );
+    
+    // Show delete request button for technician on their own repairs
+    const canRequestDelete = role === 'technician' && 
+                            r.technicianId === window.currentUser.uid && 
+                            !r.deleted && 
+                            r.status !== 'Completed' &&
+                            !hasPendingDeletion;
+    
     return `
         ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
         ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
@@ -1572,6 +1663,7 @@ function renderStandardButtons(r, role) {
         ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
         ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
         ${r.acceptedBy && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openTransferRepairModal('${r.id}')" style="background:#9c27b0;color:white;">🔄 Transfer</button>` : ''}
+        ${canRequestDelete ? `<button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">🗑️ Request Delete</button>` : ''}
         ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
     `;
 }
@@ -1629,6 +1721,25 @@ function renderForReleaseButtons(r, role) {
         `;
     }
     
+    // Technician delete request button
+    const hasPendingDeletion = window.allModificationRequests.some(
+        req => req.repairId === r.id && 
+        req.requestType === 'deletion_request' && 
+        req.status === 'pending'
+    );
+    
+    if (role === 'technician' && 
+        r.technicianId === window.currentUser.uid && 
+        !r.deleted && 
+        r.status !== 'Completed' &&
+        !hasPendingDeletion) {
+        buttons += `
+            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">
+                🗑️ Request Delete
+            </button>
+        `;
+    }
+    
     // Admin delete button
     if (role === 'admin') {
         buttons += `
@@ -1667,6 +1778,24 @@ function renderClaimedButtons(r, role) {
             📄 View Details
         </button>
     `;
+    
+    // Technician delete request button
+    const hasPendingDeletion = window.allModificationRequests.some(
+        req => req.repairId === r.id && 
+        req.requestType === 'deletion_request' && 
+        req.status === 'pending'
+    );
+    
+    if (role === 'technician' && 
+        r.technicianId === window.currentUser.uid && 
+        !r.deleted &&
+        !hasPendingDeletion) {
+        buttons += `
+            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">
+                🗑️ Request Delete
+            </button>
+        `;
+    }
     
     // Admin tools
     if (role === 'admin') {
@@ -1734,6 +1863,25 @@ function renderReceivedDeviceButtons(r, role) {
         `;
     }
     
+    // Technician delete request button
+    const hasPendingDeletion = window.allModificationRequests.some(
+        req => req.repairId === r.id && 
+        req.requestType === 'deletion_request' && 
+        req.status === 'pending'
+    );
+    
+    if (role === 'technician' && 
+        r.technicianId === window.currentUser.uid && 
+        !r.deleted && 
+        r.status !== 'Completed' &&
+        !hasPendingDeletion) {
+        buttons += `
+            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">
+                🗑️ Request Delete
+            </button>
+        `;
+    }
+    
     return buttons;
 }
 
@@ -1793,6 +1941,25 @@ function renderRTODeviceButtons(r, role) {
         buttons += `
             <button onclick="revertRTOStatus('${r.id}')" class="btn btn-warning" style="padding:10px 15px;">
                 🔄 Revert to In Progress
+            </button>
+        `;
+    }
+    
+    // Technician delete request button
+    const hasPendingDeletion = window.allModificationRequests.some(
+        req => req.repairId === r.id && 
+        req.requestType === 'deletion_request' && 
+        req.status === 'pending'
+    );
+    
+    if (role === 'technician' && 
+        r.technicianId === window.currentUser.uid && 
+        !r.deleted && 
+        r.status !== 'Completed' &&
+        !hasPendingDeletion) {
+        buttons += `
+            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;padding:10px 15px;">
+                🗑️ Request Delete
             </button>
         `;
     }

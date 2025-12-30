@@ -2074,6 +2074,288 @@ async function adminQuickFixWarranty(repairId, warrantyDays) {
 
 // ===== END ADMIN TOOLS FUNCTIONS =====
 
+// ===== DELETION REQUEST FUNCTIONS =====
+
+/**
+ * Technician: Request repair deletion
+ * Only for repairs assigned to the current technician
+ */
+async function requestRepairDeletion(repairId) {
+    // Check if user is technician
+    if (window.currentUserData.role !== 'technician') {
+        alert('⚠️ This function is only available to technicians');
+        return;
+    }
+    
+    // Find the repair
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    // Check if repair is assigned to current user
+    if (repair.technicianId !== window.currentUser.uid) {
+        alert('⚠️ You can only request deletion of repairs assigned to you');
+        return;
+    }
+    
+    // Check if already deleted
+    if (repair.deleted) {
+        alert('⚠️ This repair is already deleted');
+        return;
+    }
+    
+    // Check if there's already a pending deletion request for this repair
+    const existingRequest = window.allModificationRequests.find(
+        r => r.repairId === repairId && 
+        r.requestType === 'deletion_request' && 
+        r.status === 'pending'
+    );
+    
+    if (existingRequest) {
+        alert('⚠️ There is already a pending deletion request for this repair');
+        return;
+    }
+    
+    // Show repair details
+    const repairInfo = `Customer: ${repair.customerName}\nDevice: ${repair.brand} ${repair.model}\nProblem: ${repair.problem}\nStatus: ${repair.status}`;
+    
+    if (!confirm(`REQUEST DELETION\n\n${repairInfo}\n\nAre you sure you want to request deletion of this repair?\nAn admin must approve this request.`)) {
+        return;
+    }
+    
+    // Get deletion reason
+    const reason = prompt('Please enter the reason for deletion:\n(e.g., "Wrong customer", "Duplicate entry", "Customer cancelled")');
+    
+    if (!reason || !reason.trim()) {
+        alert('❌ Deletion reason is required');
+        return;
+    }
+    
+    if (reason.trim().length < 10) {
+        alert('❌ Please provide a more detailed reason (at least 10 characters)');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const now = new Date().toISOString();
+        
+        // Create deletion request
+        const requestData = {
+            repairId: repairId,
+            requestType: 'deletion_request',
+            requestedBy: window.currentUser.uid,
+            requestedByName: window.currentUserData.displayName,
+            requestedAt: now,
+            reason: reason.trim(),
+            repairDetails: {
+                customerName: repair.customerName,
+                device: `${repair.brand} ${repair.model}`,
+                status: repair.status,
+                problem: repair.problem,
+                technicianName: repair.technicianName || 'Not assigned',
+                createdAt: repair.createdAt
+            },
+            status: 'pending',
+            reviewedBy: null,
+            reviewedByName: null,
+            reviewedAt: null,
+            reviewNotes: null
+        };
+        
+        await db.ref('modificationRequests').push(requestData);
+        
+        // Log activity
+        await logActivity('deletion_requested', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            device: `${repair.brand} ${repair.model}`,
+            status: repair.status,
+            reason: reason.trim()
+        }, `Deletion requested: ${repair.customerName} - ${repair.brand} ${repair.model}`);
+        
+        utils.showLoading(false);
+        alert('✅ Deletion request submitted!\n\nAn admin will review your request.');
+        
+        // Auto-refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error requesting deletion:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Admin: Process deletion request (approve or reject)
+ */
+async function processDeletionRequest(requestId, action, notes) {
+    // Check admin role
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    // Find the request
+    const request = window.allModificationRequests.find(r => r.id === requestId);
+    if (!request) {
+        alert('❌ Request not found');
+        return;
+    }
+    
+    if (request.status !== 'pending') {
+        alert('⚠️ This request has already been processed');
+        return;
+    }
+    
+    // Find the repair
+    const repair = window.allRepairs.find(r => r.id === request.repairId);
+    if (!repair) {
+        alert('❌ Repair not found - it may have been deleted already');
+        return;
+    }
+    
+    if (action === 'approve') {
+        // Confirm approval
+        const confirmMsg = `APPROVE DELETION REQUEST\n\n` +
+            `Requester: ${request.requestedByName}\n` +
+            `Customer: ${request.repairDetails.customerName}\n` +
+            `Device: ${request.repairDetails.device}\n` +
+            `Reason: ${request.reason}\n\n` +
+            `This will SOFT DELETE the repair and create a backup.\n\n` +
+            `Click OK to approve this deletion.`;
+        
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+        
+        // Get optional admin notes
+        const adminNotes = prompt('Admin notes (optional):') || '';
+        
+        try {
+            utils.showLoading(true, 'Processing deletion...');
+            
+            const now = new Date().toISOString();
+            
+            // Create backup in deletedRepairs
+            const backup = {
+                ...repair,
+                deletedAt: now,
+                deletedBy: window.currentUserData.displayName,
+                deletedById: window.currentUser.uid,
+                deleteReason: request.reason,
+                deletionRequestedBy: request.requestedByName,
+                deletionRequestedAt: request.requestedAt,
+                approvedBy: window.currentUserData.displayName,
+                approvedAt: now,
+                adminNotes: adminNotes,
+                backupType: 'technician_deletion_request'
+            };
+            
+            await db.ref('deletedRepairs').push(backup);
+            
+            // Soft delete the repair
+            await db.ref(`repairs/${request.repairId}`).update({
+                deleted: true,
+                deletedAt: now,
+                deletedBy: window.currentUserData.displayName,
+                deletedById: window.currentUser.uid,
+                deleteReason: request.reason,
+                deletionRequestId: requestId,
+                lastUpdated: now,
+                lastUpdatedBy: window.currentUserData.displayName
+            });
+            
+            // Update request status
+            await db.ref(`modificationRequests/${requestId}`).update({
+                status: 'approved',
+                reviewedBy: window.currentUser.uid,
+                reviewedByName: window.currentUserData.displayName,
+                reviewedAt: now,
+                reviewNotes: adminNotes
+            });
+            
+            // Log activity
+            await logActivity('deletion_approved', {
+                repairId: request.repairId,
+                customerName: request.repairDetails.customerName,
+                device: request.repairDetails.device,
+                requestedBy: request.requestedByName,
+                reason: request.reason,
+                adminNotes: adminNotes
+            }, `Deletion approved: ${request.repairDetails.customerName} - ${request.repairDetails.device}`);
+            
+            utils.showLoading(false);
+            alert('✅ Deletion Request Approved!\n\nThe repair has been deleted and backed up.');
+            
+            // Auto-refresh
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            
+        } catch (error) {
+            utils.showLoading(false);
+            console.error('Error approving deletion:', error);
+            alert('Error: ' + error.message);
+        }
+        
+    } else if (action === 'reject') {
+        // Get rejection reason
+        const rejectionNotes = prompt('Please enter reason for rejecting this deletion request:');
+        
+        if (!rejectionNotes || !rejectionNotes.trim()) {
+            alert('❌ Rejection reason is required');
+            return;
+        }
+        
+        try {
+            utils.showLoading(true);
+            
+            const now = new Date().toISOString();
+            
+            // Update request status
+            await db.ref(`modificationRequests/${requestId}`).update({
+                status: 'rejected',
+                reviewedBy: window.currentUser.uid,
+                reviewedByName: window.currentUserData.displayName,
+                reviewedAt: now,
+                reviewNotes: rejectionNotes.trim()
+            });
+            
+            // Log activity
+            await logActivity('deletion_rejected', {
+                repairId: request.repairId,
+                customerName: request.repairDetails.customerName,
+                device: request.repairDetails.device,
+                requestedBy: request.requestedByName,
+                reason: request.reason,
+                rejectionNotes: rejectionNotes.trim()
+            }, `Deletion rejected: ${request.repairDetails.customerName} - ${request.repairDetails.device}`);
+            
+            utils.showLoading(false);
+            alert('✅ Deletion Request Rejected\n\nThe requester will see your notes.');
+            
+            // Auto-refresh
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            
+        } catch (error) {
+            utils.showLoading(false);
+            console.error('Error rejecting deletion:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+// ===== END DELETION REQUEST FUNCTIONS =====
+
 /**
  * Open additional repair modal
  */
@@ -7681,5 +7963,7 @@ window.adminGetPendingRemittances = adminGetPendingRemittances;
 window.adminGetRemittanceStats = adminGetRemittanceStats;
 window.adminFindOrphanedData = adminFindOrphanedData;
 window.adminQuickFixWarranty = adminQuickFixWarranty;
+window.requestRepairDeletion = requestRepairDeletion;
+window.processDeletionRequest = processDeletionRequest;
 
 console.log('✅ repairs.js loaded');
