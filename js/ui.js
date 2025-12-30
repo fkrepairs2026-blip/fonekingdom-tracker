@@ -3587,26 +3587,26 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
         `}
         
         ${dateRemittance ? `
-            <div class="remittance-card" style="background:#${todayRemittance.status === 'approved' ? 'e8f5e9' : (todayRemittance.status === 'rejected' ? 'ffebee' : 'fff3e0')};border-left:4px solid #${todayRemittance.status === 'approved' ? '4caf50' : (todayRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};padding:20px;border-radius:10px;margin:20px 0;">
+            <div class="remittance-card" style="background:#${dateRemittance.status === 'approved' ? 'e8f5e9' : (dateRemittance.status === 'rejected' ? 'ffebee' : 'fff3e0')};border-left:4px solid #${dateRemittance.status === 'approved' ? '4caf50' : (dateRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};padding:20px;border-radius:10px;margin:20px 0;">
                 <h4>Today's Remittance Status</h4>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0;">
-                    <span style="font-size:18px;font-weight:600;">₱${todayRemittance.actualAmount.toFixed(2)}</span>
-                    <span class="status-badge" style="background:#${todayRemittance.status === 'approved' ? '4caf50' : (todayRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};color:white;">
-                        ${todayRemittance.status === 'approved' ? '✅ Approved' : (todayRemittance.status === 'rejected' ? '❌ Rejected' : '⏳ Pending')}
+                    <span style="font-size:18px;font-weight:600;">₱${dateRemittance.actualAmount.toFixed(2)}</span>
+                    <span class="status-badge" style="background:#${dateRemittance.status === 'approved' ? '4caf50' : (dateRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};color:white;">
+                        ${dateRemittance.status === 'approved' ? '✅ Approved' : (dateRemittance.status === 'rejected' ? '❌ Rejected' : '⏳ Pending')}
                     </span>
                 </div>
                 <p style="font-size:13px;color:#666;">
-                    Submitted: ${utils.formatDateTime(todayRemittance.submittedAt)}
+                    Submitted: ${utils.formatDateTime(dateRemittance.submittedAt)}
                 </p>
-                ${todayRemittance.verifiedBy ? `
+                ${dateRemittance.verifiedBy ? `
                     <p style="font-size:13px;color:#666;">
-                        Verified by: ${todayRemittance.verifiedBy} on ${utils.formatDateTime(todayRemittance.verifiedAt)}
+                        Verified by: ${dateRemittance.verifiedBy} on ${utils.formatDateTime(dateRemittance.verifiedAt)}
                     </p>
                 ` : ''}
-                ${todayRemittance.verificationNotes ? `
+                ${dateRemittance.verificationNotes ? `
                     <div style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.05);border-radius:5px;">
                         <strong>Verification Notes:</strong>
-                        <p style="margin:5px 0 0 0;">${todayRemittance.verificationNotes}</p>
+                        <p style="margin:5px 0 0 0;">${dateRemittance.verificationNotes}</p>
                     </div>
                 ` : ''}
             </div>
