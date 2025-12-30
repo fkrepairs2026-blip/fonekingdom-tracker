@@ -2799,7 +2799,7 @@ function buildPendingRemittancesSection() {
     }
     
     // Calculate totals
-    const totalPending = pendingRemittances.reduce((sum, r) => sum + r.expectedAmount, 0);
+    const totalPending = pendingRemittances.reduce((sum, r) => sum + (r.expectedAmount || r.actualAmount || 0), 0);
     const overdueCount = pendingRemittances.filter(r => r.isOverdue).length;
     
     const remittancesHTML = pendingRemittances.slice(0, 10).map(remittance => {
@@ -3672,7 +3672,7 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                                 <div style="flex:1;">
                                     <h4>${utils.formatDate(r.date)}</h4>
                                     <p style="font-size:13px;color:#666;">
-                                        ${r.paymentsList.length} payment(s) • ${r.expensesList.length} expense(s)
+                                        ${(r.paymentsList || []).length} payment(s) • ${(r.expensesList || []).length} expense(s)
                                     </p>
                                     <p style="font-size:12px;color:#999;">
                                         Submitted: ${utils.formatDateTime(r.submittedAt)}
@@ -3781,7 +3781,7 @@ function buildRemittanceVerificationTab(container) {
                                             📅 ${utils.formatDate(r.date)}<br>
                                             ⏰ Submitted: ${utils.formatDateTime(r.submittedAt)} (${utils.timeAgo(r.submittedAt)})<br>
                                             💰 Amount: <strong style="color:#4caf50;">₱${r.actualAmount.toFixed(2)}</strong><br>
-                                            📊 Payments: ${r.paymentsList.length} • Commission: ${r.commissionBreakdown.length} • Expenses: ${r.expensesList.length}
+                                            📊 Payments: ${(r.paymentsList || []).length} • Commission: ${(r.commissionBreakdown || []).length} • Expenses: ${(r.expensesList || []).length}
                                         </p>
                                         ${r.discrepancyReason ? `<p style="font-size:12px;color:#999;margin-top:5px;">📝 ${r.discrepancyReason}</p>` : ''}
                                         ${hasDiscrepancy ? `
@@ -3902,7 +3902,7 @@ function buildRemittanceVerificationTab(container) {
                                 <div style="flex:1;">
                                     <h4>${r.techName}</h4>
                                     <p style="font-size:13px;color:#666;">
-                                        ${utils.formatDate(r.date)} • ${r.paymentsList.length} payment(s)
+                                        ${utils.formatDate(r.date)} • ${(r.paymentsList || []).length} payment(s)
                                     </p>
                                     <p style="font-size:12px;color:#999;">
                                         Verified by ${r.verifiedBy} • ${utils.formatDateTime(r.verifiedAt)}
@@ -4114,9 +4114,9 @@ function buildTechnicianLogsTab(container) {
                                 <div style="flex:1;">
                                     <h4>${utils.formatDate(r.date)}</h4>
                                     <div style="font-size:13px;color:#666;line-height:1.6;margin-top:5px;">
-                                        <div><strong>Payments:</strong> ₱${r.totalPaymentsCollected.toFixed(2)} (${r.paymentsList.length})</div>
-                                        <div><strong>Expenses:</strong> ₱${r.totalExpenses.toFixed(2)} (${r.expensesList.length})</div>
-                                        <div><strong>Expected:</strong> ₱${r.expectedAmount.toFixed(2)}</div>
+                                        <div><strong>Payments:</strong> ₱${(r.totalPaymentsCollected || 0).toFixed(2)} (${(r.paymentsList || []).length})</div>
+                                        <div><strong>Expenses:</strong> ₱${(r.totalExpenses || 0).toFixed(2)} (${(r.expensesList || []).length})</div>
+                                        <div><strong>Expected:</strong> ₱${(r.expectedAmount || r.actualAmount || 0).toFixed(2)}</div>
                                         <div><strong>Actual:</strong> ₱${r.actualAmount.toFixed(2)}</div>
                                         ${Math.abs(r.discrepancy) > 0.01 ? `
                                             <div style="color:#ff9800;font-weight:600;">
