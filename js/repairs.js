@@ -1302,6 +1302,406 @@ async function deleteRepair(repairId) {
     }
 }
 
+// ===== ADMIN TOOLS FUNCTIONS (PHASE 1) =====
+
+/**
+ * Admin: Delete device (soft delete) - works for all pre-release statuses
+ * Allowed statuses: Received, In Progress, Waiting for Parts, Ready for Pickup, 
+ * RTO, Unsuccessful, Pending Customer Approval
+ */
+async function adminDeleteDevice(repairId) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+    
+    // Check if device has been released/claimed
+    if (repair.claimedAt || repair.status === 'Completed') {
+        alert('⚠️ Cannot delete released or completed devices!\n\nThis device has already been released to the customer.\nUse the "Un-Release" function instead if you need to make corrections.');
+        return;
+    }
+    
+    // Show device details and get confirmation
+    const statusInfo = `Status: ${repair.status}\nCustomer: ${repair.customerName}\nDevice: ${repair.brand} ${repair.model}\nProblem: ${repair.problem}`;
+    const totalAmount = repair.total || 0;
+    const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
+    
+    const confirmed = confirm(
+        `⚠️ DELETE DEVICE ⚠️\n\n` +
+        `${statusInfo}\n\n` +
+        `${totalPaid > 0 ? `⚠️ WARNING: This device has ₱${totalPaid.toFixed(2)} in payments!\n\n` : ''}` +
+        `This will SOFT DELETE the device (mark as deleted but keep records).\n\n` +
+        `Click OK to continue...`
+    );
+    
+    if (!confirmed) return;
+    
+    // Require reason
+    const reason = prompt('Please enter reason for deleting this device:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required to delete a device');
+        return;
+    }
+    
+    // Password confirmation
+    const password = prompt('Enter your password to confirm deletion:');
+    if (!password) {
+        alert('❌ Deletion cancelled');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Verify password
+        const credential = firebase.auth.EmailAuthProvider.credential(
+            window.currentUser.email,
+            password
+        );
+        await window.currentUser.reauthenticateWithCredential(credential);
+        
+        const now = new Date().toISOString();
+        
+        // Create backup
+        const backup = {
+            ...repair,
+            deletedAt: now,
+            deletedBy: window.currentUserData.displayName,
+            deletedById: window.currentUser.uid,
+            deleteReason: reason,
+            backupType: 'device_deletion'
+        };
+        
+        await db.ref('deletedRepairs').push(backup);
+        
+        // Soft delete the repair
+        await db.ref(`repairs/${repairId}`).update({
+            deleted: true,
+            deletedAt: now,
+            deletedBy: window.currentUserData.displayName,
+            deletedById: window.currentUser.uid,
+            deleteReason: reason,
+            lastUpdated: now,
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log activity
+        await logActivity('device_deleted', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            device: `${repair.brand} ${repair.model}`,
+            status: repair.status,
+            hadPayments: totalPaid > 0,
+            paymentAmount: totalPaid,
+            reason: reason
+        }, `Device deleted: ${repair.customerName} - ${repair.brand} ${repair.model} (${repair.status})`);
+        
+        utils.showLoading(false);
+        alert(`✅ Device Deleted!\n\n${repair.customerName} - ${repair.brand} ${repair.model}\n\nStatus: Marked as deleted\nBackup: Saved for audit\nReason: ${reason}`);
+        
+        // Refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        if (error.code === 'auth/wrong-password') {
+            alert('❌ Incorrect password. Deletion cancelled.');
+        } else {
+            console.error('❌ Error deleting device:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+/**
+ * Admin: Get all pending remittances across all technicians
+ */
+function adminGetPendingRemittances() {
+    if (!window.allTechRemittances) {
+        return [];
+    }
+    
+    const pending = window.allTechRemittances.filter(r => r.status === 'pending');
+    
+    // Sort by date (oldest first) to prioritize overdue ones
+    pending.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
+    
+    // Add age in days
+    const now = new Date();
+    pending.forEach(r => {
+        const submitted = new Date(r.submittedAt);
+        const ageInDays = Math.floor((now - submitted) / (1000 * 60 * 60 * 24));
+        r.ageInDays = ageInDays;
+        r.isOverdue = ageInDays > 1; // Overdue if more than 1 day old
+    });
+    
+    return pending;
+}
+
+/**
+ * Admin: Get remittance statistics by technician
+ */
+function adminGetRemittanceStats() {
+    if (!window.allTechRemittances) {
+        return {};
+    }
+    
+    const stats = {};
+    
+    window.allTechRemittances.forEach(r => {
+        if (!stats[r.techId]) {
+            stats[r.techId] = {
+                techName: r.techName,
+                pending: 0,
+                approved: 0,
+                rejected: 0,
+                totalPending: 0,
+                totalApproved: 0,
+                totalRejected: 0,
+                avgDiscrepancy: 0,
+                discrepancies: []
+            };
+        }
+        
+        const s = stats[r.techId];
+        
+        if (r.status === 'pending') {
+            s.pending++;
+            s.totalPending += r.expectedAmount;
+        } else if (r.status === 'approved') {
+            s.approved++;
+            s.totalApproved += r.expectedAmount;
+        } else if (r.status === 'rejected') {
+            s.rejected++;
+            s.totalRejected += r.expectedAmount;
+        }
+        
+        if (r.discrepancy !== 0) {
+            s.discrepancies.push(r.discrepancy);
+        }
+    });
+    
+    // Calculate average discrepancy
+    Object.values(stats).forEach(s => {
+        if (s.discrepancies.length > 0) {
+            s.avgDiscrepancy = s.discrepancies.reduce((sum, d) => sum + Math.abs(d), 0) / s.discrepancies.length;
+        }
+    });
+    
+    return stats;
+}
+
+/**
+ * Admin: Find orphaned and problematic data
+ */
+function adminFindOrphanedData() {
+    const issues = {
+        missingCustomerInfo: [],
+        missingDeviceInfo: [],
+        releasedWithoutWarranty: [],
+        paymentsWithoutVerification: [],
+        oldPendingPayments: [],
+        negativeBalance: [],
+        missingTechnician: [],
+        stuckInProgress: [],
+        rtoWithoutFee: []
+    };
+    
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+    
+    window.allRepairs.forEach(repair => {
+        // Skip deleted repairs
+        if (repair.deleted) return;
+        
+        // Missing customer info
+        if (!repair.customerName || !repair.contactNumber) {
+            issues.missingCustomerInfo.push({
+                id: repair.id,
+                issue: 'Missing customer name or contact',
+                repair: repair
+            });
+        }
+        
+        // Missing device info
+        if (!repair.brand || !repair.model) {
+            issues.missingDeviceInfo.push({
+                id: repair.id,
+                issue: 'Missing brand or model',
+                repair: repair
+            });
+        }
+        
+        // Released without warranty info
+        if (repair.claimedAt && !repair.warrantyPeriodDays && repair.warrantyPeriodDays !== 0) {
+            issues.releasedWithoutWarranty.push({
+                id: repair.id,
+                issue: 'Released but no warranty period set',
+                repair: repair
+            });
+        }
+        
+        // Payments without verification (old)
+        if (repair.payments) {
+            repair.payments.forEach((payment, idx) => {
+                if (!payment.verified) {
+                    const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                    if (paymentDate < sevenDaysAgo) {
+                        issues.paymentsWithoutVerification.push({
+                            id: repair.id,
+                            issue: `Payment ${idx + 1} unverified for ${Math.floor((now - paymentDate) / (1000 * 60 * 60 * 24))} days`,
+                            repair: repair,
+                            paymentIndex: idx
+                        });
+                    }
+                }
+            });
+            
+            // Old pending payments (not released/completed)
+            const totalPaid = repair.payments.filter(p => p.verified).reduce((sum, p) => sum + (p.amount || 0), 0);
+            if (totalPaid > 0 && !repair.claimedAt && repair.status !== 'Completed' && repair.status !== 'RTO') {
+                const lastPayment = repair.payments[repair.payments.length - 1];
+                const lastPaymentDate = new Date(lastPayment.recordedDate || lastPayment.paymentDate);
+                if (lastPaymentDate < thirtyDaysAgo) {
+                    issues.oldPendingPayments.push({
+                        id: repair.id,
+                        issue: `Has payments but not released/completed for ${Math.floor((now - lastPaymentDate) / (1000 * 60 * 60 * 24))} days`,
+                        repair: repair
+                    });
+                }
+            }
+            
+            // Negative balance (overpaid)
+            const total = repair.total || 0;
+            if (totalPaid > total && total > 0) {
+                issues.negativeBalance.push({
+                    id: repair.id,
+                    issue: `Overpaid: ₱${totalPaid.toFixed(2)} paid on ₱${total.toFixed(2)} total`,
+                    repair: repair
+                });
+            }
+        }
+        
+        // Missing technician assignment (not in Received status)
+        if (!repair.acceptedBy && repair.status !== 'Received' && repair.status !== 'Pending Customer Approval' && repair.status !== 'RTO') {
+            issues.missingTechnician.push({
+                id: repair.id,
+                issue: `Status "${repair.status}" but no technician assigned`,
+                repair: repair
+            });
+        }
+        
+        // Stuck in progress for too long
+        if ((repair.status === 'In Progress' || repair.status === 'Waiting for Parts') && repair.acceptedAt) {
+            const acceptedDate = new Date(repair.acceptedAt);
+            if (acceptedDate < thirtyDaysAgo) {
+                issues.stuckInProgress.push({
+                    id: repair.id,
+                    issue: `Stuck in "${repair.status}" for ${Math.floor((now - acceptedDate) / (1000 * 60 * 60 * 24))} days`,
+                    repair: repair
+                });
+            }
+        }
+        
+        // RTO without diagnosis fee
+        if (repair.status === 'RTO' && (!repair.diagnosisFee || repair.diagnosisFee === 0)) {
+            // Check if there are any payments
+            const hasPaid = repair.payments && repair.payments.length > 0;
+            if (!hasPaid) {
+                issues.rtoWithoutFee.push({
+                    id: repair.id,
+                    issue: 'RTO status but no diagnosis fee charged',
+                    repair: repair
+                });
+            }
+        }
+    });
+    
+    // Count total issues
+    let totalIssues = 0;
+    Object.values(issues).forEach(arr => {
+        totalIssues += arr.length;
+    });
+    
+    return {
+        issues,
+        totalIssues,
+        categories: {
+            missingCustomerInfo: issues.missingCustomerInfo.length,
+            missingDeviceInfo: issues.missingDeviceInfo.length,
+            releasedWithoutWarranty: issues.releasedWithoutWarranty.length,
+            paymentsWithoutVerification: issues.paymentsWithoutVerification.length,
+            oldPendingPayments: issues.oldPendingPayments.length,
+            negativeBalance: issues.negativeBalance.length,
+            missingTechnician: issues.missingTechnician.length,
+            stuckInProgress: issues.stuckInProgress.length,
+            rtoWithoutFee: issues.rtoWithoutFee.length
+        }
+    };
+}
+
+/**
+ * Admin: Quick fix for missing warranty info
+ */
+async function adminQuickFixWarranty(repairId, warrantyDays) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        if (!repair || !repair.claimedAt) {
+            throw new Error('Repair not found or not released');
+        }
+        
+        const warrantyStartDate = repair.claimedAt;
+        const warrantyEndDate = new Date(new Date(warrantyStartDate).getTime() + (warrantyDays * 24 * 60 * 60 * 1000)).toISOString();
+        
+        await db.ref(`repairs/${repairId}`).update({
+            warrantyPeriodDays: warrantyDays,
+            warrantyStartDate: warrantyStartDate,
+            warrantyEndDate: warrantyEndDate,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        await logActivity('warranty_fixed', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            warrantyDays: warrantyDays
+        }, `Admin fixed missing warranty: ${repair.customerName} - ${warrantyDays} days`);
+        
+        utils.showLoading(false);
+        alert(`✅ Warranty info added: ${warrantyDays} days`);
+        
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error fixing warranty:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// ===== END ADMIN TOOLS FUNCTIONS =====
+
 /**
  * Open additional repair modal
  */
@@ -6244,5 +6644,11 @@ window.closeEditDetailsModal = closeEditDetailsModal;
 window.openUpdateDiagnosisModal = openUpdateDiagnosisModal;
 window.submitDiagnosisUpdate = submitDiagnosisUpdate;
 window.closeUpdateDiagnosisModal = closeUpdateDiagnosisModal;
+// Admin Tools exports (Phase 1)
+window.adminDeleteDevice = adminDeleteDevice;
+window.adminGetPendingRemittances = adminGetPendingRemittances;
+window.adminGetRemittanceStats = adminGetRemittanceStats;
+window.adminFindOrphanedData = adminFindOrphanedData;
+window.adminQuickFixWarranty = adminQuickFixWarranty;
 
 console.log('✅ repairs.js loaded');

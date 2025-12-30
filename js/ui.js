@@ -2289,6 +2289,15 @@ function buildAdminToolsTab(container) {
             <!-- RECENTLY RELEASED DEVICES -->
             ${buildRecentlyReleasedSection()}
             
+            <!-- DEVICE MANAGEMENT -->
+            ${buildDeviceManagementSection()}
+            
+            <!-- PENDING REMITTANCES -->
+            ${buildPendingRemittancesSection()}
+            
+            <!-- DATA INTEGRITY CHECK -->
+            ${buildDataIntegritySection()}
+            
             <!-- QUICK ACTIONS -->
             <div class="form-group" style="margin-top:20px;">
                 <h4 style="margin:0 0 10px;">⚡ Quick Actions</h4>
@@ -2376,6 +2385,322 @@ function buildRecentlyReleasedSection() {
             </p>
             <div style="max-height:400px;overflow-y:auto;">
                 ${devicesHTML}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Build Device Management Section (PHASE 1: Delete Devices)
+ */
+function buildDeviceManagementSection() {
+    // Get all active (non-deleted) devices that can be deleted
+    const deletableDevices = window.allRepairs.filter(r => 
+        !r.deleted && 
+        !r.claimedAt && 
+        r.status !== 'Completed'
+    ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    
+    // Group by status
+    const byStatus = {};
+    deletableDevices.forEach(r => {
+        const status = r.status || 'Unknown';
+        if (!byStatus[status]) byStatus[status] = [];
+        byStatus[status].push(r);
+    });
+    
+    const statusSummary = Object.keys(byStatus).map(status => 
+        `${status}: ${byStatus[status].length}`
+    ).join(' | ');
+    
+    if (deletableDevices.length === 0) {
+        return `
+            <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;">
+                <h4 style="margin:0 0 10px;">🗑️ Device Management</h4>
+                <p style="color:#999;margin:0;">No devices available for management</p>
+            </div>
+        `;
+    }
+    
+    // Show last 15 devices
+    const devicesHTML = deletableDevices.slice(0, 15).map(repair => {
+        const totalAmount = repair.total || 0;
+        const totalPaid = repair.payments ? repair.payments.filter(p => p.verified).reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
+        const hasPayments = totalPaid > 0;
+        
+        const statusColors = {
+            'Received': '#9e9e9e',
+            'Pending Customer Approval': '#ff9800',
+            'In Progress': '#2196f3',
+            'Waiting for Parts': '#9c27b0',
+            'Ready for Pickup': '#4caf50',
+            'RTO': '#f44336',
+            'Unsuccessful': '#d32f2f'
+        };
+        
+        const statusColor = statusColors[repair.status] || '#757575';
+        
+        return `
+            <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid ${statusColor};">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;">
+                    <div style="flex:1;">
+                        <strong>${repair.customerName}</strong> - ${repair.brand} ${repair.model}
+                        <div style="font-size:12px;color:#666;margin-top:3px;">
+                            Status: <span style="color:${statusColor};font-weight:bold;">${repair.status}</span>
+                            ${repair.acceptedByName ? ` | Tech: ${repair.acceptedByName}` : ''}
+                        </div>
+                        <div style="font-size:11px;color:#999;margin-top:2px;">
+                            Created: ${utils.formatDateTime(repair.createdAt)}
+                        </div>
+                    </div>
+                    <div style="text-align:right;">
+                        ${hasPayments ? `
+                            <div style="font-size:12px;color:#f44336;font-weight:bold;">
+                                ⚠️ Has ₱${totalPaid.toFixed(2)} paid
+                            </div>
+                        ` : ''}
+                        <button onclick="adminDeleteDevice('${repair.id}')" class="btn btn-danger" style="padding:4px 10px;font-size:12px;margin-top:5px;">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    return `
+        <div class="form-group" style="background:#fff3cd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #ff9800;">
+            <h4 style="margin:0 0 10px;">🗑️ Device Management</h4>
+            <p style="color:#666;font-size:13px;margin:0 0 10px;">
+                ${deletableDevices.length} device(s) can be deleted (pre-release only)
+                ${statusSummary ? `<br><small>${statusSummary}</small>` : ''}
+            </p>
+            <div style="max-height:400px;overflow-y:auto;">
+                ${devicesHTML}
+            </div>
+            ${deletableDevices.length > 15 ? `
+                <p style="margin:10px 0 0;font-size:12px;color:#999;text-align:center;">
+                    Showing 15 of ${deletableDevices.length} devices. Use search to find specific devices.
+                </p>
+            ` : ''}
+        </div>
+    `;
+}
+
+/**
+ * Build Pending Remittances Section (PHASE 1)
+ */
+function buildPendingRemittancesSection() {
+    if (!window.adminGetPendingRemittances) {
+        return '';
+    }
+    
+    const pendingRemittances = window.adminGetPendingRemittances();
+    const remittanceStats = window.adminGetRemittanceStats ? window.adminGetRemittanceStats() : {};
+    
+    if (pendingRemittances.length === 0) {
+        return `
+            <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
+                <h4 style="margin:0 0 10px;">💰 Pending Remittances</h4>
+                <p style="color:#2e7d32;margin:0;">✅ All remittances verified! No pending remittances.</p>
+            </div>
+        `;
+    }
+    
+    // Calculate totals
+    const totalPending = pendingRemittances.reduce((sum, r) => sum + r.expectedAmount, 0);
+    const overdueCount = pendingRemittances.filter(r => r.isOverdue).length;
+    
+    const remittancesHTML = pendingRemittances.slice(0, 10).map(remittance => {
+        const isOverdue = remittance.isOverdue;
+        const hasDiscrepancy = Math.abs(remittance.discrepancy) > 0;
+        const discrepancyPercent = remittance.expectedAmount > 0 ? 
+            Math.abs((remittance.discrepancy / remittance.expectedAmount) * 100) : 0;
+        const isMajorDiscrepancy = discrepancyPercent >= 5;
+        
+        return `
+            <div style="background:${isOverdue ? '#ffebee' : '#fff'};padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid ${isOverdue ? '#f44336' : '#ff9800'};">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div style="flex:1;">
+                        <strong>${remittance.techName}</strong>
+                        ${isOverdue ? '<span style="color:#f44336;font-size:12px;margin-left:5px;">⚠️ OVERDUE</span>' : ''}
+                        <div style="font-size:12px;color:#666;margin-top:3px;">
+                            Submitted: ${utils.formatDateTime(remittance.submittedAt)} (${remittance.ageInDays} day${remittance.ageInDays !== 1 ? 's' : ''} ago)
+                        </div>
+                        <div style="font-size:12px;margin-top:5px;">
+                            Expected: <strong>₱${remittance.expectedAmount.toFixed(2)}</strong>
+                            ${hasDiscrepancy ? `
+                                <span style="color:${isMajorDiscrepancy ? '#f44336' : '#ff9800'};margin-left:5px;">
+                                    ${remittance.discrepancy > 0 ? '+' : ''}₱${remittance.discrepancy.toFixed(2)}
+                                    (${discrepancyPercent.toFixed(1)}%)
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <button onclick="openVerifyRemittanceModal('${remittance.id}')" class="btn btn-primary" style="padding:6px 12px;font-size:12px;">
+                        ✅ Verify
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    // Tech stats summary
+    const techStatsHTML = Object.values(remittanceStats)
+        .filter(s => s.pending > 0)
+        .sort((a, b) => b.pending - a.pending)
+        .slice(0, 5)
+        .map(s => `
+            <div style="font-size:12px;padding:5px 0;border-bottom:1px solid #eee;">
+                <strong>${s.techName}</strong>: ${s.pending} pending (₱${s.totalPending.toFixed(2)})
+            </div>
+        `).join('');
+    
+    return `
+        <div class="form-group" style="background:#fff3cd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #ff9800;">
+            <h4 style="margin:0 0 10px;">💰 Pending Remittances Dashboard</h4>
+            
+            <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                    <div>
+                        <small style="color:#666;">Total Pending</small>
+                        <div style="font-size:18px;font-weight:bold;color:#ff9800;">
+                            ${pendingRemittances.length}
+                        </div>
+                    </div>
+                    <div>
+                        <small style="color:#666;">Amount</small>
+                        <div style="font-size:18px;font-weight:bold;color:#f44336;">
+                            ₱${totalPending.toFixed(2)}
+                        </div>
+                    </div>
+                </div>
+                ${overdueCount > 0 ? `
+                    <div style="margin-top:10px;padding:8px;background:#ffebee;border-radius:3px;font-size:12px;color:#d32f2f;">
+                        ⚠️ <strong>${overdueCount}</strong> overdue remittance${overdueCount !== 1 ? 's' : ''} (over 1 day old)
+                    </div>
+                ` : ''}
+            </div>
+            
+            ${techStatsHTML ? `
+                <div style="background:#f8f9fa;padding:10px;border-radius:5px;margin-bottom:15px;">
+                    <small style="color:#666;font-weight:bold;">By Technician:</small>
+                    ${techStatsHTML}
+                </div>
+            ` : ''}
+            
+            <div style="max-height:400px;overflow-y:auto;">
+                ${remittancesHTML}
+            </div>
+            
+            <button onclick="window.switchToTab('verify-remittance')" class="btn btn-primary" style="width:100%;margin-top:10px;">
+                📋 View All Remittances
+            </button>
+        </div>
+    `;
+}
+
+/**
+ * Build Data Integrity Section (PHASE 1)
+ */
+function buildDataIntegritySection() {
+    if (!window.adminFindOrphanedData) {
+        return '';
+    }
+    
+    const dataCheck = window.adminFindOrphanedData();
+    const totalIssues = dataCheck.totalIssues;
+    const categories = dataCheck.categories;
+    
+    if (totalIssues === 0) {
+        return `
+            <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
+                <h4 style="margin:0 0 10px;">🔍 Data Integrity Check</h4>
+                <p style="color:#2e7d32;margin:0;">✅ All clear! No data integrity issues found.</p>
+            </div>
+        `;
+    }
+    
+    // Build issue summary
+    const issueTypes = [
+        { key: 'missingCustomerInfo', label: 'Missing Customer Info', icon: '👤', color: '#f44336' },
+        { key: 'missingDeviceInfo', label: 'Missing Device Info', icon: '📱', color: '#f44336' },
+        { key: 'releasedWithoutWarranty', label: 'Released Without Warranty', icon: '🛡️', color: '#ff9800' },
+        { key: 'paymentsWithoutVerification', label: 'Unverified Payments (7+ days)', icon: '💰', color: '#ff9800' },
+        { key: 'oldPendingPayments', label: 'Old Pending Payments (30+ days)', icon: '⏰', color: '#ff9800' },
+        { key: 'negativeBalance', label: 'Overpaid Repairs', icon: '💸', color: '#2196f3' },
+        { key: 'missingTechnician', label: 'Missing Technician Assignment', icon: '🔧', color: '#f44336' },
+        { key: 'stuckInProgress', label: 'Stuck In Progress (30+ days)', icon: '⏳', color: '#ff9800' },
+        { key: 'rtoWithoutFee', label: 'RTO Without Fee', icon: '↩️', color: '#9e9e9e' }
+    ];
+    
+    const issuesHTML = issueTypes
+        .filter(type => categories[type.key] > 0)
+        .map(type => {
+            const count = categories[type.key];
+            const issues = dataCheck.issues[type.key];
+            const examplesHTML = issues.slice(0, 3).map(issue => `
+                <div style="font-size:11px;padding:5px;background:#f8f9fa;border-radius:3px;margin-top:3px;">
+                    ${issue.repair.customerName} - ${issue.repair.brand || 'Unknown'} ${issue.repair.model || ''}
+                    <br><span style="color:#666;">${issue.issue}</span>
+                    ${type.key === 'releasedWithoutWarranty' ? `
+                        <div style="margin-top:3px;">
+                            <button onclick="adminQuickFixWarranty('${issue.id}', 30)" class="btn btn-primary" style="padding:2px 6px;font-size:10px;margin-right:3px;">
+                                Fix (30d)
+                            </button>
+                            <button onclick="adminQuickFixWarranty('${issue.id}', 7)" class="btn btn-primary" style="padding:2px 6px;font-size:10px;">
+                                Fix (7d)
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+            
+            return `
+                <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:8px;border-left:3px solid ${type.color};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div style="flex:1;">
+                            <div style="font-size:14px;font-weight:bold;color:${type.color};">
+                                ${type.icon} ${type.label}
+                            </div>
+                            <div style="font-size:12px;color:#666;margin-top:2px;">
+                                ${count} issue${count !== 1 ? 's' : ''} found
+                            </div>
+                        </div>
+                        <div style="font-size:20px;font-weight:bold;color:${type.color};">
+                            ${count}
+                        </div>
+                    </div>
+                    ${examplesHTML ? `
+                        <div style="margin-top:10px;">
+                            <div style="font-size:11px;color:#666;margin-bottom:5px;">Examples:</div>
+                            ${examplesHTML}
+                            ${count > 3 ? `<div style="font-size:10px;color:#999;margin-top:3px;">...and ${count - 3} more</div>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    
+    return `
+        <div class="form-group" style="background:#ffebee;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #f44336;">
+            <h4 style="margin:0 0 10px;">🔍 Data Integrity Check</h4>
+            
+            <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
+                <div style="font-size:24px;font-weight:bold;color:#f44336;text-align:center;">
+                    ${totalIssues}
+                </div>
+                <div style="font-size:13px;color:#666;text-align:center;">
+                    total issue${totalIssues !== 1 ? 's' : ''} found
+                </div>
+            </div>
+            
+            <div style="max-height:500px;overflow-y:auto;">
+                ${issuesHTML}
+            </div>
+            
+            <div style="margin-top:15px;padding:10px;background:#fff9c4;border-radius:5px;font-size:12px;">
+                💡 <strong>Tip:</strong> Regular data cleanup helps maintain system integrity and accurate reporting.
             </div>
         </div>
     `;
@@ -4943,5 +5268,10 @@ window.buildDailyRemittanceTab = buildDailyRemittanceTab;
 window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;
 window.buildTechnicianLogsTab = buildTechnicianLogsTab;
 window.selectTechnicianForLogs = selectTechnicianForLogs;
+
+// Admin Tools helper functions (Phase 1)
+window.buildDeviceManagementSection = buildDeviceManagementSection;
+window.buildPendingRemittancesSection = buildPendingRemittancesSection;
+window.buildDataIntegritySection = buildDataIntegritySection;
 
 console.log('✅ ui.js loaded');
