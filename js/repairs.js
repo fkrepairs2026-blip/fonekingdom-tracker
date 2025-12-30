@@ -5304,6 +5304,30 @@ function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
                         ? '📱 GCash - Send to technician\'s GCash'
                         : '⚠️ Not specified (legacy remittance)'}
                 </div>
+                
+                ${remittance.commissionPaid ? `
+                    <div style="background:#e8f5e9;padding:12px;border-radius:8px;margin-top:10px;border-left:4px solid #4caf50;">
+                        <strong>✅ Commission Paid</strong><br>
+                        <small style="color:#666;">
+                            Paid by: ${remittance.commissionPaidBy}<br>
+                            Date: ${utils.formatDateTime(remittance.commissionPaidAt)}<br>
+                            ${remittance.commissionPaymentNotes ? `Notes: ${remittance.commissionPaymentNotes}` : ''}
+                        </small>
+                    </div>
+                ` : `
+                    ${remittance.status === 'approved' ? `
+                        <div style="margin-top:15px;">
+                            <button onclick="markCommissionAsPaid('${remittanceId}')" 
+                                    class="btn-success" 
+                                    style="width:100%;padding:12px;font-size:15px;">
+                                💰 Mark Commission as Paid
+                            </button>
+                            <small style="display:block;color:#666;text-align:center;margin-top:5px;">
+                                Click this button after you've paid the technician
+                            </small>
+                        </div>
+                    ` : ''}
+                `}
             </div>
         ` : ''}
         
@@ -5565,6 +5589,88 @@ async function rejectRemittance() {
 
 function closeVerifyRemittanceModal() {
     document.getElementById('verifyRemittanceModal').style.display = 'none';
+}
+
+/**
+ * Mark Commission as Paid
+ */
+async function markCommissionAsPaid(remittanceId) {
+    const remittance = window.techRemittances.find(r => r.id === remittanceId);
+    if (!remittance) {
+        alert('⚠️ Remittance not found');
+        return;
+    }
+    
+    // Check if already paid
+    if (remittance.commissionPaid) {
+        alert('ℹ️ Commission has already been marked as paid.');
+        return;
+    }
+    
+    const totalCommission = remittance.totalCommission || remittance.commissionEarned || 0;
+    if (totalCommission === 0) {
+        alert('ℹ️ No commission to pay for this remittance.');
+        return;
+    }
+    
+    // Confirm payment
+    const paymentMethod = remittance.commissionPaymentPreference || 'Not specified';
+    const confirmed = confirm(
+        `💰 MARK COMMISSION AS PAID\n\n` +
+        `Technician: ${remittance.techName}\n` +
+        `Commission Amount: ₱${totalCommission.toFixed(2)}\n` +
+        `Cash Repairs: ₱${(remittance.cashCommission || 0).toFixed(2)}\n` +
+        `GCash Repairs: ₱${(remittance.gcashCommission || 0).toFixed(2)}\n` +
+        `Payment Method: ${paymentMethod === 'cash' ? '💵 Cash' : paymentMethod === 'gcash' ? '📱 GCash' : '⚠️ Not specified'}\n\n` +
+        `Are you sure you have paid this commission to the technician?\n\n` +
+        `Click OK to mark as paid...`
+    );
+    
+    if (!confirmed) return;
+    
+    // Require notes
+    const notes = prompt('Enter notes (optional - e.g., GCash reference number, cash count notes):');
+    
+    try {
+        utils.showLoading(true);
+        
+        const now = new Date().toISOString();
+        
+        await db.ref(`techRemittances/${remittanceId}`).update({
+            commissionPaid: true,
+            commissionPaidBy: window.currentUserData.displayName,
+            commissionPaidAt: now,
+            commissionPaymentNotes: notes || ''
+        });
+        
+        // Log activity
+        await logActivity('commission_paid', {
+            remittanceId: remittanceId,
+            techId: remittance.techId,
+            techName: remittance.techName,
+            amount: totalCommission,
+            paymentMethod: paymentMethod,
+            notes: notes
+        }, `Commission paid: ₱${totalCommission.toFixed(2)} to ${remittance.techName} via ${paymentMethod}`);
+        
+        // Reload remittances
+        await loadTechRemittances();
+        
+        utils.showLoading(false);
+        alert(`✅ Commission Marked as Paid!\n\n₱${totalCommission.toFixed(2)} to ${remittance.techName}\nMethod: ${paymentMethod}\n\nThis will now show as paid in both technician and admin views.`);
+        
+        // Refresh
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error marking commission as paid:', error);
+        alert('Error: ' + error.message);
+    }
 }
 
 /**
@@ -6415,13 +6521,21 @@ async function adminUnremitPayment(repairId, paymentIndex) {
             reason: reason
         }, `Payment un-remitted: ₱${payment.amount.toFixed(2)} from ${repair.customerName} - Reason: ${reason}`);
         
+        // Reload repairs to get fresh data
+        await loadRepairs();
+        
         utils.showLoading(false);
         alert(`✅ Payment Un-Remitted!\n\n₱${payment.amount.toFixed(2)} from ${repair.customerName}\n\nStatus: REMITTED → PENDING\n\nThis payment will now appear in the technician's daily remittance.`);
         
-        // Refresh
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Refresh current tab and stats
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            if (window.buildStats) {
+                window.buildStats();
+            }
+        }, 300);
         
     } catch (error) {
         utils.showLoading(false);
@@ -7877,6 +7991,7 @@ window.closeRemittanceModal = closeRemittanceModal;
 window.openVerifyRemittanceModal = openVerifyRemittanceModal;
 window.approveRemittance = approveRemittance;
 window.rejectRemittance = rejectRemittance;
+window.markCommissionAsPaid = markCommissionAsPaid;
 window.closeVerifyRemittanceModal = closeVerifyRemittanceModal;
 
 /**

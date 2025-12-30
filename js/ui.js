@@ -3809,6 +3809,20 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                         <p style="margin:5px 0 0 0;">${dateRemittance.verificationNotes}</p>
                     </div>
                 ` : ''}
+                
+                ${(dateRemittance.totalCommission || dateRemittance.commissionEarned || 0) > 0 ? `
+                    <div style="margin-top:15px;padding:12px;background:${dateRemittance.commissionPaid ? '#e8f5e9' : '#fff3cd'};border-radius:8px;border-left:4px solid ${dateRemittance.commissionPaid ? '#4caf50' : '#ff9800'};">
+                        <strong style="font-size:14px;">💰 Your Commission: ₱${(dateRemittance.totalCommission || dateRemittance.commissionEarned || 0).toFixed(2)}</strong><br>
+                        <small style="color:#666;display:block;margin-top:5px;">
+                            Payment Method: ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : dateRemittance.commissionPaymentPreference === 'gcash' ? '📱 GCash' : 'Not specified'}<br>
+                            Status: ${dateRemittance.commissionPaid ? 
+                                `<strong style="color:#4caf50;">✅ PAID</strong> by ${dateRemittance.commissionPaidBy} on ${utils.formatDateTime(dateRemittance.commissionPaidAt)}` : 
+                                `<strong style="color:#ff9800;">⏳ NOT YET PAID</strong> - Will be paid at end of day`
+                            }
+                            ${dateRemittance.commissionPaymentNotes ? `<br>Notes: ${dateRemittance.commissionPaymentNotes}` : ''}
+                        </small>
+                    </div>
+                ` : ''}
             </div>
         ` : ''}
         
@@ -3869,11 +3883,23 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                     </div>
                 </div>
                 
-                ${dateRemittance && dateRemittance.commissionPaymentPreference ? `
-                    <div style="background:#fff3cd;padding:12px;border-radius:8px;border-left:4px solid #ff9800;margin-top:10px;">
-                        <strong>📋 Payment Preference:</strong> 
-                        ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : '📱 GCash'}
-                    </div>
+                ${dateRemittance ? `
+                    ${dateRemittance.commissionPaid ? `
+                        <div style="background:#e8f5e9;padding:12px;border-radius:8px;border-left:4px solid #4caf50;margin-top:10px;">
+                            <strong>✅ Commission Payment Status: PAID</strong><br>
+                            <small style="color:#666;">
+                                Paid by: ${dateRemittance.commissionPaidBy}<br>
+                                Date: ${utils.formatDateTime(dateRemittance.commissionPaidAt)}<br>
+                                Method: ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : '📱 GCash'}<br>
+                                ${dateRemittance.commissionPaymentNotes ? `Notes: ${dateRemittance.commissionPaymentNotes}` : ''}
+                            </small>
+                        </div>
+                    ` : dateRemittance.commissionPaymentPreference ? `
+                        <div style="background:#fff3cd;padding:12px;border-radius:8px;border-left:4px solid #ff9800;margin-top:10px;">
+                            <strong>📋 Payment Preference: ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : '📱 GCash'}</strong><br>
+                            <small style="color:#666;">⏳ Payment will be made after remittance approval</small>
+                        </div>
+                    ` : ''}
                 ` : ''}
                 
                 <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-top:15px;border-left:4px solid #2196f3;">
