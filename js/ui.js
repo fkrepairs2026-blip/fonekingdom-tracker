@@ -882,6 +882,44 @@ function buildReceiveDeviceTab(container) {
                     </ol>
                 </div>
                 
+                <!-- Technician Self-Assignment Section (Tech/Admin/Manager only) -->
+                <div id="techAcceptSection" style="display:${window.currentUserData.role !== 'cashier' ? 'block' : 'none'};background:#f3e5f5;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #9c27b0;">
+                    <h4 style="margin:0 0 12px 0;color:#9c27b0;">🔧 Assign This Repair</h4>
+                    
+                    <div style="margin-bottom:12px;">
+                        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;border:2px solid #9c27b0;">
+                            <input type="radio" name="assignOption" value="accept-myself" checked onchange="toggleAssignToTech()">
+                            <span><strong>✅ Accept this repair myself</strong> (goes to My Jobs immediately)</span>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom:12px;">
+                        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;">
+                            <input type="radio" name="assignOption" value="assign-other" onchange="toggleAssignToTech()">
+                            <span><strong>👤 Assign to specific technician</strong></span>
+                        </label>
+                        <div id="assignToTechWrapper" style="display:none;margin-left:30px;margin-top:8px;">
+                            <select id="assignToTech" style="width:100%;">
+                                <option value="">Select technician...</option>
+                                ${window.allUsers.filter(u => u.role === 'technician' && u.status === 'active').map(u => 
+                                    `<option value="${u.uid}">${u.displayName}</option>`
+                                ).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-bottom:0;">
+                        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;">
+                            <input type="radio" name="assignOption" value="pool" onchange="toggleAssignToTech()">
+                            <span><strong>📥 Send to Received Devices</strong> (any tech can accept)</span>
+                        </label>
+                    </div>
+                    
+                    <small style="display:block;margin-top:10px;color:#666;">
+                        💡 <strong>Tip:</strong> Select "Accept myself" to start working immediately!
+                    </small>
+                </div>
+                
                 <button type="submit" style="width:100%;background:#4caf50;color:white;font-size:16px;padding:12px;">
                     📥 Receive Device
                 </button>
@@ -1281,6 +1319,7 @@ function displayCompactRepairsList(repairs, container, context = 'default') {
                         <div class="repair-compact-badges">
                             <span class="status-badge status-${statusClass}">${r.status}</span>
                             ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
+                            ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="status-badge" style="background:#ff9800;color:white;">⭐ Your Previous Customer</span>' : ''}
                             ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
                         </div>
                         <div class="repair-compact-problem">
@@ -1321,7 +1360,12 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
                 ${r.storageCapacity && r.storageCapacity !== 'N/A' ? `<div><strong>💾 Storage:</strong> ${r.storageCapacity}</div>` : ''}
                 ${r.devicePasscode ? `<div><strong>🔐 Passcode:</strong> ${r.devicePasscode}</div>` : ''}
                 <div><strong>Repair:</strong> ${r.repairType || 'Pending Diagnosis'}</div>
-                ${r.acceptedBy ? `<div><strong>Technician:</strong> ${r.acceptedByName}</div>` : ''}
+                ${r.acceptedBy ? `
+                    <div><strong>Technician:</strong> ${r.acceptedByName}
+                        ${r.assignmentMethod === 'immediate-accept' ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;margin-left:5px;">⚡ Immediate</span>` : ''}
+                        ${r.assignmentMethod === 'assigned-by-receiver' ? `<span style="background:#9c27b0;color:white;padding:2px 6px;border-radius:3px;font-size:11px;margin-left:5px;">👤 Assigned by ${r.assignedBy}</span>` : ''}
+                    </div>
+                ` : ''}
                 <div><strong>Total:</strong> ₱${r.total.toFixed(2)}</div>
                 ${!hidePaymentActions ? `
                     <div><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></div>
@@ -1345,6 +1389,30 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
                                     ${update.problemFound}
                                 </div>
                                 ${update.notes ? `<div style="font-size:13px;color:#666;">${update.notes}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </details>
+            ` : ''}
+            
+            ${r.transferHistory && r.transferHistory.length > 0 ? `
+                <details style="margin-top:15px;background:#f3e5f5;padding:10px;border-radius:var(--radius-md);border-left:4px solid #9c27b0;">
+                    <summary style="cursor:pointer;font-weight:600;color:#9c27b0;">🔄 Transfer History (${r.transferHistory.length})</summary>
+                    <div style="margin-top:10px;">
+                        ${r.transferHistory.map((transfer, index) => `
+                            <div style="background:white;padding:10px;border-radius:5px;margin-bottom:8px;border-left:3px solid #9c27b0;">
+                                <div style="font-size:12px;color:#666;margin-bottom:5px;">
+                                    ${utils.formatDateTime(transfer.transferredAt)} • by ${transfer.transferredByName}
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-weight:600;">
+                                    <span>${transfer.fromTechName}</span>
+                                    <span style="color:#9c27b0;">→</span>
+                                    <span>${transfer.toTechName}</span>
+                                </div>
+                                <div style="font-size:13px;color:#666;margin-bottom:3px;">
+                                    <strong>Reason:</strong> ${transfer.reason}
+                                </div>
+                                ${transfer.notes ? `<div style="font-size:13px;color:#666;"><strong>Notes:</strong> ${transfer.notes}</div>` : ''}
                             </div>
                         `).join('')}
                     </div>
@@ -1503,6 +1571,7 @@ function renderStandardButtons(r, role) {
         ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
         ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
         ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
+        ${r.acceptedBy && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openTransferRepairModal('${r.id}')" style="background:#9c27b0;color:white;">🔄 Transfer</button>` : ''}
         ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
     `;
 }
@@ -2963,6 +3032,18 @@ function calculatePreApprovedTotal() {
 }
 
 /**
+ * Toggle assign to tech dropdown visibility
+ */
+function toggleAssignToTech() {
+    const assignOption = document.querySelector('input[name="assignOption"]:checked')?.value;
+    const assignToTechWrapper = document.getElementById('assignToTechWrapper');
+    
+    if (assignToTechWrapper) {
+        assignToTechWrapper.style.display = assignOption === 'assign-other' ? 'block' : 'none';
+    }
+}
+
+/**
  * Handle problem type selection
  */
 function handleProblemTypeChange() {
@@ -3059,6 +3140,7 @@ window.buildSuppliersTab = buildSuppliersTab;
 window.buildUsersTab = buildUsersTab;
 window.toggleBackJobFields = toggleBackJobFields;
 window.calculatePreApprovedTotal = calculatePreApprovedTotal;
+window.toggleAssignToTech = toggleAssignToTech;
 window.buildClaimedUnitsPage = buildClaimedUnitsPage;
 window.applyLogFilters = applyLogFilters;
 window.clearLogFilters = clearLogFilters;

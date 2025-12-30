@@ -283,6 +283,59 @@ async function submitReceiveDevice(e) {
         console.log('✅ Device marked as pre-approved with pricing:', {repairType, partsCost, laborCost, total, quotedSupplier});
     }
     
+    // NEW: Handle assignment options for Tech/Admin/Manager
+    const userRole = window.currentUserData.role;
+    let assignmentMethod = 'pool'; // Default for cashiers
+    let assignedTo = null;
+    let assignedToName = null;
+    
+    if (userRole === 'technician' || userRole === 'admin' || userRole === 'manager') {
+        const assignOption = data.get('assignOption');
+        
+        if (assignOption === 'accept-myself') {
+            // Immediate self-assignment
+            assignmentMethod = 'immediate-accept';
+            assignedTo = window.currentUser.uid;
+            assignedToName = window.currentUserData.displayName;
+            
+            repair.status = 'In Progress';
+            repair.acceptedBy = assignedTo;
+            repair.acceptedByName = assignedToName;
+            repair.acceptedAt = new Date().toISOString();
+            
+        } else if (assignOption === 'assign-other') {
+            // Assign to specific tech
+            const targetTechId = document.getElementById('assignToTech')?.value;
+            
+            if (!targetTechId) {
+                alert('Please select a technician to assign this repair to');
+                return;
+            }
+            
+            const targetTech = window.allUsers.find(u => u.uid === targetTechId);
+            if (!targetTech) {
+                alert('Selected technician not found');
+                return;
+            }
+            
+            assignmentMethod = 'assigned-by-receiver';
+            assignedTo = targetTechId;
+            assignedToName = targetTech.displayName;
+            
+            repair.status = 'In Progress';
+            repair.acceptedBy = assignedTo;
+            repair.acceptedByName = assignedToName;
+            repair.acceptedAt = new Date().toISOString();
+            repair.assignedBy = window.currentUserData.displayName;
+            
+        } else {
+            // Send to pool ('pool' option or default)
+            assignmentMethod = 'pool';
+        }
+    }
+    
+    repair.assignmentMethod = assignmentMethod;
+    
     // Add back job information if checked
     if (isBackJob) {
         const backJobTech = document.getElementById('backJobTech').value;
@@ -306,6 +359,7 @@ async function submitReceiveDevice(e) {
         repair.backJobReason = backJobReason;
         repair.originalTechId = backJobTech;
         repair.originalTechName = techName;
+        repair.suggestedTech = backJobTech; // Suggest but don't force
         
         // Back jobs skip diagnosis workflow - auto-approved (warranty claim)
         repair.diagnosisCreated = true;
@@ -316,11 +370,12 @@ async function submitReceiveDevice(e) {
         repair.customerApprovedAt = new Date().toISOString();
         repair.customerApprovedBy = window.currentUser.uid;
         
-        // Auto-assign to original tech
-        repair.acceptedBy = backJobTech;
-        repair.acceptedByName = techName;
-        repair.acceptedAt = new Date().toISOString();
-        repair.status = 'In Progress'; // Auto start for back jobs
+        // If already assigned (via assignment options), keep that assignment
+        // Otherwise, if original tech is receiving, they might auto-accept via assignOption
+        // If going to pool, add note about suggested tech
+        if (repair.status === 'Received' && assignmentMethod === 'pool') {
+            repair.notes = `🔄 Back Job - Previously handled by ${techName}`;
+        }
     }
     
     try {
@@ -337,13 +392,34 @@ async function submitReceiveDevice(e) {
             customerPreApproved: hasPricing || false
         }, `${repair.customerName} - ${repair.brand} ${repair.model} received by ${window.currentUserData.displayName}`);
         
-        if (isBackJob) {
-            alert(`✅ Back Job Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\n🔄 BACK JOB - Auto-assigned to: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n⚠️ This device will go directly to "${repair.originalTechName}"'s job list with status "In Progress".`);
-        } else if (hasPricing) {
-            alert(`✅ Device Received & Approved!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n💰 Approved Pricing:\n• ${repair.repairType}\n• Parts: ₱${repair.partsCost.toFixed(2)}\n• Labor: ₱${repair.laborCost.toFixed(2)}\n• Total: ₱${repair.total.toFixed(2)}\n\n✅ Device is ready for technician to accept and start repair!`);
+        // Show appropriate success message based on assignment
+        let successMsg = `✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n`;
+        
+        if (assignmentMethod === 'immediate-accept') {
+            successMsg += `🔧 Status: ACCEPTED by you!\n✅ Device is now in your "My Jobs" list.\n📍 Status: In Progress\n\n`;
+            if (hasPricing) {
+                successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
+            } else {
+                successMsg += `⚠️ Don't forget to:\n• Create diagnosis & set pricing\n• Get customer approval\n`;
+            }
+        } else if (assignmentMethod === 'assigned-by-receiver') {
+            successMsg += `👤 Assigned to: ${assignedToName}\n✅ They will see it in their "My Jobs" list.\n📍 Status: In Progress\n\n`;
+            if (hasPricing) {
+                successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
+            }
         } else {
-            alert(`✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n📋 Next Steps:\n1. Tech/Owner will create diagnosis and set pricing\n2. Customer will approve the price\n3. Technician can then accept the repair\n\n✅ Device is now in "📥 Received Devices" waiting for diagnosis.`);
+            successMsg += `📥 Sent to: Received Devices (pool)\n✅ Any available technician can accept it.\n\n`;
+            if (isBackJob) {
+                successMsg += `🔄 Back Job - Original tech: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n`;
+            }
+            if (hasPricing) {
+                successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)} (pre-approved)\n`;
+            } else {
+                successMsg += `📋 Next: Create diagnosis & get customer approval\n`;
+            }
         }
+        
+        alert(successMsg);
         
         // Reset form
         form.reset();
@@ -407,16 +483,29 @@ async function acceptRepair(repairId) {
         return;
     }
     
-    // Check if diagnosis has been created
-    if (!repair.diagnosisCreated || repair.total === 0 || repair.repairType === 'Pending Diagnosis') {
-        alert('⚠️ Diagnosis Required!\n\nPlease create a diagnosis and set pricing before accepting this repair.\n\nUse "📝 Create Diagnosis" button to set the repair details and price.');
-        return;
-    }
+    // Check if diagnosis has been created - allow but warn
+    const hasDiagnosis = repair.diagnosisCreated && repair.total > 0 && repair.repairType !== 'Pending Diagnosis';
+    const hasApproval = repair.customerApproved;
     
-    // Check if customer has approved the price
-    if (!repair.customerApproved) {
-        alert('⚠️ Customer Approval Required!\n\nCustomer must approve the diagnosis and pricing before you can accept this repair.\n\nCurrent Price: ₱' + repair.total.toFixed(2) + '\n\nPlease wait for customer approval or use "✅ Mark Customer Approved" button if customer has verbally approved.');
-        return;
+    if (!hasDiagnosis || !hasApproval) {
+        let warningMsg = '⚠️ Warning!\n\n';
+        
+        if (!hasDiagnosis) {
+            warningMsg += '❌ No diagnosis or pricing set yet\n';
+        }
+        if (!hasApproval) {
+            warningMsg += '❌ Customer has not approved pricing\n';
+        }
+        
+        warningMsg += '\nYou can accept this repair now and set pricing later, but make sure to:\n';
+        warningMsg += '• Create diagnosis & set pricing\n';
+        warningMsg += '• Get customer approval\n';
+        warningMsg += '• Before completing the repair\n\n';
+        warningMsg += 'Accept anyway?';
+        
+        if (!confirm(warningMsg)) {
+            return;
+        }
     }
     
     const confirmMsg = `Accept this repair?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📋 ${repair.repairType}\n💰 Total: ₱${repair.total.toFixed(2)}\n\nThis will move to your job list.`;
@@ -453,6 +542,163 @@ async function acceptRepair(repairId) {
         console.error('❌ Error accepting repair:', error);
         alert('Error: ' + error.message);
     }
+}
+
+/**
+ * Open transfer repair modal
+ */
+async function openTransferRepairModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    if (!repair.acceptedBy) {
+        alert('This repair has not been accepted yet. Only accepted repairs can be transferred.');
+        return;
+    }
+    
+    // Get available technicians (exclude current assignee)
+    const availableTechs = window.allUsers.filter(u => 
+        u.role === 'technician' && 
+        u.uid !== repair.acceptedBy &&
+        u.status === 'active'
+    );
+    
+    if (availableTechs.length === 0) {
+        alert('No other technicians available for transfer');
+        return;
+    }
+    
+    const content = `
+        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #9c27b0;">
+            <h3 style="margin:0 0 10px 0;color:#9c27b0;">🔄 Transfer Repair</h3>
+            <p style="margin:0;"><strong>${repair.brand} ${repair.model}</strong></p>
+            <p style="margin:5px 0 0 0;color:#666;">Customer: ${repair.customerName}</p>
+            <p style="margin:5px 0 0 0;color:#666;">Currently with: <strong>${repair.acceptedByName || 'Unassigned'}</strong></p>
+        </div>
+        
+        <form onsubmit="submitTransferRepair(event, '${repairId}')">
+            <div class="form-group">
+                <label>Transfer to Technician: *</label>
+                <select id="transferToTech" required>
+                    <option value="">Select technician...</option>
+                    ${availableTechs.map(tech => 
+                        `<option value="${tech.uid}">${tech.displayName}</option>`
+                    ).join('')}
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Transfer Reason: *</label>
+                <textarea id="transferReason" rows="3" placeholder="Why are you transferring this repair?" required></textarea>
+                <small style="color:#666;">e.g., "Too busy", "Needs different expertise", "Taking leave"</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Transfer Notes (optional):</label>
+                <textarea id="transferNotes" rows="2" placeholder="Any important information for the receiving technician..."></textarea>
+            </div>
+            
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="submit" style="flex:1;background:#9c27b0;color:white;padding:12px;border:none;border-radius:5px;cursor:pointer;font-size:14px;">
+                    🔄 Transfer Repair
+                </button>
+                <button type="button" onclick="closeTransferModal()" style="flex:1;background:#666;color:white;padding:12px;border:none;border-radius:5px;cursor:pointer;font-size:14px;">
+                    ❌ Cancel
+                </button>
+            </div>
+        </form>
+    `;
+    
+    document.getElementById('transferModalContent').innerHTML = content;
+    document.getElementById('transferModal').style.display = 'block';
+}
+
+/**
+ * Submit transfer repair
+ */
+async function submitTransferRepair(e, repairId) {
+    e.preventDefault();
+    
+    const targetTechId = document.getElementById('transferToTech').value;
+    const reason = document.getElementById('transferReason').value.trim();
+    const notes = document.getElementById('transferNotes').value.trim();
+    
+    if (!targetTechId || !reason) {
+        alert('Please select technician and provide transfer reason');
+        return;
+    }
+    
+    const targetTech = window.allUsers.find(u => u.uid === targetTechId);
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    if (!targetTech || !repair) {
+        alert('Error: Technician or repair not found');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const transferRecord = {
+            fromTech: repair.acceptedBy,
+            fromTechName: repair.acceptedByName,
+            toTech: targetTechId,
+            toTechName: targetTech.displayName,
+            transferredBy: window.currentUser.uid,
+            transferredByName: window.currentUserData.displayName,
+            transferredAt: new Date().toISOString(),
+            reason: reason,
+            notes: notes
+        };
+        
+        // Get existing transfer history or create new array
+        const existingHistory = repair.transferHistory || [];
+        const updatedHistory = [...existingHistory, transferRecord];
+        
+        // Update repair
+        await db.ref(`repairs/${repairId}`).update({
+            acceptedBy: targetTechId,
+            acceptedByName: targetTech.displayName,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName,
+            transferHistory: updatedHistory
+        });
+        
+        // Log activity
+        await logActivity('repair_transferred', 'repair', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            brand: repair.brand,
+            model: repair.model,
+            fromTech: repair.acceptedByName,
+            toTech: targetTech.displayName,
+            reason: reason
+        });
+        
+        utils.showLoading(false);
+        closeTransferModal();
+        
+        alert(`✅ Repair Transferred!\n\n📱 ${repair.brand} ${repair.model}\n\nFrom: ${repair.acceptedByName}\nTo: ${targetTech.displayName}\n\n${targetTech.displayName} will see this in their "My Jobs" list.`);
+        
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error transferring repair:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Close transfer modal
+ */
+function closeTransferModal() {
+    document.getElementById('transferModal').style.display = 'none';
 }
 
 /**
@@ -4908,6 +5154,9 @@ window.currentFilters = currentFilters;
 window.loadRepairs = loadRepairs;
 window.submitReceiveDevice = submitReceiveDevice;
 window.acceptRepair = acceptRepair;
+window.openTransferRepairModal = openTransferRepairModal;
+window.submitTransferRepair = submitTransferRepair;
+window.closeTransferModal = closeTransferModal;
 window.handlePhotoUpload = handlePhotoUpload;
 window.getTodayDate = getTodayDate;
 window.isoToDateInput = isoToDateInput;
