@@ -2554,6 +2554,9 @@ function buildAdminToolsTab(container) {
             <!-- RECENTLY RELEASED DEVICES -->
             ${buildRecentlyReleasedSection()}
             
+            <!-- TODAY'S TRANSACTIONS (Individual Delete) -->
+            ${buildTodayTransactionsSection()}
+            
             <!-- DEVICE MANAGEMENT -->
             ${buildDeviceManagementSection()}
             
@@ -2651,6 +2654,140 @@ function buildRecentlyReleasedSection() {
             <div style="max-height:400px;overflow-y:auto;">
                 ${devicesHTML}
             </div>
+        </div>
+    `;
+}
+
+/**
+ * Build Today's Transactions Section (Individual Delete)
+ */
+function buildTodayTransactionsSection() {
+    const todayString = new Date().toISOString().split('T')[0];
+    const cashData = getDailyCashData(todayString);
+    const isLocked = window.dailyCashCounts && window.dailyCashCounts[todayString];
+    
+    // If locked, don't show this section
+    if (isLocked) {
+        return '';
+    }
+    
+    const totalTransactions = cashData.payments.length + cashData.expenses.length;
+    
+    if (totalTransactions === 0) {
+        return `
+            <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
+                <h4 style="margin:0 0 10px;">💳 Today's Transactions</h4>
+                <p style="color:#2e7d32;margin:0;">✅ No transactions recorded today</p>
+            </div>
+        `;
+    }
+    
+    // Build payments list
+    const paymentsHTML = cashData.payments.length > 0 ? cashData.payments.map(p => {
+        const repair = window.allRepairs.find(r => r.id === p.repairId);
+        if (!repair) return '';
+        
+        const paymentIndex = repair.payments.findIndex(payment => 
+            payment.amount === p.payment.amount && 
+            payment.paymentDate === p.payment.paymentDate &&
+            payment.receivedBy === p.payment.receivedBy
+        );
+        
+        return `
+            <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid #4caf50;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div style="flex:1;">
+                        <strong>${repair.customerName}</strong>
+                        <div style="font-size:12px;color:#666;margin-top:3px;">
+                            Amount: <strong style="color:#4caf50;">₱${p.payment.amount.toFixed(2)}</strong> | 
+                            Method: ${p.payment.method}
+                        </div>
+                        <div style="font-size:11px;color:#999;margin-top:2px;">
+                            Received by: ${p.payment.receivedBy} | 
+                            ${p.payment.verified ? '✅ Verified' : '⏳ Pending'}
+                        </div>
+                    </div>
+                    <button onclick="adminDeletePayment('${p.repairId}', ${paymentIndex})" 
+                            class="btn btn-danger" 
+                            style="padding:4px 10px;font-size:12px;">
+                        🗑️ Delete
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('') : '<p style="color:#999;font-size:13px;">No payments today</p>';
+    
+    // Build expenses list
+    const expensesHTML = cashData.expenses.length > 0 ? cashData.expenses.map(e => `
+        <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid #f44336;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                <div style="flex:1;">
+                    <strong>${e.expense.category}</strong>
+                    <div style="font-size:12px;color:#666;margin-top:3px;">
+                        Amount: <strong style="color:#f44336;">₱${e.expense.amount.toFixed(2)}</strong>
+                        ${e.expense.description ? ` | ${e.expense.description}` : ''}
+                    </div>
+                    <div style="font-size:11px;color:#999;margin-top:2px;">
+                        Recorded by: ${e.expense.recordedBy}
+                    </div>
+                </div>
+                <button onclick="adminDeleteExpense('${e.expenseId}')" 
+                        class="btn btn-danger" 
+                        style="padding:4px 10px;font-size:12px;">
+                    🗑️ Delete
+                </button>
+            </div>
+        </div>
+    `).join('') : '<p style="color:#999;font-size:13px;">No expenses today</p>';
+    
+    return `
+        <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #2196f3;">
+            <h4 style="margin:0 0 10px;">💳 Today's Transactions (Individual Delete)</h4>
+            
+            <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+                    <div>
+                        <small style="color:#666;">Payments</small>
+                        <div style="font-size:18px;font-weight:bold;color:#4caf50;">
+                            ${cashData.payments.length}
+                        </div>
+                    </div>
+                    <div>
+                        <small style="color:#666;">Expenses</small>
+                        <div style="font-size:18px;font-weight:bold;color:#f44336;">
+                            ${cashData.expenses.length}
+                        </div>
+                    </div>
+                    <div>
+                        <small style="color:#666;">Total</small>
+                        <div style="font-size:18px;font-weight:bold;color:#2196f3;">
+                            ${totalTransactions}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom:10px;padding:10px;background:#fff9c4;border-radius:5px;font-size:12px;">
+                💡 <strong>Tip:</strong> Delete individual transactions selectively. Use the "Reset" buttons above for bulk deletion.
+            </div>
+            
+            ${cashData.payments.length > 0 ? `
+                <div style="margin-bottom:20px;">
+                    <h5 style="margin:0 0 10px;color:#4caf50;">💵 Payments (${cashData.payments.length})</h5>
+                    <div style="max-height:300px;overflow-y:auto;">
+                        ${paymentsHTML}
+                    </div>
+                </div>
+            ` : ''}
+            
+            ${cashData.expenses.length > 0 ? `
+                <div>
+                    <h5 style="margin:0 0 10px;color:#f44336;">💸 Expenses (${cashData.expenses.length})</h5>
+                    <div style="max-height:300px;overflow-y:auto;">
+                        ${expensesHTML}
+                    </div>
+                </div>
+            ` : ''}
         </div>
     `;
 }
@@ -5823,6 +5960,7 @@ window.buildTechnicianLogsTab = buildTechnicianLogsTab;
 window.selectTechnicianForLogs = selectTechnicianForLogs;
 
 // Admin Tools helper functions (Phase 1)
+window.buildTodayTransactionsSection = buildTodayTransactionsSection;
 window.buildDeviceManagementSection = buildDeviceManagementSection;
 window.buildPendingRemittancesSection = buildPendingRemittancesSection;
 window.buildDataIntegritySection = buildDataIntegritySection;

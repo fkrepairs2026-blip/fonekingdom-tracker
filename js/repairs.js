@@ -5851,6 +5851,238 @@ window.loadActivityLogs = loadActivityLogs;
  */
 
 /**
+ * Admin: Delete individual payment from a repair
+ */
+async function adminDeletePayment(repairId, paymentIndex) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair || !repair.payments || !repair.payments[paymentIndex]) {
+        alert('❌ Payment not found');
+        return;
+    }
+    
+    const payment = repair.payments[paymentIndex];
+    const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toISOString().split('T')[0];
+    
+    // Check if payment date is locked
+    if (!preventBackdating(paymentDate)) {
+        alert('⚠️ Cannot delete payment from locked date!\n\nThis payment date has been locked. Please unlock it first if you need to make changes.');
+        return;
+    }
+    
+    // Show payment details and confirm
+    const confirmed = confirm(
+        `⚠️ DELETE PAYMENT ⚠️\n\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Amount: ₱${payment.amount.toFixed(2)}\n` +
+        `Method: ${payment.method}\n` +
+        `Date: ${utils.formatDate(payment.paymentDate)}\n` +
+        `Received by: ${payment.receivedBy}\n` +
+        `${payment.verified ? '✅ Verified' : '⏳ Pending verification'}\n\n` +
+        `This will DELETE this payment transaction.\n\n` +
+        `Click OK to continue...`
+    );
+    
+    if (!confirmed) return;
+    
+    // Require reason
+    const reason = prompt('Please enter reason for deleting this payment:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required to delete a payment');
+        return;
+    }
+    
+    // Password confirmation
+    const password = prompt('Enter your password to confirm deletion:');
+    if (!password) {
+        alert('❌ Deletion cancelled');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Verify password
+        const credential = firebase.auth.EmailAuthProvider.credential(
+            window.currentUser.email,
+            password
+        );
+        await window.currentUser.reauthenticateWithCredential(credential);
+        
+        const now = new Date().toISOString();
+        
+        // Create backup
+        const backup = {
+            type: 'payment_deletion',
+            repairId: repairId,
+            customerName: repair.customerName,
+            payment: payment,
+            paymentIndex: paymentIndex,
+            deletedAt: now,
+            deletedBy: window.currentUserData.displayName,
+            deletedById: window.currentUser.uid,
+            deleteReason: reason
+        };
+        
+        await db.ref('deletedTransactions').push(backup);
+        
+        // Remove payment from array
+        const updatedPayments = repair.payments.filter((p, idx) => idx !== paymentIndex);
+        
+        await db.ref(`repairs/${repairId}`).update({
+            payments: updatedPayments,
+            lastUpdated: now,
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log activity
+        await logActivity('payment_deleted', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            amount: payment.amount,
+            method: payment.method,
+            paymentDate: payment.paymentDate,
+            verified: payment.verified,
+            reason: reason
+        }, `Payment deleted: ₱${payment.amount.toFixed(2)} from ${repair.customerName} - Reason: ${reason}`);
+        
+        utils.showLoading(false);
+        alert(`✅ Payment Deleted!\n\n₱${payment.amount.toFixed(2)} payment from ${repair.customerName}\n\nBackup: Saved for audit\nReason: ${reason}`);
+        
+        // Refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        if (error.code === 'auth/wrong-password') {
+            alert('❌ Incorrect password. Deletion cancelled.');
+        } else {
+            console.error('❌ Error deleting payment:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+/**
+ * Admin: Delete individual expense
+ */
+async function adminDeleteExpense(expenseId) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const expense = window.allExpenses ? window.allExpenses.find(e => e.id === expenseId) : null;
+    if (!expense) {
+        alert('❌ Expense not found');
+        return;
+    }
+    
+    const expenseDate = new Date(expense.date).toISOString().split('T')[0];
+    
+    // Check if expense date is locked
+    if (!preventBackdating(expenseDate)) {
+        alert('⚠️ Cannot delete expense from locked date!\n\nThis expense date has been locked. Please unlock it first if you need to make changes.');
+        return;
+    }
+    
+    // Show expense details and confirm
+    const confirmed = confirm(
+        `⚠️ DELETE EXPENSE ⚠️\n\n` +
+        `Category: ${expense.category}\n` +
+        `Amount: ₱${expense.amount.toFixed(2)}\n` +
+        `Description: ${expense.description || 'N/A'}\n` +
+        `Date: ${utils.formatDate(expense.date)}\n` +
+        `Recorded by: ${expense.recordedBy}\n\n` +
+        `This will DELETE this expense transaction.\n\n` +
+        `Click OK to continue...`
+    );
+    
+    if (!confirmed) return;
+    
+    // Require reason
+    const reason = prompt('Please enter reason for deleting this expense:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required to delete an expense');
+        return;
+    }
+    
+    // Password confirmation
+    const password = prompt('Enter your password to confirm deletion:');
+    if (!password) {
+        alert('❌ Deletion cancelled');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Verify password
+        const credential = firebase.auth.EmailAuthProvider.credential(
+            window.currentUser.email,
+            password
+        );
+        await window.currentUser.reauthenticateWithCredential(credential);
+        
+        const now = new Date().toISOString();
+        
+        // Create backup
+        const backup = {
+            type: 'expense_deletion',
+            expense: expense,
+            deletedAt: now,
+            deletedBy: window.currentUserData.displayName,
+            deletedById: window.currentUser.uid,
+            deleteReason: reason
+        };
+        
+        await db.ref('deletedTransactions').push(backup);
+        
+        // Delete expense
+        await db.ref(`expenses/${expenseId}`).remove();
+        
+        // Log activity
+        await logActivity('expense_deleted', {
+            expenseId: expenseId,
+            category: expense.category,
+            amount: expense.amount,
+            description: expense.description,
+            date: expense.date,
+            reason: reason
+        }, `Expense deleted: ₱${expense.amount.toFixed(2)} (${expense.category}) - Reason: ${reason}`);
+        
+        utils.showLoading(false);
+        alert(`✅ Expense Deleted!\n\n₱${expense.amount.toFixed(2)} (${expense.category})\n\nBackup: Saved for audit\nReason: ${reason}`);
+        
+        // Refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        if (error.code === 'auth/wrong-password') {
+            alert('❌ Incorrect password. Deletion cancelled.');
+        } else {
+            console.error('❌ Error deleting expense:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+/**
  * Reset today's payments (Admin only)
  */
 async function resetTodayPayments() {
@@ -8104,6 +8336,8 @@ window.adminGetPendingRemittances = adminGetPendingRemittances;
 window.adminGetRemittanceStats = adminGetRemittanceStats;
 window.adminFindOrphanedData = adminFindOrphanedData;
 window.adminQuickFixWarranty = adminQuickFixWarranty;
+window.adminDeletePayment = adminDeletePayment;
+window.adminDeleteExpense = adminDeleteExpense;
 window.requestRepairDeletion = requestRepairDeletion;
 window.processDeletionRequest = processDeletionRequest;
 
