@@ -7187,6 +7187,57 @@ function debugPaymentStatus(repairId) {
 }
 
 /**
+ * DEBUG: Show ALL technician payments (not just today)
+ * Usage: window.debugAllTechPayments()
+ */
+function debugAllTechPayments() {
+    const techId = window.currentUser.uid;
+    console.log('=== ALL TECH PAYMENTS DEBUG ===');
+    console.log('Technician:', window.currentUserData.displayName, `(${techId})`);
+    console.log('\n');
+    
+    const allPayments = [];
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach((payment, index) => {
+                if (payment.collectedByTech && payment.receivedById === techId) {
+                    allPayments.push({
+                        repairId: repair.id,
+                        customerName: repair.customerName,
+                        amount: payment.amount,
+                        recordedDate: payment.recordedDate,
+                        paymentDate: payment.paymentDate,
+                        remittanceStatus: payment.remittanceStatus,
+                        techRemittanceId: payment.techRemittanceId,
+                        collectedByTech: payment.collectedByTech,
+                        receivedById: payment.receivedById,
+                        dateString: new Date(payment.recordedDate || payment.paymentDate).toDateString()
+                    });
+                }
+            });
+        }
+    });
+    
+    console.log('Total payments by this tech:', allPayments.length);
+    console.log('\nPending (not yet remitted):');
+    allPayments.filter(p => p.remittanceStatus === 'pending').forEach(p => {
+        console.log(`  ${p.customerName}: ₱${p.amount} - Date: ${p.dateString} - Recorded: ${p.recordedDate}`);
+    });
+    
+    console.log('\nRemitted:');
+    allPayments.filter(p => p.remittanceStatus === 'remitted').forEach(p => {
+        console.log(`  ${p.customerName}: ₱${p.amount} - Date: ${p.dateString} - RemittanceID: ${p.techRemittanceId}`);
+    });
+    
+    console.log('\nVerified:');
+    allPayments.filter(p => p.remittanceStatus === 'verified').forEach(p => {
+        console.log(`  ${p.customerName}: ₱${p.amount} - Date: ${p.dateString}`);
+    });
+    
+    return allPayments;
+}
+
+/**
  * DEBUG: Show tech's daily remittance breakdown
  * Usage: window.debugDailyRemittance('2025-12-30')
  */
@@ -7317,6 +7368,7 @@ function debugCommissionIssues() {
 
 // Export debug functions
 window.debugPaymentStatus = debugPaymentStatus;
+window.debugAllTechPayments = debugAllTechPayments;
 window.debugDailyRemittance = debugDailyRemittance;
 window.debugCommissionIssues = debugCommissionIssues;
 
