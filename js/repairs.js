@@ -568,8 +568,8 @@ async function openTransferRepairModal(repairId) {
     }
     
     const content = `
-        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #9c27b0;">
-            <h3 style="margin:0 0 10px 0;color:#9c27b0;">🔄 Transfer Repair</h3>
+        <div class="alert-info">
+            <h3>🔄 Transfer Repair</h3>
             <p style="margin:0;"><strong>${repair.brand} ${repair.model}</strong></p>
             <p style="margin:5px 0 0 0;color:#666;">Customer: ${repair.customerName}</p>
             <p style="margin:5px 0 0 0;color:#666;">Currently with: <strong>${repair.acceptedByName || 'Unassigned'}</strong></p>
@@ -762,7 +762,7 @@ function openPaymentModal(repairId) {
     const content = document.getElementById('paymentModalContent');
     
     content.innerHTML = `
-        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-neutral">
             <h4 style="margin:0 0 10px 0;">Payment Summary</h4>
             <p><strong>Customer:</strong> ${repair.customerName}</p>
             <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
@@ -772,7 +772,7 @@ function openPaymentModal(repairId) {
         </div>
         
         ${balance <= 0 ? `
-            <div style="background:#c8e6c9;padding:15px;border-radius:5px;margin-bottom:15px;text-align:center;">
+            <div class="alert-success" style="text-align:center;">
                 <h3 style="color:green;margin:0;">✅ FULLY PAID</h3>
                 <p style="margin:10px 0 0;">This repair has been fully paid.</p>
             </div>
@@ -821,7 +821,7 @@ function openPaymentModal(repairId) {
                 <h4>Payment History</h4>
                 <div style="max-height:300px;overflow-y:auto;">
                     ${repair.payments.map((p, i) => `
-                        <div style="background:${p.verified ? '#e8f5e9' : '#fff3e0'};padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid ${p.verified ? '#4caf50' : '#ff9800'};">
+                        <div class="${p.verified ? 'alert-success-compact' : 'alert-warning-compact'}">
                             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
                                 <strong style="color:${p.verified ? '#2e7d32' : '#e65100'};">₱${p.amount.toFixed(2)}</strong>
                                 <span style="background:${p.verified ? '#4caf50' : '#ff9800'};color:white;padding:2px 8px;border-radius:3px;font-size:12px;">
@@ -997,8 +997,8 @@ function editPaymentDate(repairId, paymentIndex) {
     
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
-        <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
-            <h4 style="margin:0 0 10px 0;">📅 Edit Payment Date</h4>
+        <div class="alert-warning">
+            <h4>📅 Edit Payment Date</h4>
             <p><strong>Payment Amount:</strong> ₱${payment.amount.toFixed(2)}</p>
             <p><strong>Method:</strong> ${payment.method}</p>
             <p><strong>Current Date:</strong> ${utils.formatDate(payment.paymentDate || payment.date)}</p>
@@ -1024,7 +1024,7 @@ function editPaymentDate(repairId, paymentIndex) {
             </button>
         </div>
         
-        <div style="background:#ffebee;padding:12px;border-radius:5px;margin-top:15px;border-left:4px solid #f44336;">
+        <div class="alert-danger-compact" style="margin-top:15px;">
             <p style="margin:0;font-size:13px;"><strong>⚠️ Important:</strong> Change will be logged with your name and reason.</p>
         </div>
     `;
@@ -1052,8 +1052,8 @@ function editRecordedDate(repairId, paymentIndex) {
     
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
-        <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
-            <h4 style="margin:0 0 10px 0;">🕒 Edit Recorded Date (Admin Only)</h4>
+        <div class="alert-warning">
+            <h4>🕒 Edit Recorded Date (Admin Only)</h4>
             <p><strong>Payment Amount:</strong> ₱${payment.amount.toFixed(2)}</p>
             <p><strong>Method:</strong> ${payment.method}</p>
             <p><strong>Payment Date:</strong> ${utils.formatDate(payment.paymentDate || payment.date)}</p>
@@ -1080,7 +1080,7 @@ function editRecordedDate(repairId, paymentIndex) {
             </button>
         </div>
         
-        <div style="background:#ffebee;padding:12px;border-radius:5px;margin-top:15px;border-left:4px solid #f44336;">
+        <div class="alert-danger-compact" style="margin-top:15px;">
             <p style="margin:0;font-size:13px;"><strong>⚠️ Admin Only:</strong> This changes when the payment was entered in the system. Be very careful!</p>
         </div>
     `;
@@ -1296,8 +1296,8 @@ async function updateRepairStatus(repairId) {
             </select>
         </div>
         
-        <div id="rtoFields" style="display:none;background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
-            <h4 style="margin:0 0 15px;color:#e65100;">↩️ RTO Information</h4>
+        <div id="rtoFields" class="alert-warning" style="display:none;">
+            <h4 style="margin:0 0 15px;">↩️ RTO Information</h4>
             
             <div class="form-group">
                 <label>RTO Reason *</label>
@@ -2158,12 +2158,12 @@ function requestPaymentDateModification(repairId, paymentIndex) {
     
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
-        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
-            <h4 style="margin:0 0 10px 0;">📝 Request Payment Date Change</h4>
+        <div class="alert-info">
+            <h4>📝 Request Payment Date Change</h4>
             <p>You need admin approval to change payment dates</p>
         </div>
         
-        <div style="background:#f5f5f5;padding:12px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-neutral" style="padding:12px;">
             <p><strong>Payment:</strong> ₱${payment.amount.toFixed(2)}</p>
             <p><strong>Current Date:</strong> ${currentDate}</p>
         </div>
@@ -2187,7 +2187,7 @@ function requestPaymentDateModification(repairId, paymentIndex) {
             </button>
         </div>
         
-        <div style="background:#fff3cd;padding:12px;border-radius:5px;margin-top:15px;">
+        <div class="alert-warning-compact" style="margin-top:15px;">
             <p style="margin:0;font-size:13px;">⏳ Your request will be sent to admin for approval</p>
         </div>
     `;
@@ -2206,12 +2206,12 @@ function requestRecordedDateModification(repairId, paymentIndex) {
     
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
-        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
-            <h4 style="margin:0 0 10px 0;">📝 Request Recorded Date Change</h4>
+        <div class="alert-info">
+            <h4>📝 Request Recorded Date Change</h4>
             <p>You need admin approval to change recorded dates</p>
         </div>
         
-        <div style="background:#f5f5f5;padding:12px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-neutral" style="padding:12px;">
             <p><strong>Payment:</strong> ₱${payment.amount.toFixed(2)}</p>
             <p><strong>Current Recorded:</strong> ${currentDate}</p>
         </div>
@@ -2445,8 +2445,8 @@ function openAcceptRepairModal(repairId) {
     
     const content = document.getElementById('acceptRepairModalContent');
     content.innerHTML = `
-        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #4caf50;">
-            <h4 style="margin:0 0 10px 0;color:#2e7d32;">📱 Repair Details</h4>
+        <div class="alert-success" style="margin-bottom:20px;">
+            <h4>📱 Repair Details</h4>
             <p style="margin:5px 0;"><strong>Customer:</strong> ${repair.customerName}</p>
             <p style="margin:5px 0;"><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
             <p style="margin:5px 0;"><strong>Problem:</strong> ${repair.problemType || repair.problem}</p>
@@ -2672,12 +2672,12 @@ function openClaimModal(repairId) {
     
     const content = document.getElementById('claimModalContent');
     content.innerHTML = `
-        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
-            <h3 style="margin:0 0 10px 0;color:#2e7d32;">✅ Release Device to Customer</h3>
+        <div class="alert-success">
+            <h3>✅ Release Device to Customer</h3>
             <p style="margin:0;">This will mark the device as claimed and activate warranty</p>
         </div>
         
-        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-neutral">
             <h4 style="margin:0 0 10px 0;">Repair Summary</h4>
             <p><strong>Customer:</strong> ${repair.customerName}</p>
             <p><strong>Contact:</strong> ${repair.contactNumber}</p>
@@ -2703,7 +2703,7 @@ function openClaimModal(repairId) {
             </select>
         </div>
         
-        <div id="warrantyInfoDisplay" style="display:none;background:#fff3cd;padding:12px;border-radius:5px;margin:10px 0;border-left:4px solid #ffc107;">
+        <div id="warrantyInfoDisplay" class="alert-warning-compact" style="display:none;margin:10px 0;">
             <h4 style="margin:0 0 8px 0;">🛡️ Warranty Information</h4>
             <div id="warrantyDates"></div>
         </div>
@@ -2727,7 +2727,7 @@ Tagalog OK: Warranty para sa parehong issue lang. Hindi kasali ang physical dama
             </label>
         </div>
         
-        <div style="background:#ffebee;padding:12px;border-radius:5px;margin:15px 0;border-left:4px solid #f44336;">
+        <div class="alert-danger-compact" style="margin:15px 0;">
             <p style="margin:0;font-size:13px;"><strong>⚠️ Important:</strong> Once released, the device will be marked as claimed and warranty period will start. This action cannot be undone.</p>
         </div>
         
@@ -2860,12 +2860,12 @@ function viewClaimDetails(repairId) {
     const content = document.getElementById('claimModalContent');
     
     content.innerHTML = `
-        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
+        <div class="alert-info">
             <h3 style="margin:0 0 10px 0;">📄 Claim Details</h3>
             <p style="margin:0;">Device release and warranty information</p>
         </div>
         
-        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-neutral">
             <h4 style="margin:0 0 10px 0;">Device Information</h4>
             <p><strong>Customer:</strong> ${repair.customerName}</p>
             <p><strong>Contact:</strong> ${repair.contactNumber}</p>
@@ -2877,8 +2877,8 @@ function viewClaimDetails(repairId) {
             <p><strong>Total Cost:</strong> ₱${repair.total.toFixed(2)}</p>
         </div>
         
-        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
-            <h4 style="margin:0 0 10px 0;color:#2e7d32;">📋 Claim Information</h4>
+        <div class="alert-success">
+            <h4>📋 Claim Information</h4>
             <p><strong>Claimed On:</strong> ${utils.formatDateTime(repair.claimedAt)}</p>
             <p><strong>Days Since Claimed:</strong> ${daysSinceClaimed} days ago</p>
             <p><strong>Released By:</strong> ${repair.releasedBy}</p>
@@ -2917,7 +2917,7 @@ function viewClaimDetails(repairId) {
         </div>
         
         ${repair.payments && repair.payments.length > 0 ? `
-            <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+            <div class="alert-neutral">
                 <h4 style="margin:0 0 10px 0;">💰 Payment History</h4>
                 ${repair.payments.map(p => `
                     <div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #ddd;">
@@ -2961,12 +2961,12 @@ function openWarrantyClaimModal(repairId) {
     const content = document.getElementById('claimModalContent');
     
     content.innerHTML = `
-        <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
-            <h3 style="margin:0 0 10px 0;">🛡️ Warranty Claim</h3>
+        <div class="alert-warning">
+            <h3>🛡️ Warranty Claim</h3>
             <p style="margin:0;">Device returning under active warranty</p>
         </div>
         
-        <div style="background:#f5f5f5;padding:15px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-neutral">
             <h4 style="margin:0 0 10px 0;">Original Repair</h4>
             <p><strong>Customer:</strong> ${repair.customerName}</p>
             <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
@@ -2974,7 +2974,7 @@ function openWarrantyClaimModal(repairId) {
             <p><strong>Claimed:</strong> ${utils.formatDate(repair.claimedAt)} (${Math.floor((new Date() - new Date(repair.claimedAt)) / (1000 * 60 * 60 * 24))} days ago)</p>
         </div>
         
-        <div style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
+        <div class="alert-success">
             <h4 style="margin:0 0 8px 0;color:#2e7d32;">Active Warranty</h4>
             <p><strong>Period:</strong> ${repair.warrantyPeriodDays} days</p>
             <p><strong>Expires:</strong> ${utils.formatDate(warrantyEndDate.toISOString())}</p>
@@ -3132,22 +3132,22 @@ function openEditRepairModal(repairId) {
     const isNewDiagnosis = !repair.diagnosisCreated || repair.repairType === 'Pending Diagnosis';
     
     content.innerHTML = `
-        <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-info">
             <h3 style="margin:0;">${isNewDiagnosis ? '📋 Create Diagnosis' : '✏️ Update Diagnosis'}</h3>
             <p style="margin:5px 0 0;"><strong>${repair.customerName}</strong> - ${repair.brand} ${repair.model}</p>
         </div>
         ${isNewDiagnosis ? `
-            <div style="background:#e3f2fd;padding:12px;border-radius:5px;margin-bottom:15px;border-left:4px solid #2196f3;">
+            <div class="alert-info-compact">
                 <p style="margin:0;"><strong>ℹ️ Create Diagnosis:</strong> Set repair details and pricing. After saving, status will change to "Pending Customer Approval".</p>
             </div>
         ` : `
-            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+            <div class="alert-warning-compact">
                 <p style="margin:0;"><strong>⚠️ Updating Diagnosis:</strong> Changing the diagnosis will reset customer approval. Customer will need to approve again.</p>
             </div>
         `}
         
         <form id="editPricingForm" onsubmit="submitPricingUpdate(event, '${repairId}')">
-            <div style="background:#f5f5f5;padding:10px;border-radius:5px;margin-bottom:15px;">
+            <div class="alert-neutral" style="padding:10px;">
                 <p style="margin:0;font-size:13px;"><strong>Reported Issue:</strong> ${repair.problemType || repair.problem || 'N/A'}</p>
             </div>
             
@@ -3199,7 +3199,7 @@ function openEditRepairModal(repairId) {
                 <input type="number" name="laborCost" value="${repair.laborCost || 0}" min="0" step="0.01" required>
             </div>
             
-            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin:15px 0;border-left:4px solid #ffc107;">
+            <div class="alert-warning-compact" style="margin:15px 0;">
                 <p style="margin:0;"><strong>Total:</strong> ₱<span id="totalPreview">${(parseFloat(repair.partsCost || 0) + parseFloat(repair.laborCost || 0)).toFixed(2)}</span></p>
             </div>
             
@@ -4425,7 +4425,7 @@ function openRemittanceModal() {
             `}
         </div>
         
-        <div class="remittance-summary-section" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+        <div class="remittance-summary-section alert-success" style="border:none;">
             <h4>🎯 Your Commission (${commissionBreakdown.length} repairs)</h4>
             ${commissionBreakdown.length > 0 ? `
                 <div class="remittance-list">
@@ -6759,7 +6759,7 @@ function openEditReceivedDetails(repairId) {
                 </div>
             </div>
             
-            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin:15px 0;">
+            <div class="alert-warning-compact" style="margin:15px 0;">
                 <small><strong>ℹ️ Note:</strong> This will update the device details. Problem description and pricing are not editable here.</small>
             </div>
             
@@ -6856,7 +6856,7 @@ function openUpdateDiagnosisModal(repairId) {
     const content = document.getElementById('updateDiagnosisModalContent');
     
     content.innerHTML = `
-        <div style="background:#e3f2fd;padding:12px;border-radius:5px;margin-bottom:15px;">
+        <div class="alert-info-compact">
             <strong>📱 ${repair.brand} ${repair.model}</strong><br>
             <span style="font-size:13px;color:#666;">Customer: ${repair.customerName}</span><br>
             <span style="font-size:13px;color:#666;">Original Problem: ${repair.problem}</span>
@@ -6875,7 +6875,7 @@ function openUpdateDiagnosisModal(repairId) {
                 <small style="color:#666;">Any relevant information about this update</small>
             </div>
             
-            <div style="background:#fff3cd;padding:12px;border-radius:5px;margin:15px 0;">
+            <div class="alert-warning-compact" style="margin:15px 0;">
                 <small><strong>ℹ️ Note:</strong> This update will be added to the repair timeline and visible to all users. No admin approval needed.</small>
             </div>
             

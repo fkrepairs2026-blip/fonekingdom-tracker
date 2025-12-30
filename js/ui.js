@@ -765,13 +765,13 @@ function buildReceiveDeviceTab(container) {
                     <small style="color:#666;">What the customer says is wrong with the device</small>
                 </div>
                 
-                <div id="softwareWarningBox" style="display:none;background:#fff3cd;padding:12px;border-radius:5px;margin:10px 0;border-left:4px solid #ffc107;">
+                <div id="softwareWarningBox" class="alert-warning-compact" style="display:none;margin:10px 0;">
                     <p style="margin:0;"><strong>⚠️ Software Issue Detected</strong></p>
                     <p style="margin:5px 0 0;font-size:14px;">This is a software repair. Make sure to inform customer about data backup and potential data loss.</p>
                 </div>
                 
-                <div id="frpWarningBox" style="display:none;background:#ffebee;padding:12px;border-radius:5px;margin:10px 0;border-left:4px solid #f44336;">
-                    <p style="margin:0;color:#c62828;"><strong>🔒 FRP/Lock Issue</strong></p>
+                <div id="frpWarningBox" class="alert-danger-compact" style="display:none;margin:10px 0;">
+                    <p style="margin:0;"><strong>🔒 FRP/Lock Issue</strong></p>
                     <p style="margin:5px 0 0;font-size:14px;color:#c62828;">Verify customer is the original owner. Request proof of purchase. FRP unlock may not be possible on all devices.</p>
                 </div>
                 
@@ -787,7 +787,7 @@ function buildReceiveDeviceTab(container) {
                     <div id="receivePreview1" style="display:none;margin-top:10px;"></div>
                 </div>
                 
-                <div id="preApprovalFields" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                <div id="preApprovalFields" class="alert-success">
                     <p style="margin:0 0 10px;"><strong>💰 Pricing (Optional)</strong></p>
                     <p style="margin:0 0 15px;font-size:13px;color:#666;">
                         If customer has already approved pricing, enter it here. Call suppliers for current quotes.
@@ -858,7 +858,7 @@ function buildReceiveDeviceTab(container) {
                     </label>
                 </div>
                 
-                <div id="backJobFields" style="display:none;background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                <div id="backJobFields" class="alert-danger" style="display:none;">
                     <div class="form-group">
                         <label>Assign to Original Technician *</label>
                         <select id="backJobTech" name="backJobTech">
@@ -874,7 +874,7 @@ function buildReceiveDeviceTab(container) {
                     </div>
                 </div>
                 
-                <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #2196f3;">
+                <div class="alert-info" style="margin:15px 0;">
                     <p style="margin:0;"><strong>ℹ️ Workflow:</strong></p>
                     <ol style="margin:5px 0 0 20px;font-size:14px;">
                         <li><strong>With Pricing:</strong> Device marked as approved → Tech accepts → Starts repair</li>
@@ -1239,8 +1239,8 @@ function displayRepairsInContainer(repairs, container) {
                 ` : ''}
                 
                 ${r.partsUsed && Object.keys(r.partsUsed).length > 0 ? `
-                    <details style="margin-top:15px;background:#e8f5e9;padding:10px;border-radius:var(--radius-md);">
-                        <summary style="cursor:pointer;font-weight:600;color:#2e7d32;">🔧 Parts Used</summary>
+                    <details class="alert-success-compact" style="margin-top:15px;">
+                        <summary style="cursor:pointer;font-weight:600;">🔧 Parts Used</summary>
                         <div style="margin-top:10px;">
                             ${Object.values(r.partsUsed).map(part => `
                                 <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:5px;">
@@ -1377,8 +1377,8 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem || r.problemDescription || 'N/A'}</div>
             
             ${r.diagnosisUpdates && r.diagnosisUpdates.length > 0 ? `
-                <details style="margin-top:15px;background:#fff3cd;padding:10px;border-radius:var(--radius-md);border-left:4px solid #ff9800;">
-                    <summary style="cursor:pointer;font-weight:600;color:#e65100;">📝 Diagnosis Updates (${r.diagnosisUpdates.length})</summary>
+                <details class="alert-warning-compact" style="margin-top:15px;">
+                    <summary style="cursor:pointer;font-weight:600;">📝 Diagnosis Updates (${r.diagnosisUpdates.length})</summary>
                     <div style="margin-top:10px;">
                         ${r.diagnosisUpdates.map((update, index) => `
                             <div style="background:white;padding:10px;border-radius:5px;margin-bottom:8px;border-left:3px solid #ff9800;">
@@ -1420,7 +1420,7 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             ` : ''}
             
             ${r.quotedSupplier ? `
-                <div style="margin-top:15px;background:#f5f5f5;padding:12px;border-radius:5px;">
+                <div class="alert-neutral" style="margin-top:15px;padding:12px;">
                     <h4 style="margin:0 0 10px 0;">💰 Parts Pricing</h4>
                     <div style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;font-size:14px;">
                         <strong>Quoted:</strong>
@@ -1465,8 +1465,8 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             ` : ''}
             
             ${r.partsUsed && Object.keys(r.partsUsed).length > 0 ? `
-                <details style="margin-top:15px;background:#e8f5e9;padding:10px;border-radius:var(--radius-md);">
-                    <summary style="cursor:pointer;font-weight:600;color:#2e7d32;">🔧 Parts Used</summary>
+                <details class="alert-success-compact" style="margin-top:15px;">
+                    <summary style="cursor:pointer;font-weight:600;">🔧 Parts Used</summary>
                     <div style="margin-top:10px;">
                         ${Object.values(r.partsUsed).map(part => `
                             <div style="display:flex;justify-content:space-between;padding:8px;background:white;border-radius:4px;margin-bottom:5px;">
@@ -1509,7 +1509,7 @@ function renderRTOSpecificInfo(r) {
     
     return `
         ${r.rtoReason ? `
-            <div style="background:#fff3cd;padding:12px;border-radius:8px;margin:15px 0;border-left:4px solid #ff9800;">
+            <div class="alert-warning-compact" style="margin:15px 0;">
                 <strong>↩️ RTO Reason:</strong> ${r.rtoReason}
                 ${r.rtoNotes ? `<div style="margin-top:8px;font-size:13px;color:#666;"><strong>Notes:</strong> ${r.rtoNotes}</div>` : ''}
             </div>
