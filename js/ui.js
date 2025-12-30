@@ -5728,4 +5728,7 @@ window.toggleAllDeviceCheckboxes = toggleAllDeviceCheckboxes;
 window.updateBulkDeleteButton = updateBulkDeleteButton;
 window.executeBulkDelete = executeBulkDelete;
 
+// Export repair list interaction functions
+window.toggleRepairDetails = toggleRepairDetails;
+
 console.log('✅ ui.js loaded');

@@ -5316,11 +5316,13 @@ async function confirmReleaseDevice() {
                 amount: paymentCollected.amount,
                 method: paymentCollected.method,
                 notes: paymentCollected.notes || ('Payment collected at device release by ' + paymentCollected.collectedBy),
-                recordedAt: paymentCollected.collectedAt,
+                paymentDate: paymentCollected.collectedAt, // When customer paid
+                recordedDate: paymentCollected.collectedAt, // When we recorded it (MUST use recordedDate, not recordedAt)
                 recordedBy: paymentCollected.collectedBy,
                 recordedById: paymentCollected.collectedById,
-                collectedByTech: isTech, // True if tech collected, false if cashier/admin
+                receivedBy: paymentCollected.collectedBy, // Who received the payment
                 receivedById: paymentCollected.collectedById,
+                collectedByTech: isTech, // True if tech collected, false if cashier/admin
                 remittanceStatus: isTech ? 'pending' : 'n/a', // Techs need to remit, cashier/admin don't
                 verified: true, // ALWAYS auto-verified
                 verifiedAt: paymentCollected.collectedAt,
