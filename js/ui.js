@@ -933,7 +933,7 @@ function buildReceiveDeviceTab(container) {
                         <div id="assignToTechWrapper" style="display:none;margin-left:30px;margin-top:8px;">
                             <select id="assignToTech" style="width:100%;">
                                 <option value="">Select technician...</option>
-                                ${window.allUsers.filter(u => u.role === 'technician' && u.status === 'active').map(u => 
+                                ${Object.values(window.allUsers || {}).filter(u => u.role === 'technician' && u.status === 'active').map(u => 
                                     `<option value="${u.uid}">${u.displayName}</option>`
                                 ).join('')}
                             </select>
@@ -2319,7 +2319,7 @@ function buildUsersTab(container) {
     window.currentTabRefresh = () => buildUsersTab(document.getElementById('usersTab'));
     
     // Get all users
-    const users = window.allUsers || [];
+    const users = Object.values(window.allUsers || {});
     const activeUsers = users.filter(u => u.status === 'active');
     const inactiveUsers = users.filter(u => u.status !== 'active');
     
@@ -3931,7 +3931,7 @@ function buildTechnicianLogsTab(container) {
     window.currentTabRefresh = () => buildTechnicianLogsTab(document.getElementById('tech-logsTab'));
     
     // Get all technicians
-    const technicians = (window.allUsers || []).filter(u => u.role === 'technician');
+    const technicians = Object.values(window.allUsers || {}).filter(u => u.role === 'technician');
     
     // Get selected technician from dropdown (or first one)
     const selectedTechId = window.selectedTechForLogs || (technicians.length > 0 ? technicians[0].id : null);

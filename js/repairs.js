@@ -8,7 +8,7 @@ window.allModificationRequests = [];
 // Global activity logs
 window.allActivityLogs = [];
 // Global users list
-window.allUsers = [];
+window.allUsers = {};
 
 /**
  * Load all repairs from Firebase
@@ -162,16 +162,18 @@ async function loadUsers() {
         console.log('📦 Loading users...');
         
         db.ref('users').on('value', (snapshot) => {
-            window.allUsers = [];
+            window.allUsers = {};
             
             snapshot.forEach((child) => {
-                window.allUsers.push({
+                const userData = child.val();
+                window.allUsers[child.key] = {
                     id: child.key,
-                    ...child.val()
-                });
+                    uid: child.key, // Add uid field for consistency
+                    ...userData
+                };
             });
             
-            console.log('✅ Users loaded:', window.allUsers.length);
+            console.log('✅ Users loaded:', Object.keys(window.allUsers).length);
             
             // Refresh users tab if currently viewing
             if (window.currentTabRefresh && window.activeTab === 'users') {
@@ -318,7 +320,7 @@ async function submitReceiveDevice(e) {
                 return;
             }
             
-            const targetTech = window.allUsers.find(u => u.uid === targetTechId);
+            const targetTech = window.allUsers[targetTechId];
             if (!targetTech) {
                 alert('Selected technician not found');
                 return;
@@ -556,7 +558,7 @@ async function openTransferRepairModal(repairId) {
     }
     
     // Get available technicians (exclude current assignee)
-    const availableTechs = window.allUsers.filter(u => 
+    const availableTechs = Object.values(window.allUsers).filter(u => 
         u.role === 'technician' && 
         u.uid !== repair.acceptedBy &&
         u.status === 'active'
@@ -627,7 +629,7 @@ async function submitTransferRepair(e, repairId) {
         return;
     }
     
-    const targetTech = window.allUsers.find(u => u.uid === targetTechId);
+    const targetTech = window.allUsers[targetTechId];
     const repair = window.allRepairs.find(r => r.id === repairId);
     
     if (!targetTech || !repair) {
@@ -6844,7 +6846,7 @@ async function createUser(event) {
  * Open Edit User Modal
  */
 function openEditUserModal(userId) {
-    const user = window.allUsers.find(u => u.id === userId);
+    const user = window.allUsers[userId];
     if (!user) {
         alert('User not found');
         return;
@@ -6926,7 +6928,7 @@ async function updateUser(event) {
     const status = document.getElementById('editUserStatus').value;
     const technicianName = document.getElementById('editUserTechnicianName').value.trim();
     
-    const user = window.allUsers.find(u => u.id === userId);
+    const user = window.allUsers[userId];
     if (!user) {
         alert('User not found');
         return;
@@ -7002,7 +7004,7 @@ async function updateUser(event) {
  * Toggle user status (activate/deactivate)
  */
 async function toggleUserStatus(userId) {
-    const user = window.allUsers.find(u => u.id === userId);
+    const user = window.allUsers[userId];
     if (!user) {
         alert('User not found');
         return;
@@ -7049,7 +7051,7 @@ async function toggleUserStatus(userId) {
  * View user profile (opens existing profile modal)
  */
 function viewUserProfile(userId) {
-    const user = window.allUsers.find(u => u.id === userId);
+    const user = window.allUsers[userId];
     if (!user) {
         alert('User not found');
         return;

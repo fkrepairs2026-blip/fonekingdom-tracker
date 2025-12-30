@@ -80,7 +80,7 @@ async function initializeApp() {
         
         console.log('📦 Loading users...');
         await loadUsers();
-        console.log('✅ Users loaded:', window.allUsers.length);
+        console.log('✅ Users loaded:', Object.keys(window.allUsers).length);
         
         console.log('🔖 Building tabs...');
         buildTabs();
