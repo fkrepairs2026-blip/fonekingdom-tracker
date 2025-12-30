@@ -5014,9 +5014,52 @@ function closeVerifyRemittanceModal() {
 let serviceSlipPhoto = null;
 
 /**
+ * Toggle payment entry section in release modal
+ */
+function toggleReleasePaymentSection() {
+    const checkbox = document.getElementById('customerPaidCheckbox');
+    const section = document.getElementById('releasePaymentSection');
+    const amountField = document.getElementById('releasePaymentAmount');
+    const methodField = document.getElementById('releasePaymentMethod');
+    
+    if (checkbox.checked) {
+        section.style.display = 'block';
+        
+        // Auto-populate remaining balance
+        const repairId = window.currentReleaseRepairId;
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        if (repair) {
+            const totalPaid = (repair.payments || []).reduce((sum, p) => sum + p.amount, 0);
+            const balance = repair.total - totalPaid;
+            
+            if (balance > 0) {
+                amountField.value = balance.toFixed(2);
+                document.getElementById('releaseBalanceInfo').innerHTML = 
+                    `<strong style="color:#2196f3;">Remaining balance: ₱${balance.toFixed(2)}</strong>`;
+            } else {
+                document.getElementById('releaseBalanceInfo').innerHTML = 
+                    `<span style="color:#4caf50;">✓ Fully paid</span>`;
+            }
+        }
+        
+        amountField.required = true;
+        methodField.required = true;
+    } else {
+        section.style.display = 'none';
+        amountField.required = false;
+        methodField.required = false;
+        amountField.value = '';
+        document.getElementById('releaseBalanceInfo').innerHTML = '';
+    }
+}
+
+/**
  * Open Release Device Modal
  */
 function openReleaseDeviceModal(repairId) {
+    // Store repairId globally for payment section
+    window.currentReleaseRepairId = repairId;
+    
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) return;
     
@@ -5058,10 +5101,9 @@ function openReleaseDeviceModal(repairId) {
             <p style="font-size:20px;font-weight:bold;color:#d32f2f;margin:10px 0;">
                 Balance: ₱${balance.toFixed(2)}
             </p>
-            <button onclick="openPaymentModal('${repairId}'); closeReleaseDeviceModal();" 
-                    class="btn-primary" style="margin-top:10px;width:100%;">
-                💰 Record Payment First
-            </button>
+            <p style="font-size:13px;color:#666;margin:10px 0;">
+                💡 You can record payment during release below, or release with outstanding balance for dealers.
+            </p>
         </div>
     `;
     
@@ -5081,6 +5123,16 @@ function openReleaseDeviceModal(repairId) {
     if (photoPreview) {
         photoPreview.src = '';
         photoPreview.style.display = 'none';
+    }
+    
+    // Reset payment checkbox and section
+    const paymentCheckbox = document.getElementById('customerPaidCheckbox');
+    const paymentSection = document.getElementById('releasePaymentSection');
+    if (paymentCheckbox) {
+        paymentCheckbox.checked = false;
+    }
+    if (paymentSection) {
+        paymentSection.style.display = 'none';
     }
     
     // Show modal
@@ -5161,46 +5213,38 @@ async function confirmReleaseDevice() {
         }
     }
     
-    // Check payment status and offer to collect payment at release
+    // Check if payment is being recorded via checkbox
+    const customerPaid = document.getElementById('customerPaidCheckbox').checked;
+    let paymentCollected = null;
+    let paymentAmount = 0;
+    
+    if (customerPaid) {
+        paymentAmount = parseFloat(document.getElementById('releasePaymentAmount').value);
+        const paymentMethod = document.getElementById('releasePaymentMethod').value;
+        const paymentNotes = document.getElementById('releasePaymentNotes').value.trim();
+        
+        // Validate payment amount
+        if (!paymentAmount || paymentAmount <= 0) {
+            alert('⚠️ Please enter a valid payment amount');
+            return;
+        }
+        
+        // Create payment collected object
+        paymentCollected = {
+            amount: paymentAmount,
+            method: paymentMethod,
+            notes: paymentNotes,
+            collectedBy: window.currentUserData.displayName,
+            collectedById: window.currentUser.uid,
+            collectedByRole: window.currentUserData.role,
+            collectedAt: new Date().toISOString()
+        };
+    }
+    
+    // Calculate balance for tracking
     const totalPaidBefore = (repair.payments || []).filter(p => p.verified)
         .reduce((sum, p) => sum + p.amount, 0);
     const balanceBefore = repair.total - totalPaidBefore;
-    let paymentCollected = null;
-    
-    if (balanceBefore > 0) {
-        const collectPayment = confirm(
-            `💰 Outstanding Balance: ₱${balanceBefore.toFixed(2)}\n\n` +
-            `Total: ₱${repair.total.toFixed(2)}\n` +
-            `Paid: ₱${totalPaidBefore.toFixed(2)}\n` +
-            `Balance: ₱${balanceBefore.toFixed(2)}\n\n` +
-            `Collect payment now during release?`
-        );
-        
-        if (collectPayment) {
-            const amountStr = prompt(`Enter amount to collect (Balance: ₱${balanceBefore.toFixed(2)}):`, balanceBefore.toFixed(2));
-            if (amountStr) {
-                const amount = parseFloat(amountStr);
-                if (isNaN(amount) || amount <= 0) {
-                    alert('Invalid amount entered. Proceeding without payment collection.');
-                } else if (amount > balanceBefore) {
-                    alert('⚠️ Amount exceeds balance! Proceeding without payment collection.');
-                } else {
-                    const method = prompt('Payment method:\n1 = Cash\n2 = GCash\n3 = Bank Transfer\n4 = PayMaya', '1');
-                    const methodMap = {'1': 'Cash', '2': 'GCash', '3': 'Bank Transfer', '4': 'PayMaya'};
-                    const paymentMethod = methodMap[method] || 'Cash';
-                    
-                    paymentCollected = {
-                        amount: amount,
-                        method: paymentMethod,
-                        collectedBy: window.currentUserData.displayName,
-                        collectedById: window.currentUser.uid,
-                        collectedByRole: window.currentUserData.role,
-                        collectedAt: new Date().toISOString()
-                    };
-                }
-            }
-        }
-    }
     
     // Build release data
     const releaseData = {
@@ -5263,21 +5307,25 @@ async function confirmReleaseDevice() {
         // If payment was collected during release, save it
         if (paymentCollected) {
             const role = window.currentUserData.role;
+            const isTech = role === 'technician';
+            
+            // Create payment object
+            // NOTE: Payments are ALWAYS auto-verified when recorded
+            // Verification happens at the REMITTANCE level (when tech hands cash to cashier/admin)
             const payment = {
                 amount: paymentCollected.amount,
                 method: paymentCollected.method,
-                paymentDate: paymentCollected.collectedAt,
-                recordedDate: paymentCollected.collectedAt,
-                receivedBy: paymentCollected.collectedBy,
+                notes: paymentCollected.notes || ('Payment collected at device release by ' + paymentCollected.collectedBy),
+                recordedAt: paymentCollected.collectedAt,
+                recordedBy: paymentCollected.collectedBy,
+                recordedById: paymentCollected.collectedById,
+                collectedByTech: isTech, // True if tech collected, false if cashier/admin
                 receivedById: paymentCollected.collectedById,
-                notes: 'Payment collected at device release by ' + paymentCollected.collectedBy,
-                // Auto-verify for cashier/admin/manager
-                verified: ['admin', 'manager', 'cashier'].includes(role),
-                verificationDate: ['admin', 'manager', 'cashier'].includes(role) ? paymentCollected.collectedAt : null,
-                verifiedBy: ['admin', 'manager', 'cashier'].includes(role) ? paymentCollected.collectedBy : null,
-                // Technician payments need remittance
-                collectedByTech: role === 'technician',
-                remittanceStatus: role === 'technician' ? 'pending' : 'verified'
+                remittanceStatus: isTech ? 'pending' : 'n/a', // Techs need to remit, cashier/admin don't
+                verified: true, // ALWAYS auto-verified
+                verifiedAt: paymentCollected.collectedAt,
+                verifiedBy: paymentCollected.collectedBy,
+                verifiedById: paymentCollected.collectedById
             };
             
             const existingPayments = repair.payments || [];
@@ -7614,6 +7662,7 @@ function closeUpdateDiagnosisModal() {
 window.openReleaseDeviceModal = openReleaseDeviceModal;
 window.toggleVerificationMethod = toggleVerificationMethod;
 window.uploadServiceSlipPhoto = uploadServiceSlipPhoto;
+window.toggleReleasePaymentSection = toggleReleasePaymentSection;
 window.confirmReleaseDevice = confirmReleaseDevice;
 window.closeReleaseDeviceModal = closeReleaseDeviceModal;
 // Edit details and update diagnosis exports
