@@ -5102,35 +5102,35 @@ function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
         </div>
         
         <div class="remittance-summary-section">
-            <h4>📥 Payments Collected (${remittance.paymentsList.length})</h4>
+            <h4>📥 Payments Collected (${(remittance.paymentsList || []).length})</h4>
             <div class="remittance-list">
-                ${remittance.paymentsList.map(p => `
+                ${(remittance.paymentsList || []).length > 0 ? (remittance.paymentsList || []).map(p => `
                     <div class="remittance-item">
                         <span>${p.customerName}</span>
                         <span>₱${p.amount.toFixed(2)}</span>
                     </div>
-                `).join('')}
+                `).join('') : '<p style="color:#999;">No payment details available</p>'}
             </div>
-            <div class="remittance-total">Total: ₱${remittance.totalPaymentsCollected.toFixed(2)}</div>
+            <div class="remittance-total">Total: ₱${(remittance.totalPaymentsCollected || 0).toFixed(2)}</div>
         </div>
         
         <div class="remittance-summary-section">
-            <h4>💸 Expenses (${remittance.expensesList.length})</h4>
+            <h4>💸 Expenses (${(remittance.expensesList || []).length})</h4>
             <div class="remittance-list">
-                ${remittance.expensesList.length > 0 ? remittance.expensesList.map(e => `
+                ${(remittance.expensesList || []).length > 0 ? (remittance.expensesList || []).map(e => `
                     <div class="remittance-item">
                         <span>${e.description}</span>
                         <span>-₱${e.amount.toFixed(2)}</span>
                     </div>
                 `).join('') : '<p style="color:#999;">No expenses</p>'}
             </div>
-            <div class="remittance-total">Total: -₱${remittance.totalExpenses.toFixed(2)}</div>
+            <div class="remittance-total">Total: -₱${(remittance.totalExpenses || 0).toFixed(2)}</div>
         </div>
         
         <div class="remittance-calculation">
             <div class="calc-row">
                 <span>Expected Amount:</span>
-                <strong>₱${remittance.expectedAmount.toFixed(2)}</strong>
+                <strong>₱${(remittance.expectedAmount || remittance.actualAmount || 0).toFixed(2)}</strong>
             </div>
             <div class="calc-row">
                 <span>Actual Amount Remitted:</span>
@@ -5146,7 +5146,7 @@ function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
         </div>
         
         ${hasDiscrepancy ? `
-            <div class="discrepancy-warning ${Math.abs(discrepancy) > remittance.expectedAmount * 0.05 ? 'discrepancy-danger' : ''}">
+            <div class="discrepancy-warning ${Math.abs(discrepancy) > (remittance.expectedAmount || remittance.actualAmount || 0) * 0.05 ? 'discrepancy-danger' : ''}">
                 <strong>⚠️ Technician's Note:</strong>
                 <p>${remittance.discrepancyReason || 'No explanation provided'}</p>
             </div>
@@ -5191,7 +5191,7 @@ async function approveRemittance() {
         
         // Update all linked payments to verified
         const updatePromises = [];
-        remittance.paymentIds.forEach(paymentId => {
+        (remittance.paymentIds || []).forEach(paymentId => {
             const [repairId, paymentIndex] = paymentId.split('_');
             const repair = window.allRepairs.find(r => r.id === repairId);
             if (repair && repair.payments && repair.payments[paymentIndex]) {
@@ -5258,7 +5258,7 @@ async function rejectRemittance() {
         // Reset payment remittance status back to pending
         const remittance = window.techRemittances.find(r => r.id === remittanceId);
         const updatePromises = [];
-        remittance.paymentIds.forEach(paymentId => {
+        (remittance.paymentIds || []).forEach(paymentId => {
             const [repairId, paymentIndex] = paymentId.split('_');
             const repair = window.allRepairs.find(r => r.id === repairId);
             if (repair && repair.payments && repair.payments[paymentIndex]) {
@@ -5275,7 +5275,7 @@ async function rejectRemittance() {
         });
         
         // Reset expense remittance IDs
-        remittance.expenseIds.forEach(expenseId => {
+        (remittance.expenseIds || []).forEach(expenseId => {
             updatePromises.push(
                 db.ref(`techExpenses/${expenseId}`).update({ remittanceId: null })
             );
