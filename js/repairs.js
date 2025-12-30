@@ -4246,30 +4246,41 @@ function getTechCommissionEligibleRepairs(techId, date) {
     const eligibleRepairs = [];
     
     window.allRepairs.forEach(repair => {
-        // Check if repair has payments on this date
-        let hasPaymentToday = false;
-        
-        if (repair.payments) {
-            repair.payments.forEach(payment => {
-                const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toDateString();
-                if (paymentDate === targetDate && payment.verified) {
-                    hasPaymentToday = true;
-                }
-            });
+        // Check if commission already claimed
+        if (repair.commissionClaimedBy) {
+            return; // Skip - already claimed in a remittance
         }
         
-        // If payment made today and repair is now fully paid, check commission
-        if (hasPaymentToday) {
+        // Find the LAST verified payment that made this repair fully paid
+        let lastVerifiedPaymentDate = null;
+        let runningTotal = 0;
+        const repairTotal = repair.total || 0;
+        
+        if (repair.payments) {
+            // Sort payments by verification date
+            const sortedPayments = [...repair.payments]
+                .filter(p => p.verified)
+                .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
+            
+            for (const payment of sortedPayments) {
+                runningTotal += payment.amount;
+                if (runningTotal >= repairTotal) {
+                    // This payment made it fully paid
+                    lastVerifiedPaymentDate = new Date(payment.verifiedAt || payment.recordedDate).toDateString();
+                    break;
+                }
+            }
+        }
+        
+        // Only include commission on the date it became fully paid
+        if (lastVerifiedPaymentDate === targetDate) {
             const commission = calculateRepairCommission(repair, techId);
             
             if (commission.eligible && commission.amount > 0) {
-                // Check if not already claimed
-                if (!repair.commissionClaimedBy) {
-                    eligibleRepairs.push({
-                        repair: repair,
-                        commission: commission
-                    });
-                }
+                eligibleRepairs.push({
+                    repair: repair,
+                    commission: commission
+                });
             }
         }
     });
@@ -4485,6 +4496,23 @@ function openRemittanceModal() {
     document.getElementById('remittanceSummary').innerHTML = summary;
     document.getElementById('actualRemittanceAmount').value = expectedAmount.toFixed(2);
     document.getElementById('remittanceNotes').value = '';
+    
+    // Populate recipient dropdown
+    const recipientSelect = document.getElementById('remittanceRecipient');
+    recipientSelect.innerHTML = '<option value="">-- Select who will receive the cash --</option>';
+    
+    // Get list of available cashiers, managers, and admins (excluding current user)
+    const recipients = Object.values(window.allUsers || {})
+        .filter(u => ['admin', 'manager', 'cashier'].includes(u.role) && u.uid !== window.currentUser.uid)
+        .sort((a, b) => a.displayName.localeCompare(b.displayName));
+    
+    recipients.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.uid;
+        option.textContent = `${user.displayName} (${user.role})`;
+        recipientSelect.appendChild(option);
+    });
+    
     document.getElementById('remittanceModal').style.display = 'block';
 }
 
@@ -4496,6 +4524,25 @@ async function confirmRemittance() {
     const today = new Date();
     const actualAmount = parseFloat(document.getElementById('actualRemittanceAmount').value);
     const notes = document.getElementById('remittanceNotes').value.trim();
+    const recipientId = document.getElementById('remittanceRecipient').value;
+    
+    // Validate recipient selection
+    if (!recipientId) {
+        alert('⚠️ Please select who you are giving this money to');
+        return;
+    }
+    
+    const recipient = window.allUsers[recipientId];
+    if (!recipient) {
+        alert('⚠️ Selected recipient not found');
+        return;
+    }
+    
+    // Validate recipient role
+    if (!['admin', 'manager', 'cashier'].includes(recipient.role)) {
+        alert('⚠️ Invalid recipient role. Must be admin, manager, or cashier.');
+        return;
+    }
     
     // Get manual override fields
     const hasManualOverride = document.getElementById('hasManualCommission').checked;
@@ -4553,6 +4600,10 @@ async function confirmRemittance() {
             techId: techId,
             techName: window.currentUserData.displayName,
             date: today.toISOString(),
+            // Recipient tracking
+            submittedTo: recipientId,
+            submittedToName: recipient.displayName,
+            submittedToRole: recipient.role,
             // Payments
             paymentIds: payments.map(p => `${p.repairId}_${p.paymentIndex}`),
             totalPaymentsCollected: paymentsTotal,
@@ -4636,19 +4687,21 @@ async function confirmRemittance() {
         // Log remittance submission
         await logActivity('remittance_submitted', {
             remittanceId: remittanceId,
+            submittedBy: window.currentUserData.displayName,
+            submittedTo: recipient.displayName,
             paymentsCollected: paymentsTotal,
             expenses: expensesTotal,
             expectedAmount: expectedAmount,
             actualAmount: actualAmount,
             discrepancy: discrepancy
-        }, `${window.currentUserData.displayName} submitted remittance: ₱${actualAmount.toFixed(2)}${Math.abs(discrepancy) > 0.01 ? ` (discrepancy: ₱${discrepancy.toFixed(2)})` : ''}`);
+        }, `${window.currentUserData.displayName} submitted remittance of ₱${actualAmount.toFixed(2)} to ${recipient.displayName}${Math.abs(discrepancy) > 0.01 ? ` (discrepancy: ₱${discrepancy.toFixed(2)})` : ''}`);
         
         // Reload data
         await loadTechRemittances();
         await loadTechExpenses();
         
         utils.showLoading(false);
-        alert(`✅ Remittance submitted!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n\nWaiting for cashier/admin verification.`);
+        alert(`✅ Remittance submitted!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n👤 Submitted to: ${recipient.displayName}\n\nWaiting for ${recipient.displayName} to verify receipt.`);
         closeRemittanceModal();
         
         setTimeout(() => {
@@ -4670,16 +4723,39 @@ function closeRemittanceModal() {
 /**
  * Open Remittance Verification Modal
  */
-function openVerifyRemittanceModal(remittanceId) {
+function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
     const remittance = window.techRemittances.find(r => r.id === remittanceId);
     if (!remittance) return;
     
+    const currentUserId = window.currentUser.uid;
+    const isAdmin = window.currentUserData.role === 'admin';
+    
+    // Check if current user is the intended recipient
+    const isIntendedRecipient = remittance.submittedTo === currentUserId;
+    
+    if (!isIntendedRecipient && !isAdmin) {
+        alert('⚠️ This remittance was submitted to ' + remittance.submittedToName + ', not you.\n\nOnly they (or an admin) can verify it.');
+        return;
+    }
+    
+    const showOverrideWarning = isAdminOverride && !isIntendedRecipient;
     const discrepancy = remittance.discrepancy;
     const hasDiscrepancy = Math.abs(discrepancy) > 0.01;
     
     let details = `
+        ${showOverrideWarning ? `
+            <div style="background:#ffebee;padding:15px;border-radius:8px;border-left:3px solid #f44336;margin-bottom:15px;">
+                <strong style="color:#d32f2f;">⚠️ ADMIN OVERRIDE</strong><br>
+                This remittance was submitted to <strong>${remittance.submittedToName}</strong>, not you.<br>
+                You are verifying on their behalf.
+            </div>
+        ` : ''}
+        
         <div class="remittance-verify-header">
             <h4>Technician: ${remittance.techName}</h4>
+            ${remittance.submittedTo ? `
+                <p><strong>Submitted To:</strong> ${remittance.submittedToName} ${isIntendedRecipient ? '(You)' : ''}</p>
+            ` : ''}
             <p>Date: ${utils.formatDate(remittance.date)}</p>
             <p>Submitted: ${utils.formatDateTime(remittance.submittedAt)}</p>
         </div>
@@ -6649,6 +6725,307 @@ window.openVerifyRemittanceModal = openVerifyRemittanceModal;
 window.approveRemittance = approveRemittance;
 window.rejectRemittance = rejectRemittance;
 window.closeVerifyRemittanceModal = closeVerifyRemittanceModal;
+
+/**
+ * ============================================
+ * DEBUG FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * DEBUG: Dump payment details for a repair
+ * Usage: window.debugPaymentStatus('repairId')
+ */
+function debugPaymentStatus(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        console.error('Repair not found:', repairId);
+        return;
+    }
+    
+    console.log('=== PAYMENT DEBUG ===');
+    console.log('Repair ID:', repairId);
+    console.log('Customer:', repair.customerName);
+    console.log('Device:', repair.brand, repair.model);
+    console.log('Total:', repair.total);
+    console.log('Assigned Technician:', repair.acceptedByName, `(${repair.acceptedBy})`);
+    console.log('Status:', repair.status);
+    console.log('\nPAYMENTS:');
+    
+    if (!repair.payments || repair.payments.length === 0) {
+        console.log('  No payments recorded');
+        return;
+    }
+    
+    let totalPaid = 0;
+    repair.payments.forEach((p, i) => {
+        console.log(`\n  Payment #${i}:`);
+        console.log('    Amount:', p.amount);
+        console.log('    Method:', p.method);
+        console.log('    Payment Date:', p.paymentDate || p.recordedDate);
+        console.log('    Recorded By:', p.receivedBy, `(${p.receivedById})`);
+        console.log('    Verified:', p.verified ? `Yes - by ${p.verifiedBy} at ${p.verifiedAt}` : 'No');
+        console.log('    Collected by Tech:', p.collectedByTech || false);
+        console.log('    Remittance Status:', p.remittanceStatus || 'N/A');
+        console.log('    Remittance ID:', p.techRemittanceId || 'None');
+        if (p.verified) {
+            totalPaid += p.amount;
+        }
+    });
+    
+    console.log('\n  TOTAL VERIFIED:', totalPaid);
+    console.log('  BALANCE:', repair.total - totalPaid);
+    console.log('  FULLY PAID:', totalPaid >= repair.total);
+    
+    // Commission info
+    console.log('\nCOMMISSION INFO:');
+    console.log('  Claimed By:', repair.commissionClaimedBy || 'Not claimed');
+    console.log('  Claimed At:', repair.commissionClaimedAt || 'N/A');
+    console.log('  Remittance ID:', repair.commissionRemittanceId || 'N/A');
+    
+    return {
+        repair: repair,
+        summary: {
+            total: repair.total,
+            paid: totalPaid,
+            balance: repair.total - totalPaid,
+            fullyPaid: totalPaid >= repair.total,
+            commissionClaimed: !!repair.commissionClaimedBy
+        }
+    };
+}
+
+/**
+ * DEBUG: Show tech's daily remittance breakdown
+ * Usage: window.debugDailyRemittance('2025-12-30')
+ */
+function debugDailyRemittance(dateString = null) {
+    const techId = window.currentUser.uid;
+    const date = dateString ? new Date(dateString) : new Date();
+    const dateStr = date.toDateString();
+    
+    console.log('=== DAILY REMITTANCE DEBUG ===');
+    console.log('Date:', dateStr);
+    console.log('Technician:', window.currentUserData.displayName, `(${techId})`);
+    
+    // Payments
+    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, date);
+    console.log('\nPAYMENTS COLLECTED:');
+    console.log('  Count:', payments.length);
+    console.log('  Total:', paymentsTotal);
+    payments.forEach(p => {
+        console.log(`  - ${p.customerName}: ₱${p.amount} (${p.method}) [${p.recordedDate}]`);
+    });
+    
+    // Commission
+    const { breakdown, total: commissionTotal } = getTechDailyCommission(techId, date);
+    console.log('\nCOMMISSION:');
+    console.log('  Count:', breakdown.length);
+    console.log('  Total:', commissionTotal);
+    breakdown.forEach(c => {
+        console.log(`  - ${c.customerName}: ₱${c.commission} (Repair: ₱${c.repairTotal}, Parts: ₱${c.partsCost})`);
+    });
+    
+    // Expenses
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, date);
+    console.log('\nEXPENSES:');
+    console.log('  Count:', expenses.length);
+    console.log('  Total:', expensesTotal);
+    expenses.forEach(e => {
+        console.log(`  - ${e.description}: ₱${e.amount} (${e.category})`);
+    });
+    
+    // Summary
+    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
+    console.log('\nSUMMARY:');
+    console.log('  Payments:', paymentsTotal);
+    console.log('  Commission:', commissionTotal);
+    console.log('  Expenses:', expensesTotal);
+    console.log('  AMOUNT TO REMIT:', expectedAmount);
+    
+    // Check for submitted remittance
+    const remittance = window.techRemittances.find(r => {
+        const remDate = new Date(r.date).toDateString();
+        return r.techId === techId && remDate === dateStr;
+    });
+    
+    if (remittance) {
+        console.log('\nREMITTANCE SUBMITTED:');
+        console.log('  Submitted At:', remittance.submittedAt);
+        console.log('  Submitted To:', remittance.submittedToName || 'N/A');
+        console.log('  Actual Amount:', remittance.actualAmount);
+        console.log('  Status:', remittance.status);
+        console.log('  Verified By:', remittance.verifiedBy || 'Not verified');
+    } else {
+        console.log('\nNo remittance submitted for this date');
+    }
+    
+    return {
+        date: dateStr,
+        payments: { items: payments, total: paymentsTotal },
+        commission: { items: breakdown, total: commissionTotal },
+        expenses: { items: expenses, total: expensesTotal },
+        expectedAmount: expectedAmount,
+        remittance: remittance || null
+    };
+}
+
+/**
+ * DEBUG: Find all repairs with commission issues
+ */
+function debugCommissionIssues() {
+    console.log('=== COMMISSION ISSUES DEBUG ===');
+    const issues = [];
+    
+    window.allRepairs.forEach(repair => {
+        // Check for fully paid repairs without commission marked
+        if (repair.payments && repair.payments.length > 0) {
+            const totalPaid = repair.payments.filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+            const fullyPaid = totalPaid >= (repair.total || 0);
+            
+            if (fullyPaid && repair.acceptedBy && repair.status === 'Claimed') {
+                const hasClaimed = !!repair.commissionClaimedBy;
+                const hasEligibleFlag = repair.commissionEligible;
+                
+                // Find what date it became fully paid
+                let lastPaymentDate = null;
+                let runningTotal = 0;
+                const sortedPayments = [...repair.payments]
+                    .filter(p => p.verified)
+                    .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
+                
+                for (const p of sortedPayments) {
+                    runningTotal += p.amount;
+                    if (runningTotal >= repair.total) {
+                        lastPaymentDate = p.verifiedAt || p.recordedDate;
+                        break;
+                    }
+                }
+                
+                issues.push({
+                    repairId: repair.id,
+                    customer: repair.customerName,
+                    total: repair.total,
+                    paid: totalPaid,
+                    technician: repair.acceptedByName,
+                    fullyPaidDate: lastPaymentDate,
+                    commissionClaimed: hasClaimed,
+                    claimedBy: repair.commissionClaimedBy,
+                    claimedAt: repair.commissionClaimedAt,
+                    remittanceId: repair.commissionRemittanceId
+                });
+            }
+        }
+    });
+    
+    console.log(`Found ${issues.length} fully paid repairs with commission status:`);
+    console.table(issues);
+    
+    return issues;
+}
+
+// Export debug functions
+window.debugPaymentStatus = debugPaymentStatus;
+window.debugDailyRemittance = debugDailyRemittance;
+window.debugCommissionIssues = debugCommissionIssues;
+
+/**
+ * ADMIN: Recalculate commission claims for data audit
+ */
+async function adminRecalculateCommissions() {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    if (!confirm('Analyze commission tracking for all repairs?\n\nThis will scan all claimed repairs and check if commission tracking is correct.')) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        const issues = [];
+        const warnings = [];
+        
+        // Analyze all claimed repairs
+        window.allRepairs.forEach(repair => {
+            if (repair.status === 'Claimed' && repair.payments && repair.acceptedBy) {
+                const totalPaid = repair.payments.filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+                const fullyPaid = totalPaid >= repair.total;
+                
+                if (fullyPaid) {
+                    // Should have commission claimed
+                    if (!repair.commissionClaimedBy) {
+                        // Find when it became fully paid
+                        let fullyPaidDate = null;
+                        let runningTotal = 0;
+                        const sortedPayments = [...repair.payments]
+                            .filter(p => p.verified)
+                            .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
+                        
+                        for (const p of sortedPayments) {
+                            runningTotal += p.amount;
+                            if (runningTotal >= repair.total) {
+                                fullyPaidDate = p.verifiedAt || p.recordedDate;
+                                break;
+                            }
+                        }
+                        
+                        issues.push({
+                            id: repair.id,
+                            customer: repair.customerName,
+                            tech: repair.acceptedByName,
+                            total: repair.total,
+                            fullyPaidDate: fullyPaidDate,
+                            issue: 'Fully paid but commission not claimed'
+                        });
+                    } else {
+                        // Has commission claimed - verify data
+                        warnings.push({
+                            id: repair.id,
+                            customer: repair.customerName,
+                            tech: repair.acceptedByName,
+                            claimedBy: repair.commissionClaimedBy,
+                            claimedAt: repair.commissionClaimedAt,
+                            remittanceId: repair.commissionRemittanceId
+                        });
+                    }
+                }
+            }
+        });
+        
+        utils.showLoading(false);
+        
+        console.log('=== COMMISSION AUDIT RESULTS ===');
+        console.log(`\nISSUES (${issues.length}):`);
+        if (issues.length > 0) {
+            console.table(issues);
+        } else {
+            console.log('✅ No issues found');
+        }
+        
+        console.log(`\nCOMMISSIONS CLAIMED (${warnings.length}):`);
+        if (warnings.length > 0) {
+            console.table(warnings);
+        }
+        
+        if (issues.length === 0) {
+            alert(`✅ Commission Audit Complete!\n\nNo tracking issues found.\n\n${warnings.length} commissions properly tracked.\n\nSee console for details.`);
+        } else {
+            alert(`⚠️ Commission Audit Complete!\n\nFound ${issues.length} potential tracking issue(s):\n• Fully paid repairs without claimed commission\n\nSee console for detailed report.`);
+        }
+        
+        return { issues, tracked: warnings };
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error during audit:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// Export admin function
+window.adminRecalculateCommissions = adminRecalculateCommissions;
+
 /**
  * ============================================
  * EDIT RECEIVED DETAILS FUNCTIONS

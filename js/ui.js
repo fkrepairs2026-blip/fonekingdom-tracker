@@ -3137,9 +3137,46 @@ function buildClaimedUnitsPage(container) {
     }, 0);
 }
 
+/**
+ * Change remittance view date
+ */
+function changeRemittanceDate(dateOrAction) {
+    let newDate;
+    
+    if (dateOrAction === null) {
+        // Go to today
+        newDate = null;
+    } else if (dateOrAction === 'prev') {
+        // Previous day
+        const current = window.selectedRemittanceDate ? new Date(window.selectedRemittanceDate) : new Date();
+        current.setDate(current.getDate() - 1);
+        newDate = current.toISOString().split('T')[0];
+    } else if (dateOrAction === 'next') {
+        // Next day
+        const current = window.selectedRemittanceDate ? new Date(window.selectedRemittanceDate) : new Date();
+        current.setDate(current.getDate() + 1);
+        const today = new Date().toISOString().split('T')[0];
+        const next = current.toISOString().split('T')[0];
+        if (next > today) {
+            return; // Don't go beyond today
+        }
+        newDate = next;
+    } else {
+        // Specific date from picker
+        newDate = dateOrAction;
+    }
+    
+    // Rebuild tab with selected date
+    const container = document.getElementById('remittanceTab');
+    if (container) {
+        buildDailyRemittanceTab(container, newDate);
+    }
+}
+
 // Export to global scope
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
+window.changeRemittanceDate = changeRemittanceDate;
 window.buildReceivedDevicesPage = buildReceivedDevicesPage;
 window.buildInProgressPage = buildInProgressPage;
 window.buildForReleasePage = buildForReleasePage;
@@ -3176,25 +3213,66 @@ window.handleProblemTypeChange = handleProblemTypeChange;
 /**
  * Build Daily Remittance Tab (Technician)
  */
-function buildDailyRemittanceTab(container) {
+function buildDailyRemittanceTab(container, selectedDate = null) {
     console.log('💸 Building Daily Remittance tab');
-    window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'));
     
     const techId = window.currentUser.uid;
     const today = new Date();
-    const todayStr = today.toDateString();
     
-    // Get today's data
-    const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, today);
-    const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, today);
-    const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, today);
+    // Use selected date or default to today
+    const viewDate = selectedDate ? new Date(selectedDate) : today;
+    window.selectedRemittanceDate = selectedDate; // Store for refresh
+    
+    const isToday = viewDate.toDateString() === today.toDateString();
+    const viewDateString = viewDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    const todayStr = viewDate.toDateString();
+    
+    // Update refresh to use selected date
+    window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'), window.selectedRemittanceDate);
+    
+    // Get data for selected date
+    const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, viewDate);
+    const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, viewDate);
+    const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, viewDate);
     const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
     
-    // Check if already submitted today
-    const todayRemittance = window.techRemittances.find(r => {
+    // Check if already submitted for this date
+    const dateRemittance = window.techRemittances.find(r => {
         const remDate = new Date(r.date).toDateString();
         return r.techId === techId && remDate === todayStr;
     });
+    
+    // NEW: Check for ANY historical pending items
+    let hasHistoricalPending = false;
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach(payment => {
+                if (payment.collectedByTech && 
+                    payment.receivedById === techId && 
+                    payment.remittanceStatus === 'pending' &&
+                    !payment.techRemittanceId) {
+                    hasHistoricalPending = true;
+                }
+            });
+        }
+    });
+    
+    // Check for unclaimed commissions
+    let hasUnclaimedCommission = false;
+    window.allRepairs.forEach(repair => {
+        if (repair.acceptedBy === techId && 
+            repair.status === 'Claimed' && 
+            !repair.commissionClaimedBy) {
+            const totalPaid = (repair.payments || [])
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + p.amount, 0);
+            if (totalPaid >= repair.total) {
+                hasUnclaimedCommission = true;
+            }
+        }
+    });
+    
+    const hasPendingItems = payments.length > 0 || expenses.length > 0 || commissionBreakdown.length > 0;
     
     // Get recent remittances
     const recentRemittances = window.techRemittances
@@ -3208,48 +3286,111 @@ function buildDailyRemittanceTab(container) {
             <p>Track your collected payments, commission earned, and expenses</p>
         </div>
         
+        <!-- Date Selector -->
+        <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin:20px 0;border-left:4px solid #2196f3;">
+            <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:200px;">
+                    <label style="display:block;font-weight:600;margin-bottom:5px;">📅 Select Date:</label>
+                    <input type="date" 
+                           id="remittanceDatePicker" 
+                           value="${viewDateString}"
+                           max="${today.toISOString().split('T')[0]}"
+                           onchange="window.changeRemittanceDate(this.value)"
+                           style="padding:8px;border:1px solid #ddd;border-radius:5px;width:100%;max-width:200px;">
+                </div>
+                <div style="display:flex;gap:10px;">
+                    ${!isToday ? `
+                        <button onclick="window.changeRemittanceDate(null)" class="btn-primary" style="padding:8px 15px;">
+                            📅 Today
+                        </button>
+                    ` : ''}
+                    <button onclick="window.changeRemittanceDate('prev')" class="btn-secondary" style="padding:8px 15px;">
+                        ◀ Previous Day
+                    </button>
+                    <button onclick="window.changeRemittanceDate('next')" class="btn-secondary" style="padding:8px 15px;"
+                            ${isToday ? 'disabled' : ''}>
+                        Next Day ▶
+                    </button>
+                </div>
+            </div>
+            ${!isToday ? `
+                <div style="margin-top:10px;padding:10px;background:#fff3cd;border-radius:5px;font-size:13px;">
+                    ℹ️ Viewing historical data for <strong>${utils.formatDate(viewDate)}</strong>
+                    ${dateRemittance ? 
+                        `<br>✅ Remittance was submitted on this date (${dateRemittance.status})` : 
+                        `<br>⚠️ No remittance was submitted for this date`
+                    }
+                </div>
+            ` : ''}
+        </div>
+        
         <!-- Today's Summary -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
             <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
                 <h3>₱${paymentsTotal.toFixed(2)}</h3>
                 <p>💰 Payments Collected</p>
-                <small>${payments.length} payment(s) today</small>
+                <small>${payments.length} payment(s) on ${isToday ? 'today' : utils.formatDate(viewDate)}</small>
             </div>
             <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
                 <h3>₱${commissionTotal.toFixed(2)}</h3>
                 <p>🎯 Your Commission (40%)</p>
-                <small>${commissionBreakdown.length} fully-paid repair(s)</small>
+                <small>${commissionBreakdown.length} eligible repair(s)</small>
             </div>
             <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
                 <h3>₱${expensesTotal.toFixed(2)}</h3>
-                <p>💸 Other Expenses</p>
-                <small>${expenses.length} expense(s) today</small>
+                <p>💸 Expenses</p>
+                <small>${expenses.length} expense(s)</small>
             </div>
             <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
                 <h3>₱${expectedAmount.toFixed(2)}</h3>
-                <p>💵 Amount to Remit</p>
+                <p>💵 ${isToday ? 'Amount to Remit' : 'Net Amount'}</p>
                 <small>Payments - Commission - Expenses</small>
             </div>
         </div>
         
-        <!-- Quick Actions -->
-        <div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap;">
-            <button onclick="openExpenseModal()" class="btn-primary">
-                ➕ Record General Expense
-            </button>
-            ${(payments.length > 0 || expenses.length > 0) && !todayRemittance ? `
-                <button onclick="openRemittanceModal()" class="btn-success">
-                    📤 Submit Today's Remittance
+        <!-- Quick Actions (only on today view) -->
+        ${isToday ? `
+            <div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap;">
+                <button onclick="openExpenseModal()" class="btn-primary">
+                    ➕ Record General Expense
                 </button>
+                ${(hasPendingItems || hasHistoricalPending || hasUnclaimedCommission) && !dateRemittance ? `
+                    <button onclick="openRemittanceModal()" class="btn-success">
+                        📤 Submit Remittance
+                    </button>
+                ` : ''}
+            </div>
+            
+            ${(hasHistoricalPending || hasUnclaimedCommission) && !dateRemittance ? `
+                <div style="background:#fff3cd;padding:15px;border-radius:8px;border-left:4px solid #ff9800;margin:20px 0;">
+                    <strong>⚠️ You have pending items to remit:</strong><br>
+                    ${hasHistoricalPending ? '• Pending payments from previous dates<br>' : ''}
+                    ${hasUnclaimedCommission ? '• Unclaimed commission from completed repairs<br>' : ''}
+                    <small style="color:#666;">Click "Submit Remittance" above to process these items.</small>
+                </div>
             ` : ''}
-            ${payments.length === 0 && expenses.length > 0 && !todayRemittance ? `
-                <p style="color:#ff9800;font-size:13px;margin:10px 0;">
-                    ⚠️ Note: You can submit expense-only remittance (negative amount)
-                </p>
+            
+            ${!hasPendingItems && !hasHistoricalPending && !hasUnclaimedCommission && !dateRemittance ? `
+                <div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4caf50;margin:20px 0;">
+                    ✅ <strong>All clear!</strong> No pending payments or commissions to remit today.
+                </div>
             ` : ''}
-        </div>
+        ` : `
+            <!-- Historical view message -->
+            <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin:20px 0;border-left:4px solid #2196f3;">
+                ℹ️ <strong>Historical View</strong><br>
+                You are viewing data from ${utils.formatDate(viewDate)}. 
+                ${dateRemittance ? 
+                    `This date's remittance was ${dateRemittance.status} (₱${dateRemittance.actualAmount.toFixed(2)})` :
+                    `No remittance was submitted for this date.`
+                }
+                <br><button onclick="window.changeRemittanceDate(null)" class="btn-primary" style="margin-top:10px;">
+                    Return to Today
+                </button>
+            </div>
+        `}
         
-        ${todayRemittance ? `
+        ${dateRemittance ? `
             <div class="remittance-card" style="background:#${todayRemittance.status === 'approved' ? 'e8f5e9' : (todayRemittance.status === 'rejected' ? 'ffebee' : 'fff3e0')};border-left:4px solid #${todayRemittance.status === 'approved' ? '4caf50' : (todayRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};padding:20px;border-radius:10px;margin:20px 0;">
                 <h4>Today's Remittance Status</h4>
                 <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0;">
@@ -3368,9 +3509,22 @@ function buildRemittanceVerificationTab(container) {
     console.log('✅ Building Remittance Verification tab');
     window.currentTabRefresh = () => buildRemittanceVerificationTab(document.getElementById('verify-remittanceTab'));
     
-    // Get pending remittances
-    const pendingRemittances = window.techRemittances
-        .filter(r => r.status === 'pending')
+    const currentUserId = window.currentUser.uid;
+    const currentUserRole = window.currentUserData.role;
+    const isAdmin = currentUserRole === 'admin';
+    
+    // Separate remittances: for me vs others
+    const forMe = window.techRemittances
+        .filter(r => r.status === 'pending' && r.submittedTo === currentUserId)
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    
+    const forOthers = window.techRemittances
+        .filter(r => r.status === 'pending' && r.submittedTo && r.submittedTo !== currentUserId)
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    
+    // Legacy pending (no recipient specified)
+    const legacyPending = window.techRemittances
+        .filter(r => r.status === 'pending' && !r.submittedTo)
         .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
     
     // Get recent verified remittances
@@ -3385,66 +3539,161 @@ function buildRemittanceVerificationTab(container) {
             <p>Review and approve technician cash remittances</p>
         </div>
         
-        <!-- Pending Remittances -->
-        <div class="card" style="margin:20px 0;">
-            <h3>⏳ Pending Verification (${pendingRemittances.length})</h3>
-            ${pendingRemittances.length > 0 ? `
+        <!-- Stats -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
+            <div class="stat-card" style="background:#fff3cd;border-left:4px solid #ff9800;">
+                <h3>${forMe.length}</h3>
+                <p>👤 For Me</p>
+                <small>Submitted directly to you</small>
+            </div>
+            ${isAdmin ? `
+                <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                    <h3>${forOthers.length}</h3>
+                    <p>👥 For Others</p>
+                    <small>Submitted to other staff</small>
+                </div>
+            ` : forOthers.length > 0 ? `
+                <div class="stat-card" style="background:#f5f5f5;border-left:4px solid #999;">
+                    <h3>${forOthers.length}</h3>
+                    <p>👥 For Others</p>
+                    <small>Cannot verify these</small>
+                </div>
+            ` : ''}
+            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+                <h3>₱${[...forMe].reduce((sum, r) => sum + r.actualAmount, 0).toFixed(2)}</h3>
+                <p>💰 Total For Me</p>
+                <small>Amount awaiting your verification</small>
+            </div>
+        </div>
+        
+        <!-- For Me Section (Priority) -->
+        ${forMe.length > 0 ? `
+            <div class="card" style="border-left:4px solid #ff9800;background:#fffbf0;margin:20px 0;">
+                <h3 style="color:#f57c00;">👤 Remittances For Me (${forMe.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">These technicians submitted their remittances to YOU</p>
+                
                 <div class="repairs-list">
-                    ${pendingRemittances.map(r => {
+                    ${forMe.map(r => {
                         const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
-                        const isLargeDiscrepancy = Math.abs(r.discrepancy) > r.expectedAmount * 0.05;
+                        const isLargeDiscrepancy = Math.abs(r.discrepancy) > r.expectedRemittance * 0.05;
                         return `
-                            <div class="remittance-card ${hasDiscrepancy ? (isLargeDiscrepancy ? 'discrepancy-danger' : 'discrepancy-warning') : ''}">
+                            <div class="remittance-card ${hasDiscrepancy ? (isLargeDiscrepancy ? 'discrepancy-danger' : 'discrepancy-warning') : ''}" style="border-left-color:#ff9800;background:#fff;">
                                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:15px;">
                                     <div>
                                         <h4>${r.techName}</h4>
                                         <p style="font-size:13px;color:#666;">
-                                            ${utils.formatDate(r.date)} • Submitted ${utils.timeAgo(r.submittedAt)}
+                                            📅 ${utils.formatDate(r.date)}<br>
+                                            ⏰ Submitted: ${utils.formatDateTime(r.submittedAt)} (${utils.timeAgo(r.submittedAt)})<br>
+                                            💰 Amount: <strong style="color:#4caf50;">₱${r.actualAmount.toFixed(2)}</strong><br>
+                                            📊 Payments: ${r.paymentsList.length} • Commission: ${r.commissionBreakdown.length} • Expenses: ${r.expensesList.length}
                                         </p>
-                                    </div>
-                                    <div style="text-align:right;">
-                                        <div style="font-size:20px;font-weight:600;color:#4caf50;">₱${r.actualAmount.toFixed(2)}</div>
-                                        <span class="status-badge" style="background:#ff9800;color:white;">⏳ Pending</span>
-                                    </div>
-                                </div>
-                                
-                                <div class="remittance-summary">
-                                    <div>
-                                        <strong>Payments:</strong> ${r.paymentsList.length}<br>
-                                        <span style="color:#4caf50;font-weight:600;">₱${r.totalPaymentsCollected.toFixed(2)}</span>
-                                    </div>
-                                    <div>
-                                        <strong>Expenses:</strong> ${r.expensesList.length}<br>
-                                        <span style="color:#f44336;font-weight:600;">-₱${r.totalExpenses.toFixed(2)}</span>
-                                    </div>
-                                    <div>
-                                        <strong>Expected:</strong><br>
-                                        <span style="font-weight:600;">₱${r.expectedAmount.toFixed(2)}</span>
-                                    </div>
-                                </div>
-                                
-                                ${hasDiscrepancy ? `
-                                    <div class="${isLargeDiscrepancy ? 'discrepancy-danger' : 'discrepancy-warning'}" style="margin:15px 0;">
-                                        <strong>⚠️ Discrepancy: ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}</strong>
-                                        ${r.discrepancyReason ? `
-                                            <p style="margin:5px 0 0 0;font-size:13px;">Tech's note: ${r.discrepancyReason}</p>
+                                        ${r.discrepancyReason ? `<p style="font-size:12px;color:#999;margin-top:5px;">📝 ${r.discrepancyReason}</p>` : ''}
+                                        ${hasDiscrepancy ? `
+                                            <div style="background:#fff3cd;padding:8px;border-radius:5px;margin-top:8px;font-size:13px;">
+                                                ⚠️ Discrepancy: ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}
+                                            </div>
                                         ` : ''}
                                     </div>
-                                ` : `
-                                    <div style="margin:15px 0;padding:10px;background:#e8f5e9;border-radius:5px;color:#2e7d32;">
-                                        ✅ No discrepancy - Amount matches expected
+                                    <div style="text-align:right;">
+                                        <button onclick="openVerifyRemittanceModal('${r.id}')" 
+                                                class="btn btn-success" 
+                                                style="padding:10px 20px;font-size:14px;white-space:nowrap;">
+                                            ✅ Verify Receipt
+                                        </button>
                                     </div>
-                                `}
-                                
-                                <button onclick="openVerifyRemittanceModal('${r.id}')" class="btn-primary" style="width:100%;margin-top:10px;">
-                                    📋 Review & Verify
-                                </button>
+                                </div>
                             </div>
                         `;
                     }).join('')}
                 </div>
-            ` : '<p style="color:#999;text-align:center;padding:20px;">No pending remittances</p>'}
-        </div>
+            </div>
+        ` : `
+            <div class="card" style="background:#e8f5e9;margin:20px 0;">
+                <p style="text-align:center;color:#4caf50;padding:20px;">
+                    ✅ No remittances submitted to you
+                </p>
+            </div>
+        `}
+        
+        <!-- For Others Section (Admin can override) -->
+        ${forOthers.length > 0 && isAdmin ? `
+            <div class="card" style="margin:20px 0;">
+                <h3>👥 Remittances For Other Staff (${forOthers.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">
+                    ⚠️ These were submitted to other staff members. As admin, you can verify them if needed.
+                </p>
+                
+                <div class="repairs-list">
+                    ${forOthers.map(r => `
+                        <div class="repair-card">
+                            <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
+                                <div style="flex:1;">
+                                    <h4>${r.techName} → ${r.submittedToName}</h4>
+                                    <p style="font-size:13px;color:#666;">
+                                        📅 ${utils.formatDate(r.date)} • 
+                                        💰 ₱${r.actualAmount.toFixed(2)} • 
+                                        Submitted ${utils.timeAgo(r.submittedAt)}
+                                    </p>
+                                </div>
+                                <div style="text-align:right;">
+                                    <button onclick="openVerifyRemittanceModal('${r.id}', true)" 
+                                            class="btn btn-secondary" 
+                                            style="padding:8px 15px;font-size:13px;">
+                                        🔓 Admin Override
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : forOthers.length > 0 ? `
+            <div class="card" style="margin:20px 0;background:#f5f5f5;">
+                <p style="text-align:center;color:#666;padding:20px;">
+                    📋 ${forOthers.length} remittance(s) submitted to other staff members
+                </p>
+            </div>
+        ` : ''}
+        
+        <!-- Legacy Pending (No Recipient Specified) -->
+        ${legacyPending.length > 0 ? `
+            <div class="card" style="margin:20px 0;">
+                <h3>📋 Legacy Pending (${legacyPending.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">Older remittances without recipient tracking</p>
+                
+                <div class="repairs-list">
+                    ${legacyPending.map(r => {
+                        const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
+                        return `
+                            <div class="repair-card">
+                                <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
+                                    <div style="flex:1;">
+                                        <h4>${r.techName}</h4>
+                                        <p style="font-size:13px;color:#666;">
+                                            📅 ${utils.formatDate(r.date)} • 
+                                            💰 ₱${r.actualAmount.toFixed(2)} • 
+                                            Submitted ${utils.timeAgo(r.submittedAt)}
+                                        </p>
+                                        ${hasDiscrepancy ? `
+                                            <p style="font-size:12px;color:#ff9800;margin-top:5px;">
+                                                ⚠️ Discrepancy: ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}
+                                            </p>
+                                        ` : ''}
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <button onclick="openVerifyRemittanceModal('${r.id}')" 
+                                                class="btn btn-primary" 
+                                                style="padding:8px 15px;font-size:13px;">
+                                            📋 Review & Verify
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        ` : ''}
         
         <!-- Recent Verified -->
         <div class="card" style="margin:20px 0;">

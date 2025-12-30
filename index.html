@@ -367,6 +367,18 @@
             <h3>💵 Submit Daily Remittance</h3>
             <div id="remittanceSummary" style="margin:20px 0;"></div>
             
+            <!-- Recipient Selection -->
+            <div class="form-group" style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+                <label style="font-weight:bold;color:#f57c00;">👤 Who are you giving this money to? *</label>
+                <select id="remittanceRecipient" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;margin-top:8px;font-size:15px;">
+                    <option value="">-- Select who will receive the cash --</option>
+                </select>
+                <small style="display:block;margin-top:8px;color:#666;">
+                    ⚠️ <strong>Important:</strong> Select the person you're physically handing the money to.
+                    Only they can verify receipt of this remittance.
+                </small>
+            </div>
+            
             <!-- Manual Override Section -->
             <div style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
