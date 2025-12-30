@@ -5211,8 +5211,9 @@ async function approveRemittance() {
         
         await Promise.all(updatePromises);
         
-        // Reload data
+        // Reload data to reflect changes
         await loadTechRemittances();
+        await loadRepairs(); // IMPORTANT: Reload repairs to get updated payment statuses
         
         utils.showLoading(false);
         alert('✅ Remittance approved and all payments verified!');
@@ -5258,34 +5259,104 @@ async function rejectRemittance() {
         // Reset payment remittance status back to pending
         const remittance = window.techRemittances.find(r => r.id === remittanceId);
         const updatePromises = [];
-        (remittance.paymentIds || []).forEach(paymentId => {
-            const [repairId, paymentIndex] = paymentId.split('_');
-            const repair = window.allRepairs.find(r => r.id === repairId);
-            if (repair && repair.payments && repair.payments[paymentIndex]) {
-                const updatedPayments = [...repair.payments];
-                updatedPayments[paymentIndex] = {
-                    ...updatedPayments[paymentIndex],
-                    techRemittanceId: null,
-                    remittanceStatus: 'pending'
-                };
-                updatePromises.push(
-                    db.ref(`repairs/${repairId}`).update({ payments: updatedPayments })
-                );
-            }
-        });
+        
+        if (remittance.paymentIds && remittance.paymentIds.length > 0) {
+            // New remittance format - use paymentIds
+            remittance.paymentIds.forEach(paymentId => {
+                const [repairId, paymentIndex] = paymentId.split('_');
+                const repair = window.allRepairs.find(r => r.id === repairId);
+                if (repair && repair.payments && repair.payments[paymentIndex]) {
+                    const updatedPayments = [...repair.payments];
+                    updatedPayments[paymentIndex] = {
+                        ...updatedPayments[paymentIndex],
+                        techRemittanceId: null,
+                        remittanceStatus: 'pending'
+                    };
+                    updatePromises.push(
+                        db.ref(`repairs/${repairId}`).update({ payments: updatedPayments })
+                    );
+                }
+            });
+        } else {
+            // Old remittance format - find all payments linked to this remittance
+            console.log('⚠️ Legacy remittance detected, manually resetting payments...');
+            window.allRepairs.forEach(repair => {
+                if (repair.payments) {
+                    const updatedPayments = [...repair.payments];
+                    let hasChanges = false;
+                    
+                    repair.payments.forEach((payment, index) => {
+                        if (payment.techRemittanceId === remittanceId) {
+                            updatedPayments[index] = {
+                                ...payment,
+                                techRemittanceId: null,
+                                remittanceStatus: 'pending'
+                            };
+                            hasChanges = true;
+                        }
+                    });
+                    
+                    if (hasChanges) {
+                        updatePromises.push(
+                            db.ref(`repairs/${repair.id}`).update({ payments: updatedPayments })
+                        );
+                    }
+                }
+            });
+        }
         
         // Reset expense remittance IDs
-        (remittance.expenseIds || []).forEach(expenseId => {
-            updatePromises.push(
-                db.ref(`techExpenses/${expenseId}`).update({ remittanceId: null })
-            );
-        });
+        if (remittance.expenseIds && remittance.expenseIds.length > 0) {
+            remittance.expenseIds.forEach(expenseId => {
+                updatePromises.push(
+                    db.ref(`techExpenses/${expenseId}`).update({ remittanceId: null })
+                );
+            });
+        } else {
+            // Old format - find expenses manually
+            window.techExpenses.forEach(expense => {
+                if (expense.remittanceId === remittanceId) {
+                    updatePromises.push(
+                        db.ref(`techExpenses/${expense.id}`).update({ remittanceId: null })
+                    );
+                }
+            });
+        }
+        
+        // Reset commission flags for repairs included in this remittance
+        if (remittance.commissionBreakdown && remittance.commissionBreakdown.length > 0) {
+            // New format - use commission breakdown
+            remittance.commissionBreakdown.forEach(c => {
+                updatePromises.push(
+                    db.ref(`repairs/${c.repairId}`).update({
+                        commissionClaimedBy: null,
+                        commissionClaimedAt: null,
+                        commissionRemittanceId: null
+                    })
+                );
+            });
+        } else {
+            // Old format - find all repairs with this remittance ID
+            console.log('⚠️ Legacy remittance, manually resetting commission flags...');
+            window.allRepairs.forEach(repair => {
+                if (repair.commissionRemittanceId === remittanceId) {
+                    updatePromises.push(
+                        db.ref(`repairs/${repair.id}`).update({
+                            commissionClaimedBy: null,
+                            commissionClaimedAt: null,
+                            commissionRemittanceId: null
+                        })
+                    );
+                }
+            });
+        }
         
         await Promise.all(updatePromises);
         
-        // Reload data
+        // Reload data to reflect changes
         await loadTechRemittances();
         await loadTechExpenses();
+        await loadRepairs(); // IMPORTANT: Reload repairs to get updated payment statuses
         
         utils.showLoading(false);
         alert('❌ Remittance rejected. Technician can resubmit with corrections.');
