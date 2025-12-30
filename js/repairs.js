@@ -1671,6 +1671,176 @@ async function adminDeleteDevice(repairId) {
 }
 
 /**
+ * Admin: Bulk delete multiple devices (soft delete)
+ */
+async function adminBulkDeleteDevices(repairIds) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    if (!repairIds || repairIds.length === 0) {
+        alert('⚠️ No devices selected for deletion');
+        return;
+    }
+    
+    // Get all repairs
+    const repairs = repairIds.map(id => window.allRepairs.find(r => r.id === id)).filter(r => r);
+    
+    if (repairs.length === 0) {
+        alert('❌ No valid repairs found');
+        return;
+    }
+    
+    // Check for released/claimed devices
+    const releasedDevices = repairs.filter(r => r.claimedAt || r.status === 'Completed');
+    if (releasedDevices.length > 0) {
+        alert(`⚠️ Cannot delete released or completed devices!\n\n${releasedDevices.length} of ${repairs.length} selected device(s) have been released to customers.\n\nPlease deselect released devices and try again.`);
+        return;
+    }
+    
+    // Calculate totals
+    const totalWithPayments = repairs.filter(r => {
+        const totalPaid = r.payments ? r.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
+        return totalPaid > 0;
+    }).length;
+    
+    const totalPaymentAmount = repairs.reduce((sum, r) => {
+        const totalPaid = r.payments ? r.payments.reduce((s, p) => s + (p.amount || 0), 0) : 0;
+        return sum + totalPaid;
+    }, 0);
+    
+    // Show summary and get confirmation
+    const deviceList = repairs.slice(0, 5).map(r => 
+        `• ${r.customerName} - ${r.brand} ${r.model} (${r.status})`
+    ).join('\n');
+    
+    const confirmed = confirm(
+        `⚠️⚠️ BULK DELETE DEVICES ⚠️⚠️\n\n` +
+        `You are about to delete ${repairs.length} device(s):\n\n` +
+        `${deviceList}` +
+        `${repairs.length > 5 ? `\n...and ${repairs.length - 5} more` : ''}\n\n` +
+        `${totalWithPayments > 0 ? `⚠️ WARNING: ${totalWithPayments} device(s) have payments totaling ₱${totalPaymentAmount.toFixed(2)}!\n\n` : ''}` +
+        `This will SOFT DELETE all selected devices (mark as deleted but keep records).\n\n` +
+        `Click OK to continue...`
+    );
+    
+    if (!confirmed) return;
+    
+    // Require reason
+    const reason = prompt(`Please enter reason for deleting these ${repairs.length} devices:`);
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required to delete devices');
+        return;
+    }
+    
+    // Password confirmation
+    const password = prompt('Enter your password to confirm bulk deletion:');
+    if (!password) {
+        alert('❌ Deletion cancelled');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true, `Deleting ${repairs.length} devices...`);
+        
+        // Verify password
+        const credential = firebase.auth.EmailAuthProvider.credential(
+            window.currentUser.email,
+            password
+        );
+        await window.currentUser.reauthenticateWithCredential(credential);
+        
+        const now = new Date().toISOString();
+        let successCount = 0;
+        let failCount = 0;
+        const errors = [];
+        
+        // Process each repair
+        for (const repair of repairs) {
+            try {
+                // Create backup
+                const backup = {
+                    ...repair,
+                    deletedAt: now,
+                    deletedBy: window.currentUserData.displayName,
+                    deletedById: window.currentUser.uid,
+                    deleteReason: reason,
+                    backupType: 'bulk_device_deletion'
+                };
+                
+                await db.ref('deletedRepairs').push(backup);
+                
+                // Soft delete the repair
+                await db.ref(`repairs/${repair.id}`).update({
+                    deleted: true,
+                    deletedAt: now,
+                    deletedBy: window.currentUserData.displayName,
+                    deletedById: window.currentUser.uid,
+                    deleteReason: reason,
+                    lastUpdated: now,
+                    lastUpdatedBy: window.currentUserData.displayName
+                });
+                
+                successCount++;
+                
+            } catch (err) {
+                failCount++;
+                errors.push(`${repair.customerName}: ${err.message}`);
+                console.error('Error deleting repair:', repair.id, err);
+            }
+        }
+        
+        // Log bulk activity
+        await logActivity('devices_bulk_deleted', {
+            deviceCount: successCount,
+            failedCount: failCount,
+            totalWithPayments: totalWithPayments,
+            totalPaymentAmount: totalPaymentAmount,
+            reason: reason,
+            repairIds: repairs.map(r => r.id)
+        }, `Bulk deleted ${successCount} device(s) - Reason: ${reason}`);
+        
+        utils.showLoading(false);
+        
+        // Show results
+        if (failCount === 0) {
+            alert(
+                `✅ Bulk Delete Complete!\n\n` +
+                `Successfully deleted: ${successCount} device(s)\n` +
+                `Backups: Saved for audit\n` +
+                `Reason: ${reason}`
+            );
+        } else {
+            alert(
+                `⚠️ Bulk Delete Completed with Errors\n\n` +
+                `Successfully deleted: ${successCount} device(s)\n` +
+                `Failed: ${failCount} device(s)\n\n` +
+                `Errors:\n${errors.slice(0, 3).join('\n')}` +
+                `${errors.length > 3 ? `\n...and ${errors.length - 3} more errors` : ''}`
+            );
+        }
+        
+        // Refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        if (error.code === 'auth/wrong-password') {
+            alert('❌ Incorrect password. Bulk deletion cancelled.');
+        } else {
+            console.error('❌ Error in bulk delete:', error);
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+/**
  * Admin: Get all pending remittances across all technicians
  */
 function adminGetPendingRemittances() {
@@ -6895,6 +7065,7 @@ window.submitDiagnosisUpdate = submitDiagnosisUpdate;
 window.closeUpdateDiagnosisModal = closeUpdateDiagnosisModal;
 // Admin Tools exports (Phase 1)
 window.adminDeleteDevice = adminDeleteDevice;
+window.adminBulkDeleteDevices = adminBulkDeleteDevices;
 window.adminGetPendingRemittances = adminGetPendingRemittances;
 window.adminGetRemittanceStats = adminGetRemittanceStats;
 window.adminFindOrphanedData = adminFindOrphanedData;

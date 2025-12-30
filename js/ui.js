@@ -2460,7 +2460,7 @@ function buildRecentlyReleasedSection() {
 }
 
 /**
- * Build Device Management Section (PHASE 1: Delete Devices)
+ * Build Device Management Section (PHASE 1: Delete Devices + Bulk Delete)
  */
 function buildDeviceManagementSection() {
     // Get all active (non-deleted) devices that can be deleted
@@ -2511,7 +2511,12 @@ function buildDeviceManagementSection() {
         
         return `
             <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid ${statusColor};">
-                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;">
+                <div style="display:flex;align-items:flex-start;gap:10px;">
+                    <input type="checkbox" 
+                           class="device-delete-checkbox" 
+                           data-repair-id="${repair.id}" 
+                           onchange="updateBulkDeleteButton()"
+                           style="margin-top:5px;width:18px;height:18px;cursor:pointer;">
                     <div style="flex:1;">
                         <strong>${repair.customerName}</strong> - ${repair.brand} ${repair.model}
                         <div style="font-size:12px;color:#666;margin-top:3px;">
@@ -2521,17 +2526,15 @@ function buildDeviceManagementSection() {
                         <div style="font-size:11px;color:#999;margin-top:2px;">
                             Created: ${utils.formatDateTime(repair.createdAt)}
                         </div>
-                    </div>
-                    <div style="text-align:right;">
                         ${hasPayments ? `
-                            <div style="font-size:12px;color:#f44336;font-weight:bold;">
-                                ⚠️ Has ₱${totalPaid.toFixed(2)} paid
+                            <div style="font-size:11px;color:#f44336;font-weight:bold;margin-top:3px;">
+                                ⚠️ Has ₱${totalPaid.toFixed(2)} in payments
                             </div>
                         ` : ''}
-                        <button onclick="adminDeleteDevice('${repair.id}')" class="btn btn-danger" style="padding:4px 10px;font-size:12px;margin-top:5px;">
-                            🗑️ Delete
-                        </button>
                     </div>
+                    <button onclick="adminDeleteDevice('${repair.id}')" class="btn btn-danger" style="padding:4px 10px;font-size:12px;">
+                        🗑️ Delete
+                    </button>
                 </div>
             </div>
         `;
@@ -2544,7 +2547,30 @@ function buildDeviceManagementSection() {
                 ${deletableDevices.length} device(s) can be deleted (pre-release only)
                 ${statusSummary ? `<br><small>${statusSummary}</small>` : ''}
             </p>
-            <div style="max-height:400px;overflow-y:auto;">
+            
+            <!-- Bulk Actions Bar -->
+            <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <input type="checkbox" 
+                           id="selectAllDevices" 
+                           onchange="toggleAllDeviceCheckboxes()"
+                           style="width:18px;height:18px;cursor:pointer;">
+                    <label for="selectAllDevices" style="margin:0;cursor:pointer;font-weight:bold;">
+                        Select All
+                    </label>
+                    <span id="selectedDeviceCount" style="color:#666;font-size:13px;">
+                        (0 selected)
+                    </span>
+                </div>
+                <button id="bulkDeleteBtn" 
+                        onclick="executeBulkDelete()" 
+                        class="btn btn-danger" 
+                        style="padding:6px 15px;font-size:13px;display:none;">
+                    🗑️ Delete Selected
+                </button>
+            </div>
+            
+            <div style="max-height:400px;overflow-y:auto;" id="deviceListContainer">
                 ${devicesHTML}
             </div>
             ${deletableDevices.length > 15 ? `
@@ -5355,5 +5381,73 @@ window.selectTechnicianForLogs = selectTechnicianForLogs;
 window.buildDeviceManagementSection = buildDeviceManagementSection;
 window.buildPendingRemittancesSection = buildPendingRemittancesSection;
 window.buildDataIntegritySection = buildDataIntegritySection;
+
+/**
+ * Toggle all device checkboxes
+ */
+function toggleAllDeviceCheckboxes() {
+    const selectAll = document.getElementById('selectAllDevices');
+    const checkboxes = document.querySelectorAll('.device-delete-checkbox');
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+    
+    updateBulkDeleteButton();
+}
+
+/**
+ * Update bulk delete button state
+ */
+function updateBulkDeleteButton() {
+    const checkboxes = document.querySelectorAll('.device-delete-checkbox:checked');
+    const count = checkboxes.length;
+    const countSpan = document.getElementById('selectedDeviceCount');
+    const bulkBtn = document.getElementById('bulkDeleteBtn');
+    const selectAll = document.getElementById('selectAllDevices');
+    
+    // Update count display
+    if (countSpan) {
+        countSpan.textContent = `(${count} selected)`;
+    }
+    
+    // Show/hide bulk delete button
+    if (bulkBtn) {
+        if (count > 0) {
+            bulkBtn.style.display = 'inline-block';
+            bulkBtn.innerHTML = `🗑️ Delete Selected (${count})`;
+        } else {
+            bulkBtn.style.display = 'none';
+        }
+    }
+    
+    // Update select all checkbox state
+    if (selectAll) {
+        const allCheckboxes = document.querySelectorAll('.device-delete-checkbox');
+        selectAll.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+        selectAll.indeterminate = count > 0 && count < allCheckboxes.length;
+    }
+}
+
+/**
+ * Execute bulk delete
+ */
+async function executeBulkDelete() {
+    const checkboxes = document.querySelectorAll('.device-delete-checkbox:checked');
+    const repairIds = Array.from(checkboxes).map(cb => cb.dataset.repairId);
+    
+    if (repairIds.length === 0) {
+        alert('⚠️ No devices selected');
+        return;
+    }
+    
+    // Call the bulk delete function
+    await window.adminBulkDeleteDevices(repairIds);
+}
+
+// Export checkbox functions
+window.toggleAllDeviceCheckboxes = toggleAllDeviceCheckboxes;
+window.updateBulkDeleteButton = updateBulkDeleteButton;
+window.executeBulkDelete = executeBulkDelete;
 
 console.log('✅ ui.js loaded');
