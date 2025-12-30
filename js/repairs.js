@@ -1,5 +1,16 @@
 // ===== REPAIRS MODULE =====
 
+/**
+ * Get local date string in YYYY-MM-DD format (no timezone conversion)
+ * This prevents timezone bugs where dates shift due to UTC conversion
+ */
+function getLocalDateString(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 // Initialize global repairs array
 window.allRepairs = [];
 let photoData = [];
@@ -4378,21 +4389,26 @@ function closeExpenseModal() {
  * Get technician's daily payments
  */
 function getTechDailyPayments(techId, date) {
-    const today = new Date(date).toDateString();
+    // Convert date to local date string for comparison (no timezone issues)
+    const targetDateString = date instanceof Date 
+        ? getLocalDateString(date) 
+        : date; // Already a string like "2025-12-31"
+    
     const payments = [];
     let total = 0;
     
     window.allRepairs.forEach(repair => {
         if (repair.payments) {
             repair.payments.forEach((payment, index) => {
-                const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toDateString();
+                const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                const paymentDateString = getLocalDateString(paymentDate);
                 const paymentMethod = payment.method || 'Cash'; // Default to Cash for old payments
                 
                 // Only include CASH payments in remittance
                 // GCash goes directly to shop, no remittance needed
                 if (payment.collectedByTech && 
                     payment.receivedById === techId && 
-                    paymentDate === today &&
+                    paymentDateString === targetDateString && // String comparison - no timezone issues
                     paymentMethod === 'Cash' &&
                     payment.remittanceStatus === 'pending') {
                     payments.push({
@@ -4417,7 +4433,11 @@ function getTechDailyPayments(techId, date) {
  * Get technician's daily GCash payments (for display only, not remittance)
  */
 function getTechDailyGCashPayments(techId, date) {
-    const today = new Date(date).toDateString();
+    // Convert date to local date string for comparison (no timezone issues)
+    const targetDateString = date instanceof Date 
+        ? getLocalDateString(date) 
+        : date; // Already a string like "2025-12-31"
+    
     const payments = [];
     let total = 0;
     
@@ -4425,10 +4445,11 @@ function getTechDailyGCashPayments(techId, date) {
         // Only include repairs assigned to this technician
         if (repair.acceptedBy === techId && repair.payments) {
             repair.payments.forEach((payment, index) => {
-                const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toDateString();
+                const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                const paymentDateString = getLocalDateString(paymentDate);
                 
                 // Only GCash payments for this date
-                if (payment.method === 'GCash' && paymentDate === today) {
+                if (payment.method === 'GCash' && paymentDateString === targetDateString) {
                     payments.push({
                         repairId: repair.id,
                         paymentIndex: index,
@@ -4452,11 +4473,16 @@ function getTechDailyGCashPayments(techId, date) {
  * Get technician's daily expenses
  */
 function getTechDailyExpenses(techId, date) {
-    const today = new Date(date).toDateString();
+    // Convert date to local date string for comparison (no timezone issues)
+    const targetDateString = date instanceof Date 
+        ? getLocalDateString(date) 
+        : date; // Already a string like "2025-12-31"
+    
     const expenses = window.techExpenses.filter(exp => {
-        const expDate = new Date(exp.date).toDateString();
+        const expDate = new Date(exp.date);
+        const expDateString = getLocalDateString(expDate);
         return exp.techId === techId && 
-               expDate === today && 
+               expDateString === targetDateString && 
                !exp.remittanceId;
     });
     
@@ -4566,7 +4592,11 @@ function calculateRepairCommission(repair, techId) {
  * Get all commission-eligible repairs for a tech on a date
  */
 function getTechCommissionEligibleRepairs(techId, date) {
-    const targetDate = new Date(date).toDateString();
+    // Convert date to local date string for comparison (no timezone issues)
+    const targetDateString = date instanceof Date 
+        ? getLocalDateString(date) 
+        : date; // Already a string like "2025-12-31"
+    
     const eligibleRepairs = [];
     
     window.allRepairs.forEach(repair => {
@@ -4590,14 +4620,15 @@ function getTechCommissionEligibleRepairs(techId, date) {
                 runningTotal += payment.amount;
                 if (runningTotal >= repairTotal) {
                     // This payment made it fully paid
-                    lastVerifiedPaymentDate = new Date(payment.verifiedAt || payment.recordedDate).toDateString();
+                    const paymentDate = new Date(payment.verifiedAt || payment.recordedDate);
+                    lastVerifiedPaymentDate = getLocalDateString(paymentDate);
                     break;
                 }
             }
         }
         
         // Only include commission on the date it became fully paid
-        if (lastVerifiedPaymentDate === targetDate) {
+        if (lastVerifiedPaymentDate === targetDateString) {
             const commission = calculateRepairCommission(repair, techId);
             
             if (commission.eligible && commission.amount > 0) {
@@ -4728,9 +4759,34 @@ function openRemittanceModal() {
     }
     
     // Get today's data
-    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, today);
-    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
-    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, today);
+    const todayDateString = getLocalDateString(today);
+    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, todayDateString);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString);
+    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, todayDateString);
+    
+    // Calculate commission breakdown by payment method (Cash vs GCash)
+    let cashCommission = 0;
+    let gcashCommission = 0;
+    let cashRepairCount = 0;
+    let gcashRepairCount = 0;
+    
+    commissionBreakdown.forEach(c => {
+        const repair = window.allRepairs.find(r => r.id === c.repairId);
+        if (repair && repair.payments) {
+            // Check if this repair has any GCash payment
+            const hasGCashPayment = repair.payments.some(p => p.method === 'GCash');
+            
+            if (hasGCashPayment) {
+                gcashCommission += c.commission;
+                gcashRepairCount++;
+            } else {
+                cashCommission += c.commission;
+                cashRepairCount++;
+            }
+        }
+    });
+    
+    const totalCommission = cashCommission + gcashCommission;
     
     // Check if there are ANY items to remit (today or historical)
     const hasTodayItems = payments.length > 0 || expenses.length > 0 || commissionBreakdown.length > 0;
@@ -4779,14 +4835,81 @@ function openRemittanceModal() {
               '\nNo new transactions from today.');
     }
     
-    // Calculate expected remittance (Payments - Commission - Expenses)
-    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
+    // NEW CALCULATION: Cash remittance does NOT deduct commission
+    // Commission is paid separately at end of day
+    const expectedAmount = paymentsTotal - expensesTotal;
     
     // Build summary
     let summary = `
-        <div class="remittance-summary-section">
-            <h4>📥 Payments Collected (${payments.length})</h4>
-            ${payments.length > 0 ? `
+        ${totalCommission > 0 ? `
+            <div class="card" style="background:#e8f5e9;margin:20px 0;border-left:4px solid #4caf50;">
+                <h3>💰 Your Commission Today</h3>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:15px 0;">
+                    ${cashCommission > 0 ? `
+                        <div style="background:white;padding:15px;border-radius:8px;border-left:4px solid #2196f3;">
+                            <div style="font-size:12px;color:#666;">From Cash Repairs</div>
+                            <div style="font-size:24px;font-weight:600;color:#2196f3;">₱${cashCommission.toFixed(2)}</div>
+                            <div style="font-size:11px;color:#999;">${cashRepairCount} repair(s)</div>
+                        </div>
+                    ` : ''}
+                    ${gcashCommission > 0 ? `
+                        <div style="background:white;padding:15px;border-radius:8px;border-left:4px solid #00bcd4;">
+                            <div style="font-size:12px;color:#666;">From GCash Repairs</div>
+                            <div style="font-size:24px;font-weight:600;color:#00bcd4;">₱${gcashCommission.toFixed(2)}</div>
+                            <div style="font-size:11px;color:#999;">${gcashRepairCount} repair(s)</div>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div style="background:#4caf50;color:white;padding:15px;border-radius:8px;text-align:center;">
+                    <div style="font-size:14px;opacity:0.9;">Total Commission Earned</div>
+                    <div style="font-size:32px;font-weight:bold;">₱${totalCommission.toFixed(2)}</div>
+                </div>
+                
+                <div class="form-group" style="margin-top:20px;">
+                    <label style="font-weight:bold;">How do you want to receive your commission? *</label>
+                    <select id="commissionPaymentPreference" required style="width:100%;padding:12px;font-size:15px;">
+                        <option value="">-- Select payment method --</option>
+                        <option value="cash">💵 Cash (Shop gives me cash at end of day)</option>
+                        <option value="gcash">📱 GCash (Shop sends to my GCash account)</option>
+                    </select>
+                    <small style="color:#666;display:block;margin-top:8px;">
+                        💡 This preference tells the shop how to pay your commission
+                    </small>
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="card" style="margin:20px 0;">
+            <h3>💵 Cash Remittance</h3>
+            <p style="color:#666;font-size:14px;margin-bottom:15px;">Cash you physically collected - must be remitted</p>
+            
+            <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
+                <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                    <span>Cash Collected:</span>
+                    <strong>₱${paymentsTotal.toFixed(2)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                    <span>Less: Expenses</span>
+                    <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
+                </div>
+                <hr style="border:none;border-top:2px solid #ddd;margin:15px 0;">
+                <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;">
+                    <span>Amount to Remit:</span>
+                    <span style="color:#4caf50;">₱${expectedAmount.toFixed(2)}</span>
+                </div>
+            </div>
+            
+            <p style="margin-top:15px;font-size:13px;color:#666;">
+                ℹ️ <strong>Note:</strong> Commission is NOT deducted from cash remittance. 
+                You will receive your commission separately at end of day.
+            </p>
+        </div>
+        
+        ${payments.length > 0 ? `
+            <div class="remittance-summary-section">
+                <h4>📥 Cash Payments (${payments.length})</h4>
                 <div class="remittance-list">
                     ${payments.map(p => `
                         <div class="remittance-item">
@@ -4795,67 +4918,22 @@ function openRemittanceModal() {
                         </div>
                     `).join('')}
                 </div>
-                <div class="remittance-total">Total: ₱${paymentsTotal.toFixed(2)}</div>
-            ` : `
-                <p style="text-align:center;color:#999;padding:10px;">No payments collected today</p>
-            `}
-        </div>
+            </div>
+        ` : ''}
         
-        <div class="remittance-summary-section alert-success" style="border:none;">
-            <h4>🎯 Your Commission (${commissionBreakdown.length} repairs)</h4>
-            ${commissionBreakdown.length > 0 ? `
+        ${expenses.length > 0 ? `
+            <div class="remittance-summary-section">
+                <h4>💸 Expenses (${expenses.length})</h4>
                 <div class="remittance-list">
-                    ${commissionBreakdown.map(c => `
+                    ${expenses.map(e => `
                         <div class="remittance-item">
-                            <div>
-                                <div><strong>${c.customerName}</strong> - ${c.deviceInfo}</div>
-                                <div style="font-size:12px;color:#666;">
-                                    ₱${c.repairTotal.toFixed(0)} - ₱${c.partsCost.toFixed(0)} parts - ₱${c.deliveryExpenses.toFixed(0)} delivery = ₱${c.netAmount.toFixed(0)} × 40%
-                                </div>
-                            </div>
-                            <span style="color:#4caf50;font-weight:bold;">₱${c.commission.toFixed(2)}</span>
+                            <span>${e.description}</span>
+                            <span>-₱${e.amount.toFixed(2)}</span>
                         </div>
                     `).join('')}
                 </div>
-                <div class="remittance-total" style="background:#2e7d32;color:white;">Your Commission: ₱${commissionTotal.toFixed(2)}</div>
-                <button onclick="showCommissionBreakdown()" type="button" class="btn-small" style="margin-top:10px;">📊 View Detailed Breakdown</button>
-            ` : `
-                <p style="text-align:center;color:#999;padding:10px;">No commission earned today (no fully-paid repairs completed)</p>
-            `}
-        </div>
-        
-        <div class="remittance-summary-section">
-            <h4>💸 Other Expenses (${expenses.length})</h4>
-            <div class="remittance-list">
-                ${expenses.length > 0 ? expenses.map(e => `
-                    <div class="remittance-item">
-                        <span>${e.description}</span>
-                        <span>-₱${e.amount.toFixed(2)}</span>
-                    </div>
-                `).join('') : '<p style="color:#999;">No other expenses recorded</p>'}
             </div>
-            <div class="remittance-total">Total: -₱${expensesTotal.toFixed(2)}</div>
-        </div>
-        
-        <div class="remittance-calculation" style="background:var(--bg-secondary);padding:15px;border-radius:8px;margin:15px 0;">
-            <div class="calc-row">
-                <span>Payments Collected:</span>
-                <span>₱${paymentsTotal.toFixed(2)}</span>
-            </div>
-            <div class="calc-row" style="color:#4caf50;">
-                <span>Less: Your Commission:</span>
-                <span>-₱${commissionTotal.toFixed(2)}</span>
-            </div>
-            <div class="calc-row">
-                <span>Less: Other Expenses:</span>
-                <span>-₱${expensesTotal.toFixed(2)}</span>
-            </div>
-            <hr style="margin:10px 0;border:none;border-top:2px solid var(--border-color);">
-            <div class="calc-row" style="font-size:18px;font-weight:bold;color:var(--primary);">
-                <span>Amount to Remit:</span>
-                <span>₱${expectedAmount.toFixed(2)}</span>
-            </div>
-        </div>
+        ` : ''}
     `;
     
     document.getElementById('remittanceSummary').innerHTML = summary;
@@ -4887,6 +4965,7 @@ function openRemittanceModal() {
 async function confirmRemittance() {
     const techId = window.currentUser.uid;
     const today = new Date();
+    const todayDateString = getLocalDateString(today);
     const actualAmount = parseFloat(document.getElementById('actualRemittanceAmount').value);
     const notes = document.getElementById('remittanceNotes').value.trim();
     const recipientId = document.getElementById('remittanceRecipient').value;
@@ -4909,6 +4988,10 @@ async function confirmRemittance() {
         return;
     }
     
+    // Get commission payment preference
+    const commissionPreferenceSelect = document.getElementById('commissionPaymentPreference');
+    const commissionPaymentPreference = commissionPreferenceSelect ? commissionPreferenceSelect.value : '';
+    
     // Get manual override fields
     const hasManualOverride = document.getElementById('hasManualCommission').checked;
     const manualCommission = hasManualOverride ? parseFloat(document.getElementById('manualCommissionAmount').value) : null;
@@ -4925,11 +5008,36 @@ async function confirmRemittance() {
         return;
     }
     
-    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, today);
-    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
-    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, today);
+    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, todayDateString);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString);
+    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, todayDateString);
     
-    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
+    // Calculate commission breakdown by payment method
+    let cashCommission = 0;
+    let gcashCommission = 0;
+    
+    commissionBreakdown.forEach(c => {
+        const repair = window.allRepairs.find(r => r.id === c.repairId);
+        if (repair && repair.payments) {
+            const hasGCashPayment = repair.payments.some(p => p.method === 'GCash');
+            if (hasGCashPayment) {
+                gcashCommission += c.commission;
+            } else {
+                cashCommission += c.commission;
+            }
+        }
+    });
+    
+    const totalCommission = cashCommission + gcashCommission;
+    
+    // Validate commission payment preference if there's commission
+    if (totalCommission > 0 && !commissionPaymentPreference) {
+        alert('⚠️ Please select how you want to receive your commission');
+        return;
+    }
+    
+    // NEW CALCULATION: Cash remittance does NOT deduct commission
+    const expectedAmount = paymentsTotal - expensesTotal;
     const discrepancy = actualAmount - expectedAmount;
     
     // Require notes if there's a discrepancy
@@ -4978,13 +5086,17 @@ async function confirmRemittance() {
                 amount: p.amount,
                 method: p.method
             })),
-            // Commission
-            commissionEarned: commissionTotal,
+            // Commission (NEW: breakdown by payment method)
+            commissionEarned: totalCommission,
+            cashCommission: cashCommission,
+            gcashCommission: gcashCommission,
+            totalCommission: totalCommission,
+            commissionPaymentPreference: commissionPaymentPreference,
             commissionBreakdown: commissionBreakdown,
             hasManualOverride: hasManualOverride,
             manualCommission: manualCommission,
             overrideReason: overrideReason,
-            finalApprovedCommission: hasManualOverride ? null : commissionTotal,
+            finalApprovedCommission: hasManualOverride ? null : totalCommission,
             // Expenses
             expenseIds: expenses.map(e => e.id),
             totalExpenses: expensesTotal,
@@ -4993,7 +5105,7 @@ async function confirmRemittance() {
                 amount: e.amount,
                 description: e.description
             })),
-            // Calculation
+            // Calculation (NEW: no commission deduction)
             expectedRemittance: expectedAmount,
             actualAmount: actualAmount,
             discrepancy: discrepancy,
@@ -5153,6 +5265,47 @@ function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
             </div>
             <div class="remittance-total">Total: ₱${(remittance.totalPaymentsCollected || 0).toFixed(2)}</div>
         </div>
+        
+        ${(remittance.totalCommission || remittance.commissionEarned || 0) > 0 ? `
+            <div class="card" style="background:#e8f5e9;margin:20px 0;border-left:4px solid #4caf50;">
+                <h3>💰 Commission Owed to Technician</h3>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:15px 0;">
+                    ${(remittance.cashCommission || 0) > 0 ? `
+                        <div style="background:white;padding:10px;border-radius:5px;">
+                            <small>From Cash Repairs</small>
+                            <div style="font-size:18px;font-weight:600;color:#2196f3;">
+                                ₱${(remittance.cashCommission || 0).toFixed(2)}
+                            </div>
+                        </div>
+                    ` : ''}
+                    ${(remittance.gcashCommission || 0) > 0 ? `
+                        <div style="background:white;padding:10px;border-radius:5px;">
+                            <small>From GCash Repairs</small>
+                            <div style="font-size:18px;font-weight:600;color:#00bcd4;">
+                                ₱${(remittance.gcashCommission || 0).toFixed(2)}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <div style="background:#4caf50;color:white;padding:15px;border-radius:8px;text-align:center;">
+                    <div>Total Commission to Pay:</div>
+                    <div style="font-size:28px;font-weight:bold;">
+                        ₱${(remittance.totalCommission || remittance.commissionEarned || 0).toFixed(2)}
+                    </div>
+                </div>
+                
+                <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-top:10px;">
+                    <strong>Payment Method:</strong> 
+                    ${remittance.commissionPaymentPreference === 'cash' 
+                        ? '💵 Cash - Give cash to technician' 
+                        : remittance.commissionPaymentPreference === 'gcash'
+                        ? '📱 GCash - Send to technician\'s GCash'
+                        : '⚠️ Not specified (legacy remittance)'}
+                </div>
+            </div>
+        ` : ''}
         
         <div class="remittance-summary-section">
             <h4>💸 Expenses (${(remittance.expensesList || []).length})</h4>

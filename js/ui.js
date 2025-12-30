@@ -1,5 +1,16 @@
 // ===== UI MODULE =====
 
+/**
+ * Get local date string in YYYY-MM-DD format (no timezone conversion)
+ * This prevents timezone bugs where dates shift due to UTC conversion
+ */
+function getLocalDateString(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 let availableTabs = [];
 let activeTab = '';
 
@@ -3486,16 +3497,20 @@ function changeRemittanceDate(dateOrAction) {
         // Go to today
         newDate = null;
     } else if (dateOrAction === 'prev') {
-        // Previous day
-        const current = window.selectedRemittanceDate ? new Date(window.selectedRemittanceDate) : new Date();
+        // Previous day - use local date to avoid timezone issues
+        const current = window.selectedRemittanceDate 
+            ? new Date(window.selectedRemittanceDate + 'T00:00:00') 
+            : new Date();
         current.setDate(current.getDate() - 1);
-        newDate = current.toISOString().split('T')[0];
+        newDate = getLocalDateString(current);
     } else if (dateOrAction === 'next') {
-        // Next day
-        const current = window.selectedRemittanceDate ? new Date(window.selectedRemittanceDate) : new Date();
+        // Next day - use local date to avoid timezone issues
+        const current = window.selectedRemittanceDate 
+            ? new Date(window.selectedRemittanceDate + 'T00:00:00') 
+            : new Date();
         current.setDate(current.getDate() + 1);
-        const today = new Date().toISOString().split('T')[0];
-        const next = current.toISOString().split('T')[0];
+        const today = getLocalDateString(new Date());
+        const next = getLocalDateString(current);
         if (next > today) {
             return; // Don't go beyond today
         }
@@ -3504,6 +3519,9 @@ function changeRemittanceDate(dateOrAction) {
         // Specific date from picker
         newDate = dateOrAction;
     }
+    
+    // Store the selected date
+    window.selectedRemittanceDate = newDate;
     
     // Rebuild tab with selected date
     const container = document.getElementById('remittanceTab');
@@ -3558,34 +3576,51 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
     const techId = window.currentUser.uid;
     const today = new Date();
     
-    // Use selected date or default to today
-    const viewDate = selectedDate ? new Date(selectedDate) : today;
+    // Use selected date or default to today (with proper timezone handling)
+    const viewDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : today;
     window.selectedRemittanceDate = selectedDate; // Store for refresh
     
-    const isToday = viewDate.toDateString() === today.toDateString();
-    const viewDateString = viewDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+    // Use local date strings to avoid timezone issues
+    const viewDateString = getLocalDateString(viewDate); // YYYY-MM-DD format
+    const isToday = getLocalDateString(viewDate) === getLocalDateString(today);
     const todayStr = viewDate.toDateString();
     
     // Update refresh to use selected date
     window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'), window.selectedRemittanceDate);
     
     // Get data for selected date
-    const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, viewDate);
-    const { payments: gcashPayments, total: gcashTotal } = window.getTechDailyGCashPayments(techId, viewDate);
-    const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, viewDate);
-    const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, viewDate);
+    const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, viewDateString);
+    const { payments: gcashPayments, total: gcashTotal } = window.getTechDailyGCashPayments(techId, viewDateString);
+    const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, viewDateString);
+    const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, viewDateString);
     
-    // Calculate GCash commission (from GCash repairs)
+    // Calculate commission breakdown by payment method (Cash vs GCash)
+    let cashCommission = 0;
     let gcashCommission = 0;
-    gcashPayments.forEach(gp => {
-        const repair = window.allRepairs.find(r => r.id === gp.repairId);
-        if (repair && repair.acceptedBy === techId) {
-            const commission = window.calculateRepairCommission(repair, techId);
-            gcashCommission += commission.total;
+    let cashRepairCount = 0;
+    let gcashRepairCount = 0;
+    
+    commissionBreakdown.forEach(c => {
+        const repair = window.allRepairs.find(r => r.id === c.repairId);
+        if (repair && repair.payments) {
+            // Check if this repair has any GCash payment
+            const hasGCashPayment = repair.payments.some(p => p.method === 'GCash');
+            
+            if (hasGCashPayment) {
+                gcashCommission += c.commission;
+                gcashRepairCount++;
+            } else {
+                cashCommission += c.commission;
+                cashRepairCount++;
+            }
         }
     });
     
-    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
+    const totalCommission = cashCommission + gcashCommission;
+    
+    // NEW CALCULATION: Cash remittance does NOT deduct commission
+    // Commission is paid separately at end of day
+    const expectedAmount = paymentsTotal - expensesTotal;
     
     // Check if already submitted for this date
     const dateRemittance = window.techRemittances.find(r => {
@@ -3645,7 +3680,7 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                     <input type="date" 
                            id="remittanceDatePicker" 
                            value="${viewDateString}"
-                           max="${today.toISOString().split('T')[0]}"
+                           max="${getLocalDateString(today)}"
                            onchange="window.changeRemittanceDate(this.value)"
                            style="padding:8px;border:1px solid #ddd;border-radius:5px;width:100%;max-width:200px;">
                 </div>
@@ -3688,9 +3723,9 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                 <small>${gcashPayments.length} GCash payment(s)</small>
             </div>
             <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
-                <h3>₱${commissionTotal.toFixed(2)}</h3>
-                <p>🎯 Total Commission</p>
-                <small>Cash + GCash repairs</small>
+                <h3>₱${totalCommission.toFixed(2)}</h3>
+                <p>🎯 Commission Earned</p>
+                <small>💵 ₱${cashCommission.toFixed(2)} | 📱 ₱${gcashCommission.toFixed(2)}</small>
             </div>
             <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
                 <h3>₱${expensesTotal.toFixed(2)}</h3>
@@ -3700,7 +3735,7 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
             <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
                 <h3>₱${expectedAmount.toFixed(2)}</h3>
                 <p>💵 ${isToday ? 'Cash to Remit' : 'Net Cash'}</p>
-                <small>Cash - Commission - Expenses</small>
+                <small>Cash - Expenses (No commission deduction)</small>
             </div>
         </div>
         
@@ -3797,18 +3832,65 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
             ` : '<p style="color:#999;text-align:center;padding:20px;">No cash payments collected today</p>'}
         </div>
         
-        <!-- GCash Payments -->
+        <!-- Commission Earned Today -->
+        ${totalCommission > 0 ? `
+            <div class="card" style="margin:20px 0;background:#e8f5e9;">
+                <h3>💰 Commission Earned Today</h3>
+                <p style="color:#666;font-size:14px;margin-bottom:15px;">
+                    40% commission on labor (Total - Parts Cost) - Paid separately at end of day
+                </p>
+                
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px;margin:15px 0;">
+                    ${cashCommission > 0 ? `
+                        <div class="stat-card" style="background:white;border-left:4px solid #2196f3;">
+                            <h3>₱${cashCommission.toFixed(2)}</h3>
+                            <p>💵 From Cash Repairs</p>
+                            <small>${cashRepairCount} repair(s)</small>
+                        </div>
+                    ` : ''}
+                    
+                    ${gcashCommission > 0 ? `
+                        <div class="stat-card" style="background:white;border-left:4px solid #00bcd4;">
+                            <h3>₱${gcashCommission.toFixed(2)}</h3>
+                            <p>📱 From GCash Repairs</p>
+                            <small>${gcashRepairCount} repair(s)</small>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="stat-card" style="background:#4caf50;color:white;border-left:4px solid #2e7d32;">
+                        <h3>₱${totalCommission.toFixed(2)}</h3>
+                        <p>🎯 Total Commission</p>
+                        <small>Paid at end of day</small>
+                    </div>
+                </div>
+                
+                ${dateRemittance && dateRemittance.commissionPaymentPreference ? `
+                    <div style="background:#fff3cd;padding:12px;border-radius:8px;border-left:4px solid #ff9800;margin-top:10px;">
+                        <strong>📋 Payment Preference:</strong> 
+                        ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : '📱 GCash'}
+                    </div>
+                ` : ''}
+                
+                <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-top:15px;border-left:4px solid #2196f3;">
+                    <strong>💡 Important:</strong><br>
+                    <small style="color:#666;">
+                        • Commission is NOT deducted from your cash remittance<br>
+                        • You will receive your commission separately at end of day<br>
+                        • Choose Cash or GCash payment when submitting remittance
+                    </small>
+                </div>
+            </div>
+        ` : ''}
+        
+        <!-- GCash Payments (Tracking Only) -->
         ${gcashPayments.length > 0 ? `
             <div class="card" style="margin:20px 0;background:#e1f5fe;">
                 <h3>📱 GCash Payments Processed (${gcashPayments.length})</h3>
                 <p style="color:#666;font-size:14px;margin-bottom:15px;">
-                    GCash payments went directly to shop account - NOT included in cash remittance<br>
-                    <strong style="color:#00bcd4;">Your commission from these will be deducted from your cash remittance</strong>
+                    GCash payments went directly to shop account - NOT included in cash remittance
                 </p>
                 <div class="repairs-list">
                     ${gcashPayments.map(gp => {
-                        const repair = window.allRepairs.find(r => r.id === gp.repairId);
-                        const commission = repair ? window.calculateRepairCommission(repair, techId).total : 0;
                         return `
                             <div class="repair-card" style="border-left-color:#00bcd4;background:white;">
                                 <div style="display:flex;justify-content:space-between;align-items:start;">
@@ -3818,11 +3900,6 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                                             📱 GCash • ${utils.formatDateTime(gp.recordedDate)}<br>
                                             Ref: <code style="background:#f5f5f5;padding:2px 6px;border-radius:3px;font-size:12px;">${gp.gcashReferenceNumber || 'N/A'}</code>
                                         </p>
-                                        ${commission > 0 ? `
-                                            <p style="font-size:12px;color:#4caf50;margin-top:5px;">
-                                                💰 Your commission: ₱${commission.toFixed(2)}
-                                            </p>
-                                        ` : ''}
                                     </div>
                                     <div style="text-align:right;">
                                         <div style="font-size:20px;font-weight:600;color:#00bcd4;">₱${gp.amount.toFixed(2)}</div>
@@ -3832,14 +3909,6 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                             </div>
                         `;
                     }).join('')}
-                </div>
-                <div style="background:#fff3cd;padding:15px;border-radius:8px;margin-top:15px;border-left:4px solid #ff9800;">
-                    <strong>💡 How GCash Commission Works:</strong><br>
-                    <small style="color:#666;">
-                        • GCash money (₱${gcashTotal.toFixed(2)}) went to shop, not to you<br>
-                        • Your commission (₱${gcashCommission.toFixed(2)}) will be deducted from your cash remittance<br>
-                        • This way, shop keeps the GCash and you get your commission from the cash you collected
-                    </small>
                 </div>
             </div>
         ` : ''}
