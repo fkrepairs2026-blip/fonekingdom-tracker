@@ -5049,19 +5049,35 @@ function closeRemittanceModal() {
  * Open Remittance Verification Modal
  */
 function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
+    console.log('🔍 Opening verify modal for remittance:', remittanceId);
+    console.log('📋 Available remittances:', window.techRemittances.map(r => r.id));
+    
     const remittance = window.techRemittances.find(r => r.id === remittanceId);
-    if (!remittance) return;
+    if (!remittance) {
+        console.error('❌ Remittance not found:', remittanceId);
+        alert('⚠️ Remittance not found. Please refresh the page and try again.');
+        return;
+    }
+    
+    console.log('✅ Found remittance:', remittance);
     
     const currentUserId = window.currentUser.uid;
     const isAdmin = window.currentUserData.role === 'admin';
     
+    console.log('👤 Current user:', currentUserId, 'Role:', window.currentUserData.role);
+    console.log('📮 Remittance submitted to:', remittance.submittedTo, remittance.submittedToName);
+    
     // Check if current user is the intended recipient
     const isIntendedRecipient = remittance.submittedTo === currentUserId;
+    
+    console.log('✓ Is intended recipient?', isIntendedRecipient, '| Is admin?', isAdmin);
     
     if (!isIntendedRecipient && !isAdmin) {
         alert('⚠️ This remittance was submitted to ' + remittance.submittedToName + ', not you.\n\nOnly they (or an admin) can verify it.');
         return;
     }
+    
+    console.log('✅ Authorization passed, building modal...');
     
     const showOverrideWarning = isAdminOverride && !isIntendedRecipient;
     const discrepancy = remittance.discrepancy;
