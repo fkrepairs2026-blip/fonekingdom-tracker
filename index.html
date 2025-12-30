@@ -543,18 +543,32 @@
                 
                 <div class="form-group">
                     <label>Payment Method *</label>
-                    <select id="releasePaymentMethod">
-                        <option value="Cash">Cash</option>
-                        <option value="GCash">GCash</option>
-                        <option value="Bank Transfer">Bank Transfer</option>
-                        <option value="Check">Check</option>
-                        <option value="Credit Card">Credit Card</option>
+                    <select id="releasePaymentMethod" onchange="toggleGCashReferenceField()">
+                        <option value="Cash">💵 Cash</option>
+                        <option value="GCash">📱 GCash</option>
+                        <option value="Bank Transfer">🏦 Bank Transfer</option>
+                        <option value="Check">📝 Check</option>
+                        <option value="Credit Card">💳 Credit Card</option>
                     </select>
+                </div>
+                
+                <!-- GCash Reference Number (Shown only for GCash) -->
+                <div id="gcashReferenceField" class="form-group" style="display:none;">
+                    <label>GCash Reference Number * <span style="color:#ff9800;">(Required for GCash)</span></label>
+                    <input type="text" 
+                           id="releaseGCashReference" 
+                           placeholder="Enter 13-digit GCash reference number"
+                           maxlength="13"
+                           pattern="[0-9]{13}"
+                           style="font-family:monospace;font-size:16px;">
+                    <small style="display:block;margin-top:5px;color:#666;">
+                        📱 Find reference number in GCash transaction history
+                    </small>
                 </div>
                 
                 <div class="form-group">
                     <label>Payment Notes</label>
-                    <textarea id="releasePaymentNotes" rows="2" placeholder="Optional: Reference number, notes..."></textarea>
+                    <textarea id="releasePaymentNotes" rows="2" placeholder="Optional: Additional notes..."></textarea>
                 </div>
             </div>
             

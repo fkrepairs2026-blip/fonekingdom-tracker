@@ -3565,8 +3565,20 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
     
     // Get data for selected date
     const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, viewDate);
+    const { payments: gcashPayments, total: gcashTotal } = window.getTechDailyGCashPayments(techId, viewDate);
     const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, viewDate);
     const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, viewDate);
+    
+    // Calculate GCash commission (from GCash repairs)
+    let gcashCommission = 0;
+    gcashPayments.forEach(gp => {
+        const repair = window.allRepairs.find(r => r.id === gp.repairId);
+        if (repair && repair.acceptedBy === techId) {
+            const commission = window.calculateCommission(repair);
+            gcashCommission += commission.total;
+        }
+    });
+    
     const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
     
     // Check if already submitted for this date
@@ -3661,13 +3673,18 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
             <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
                 <h3>₱${paymentsTotal.toFixed(2)}</h3>
-                <p>💰 Payments Collected</p>
-                <small>${payments.length} payment(s) on ${isToday ? 'today' : utils.formatDate(viewDate)}</small>
+                <p>💵 Cash Collected</p>
+                <small>${payments.length} cash payment(s)</small>
+            </div>
+            <div class="stat-card" style="background:#e1f5fe;border-left:4px solid #00bcd4;">
+                <h3>₱${gcashTotal.toFixed(2)}</h3>
+                <p>📱 GCash Processed</p>
+                <small>${gcashPayments.length} GCash payment(s)</small>
             </div>
             <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
                 <h3>₱${commissionTotal.toFixed(2)}</h3>
-                <p>🎯 Your Commission (40%)</p>
-                <small>${commissionBreakdown.length} eligible repair(s)</small>
+                <p>🎯 Total Commission</p>
+                <small>Cash + GCash repairs</small>
             </div>
             <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
                 <h3>₱${expensesTotal.toFixed(2)}</h3>
@@ -3676,8 +3693,8 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
             </div>
             <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
                 <h3>₱${expectedAmount.toFixed(2)}</h3>
-                <p>💵 ${isToday ? 'Amount to Remit' : 'Net Amount'}</p>
-                <small>Payments - Commission - Expenses</small>
+                <p>💵 ${isToday ? 'Cash to Remit' : 'Net Cash'}</p>
+                <small>Cash - Commission - Expenses</small>
             </div>
         </div>
         
@@ -3749,9 +3766,10 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
             </div>
         ` : ''}
         
-        <!-- Today's Payments -->
+        <!-- Cash Payments -->
         <div class="card" style="margin:20px 0;">
-            <h3>💰 Today's Collected Payments (${payments.length})</h3>
+            <h3>💵 Cash Payments Collected (${payments.length})</h3>
+            <p style="color:#666;font-size:14px;margin-bottom:15px;">Cash you physically collected - must be remitted</p>
             ${payments.length > 0 ? `
                 <div class="repairs-list">
                     ${payments.map(p => `
@@ -3760,7 +3778,7 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                                 <div>
                                     <h4>${p.customerName}</h4>
                                     <p style="font-size:13px;color:#666;">
-                                        ${p.method} • ${utils.formatDateTime(p.recordedDate)}
+                                        💵 ${p.method} • ${utils.formatDateTime(p.recordedDate)}
                                     </p>
                                 </div>
                                 <div style="text-align:right;">
@@ -3770,8 +3788,55 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                         </div>
                     `).join('')}
                 </div>
-            ` : '<p style="color:#999;text-align:center;padding:20px;">No payments collected today</p>'}
+            ` : '<p style="color:#999;text-align:center;padding:20px;">No cash payments collected today</p>'}
         </div>
+        
+        <!-- GCash Payments -->
+        ${gcashPayments.length > 0 ? `
+            <div class="card" style="margin:20px 0;background:#e1f5fe;">
+                <h3>📱 GCash Payments Processed (${gcashPayments.length})</h3>
+                <p style="color:#666;font-size:14px;margin-bottom:15px;">
+                    GCash payments went directly to shop account - NOT included in cash remittance<br>
+                    <strong style="color:#00bcd4;">Your commission from these will be deducted from your cash remittance</strong>
+                </p>
+                <div class="repairs-list">
+                    ${gcashPayments.map(gp => {
+                        const repair = window.allRepairs.find(r => r.id === gp.repairId);
+                        const commission = repair ? window.calculateCommission(repair).total : 0;
+                        return `
+                            <div class="repair-card" style="border-left-color:#00bcd4;background:white;">
+                                <div style="display:flex;justify-content:space-between;align-items:start;">
+                                    <div style="flex:1;">
+                                        <h4>${gp.customerName}</h4>
+                                        <p style="font-size:13px;color:#666;">
+                                            📱 GCash • ${utils.formatDateTime(gp.recordedDate)}<br>
+                                            Ref: <code style="background:#f5f5f5;padding:2px 6px;border-radius:3px;font-size:12px;">${gp.gcashReferenceNumber || 'N/A'}</code>
+                                        </p>
+                                        ${commission > 0 ? `
+                                            <p style="font-size:12px;color:#4caf50;margin-top:5px;">
+                                                💰 Your commission: ₱${commission.toFixed(2)}
+                                            </p>
+                                        ` : ''}
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:20px;font-weight:600;color:#00bcd4;">₱${gp.amount.toFixed(2)}</div>
+                                        <span style="font-size:11px;color:#666;">→ Shop Account</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+                <div style="background:#fff3cd;padding:15px;border-radius:8px;margin-top:15px;border-left:4px solid #ff9800;">
+                    <strong>💡 How GCash Commission Works:</strong><br>
+                    <small style="color:#666;">
+                        • GCash money (₱${gcashTotal.toFixed(2)}) went to shop, not to you<br>
+                        • Your commission (₱${gcashCommission.toFixed(2)}) will be deducted from your cash remittance<br>
+                        • This way, shop keeps the GCash and you get your commission from the cash you collected
+                    </small>
+                </div>
+            </div>
+        ` : ''}
         
         <!-- Today's Expenses -->
         <div class="card" style="margin:20px 0;">

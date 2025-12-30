@@ -4386,9 +4386,14 @@ function getTechDailyPayments(techId, date) {
         if (repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toDateString();
+                const paymentMethod = payment.method || 'Cash'; // Default to Cash for old payments
+                
+                // Only include CASH payments in remittance
+                // GCash goes directly to shop, no remittance needed
                 if (payment.collectedByTech && 
                     payment.receivedById === techId && 
                     paymentDate === today &&
+                    paymentMethod === 'Cash' &&
                     payment.remittanceStatus === 'pending') {
                     payments.push({
                         repairId: repair.id,
@@ -4397,6 +4402,41 @@ function getTechDailyPayments(techId, date) {
                         amount: payment.amount,
                         method: payment.method,
                         paymentDate: payment.paymentDate,
+                        recordedDate: payment.recordedDate
+                    });
+                    total += payment.amount;
+                }
+            });
+        }
+    });
+    
+    return { payments, total };
+}
+
+/**
+ * Get technician's daily GCash payments (for display only, not remittance)
+ */
+function getTechDailyGCashPayments(techId, date) {
+    const today = new Date(date).toDateString();
+    const payments = [];
+    let total = 0;
+    
+    window.allRepairs.forEach(repair => {
+        // Only include repairs assigned to this technician
+        if (repair.acceptedBy === techId && repair.payments) {
+            repair.payments.forEach((payment, index) => {
+                const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toDateString();
+                
+                // Only GCash payments for this date
+                if (payment.method === 'GCash' && paymentDate === today) {
+                    payments.push({
+                        repairId: repair.id,
+                        paymentIndex: index,
+                        customerName: repair.customerName,
+                        amount: payment.amount,
+                        method: payment.method,
+                        gcashReferenceNumber: payment.gcashReferenceNumber,
+                        verified: payment.verified,
                         recordedDate: payment.recordedDate
                     });
                     total += payment.amount;
@@ -5425,6 +5465,24 @@ function toggleReleasePaymentSection() {
 }
 
 /**
+ * Toggle GCash reference number field based on payment method
+ */
+function toggleGCashReferenceField() {
+    const paymentMethod = document.getElementById('releasePaymentMethod').value;
+    const gcashField = document.getElementById('gcashReferenceField');
+    const gcashInput = document.getElementById('releaseGCashReference');
+    
+    if (paymentMethod === 'GCash') {
+        gcashField.style.display = 'block';
+        gcashInput.required = true;
+    } else {
+        gcashField.style.display = 'none';
+        gcashInput.required = false;
+        gcashInput.value = ''; // Clear field when not GCash
+    }
+}
+
+/**
  * Open Release Device Modal
  */
 function openReleaseDeviceModal(repairId) {
@@ -5593,11 +5651,24 @@ async function confirmReleaseDevice() {
         paymentAmount = parseFloat(document.getElementById('releasePaymentAmount').value);
         const paymentMethod = document.getElementById('releasePaymentMethod').value;
         const paymentNotes = document.getElementById('releasePaymentNotes').value.trim();
+        const gcashReference = document.getElementById('releaseGCashReference').value.trim();
         
         // Validate payment amount
         if (!paymentAmount || paymentAmount <= 0) {
             alert('⚠️ Please enter a valid payment amount');
             return;
+        }
+        
+        // Validate GCash reference if GCash is selected
+        if (paymentMethod === 'GCash') {
+            if (!gcashReference) {
+                alert('⚠️ GCash reference number is required for GCash payments');
+                return;
+            }
+            if (!/^\d{13}$/.test(gcashReference)) {
+                alert('⚠️ GCash reference number must be exactly 13 digits');
+                return;
+            }
         }
         
         // Create payment collected object
@@ -5608,7 +5679,9 @@ async function confirmReleaseDevice() {
             collectedBy: window.currentUserData.displayName,
             collectedById: window.currentUser.uid,
             collectedByRole: window.currentUserData.role,
-            collectedAt: new Date().toISOString()
+            collectedAt: new Date().toISOString(),
+            // GCash specific fields
+            gcashReferenceNumber: paymentMethod === 'GCash' ? gcashReference : null
         };
     }
     
@@ -5683,6 +5756,9 @@ async function confirmReleaseDevice() {
             // Create payment object
             // NOTE: Payments are ALWAYS auto-verified when recorded
             // Verification happens at the REMITTANCE level (when tech hands cash to cashier/admin)
+            // GCash payments go to shop account, not collected by tech
+            const isGCash = paymentCollected.method === 'GCash';
+            
             const payment = {
                 amount: paymentCollected.amount,
                 method: paymentCollected.method,
@@ -5693,12 +5769,15 @@ async function confirmReleaseDevice() {
                 recordedById: paymentCollected.collectedById,
                 receivedBy: paymentCollected.collectedBy, // Who received the payment
                 receivedById: paymentCollected.collectedById,
-                collectedByTech: isTech, // True if tech collected, false if cashier/admin
-                remittanceStatus: isTech ? 'pending' : 'n/a', // Techs need to remit, cashier/admin don't
+                // GCash goes to shop, not to tech for remittance
+                collectedByTech: !isGCash && isTech, // Only true for Cash collected by tech
+                remittanceStatus: (!isGCash && isTech) ? 'pending' : 'n/a', // Only Cash by tech needs remittance
                 verified: true, // ALWAYS auto-verified
                 verifiedAt: paymentCollected.collectedAt,
                 verifiedBy: paymentCollected.collectedBy,
-                verifiedById: paymentCollected.collectedById
+                verifiedById: paymentCollected.collectedById,
+                // GCash specific fields
+                gcashReferenceNumber: paymentCollected.gcashReferenceNumber || null
             };
             
             const existingPayments = repair.payments || [];
@@ -7404,6 +7483,7 @@ window.openExpenseModal = openExpenseModal;
 window.saveExpense = saveExpense;
 window.closeExpenseModal = closeExpenseModal;
 window.getTechDailyPayments = getTechDailyPayments;
+window.getTechDailyGCashPayments = getTechDailyGCashPayments;
 window.getTechDailyExpenses = getTechDailyExpenses;
 window.getRepairPartsCost = getRepairPartsCost;
 window.getRepairDeliveryExpenses = getRepairDeliveryExpenses;
@@ -8320,6 +8400,7 @@ window.openReleaseDeviceModal = openReleaseDeviceModal;
 window.toggleVerificationMethod = toggleVerificationMethod;
 window.uploadServiceSlipPhoto = uploadServiceSlipPhoto;
 window.toggleReleasePaymentSection = toggleReleasePaymentSection;
+window.toggleGCashReferenceField = toggleGCashReferenceField;
 window.confirmReleaseDevice = confirmReleaseDevice;
 window.closeReleaseDeviceModal = closeReleaseDeviceModal;
 // Edit details and update diagnosis exports
