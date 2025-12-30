@@ -3580,7 +3580,7 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
     gcashPayments.forEach(gp => {
         const repair = window.allRepairs.find(r => r.id === gp.repairId);
         if (repair && repair.acceptedBy === techId) {
-            const commission = window.calculateCommission(repair);
+            const commission = window.calculateRepairCommission(repair, techId);
             gcashCommission += commission.total;
         }
     });
@@ -3808,7 +3808,7 @@ function buildDailyRemittanceTab(container, selectedDate = null) {
                 <div class="repairs-list">
                     ${gcashPayments.map(gp => {
                         const repair = window.allRepairs.find(r => r.id === gp.repairId);
-                        const commission = repair ? window.calculateCommission(repair).total : 0;
+                        const commission = repair ? window.calculateRepairCommission(repair, techId).total : 0;
                         return `
                             <div class="repair-card" style="border-left-color:#00bcd4;background:white;">
                                 <div style="display:flex;justify-content:space-between;align-items:start;">
