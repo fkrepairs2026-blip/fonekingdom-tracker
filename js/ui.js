@@ -4242,12 +4242,18 @@ function buildTechnicianLogsTab(container) {
         .filter(r => r.payments && r.payments.some(p => p.receivedById === selectedTech.id))
         .map(r => {
             return r.payments
-                .filter(p => p.receivedById === selectedTech.id)
-                .map((p, idx) => ({
-                    ...p,
+                .map((p, actualIndex) => ({
+                    payment: p,
+                    actualIndex: actualIndex,
                     repairId: r.id,
-                    customerName: r.customerName,
-                    paymentIndex: idx
+                    customerName: r.customerName
+                }))
+                .filter(item => item.payment.receivedById === selectedTech.id)
+                .map(item => ({
+                    ...item.payment,
+                    repairId: item.repairId,
+                    customerName: item.customerName,
+                    paymentIndex: item.actualIndex // Use actual index in repair.payments array
                 }));
         })
         .flat()
@@ -4334,6 +4340,7 @@ function buildTechnicianLogsTab(container) {
                                 <th style="padding:10px;text-align:left;border-bottom:2px solid #ddd;">Method</th>
                                 <th style="padding:10px;text-align:right;border-bottom:2px solid #ddd;">Amount</th>
                                 <th style="padding:10px;text-align:center;border-bottom:2px solid #ddd;">Status</th>
+                                ${window.currentUserData.role === 'admin' ? '<th style="padding:10px;text-align:center;border-bottom:2px solid #ddd;">Actions</th>' : ''}
                             </tr>
                         </thead>
                         <tbody>
@@ -4348,6 +4355,18 @@ function buildTechnicianLogsTab(container) {
                                           p.remittanceStatus === 'remitted' ? '<span style="color:#ff9800;">📤 Remitted</span>' : 
                                           '<span style="color:#999;">⏳ Pending</span>'}
                                     </td>
+                                    ${window.currentUserData.role === 'admin' ? `
+                                        <td style="padding:10px;text-align:center;">
+                                            ${p.remittanceStatus === 'remitted' ? `
+                                                <button onclick="adminUnremitPayment('${p.repairId}', ${p.paymentIndex})" 
+                                                        class="btn-small" 
+                                                        style="background:#ff9800;color:white;padding:4px 10px;font-size:12px;border:none;border-radius:4px;cursor:pointer;"
+                                                        title="Reset this payment to pending status">
+                                                    ↩️ Un-Remit
+                                                </button>
+                                            ` : '-'}
+                                        </td>
+                                    ` : ''}
                                 </tr>
                             `).join('')}
                         </tbody>

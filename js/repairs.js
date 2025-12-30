@@ -5453,50 +5453,46 @@ async function rejectRemittance() {
         const remittance = window.techRemittances.find(r => r.id === remittanceId);
         const updatePromises = [];
         
-        if (remittance.paymentIds && remittance.paymentIds.length > 0) {
-            // New remittance format - use paymentIds
-            remittance.paymentIds.forEach(paymentId => {
-                const [repairId, paymentIndex] = paymentId.split('_');
-                const repair = window.allRepairs.find(r => r.id === repairId);
-                if (repair && repair.payments && repair.payments[paymentIndex]) {
-                    const updatedPayments = [...repair.payments];
-                    updatedPayments[paymentIndex] = {
-                        ...updatedPayments[paymentIndex],
-                        techRemittanceId: null,
-                        remittanceStatus: 'pending'
-                    };
+        console.log('🔄 Rejecting remittance:', remittanceId);
+        console.log('📋 Remittance has paymentIds:', remittance.paymentIds);
+        
+        // ALWAYS scan ALL repairs to find any payment linked to this remittance
+        // This ensures we don't miss any payments due to data inconsistencies
+        let paymentsReset = 0;
+        
+        window.allRepairs.forEach(repair => {
+            if (repair.payments) {
+                const updatedPayments = [...repair.payments];
+                let hasChanges = false;
+                
+                repair.payments.forEach((payment, index) => {
+                    // Reset if payment is linked to this remittance by ID OR status
+                    if (payment.techRemittanceId === remittanceId || 
+                        (payment.remittanceStatus === 'remitted' && 
+                         remittance.paymentIds && 
+                         remittance.paymentIds.includes(`${repair.id}_${index}`))) {
+                        
+                        console.log(`✅ Resetting payment: ${repair.customerName} - ₱${payment.amount}`);
+                        
+                        updatedPayments[index] = {
+                            ...payment,
+                            techRemittanceId: null,
+                            remittanceStatus: 'pending'
+                        };
+                        hasChanges = true;
+                        paymentsReset++;
+                    }
+                });
+                
+                if (hasChanges) {
                     updatePromises.push(
-                        db.ref(`repairs/${repairId}`).update({ payments: updatedPayments })
+                        db.ref(`repairs/${repair.id}`).update({ payments: updatedPayments })
                     );
                 }
-            });
-        } else {
-            // Old remittance format - find all payments linked to this remittance
-            console.log('⚠️ Legacy remittance detected, manually resetting payments...');
-            window.allRepairs.forEach(repair => {
-                if (repair.payments) {
-                    const updatedPayments = [...repair.payments];
-                    let hasChanges = false;
-                    
-                    repair.payments.forEach((payment, index) => {
-                        if (payment.techRemittanceId === remittanceId) {
-                            updatedPayments[index] = {
-                                ...payment,
-                                techRemittanceId: null,
-                                remittanceStatus: 'pending'
-                            };
-                            hasChanges = true;
-                        }
-                    });
-                    
-                    if (hasChanges) {
-                        updatePromises.push(
-                            db.ref(`repairs/${repair.id}`).update({ payments: updatedPayments })
-                        );
-                    }
-                }
-            });
-        }
+            }
+        });
+        
+        console.log(`📊 Total payments reset: ${paymentsReset}`);
         
         // Reset expense remittance IDs
         if (remittance.expenseIds && remittance.expenseIds.length > 0) {
@@ -6336,6 +6332,101 @@ async function adminDeletePayment(repairId, paymentIndex) {
             console.error('❌ Error deleting payment:', error);
             alert('Error: ' + error.message);
         }
+    }
+}
+
+/**
+ * Admin: Un-remit a payment (reset to pending status)
+ */
+async function adminUnremitPayment(repairId, paymentIndex) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair || !repair.payments || !repair.payments[paymentIndex]) {
+        alert('❌ Payment not found');
+        return;
+    }
+    
+    const payment = repair.payments[paymentIndex];
+    
+    // Check current status
+    if (payment.remittanceStatus !== 'remitted') {
+        alert(`ℹ️ This payment is already in "${payment.remittanceStatus || 'pending'}" status.\n\nNo action needed.`);
+        return;
+    }
+    
+    // Show payment details and confirm
+    const confirmed = confirm(
+        `⚠️ UN-REMIT PAYMENT ⚠️\n\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Amount: ₱${payment.amount.toFixed(2)}\n` +
+        `Method: ${payment.method}\n` +
+        `Date: ${utils.formatDate(payment.paymentDate)}\n` +
+        `Received by: ${payment.receivedByName || payment.receivedBy}\n` +
+        `Current Status: REMITTED\n\n` +
+        `This will reset this payment to PENDING status.\n` +
+        `The payment will appear in the technician's daily remittance again.\n\n` +
+        `Use this when a payment was incorrectly marked as remitted,\n` +
+        `or when you need to fix a rejected remittance.\n\n` +
+        `Click OK to continue...`
+    );
+    
+    if (!confirmed) return;
+    
+    // Require reason
+    const reason = prompt('Please enter reason for un-remitting this payment:');
+    if (!reason || !reason.trim()) {
+        alert('⚠️ Reason is required');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const now = new Date().toISOString();
+        const updatedPayments = [...repair.payments];
+        
+        // Reset payment to pending status
+        updatedPayments[paymentIndex] = {
+            ...payment,
+            remittanceStatus: 'pending',
+            techRemittanceId: null,
+            unremittedBy: window.currentUserData.displayName,
+            unremittedAt: now,
+            unremitReason: reason
+        };
+        
+        await db.ref(`repairs/${repairId}`).update({
+            payments: updatedPayments,
+            lastUpdated: now,
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log activity
+        await logActivity('payment_unremitted', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            amount: payment.amount,
+            method: payment.method,
+            paymentDate: payment.paymentDate,
+            reason: reason
+        }, `Payment un-remitted: ₱${payment.amount.toFixed(2)} from ${repair.customerName} - Reason: ${reason}`);
+        
+        utils.showLoading(false);
+        alert(`✅ Payment Un-Remitted!\n\n₱${payment.amount.toFixed(2)} from ${repair.customerName}\n\nStatus: REMITTED → PENDING\n\nThis payment will now appear in the technician's daily remittance.`);
+        
+        // Refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error un-remitting payment:', error);
+        alert('Error: ' + error.message);
     }
 }
 
@@ -8709,6 +8800,7 @@ window.adminGetRemittanceStats = adminGetRemittanceStats;
 window.adminFindOrphanedData = adminFindOrphanedData;
 window.adminQuickFixWarranty = adminQuickFixWarranty;
 window.adminDeletePayment = adminDeletePayment;
+window.adminUnremitPayment = adminUnremitPayment;
 window.adminDeleteExpense = adminDeleteExpense;
 window.requestRepairDeletion = requestRepairDeletion;
 window.processDeletionRequest = processDeletionRequest;
