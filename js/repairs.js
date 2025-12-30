@@ -4408,10 +4408,51 @@ function openRemittanceModal() {
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, today);
     const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, today);
     
-    // Allow submission if either payments or expenses exist
-    if (payments.length === 0 && expenses.length === 0) {
-        alert('⚠️ No payments or expenses to remit today.');
+    // Check if there are ANY items to remit (today or historical)
+    const hasTodayItems = payments.length > 0 || expenses.length > 0 || commissionBreakdown.length > 0;
+    
+    // Check for historical pending payments
+    let hasHistoricalPending = false;
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach(payment => {
+                if (payment.collectedByTech && 
+                    payment.receivedById === techId && 
+                    payment.remittanceStatus === 'pending' &&
+                    !payment.techRemittanceId) {
+                    hasHistoricalPending = true;
+                }
+            });
+        }
+    });
+    
+    // Check for unclaimed commissions
+    let hasUnclaimedCommission = false;
+    window.allRepairs.forEach(repair => {
+        if (repair.acceptedBy === techId && 
+            repair.status === 'Claimed' && 
+            !repair.commissionClaimedBy) {
+            const totalPaid = (repair.payments || [])
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + p.amount, 0);
+            if (totalPaid >= repair.total) {
+                hasUnclaimedCommission = true;
+            }
+        }
+    });
+    
+    // Allow submission if ANY items exist
+    if (!hasTodayItems && !hasHistoricalPending && !hasUnclaimedCommission) {
+        alert('⚠️ No items to remit.\n\nYou have no pending payments, expenses, or commissions.');
         return;
+    }
+    
+    // Show info message if including historical items
+    if ((hasHistoricalPending || hasUnclaimedCommission) && !hasTodayItems) {
+        alert('ℹ️ Remitting Historical Items\n\nYou are submitting a remittance that includes:\n' +
+              (hasHistoricalPending ? '• Pending payments from previous dates\n' : '') +
+              (hasUnclaimedCommission ? '• Unclaimed commission from completed repairs\n' : '') +
+              '\nNo new transactions from today.');
     }
     
     // Calculate expected remittance (Payments - Commission - Expenses)
@@ -7025,6 +7066,247 @@ async function adminRecalculateCommissions() {
 
 // Export admin function
 window.adminRecalculateCommissions = adminRecalculateCommissions;
+
+/**
+ * ============================================
+ * ADMIN MASTER RESET FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * Open Master Reset Modal (Admin Only)
+ */
+function openMasterResetModal() {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+    
+    const content = document.getElementById('masterResetModalContent');
+    content.innerHTML = `
+        <div style="background:#ffebee;padding:15px;border-radius:8px;border-left:4px solid #f44336;margin-bottom:20px;">
+            <strong style="color:#d32f2f;">⚠️ DANGER ZONE</strong><br>
+            This will permanently delete selected data. This action CANNOT be undone!
+        </div>
+        
+        <h4 style="margin-bottom:15px;">Select Data to Reset:</h4>
+        
+        <div style="background:#fff;padding:15px;border-radius:8px;border:1px solid #ddd;">
+            <label style="display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;border-bottom:1px solid #eee;">
+                <input type="checkbox" id="reset_repairs" onchange="updateResetSummary()">
+                <div style="flex:1;">
+                    <strong>All Repairs & Jobs</strong>
+                    <div style="font-size:12px;color:#666;">Clears all repair records, payments, status history</div>
+                    <div style="font-size:11px;color:#999;">Count: ${window.allRepairs.length} repairs</div>
+                </div>
+            </label>
+            
+            <label style="display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;border-bottom:1px solid #eee;">
+                <input type="checkbox" id="reset_remittances" onchange="updateResetSummary()">
+                <div style="flex:1;">
+                    <strong>Technician Remittances</strong>
+                    <div style="font-size:12px;color:#666;">Clears all remittance records and commission tracking</div>
+                    <div style="font-size:11px;color:#999;">Count: ${window.techRemittances.length} remittances</div>
+                </div>
+            </label>
+            
+            <label style="display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;border-bottom:1px solid #eee;">
+                <input type="checkbox" id="reset_expenses" onchange="updateResetSummary()">
+                <div style="flex:1;">
+                    <strong>Technician Expenses</strong>
+                    <div style="font-size:12px;color:#666;">Clears all expense records</div>
+                    <div style="font-size:11px;color:#999;">Count: ${window.techExpenses.length} expenses</div>
+                </div>
+            </label>
+            
+            <label style="display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;border-bottom:1px solid #eee;">
+                <input type="checkbox" id="reset_cashcounts" onchange="updateResetSummary()">
+                <div style="flex:1;">
+                    <strong>Daily Cash Counts</strong>
+                    <div style="font-size:12px;color:#666;">Clears all daily cash count locks and records</div>
+                </div>
+            </label>
+            
+            <label style="display:flex;align-items:center;gap:10px;padding:10px;cursor:pointer;">
+                <input type="checkbox" id="reset_activitylogs" onchange="updateResetSummary()">
+                <div style="flex:1;">
+                    <strong>Activity Logs</strong>
+                    <div style="font-size:12px;color:#666;">Clears all activity log history</div>
+                    <div style="font-size:11px;color:#999;">Count: ${(window.activityLogs || []).length} logs</div>
+                </div>
+            </label>
+        </div>
+        
+        <div style="background:#fff3cd;padding:15px;border-radius:8px;margin:15px 0;border-left:3px solid #ff9800;">
+            <strong>📝 Important Notes:</strong>
+            <ul style="margin:10px 0 0 20px;font-size:13px;">
+                <li>User accounts will NOT be deleted</li>
+                <li>Suppliers list will NOT be deleted</li>
+                <li>System settings will NOT be changed</li>
+                <li>This action is PERMANENT and cannot be undone</li>
+            </ul>
+        </div>
+        
+        <div id="resetSummary" style="background:#e3f2fd;padding:15px;border-radius:8px;margin:15px 0;display:none;">
+            <strong>Reset Summary:</strong>
+            <div id="resetSummaryContent" style="margin-top:10px;"></div>
+        </div>
+        
+        <div class="form-group">
+            <label style="font-weight:bold;color:#d32f2f;">Type "DELETE" to confirm *</label>
+            <input type="text" id="resetConfirmation" placeholder="Type DELETE in CAPS" 
+                   style="width:100%;padding:10px;border:2px solid #f44336;border-radius:5px;">
+        </div>
+        
+        <div class="form-group">
+            <label>Reason for Reset *</label>
+            <textarea id="resetReason" rows="3" required 
+                      placeholder="Why are you resetting this data? This will be logged."></textarea>
+        </div>
+        
+        <div class="form-actions">
+            <button onclick="executeMasterReset()" class="btn-danger" style="background:#d32f2f;">
+                🗑️ Execute Reset
+            </button>
+            <button onclick="closeMasterResetModal()" class="btn-secondary">Cancel</button>
+        </div>
+    `;
+    
+    document.getElementById('masterResetModal').style.display = 'block';
+}
+
+/**
+ * Update reset summary
+ */
+function updateResetSummary() {
+    const repairs = document.getElementById('reset_repairs').checked;
+    const remittances = document.getElementById('reset_remittances').checked;
+    const expenses = document.getElementById('reset_expenses').checked;
+    const cashcounts = document.getElementById('reset_cashcounts').checked;
+    const logs = document.getElementById('reset_activitylogs').checked;
+    
+    const summary = document.getElementById('resetSummary');
+    const content = document.getElementById('resetSummaryContent');
+    
+    if (!repairs && !remittances && !expenses && !cashcounts && !logs) {
+        summary.style.display = 'none';
+        return;
+    }
+    
+    summary.style.display = 'block';
+    let items = [];
+    if (repairs) items.push('✓ All Repairs & Jobs');
+    if (remittances) items.push('✓ Technician Remittances');
+    if (expenses) items.push('✓ Technician Expenses');
+    if (cashcounts) items.push('✓ Daily Cash Counts');
+    if (logs) items.push('✓ Activity Logs');
+    
+    content.innerHTML = items.join('<br>');
+}
+
+/**
+ * Execute Master Reset
+ */
+async function executeMasterReset() {
+    const confirmation = document.getElementById('resetConfirmation').value;
+    const reason = document.getElementById('resetReason').value.trim();
+    
+    if (confirmation !== 'DELETE') {
+        alert('⚠️ Please type DELETE (in CAPS) to confirm');
+        return;
+    }
+    
+    if (!reason) {
+        alert('⚠️ Please provide a reason for this reset');
+        return;
+    }
+    
+    const repairs = document.getElementById('reset_repairs').checked;
+    const remittances = document.getElementById('reset_remittances').checked;
+    const expenses = document.getElementById('reset_expenses').checked;
+    const cashcounts = document.getElementById('reset_cashcounts').checked;
+    const logs = document.getElementById('reset_activitylogs').checked;
+    
+    if (!repairs && !remittances && !expenses && !cashcounts && !logs) {
+        alert('⚠️ Please select at least one item to reset');
+        return;
+    }
+    
+    let confirmMsg = '⚠️ FINAL CONFIRMATION\n\nYou are about to PERMANENTLY DELETE:\n\n';
+    if (repairs) confirmMsg += `• ${window.allRepairs.length} Repairs\n`;
+    if (remittances) confirmMsg += `• ${window.techRemittances.length} Remittances\n`;
+    if (expenses) confirmMsg += `• ${window.techExpenses.length} Expenses\n`;
+    if (cashcounts) confirmMsg += '• All Daily Cash Counts\n';
+    if (logs) confirmMsg += `• ${(window.activityLogs || []).length} Activity Logs\n`;
+    confirmMsg += '\nThis CANNOT be undone!\n\nProceed?';
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const deletePromises = [];
+        
+        // Delete selected data
+        if (repairs) {
+            deletePromises.push(db.ref('repairs').remove());
+        }
+        if (remittances) {
+            deletePromises.push(db.ref('techRemittances').remove());
+        }
+        if (expenses) {
+            deletePromises.push(db.ref('techExpenses').remove());
+        }
+        if (cashcounts) {
+            deletePromises.push(db.ref('dailyCashCounts').remove());
+        }
+        if (logs) {
+            deletePromises.push(db.ref('activityLogs').remove());
+        }
+        
+        await Promise.all(deletePromises);
+        
+        // Log the reset action (if logs weren't deleted)
+        if (!logs) {
+            await logActivity('master_reset', 'admin', {
+                repairs: repairs,
+                remittances: remittances,
+                expenses: expenses,
+                cashcounts: cashcounts,
+                logs: logs,
+                reason: reason
+            });
+        }
+        
+        utils.showLoading(false);
+        
+        alert('✅ Master Reset Complete!\n\nSelected data has been permanently deleted.\n\nPage will reload in 2 seconds...');
+        
+        closeMasterResetModal();
+        
+        // Reload page to refresh data
+        setTimeout(() => {
+            window.location.reload();
+        }, 2000);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error during master reset:', error);
+        alert('❌ Error during reset: ' + error.message);
+    }
+}
+
+function closeMasterResetModal() {
+    document.getElementById('masterResetModal').style.display = 'none';
+}
+
+// Export functions
+window.openMasterResetModal = openMasterResetModal;
+window.updateResetSummary = updateResetSummary;
+window.executeMasterReset = executeMasterReset;
+window.closeMasterResetModal = closeMasterResetModal;
 
 /**
  * ============================================

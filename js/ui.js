@@ -2344,6 +2344,35 @@ function buildAdminToolsTab(container) {
                 </div>
             `}
             
+            <!-- MASTER RESET -->
+            <div class="form-group" style="border-top:2px solid #f44336;padding-top:20px;margin-top:20px;">
+                <h4 style="margin:0 0 10px;color:#d32f2f;">🗑️ Master Reset (Danger Zone)</h4>
+                <div style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                    <strong style="color:#d32f2f;">⚠️ EXTREME CAUTION REQUIRED</strong>
+                    <p style="margin:5px 0 0;font-size:13px;">
+                        Master Reset allows you to permanently delete ALL data from the system:
+                    </p>
+                    <ul style="margin:8px 0 0 20px;font-size:12px;">
+                        <li>All repair records and history</li>
+                        <li>All payment and remittance records</li>
+                        <li>All expense records</li>
+                        <li>All activity logs</li>
+                        <li>Daily cash count locks</li>
+                    </ul>
+                    <p style="margin:8px 0 0;font-size:12px;font-weight:bold;">
+                        This is useful when testing or starting fresh. User accounts will NOT be affected.
+                    </p>
+                </div>
+                
+                <button 
+                    onclick="openMasterResetModal()" 
+                    class="btn btn-danger"
+                    style="width:100%;background:#b71c1c;font-size:16px;padding:15px;">
+                    🗑️ MASTER RESET - Delete Selected Data
+                    <br><small style="font-weight:normal;">Click to select what to delete</small>
+                </button>
+            </div>
+            
             <!-- BACKUP INFO -->
             <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;">
                 <h4 style="margin:0 0 10px;">💾 Data Safety</h4>
