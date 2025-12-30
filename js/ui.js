@@ -2702,13 +2702,18 @@ function buildTodayTransactionsSection() {
     // Build payments list
     const paymentsHTML = cashData.payments.length > 0 ? cashData.payments.map(p => {
         const repair = window.allRepairs.find(r => r.id === p.repairId);
-        if (!repair) return '';
+        if (!repair || !repair.payments) return '';
         
+        // Find the payment index by matching properties
         const paymentIndex = repair.payments.findIndex(payment => 
-            payment.amount === p.payment.amount && 
-            payment.paymentDate === p.payment.paymentDate &&
-            payment.receivedBy === p.payment.receivedBy
+            payment.amount === p.amount && 
+            payment.paymentDate === p.paymentDate &&
+            (payment.receivedByName === p.receivedByName || payment.receivedBy === p.receivedByName)
         );
+        
+        if (paymentIndex === -1) return ''; // Payment not found
+        
+        const payment = repair.payments[paymentIndex];
         
         return `
             <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid #4caf50;">
@@ -2716,12 +2721,12 @@ function buildTodayTransactionsSection() {
                     <div style="flex:1;">
                         <strong>${repair.customerName}</strong>
                         <div style="font-size:12px;color:#666;margin-top:3px;">
-                            Amount: <strong style="color:#4caf50;">₱${p.payment.amount.toFixed(2)}</strong> | 
-                            Method: ${p.payment.method}
+                            Amount: <strong style="color:#4caf50;">₱${p.amount.toFixed(2)}</strong> | 
+                            Method: ${p.method || 'Cash'}
                         </div>
                         <div style="font-size:11px;color:#999;margin-top:2px;">
-                            Received by: ${p.payment.receivedBy} | 
-                            ${p.payment.verified ? '✅ Verified' : '⏳ Pending'}
+                            Received by: ${p.receivedByName || 'N/A'} | 
+                            ${payment.verified ? '✅ Verified' : '⏳ Pending'}
                         </div>
                     </div>
                     <button onclick="adminDeletePayment('${p.repairId}', ${paymentIndex})" 
