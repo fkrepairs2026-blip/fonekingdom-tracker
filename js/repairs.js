@@ -5851,6 +5851,141 @@ function closeReleaseDeviceModal() {
     serviceSlipPhoto = null;
 }
 
+/**
+ * Open Edit Device Info Modal
+ */
+function openEditDeviceModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    // Populate form fields
+    document.getElementById('editDeviceRepairId').value = repairId;
+    document.getElementById('editCustomerName').value = repair.customerName || '';
+    document.getElementById('editContactNumber').value = repair.contactNumber || '';
+    document.getElementById('editBrand').value = repair.brand || '';
+    document.getElementById('editModel').value = repair.model || '';
+    document.getElementById('editImei').value = repair.imei || '';
+    document.getElementById('editColor').value = repair.deviceColor || '';
+    document.getElementById('editStorage').value = repair.storageCapacity || '';
+    document.getElementById('editPasscode').value = repair.devicePasscode || '';
+    document.getElementById('editProblem').value = repair.problem || '';
+    document.getElementById('editReason').value = '';
+    
+    document.getElementById('editDeviceModal').style.display = 'block';
+}
+
+/**
+ * Save Device Info Changes
+ */
+async function saveDeviceInfo() {
+    const repairId = document.getElementById('editDeviceRepairId').value;
+    const customerName = document.getElementById('editCustomerName').value.trim();
+    const contactNumber = document.getElementById('editContactNumber').value.trim();
+    const brand = document.getElementById('editBrand').value.trim();
+    const model = document.getElementById('editModel').value.trim();
+    const imei = document.getElementById('editImei').value.trim();
+    const color = document.getElementById('editColor').value.trim();
+    const storage = document.getElementById('editStorage').value.trim();
+    const passcode = document.getElementById('editPasscode').value.trim();
+    const problem = document.getElementById('editProblem').value.trim();
+    const editReason = document.getElementById('editReason').value.trim();
+    
+    // Validation
+    if (!customerName || !contactNumber || !brand || !model) {
+        alert('⚠️ Please fill in all required fields (Customer Name, Contact, Brand, Model)');
+        return;
+    }
+    
+    if (!editReason) {
+        alert('⚠️ Please provide a reason for editing');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    // Build change log
+    const changes = [];
+    if (repair.customerName !== customerName) changes.push(`Customer Name: "${repair.customerName}" → "${customerName}"`);
+    if (repair.contactNumber !== contactNumber) changes.push(`Contact: "${repair.contactNumber}" → "${contactNumber}"`);
+    if (repair.brand !== brand) changes.push(`Brand: "${repair.brand}" → "${brand}"`);
+    if (repair.model !== model) changes.push(`Model: "${repair.model}" → "${model}"`);
+    if ((repair.imei || '') !== imei) changes.push(`IMEI: "${repair.imei || 'N/A'}" → "${imei || 'N/A'}"`);
+    if ((repair.deviceColor || '') !== color) changes.push(`Color: "${repair.deviceColor || 'N/A'}" → "${color || 'N/A'}"`);
+    if ((repair.storageCapacity || '') !== storage) changes.push(`Storage: "${repair.storageCapacity || 'N/A'}" → "${storage || 'N/A'}"`);
+    if ((repair.devicePasscode || '') !== passcode) changes.push(`Passcode: "${repair.devicePasscode || 'N/A'}" → "${passcode || 'N/A'}"`);
+    if ((repair.problem || '') !== problem) changes.push(`Problem: "${repair.problem || 'N/A'}" → "${problem || 'N/A'}"`);
+    
+    if (changes.length === 0) {
+        alert('ℹ️ No changes detected');
+        return;
+    }
+    
+    const confirmMsg = `Save these changes?\n\n${changes.join('\n')}\n\nReason: ${editReason}`;
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        // Update device info
+        await db.ref(`repairs/${repairId}`).update({
+            customerName: customerName,
+            contactNumber: contactNumber,
+            brand: brand,
+            model: model,
+            imei: imei,
+            deviceColor: color || 'N/A',
+            storageCapacity: storage || 'N/A',
+            devicePasscode: passcode,
+            problem: problem,
+            lastEditedAt: new Date().toISOString(),
+            lastEditedBy: window.currentUser.uid,
+            lastEditedByName: window.currentUserData.displayName,
+            lastEditReason: editReason
+        });
+        
+        // Log the edit
+        await logActivity('device_info_edited', {
+            repairId: repairId,
+            changes: changes,
+            reason: editReason,
+            editedBy: window.currentUserData.displayName
+        }, `${window.currentUserData.displayName} edited device info for ${customerName} - ${brand} ${model}`);
+        
+        utils.showLoading(false);
+        alert('✅ Device information updated successfully!');
+        closeEditDeviceModal();
+        
+        // Reload repairs
+        await loadRepairs();
+        
+        // Refresh current view
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error updating device info:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Close Edit Device Modal
+ */
+function closeEditDeviceModal() {
+    document.getElementById('editDeviceModal').style.display = 'none';
+}
+
 // ===== FILTER AND SORT FUNCTIONS (Called from Right Sidebar) =====
 
 let currentFilters = {
@@ -8403,6 +8538,9 @@ window.toggleReleasePaymentSection = toggleReleasePaymentSection;
 window.toggleGCashReferenceField = toggleGCashReferenceField;
 window.confirmReleaseDevice = confirmReleaseDevice;
 window.closeReleaseDeviceModal = closeReleaseDeviceModal;
+window.openEditDeviceModal = openEditDeviceModal;
+window.saveDeviceInfo = saveDeviceInfo;
+window.closeEditDeviceModal = closeEditDeviceModal;
 // Edit details and update diagnosis exports
 window.openEditReceivedDetails = openEditReceivedDetails;
 window.submitEditReceivedDetails = submitEditReceivedDetails;

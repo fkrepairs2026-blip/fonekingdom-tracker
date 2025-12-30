@@ -1427,6 +1427,12 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
     
     return `
         <div class="repair-expanded-details">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                <div style="flex:1;"></div>
+                <button onclick="openEditDeviceModal('${r.id}')" class="btn-small" style="background:#2196f3;color:white;padding:5px 10px;font-size:12px;">
+                    ✏️ Edit Device Info
+                </button>
+            </div>
             <div class="repair-info">
                 <div><strong>Contact:</strong> ${r.contactNumber}</div>
                 <div><strong>📥 Received by:</strong> ${r.receivedBy || 'Unknown'}</div>

@@ -590,6 +590,71 @@
         </div>
     </div>
 
+    <!-- Edit Device Info Modal -->
+    <div id="editDeviceModal" class="modal">
+        <div class="modal-content" style="max-width:600px;">
+            <h3>✏️ Edit Device Information</h3>
+            
+            <input type="hidden" id="editDeviceRepairId">
+            
+            <div class="form-group">
+                <label>Customer Name *</label>
+                <input type="text" id="editCustomerName" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Contact Number *</label>
+                <input type="text" id="editContactNumber" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Device Brand *</label>
+                <input type="text" id="editBrand" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Device Model *</label>
+                <input type="text" id="editModel" required>
+            </div>
+            
+            <div class="form-group">
+                <label>IMEI / Serial Number</label>
+                <input type="text" id="editImei">
+            </div>
+            
+            <div class="form-group">
+                <label>Device Color</label>
+                <input type="text" id="editColor">
+            </div>
+            
+            <div class="form-group">
+                <label>Storage Capacity</label>
+                <input type="text" id="editStorage" placeholder="e.g., 64GB, 128GB">
+            </div>
+            
+            <div class="form-group">
+                <label>Device Passcode</label>
+                <input type="text" id="editPasscode">
+            </div>
+            
+            <div class="form-group">
+                <label>Problem Description</label>
+                <textarea id="editProblem" rows="3"></textarea>
+            </div>
+            
+            <div class="form-group">
+                <label>Edit Reason (Required)</label>
+                <textarea id="editReason" rows="2" placeholder="Why are you editing this information?" required></textarea>
+                <small style="color:#666;">This will be logged for audit purposes</small>
+            </div>
+            
+            <div class="form-actions">
+                <button onclick="saveDeviceInfo()" class="btn-success">✅ Save Changes</button>
+                <button onclick="closeEditDeviceModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Create User Modal -->
     <div id="createUserModal" class="modal">
         <div class="modal-content" style="max-width:600px;">
