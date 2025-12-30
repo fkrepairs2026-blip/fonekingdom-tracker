@@ -34,17 +34,17 @@ async function loadRepairs() {
             // Always refresh current tab when data changes
             if (window.currentTabRefresh) {
                 console.log('🔄 Auto-refreshing current tab...');
-                // Use setTimeout to ensure DOM is ready
+                // Use setTimeout to ensure Firebase has fully synced
                 setTimeout(() => {
                     window.currentTabRefresh();
-                }, 100);
+                }, 400);
             }
             
             // Always update stats
             if (window.buildStats) {
                 setTimeout(() => {
                     window.buildStats();
-                }, 100);
+                }, 400);
             }
             
             resolve(window.allRepairs);
@@ -73,7 +73,9 @@ async function loadModificationRequests() {
             
             // Refresh current tab if it's modification requests tab
             if (window.currentTabRefresh) {
-                window.currentTabRefresh();
+                setTimeout(() => {
+                    window.currentTabRefresh();
+                }, 400);
             }
             
             resolve(window.allModificationRequests);
@@ -107,7 +109,9 @@ async function loadActivityLogs() {
             
             // Refresh current tab if it's activity logs tab
             if (window.currentTabRefresh && window.activeTab === 'admin-logs') {
-                window.currentTabRefresh();
+                setTimeout(() => {
+                    window.currentTabRefresh();
+                }, 400);
             }
             
             resolve(window.allActivityLogs);
@@ -171,7 +175,9 @@ async function loadUsers() {
             
             // Refresh users tab if currently viewing
             if (window.currentTabRefresh && window.activeTab === 'users') {
-                window.currentTabRefresh();
+                setTimeout(() => {
+                    window.currentTabRefresh();
+                }, 400);
             }
             
             resolve(window.allUsers);
@@ -452,15 +458,7 @@ async function submitReceiveDevice(e) {
             document.getElementById('preApprovedTotal').value = '0.00';
         }
         
-        // Force refresh after a short delay to ensure Firebase has processed
-        setTimeout(() => {
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
-            if (window.buildStats) {
-                window.buildStats();
-            }
-        }, 500);
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         console.error('❌ Error receiving device:', error);
@@ -534,9 +532,7 @@ async function acceptRepair(repairId) {
         alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n💰 Total: ₱${repair.total.toFixed(2)}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"`);
         
         console.log('✅ Repair accepted successfully');
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         console.error('❌ Error accepting repair:', error);
@@ -683,9 +679,7 @@ async function submitTransferRepair(e, repairId) {
         
         alert(`✅ Repair Transferred!\n\n📱 ${repair.brand} ${repair.model}\n\nFrom: ${repair.acceptedByName}\nTo: ${targetTech.displayName}\n\n${targetTech.displayName} will see this in their "My Jobs" list.`);
         
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         utils.showLoading(false);
@@ -989,15 +983,7 @@ async function savePayment(repairId) {
     
     closePaymentModal();
     
-    // Refresh after a short delay to ensure Firebase has processed
-    setTimeout(() => {
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
-        if (window.buildStats) {
-            window.buildStats();
-        }
-    }, 300);
+    // Firebase listener will auto-refresh the page
 }
 
 /**
@@ -1425,14 +1411,7 @@ async function saveStatus(repairId) {
             alert(`✅ Device set to RTO!\n\nReason: ${rtoReason}\n${diagnosisFee > 0 ? `Diagnosis Fee: ₱${diagnosisFee.toFixed(2)}` : 'No diagnosis fee'}\n\nDevice moved to RTO Devices tab.`);
             closeStatusModal();
             
-            setTimeout(() => {
-                if (window.currentTabRefresh) {
-                    window.currentTabRefresh();
-                }
-                if (window.buildStats) {
-                    window.buildStats();
-                }
-            }, 300);
+            // Firebase listener will auto-refresh the page
             
             return;
         } catch (error) {
@@ -1472,14 +1451,7 @@ async function saveStatus(repairId) {
             alert('✅ Repair completed!\n\nStatus automatically changed to "Ready for Pickup"\n\nDevice is now ready for customer pickup.');
             closeStatusModal();
             
-            setTimeout(() => {
-                if (window.currentTabRefresh) {
-                    window.currentTabRefresh();
-                }
-                if (window.buildStats) {
-                    window.buildStats();
-                }
-            }, 300);
+            // Firebase listener will auto-refresh the page
             
             return;
         } catch (error) {
@@ -1511,15 +1483,7 @@ async function saveStatus(repairId) {
     
     closeStatusModal();
     
-    // Refresh after a short delay to ensure Firebase has processed
-    setTimeout(() => {
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
-        if (window.buildStats) {
-            window.buildStats();
-        }
-    }, 300);
+    // Firebase listener will auto-refresh the page
     alert('✅ Status updated to: ' + newStatus);
 }
 
@@ -1651,10 +1615,7 @@ async function adminDeleteDevice(repairId) {
         utils.showLoading(false);
         alert(`✅ Device Deleted!\n\n${repair.customerName} - ${repair.brand} ${repair.model}\n\nStatus: Marked as deleted\nBackup: Saved for audit\nReason: ${reason}`);
         
-        // Refresh
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -1821,10 +1782,7 @@ async function adminBulkDeleteDevices(repairIds) {
             );
         }
         
-        // Refresh
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -2105,9 +2063,7 @@ async function adminQuickFixWarranty(repairId, warrantyDays) {
         utils.showLoading(false);
         alert(`✅ Warranty info added: ${warrantyDays} days`);
         
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         utils.showLoading(false);
@@ -2188,15 +2144,7 @@ async function saveAdditionalRepair(repairId) {
     closeAdditionalRepairModal();
     alert(`✅ Additional repair added! New total: ₱${(repair.total + additionalTotal).toFixed(2)}`);
     
-    // Refresh after a short delay to ensure Firebase has processed
-    setTimeout(() => {
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
-        if (window.buildStats) {
-            window.buildStats();
-        }
-    }, 300);
+    // Firebase listener will auto-refresh the page
 }
 
 /**
@@ -2690,9 +2638,7 @@ async function submitAcceptRepair(e, repairId) {
         alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n💰 Total: ₱${repair.total.toFixed(2)}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"\n✅ Pre-repair inspection completed`);
         
         console.log('✅ Repair accepted successfully with checklist');
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         console.error('❌ Error accepting repair:', error);
@@ -2885,19 +2831,11 @@ async function claimDevice(repairId) {
         
         closeClaimModal();
         
-        // Refresh after a short delay to ensure Firebase has processed
-        setTimeout(() => {
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
-            if (window.buildStats) {
-                window.buildStats();
-            }
-            // Switch to claimed units tab if available
-            if (window.switchTab) {
-                window.switchTab('claimed');
-            }
-        }, 300);
+        // Firebase listener will auto-refresh the page
+        // Switch to claimed units tab if available
+        if (window.switchTab) {
+            window.switchTab('claimed');
+        }
         
     } catch (error) {
         console.error('Error claiming device:', error);
@@ -3646,9 +3584,7 @@ async function lockDailyCashCount(dateString, cashData, notes) {
         
         // Reload cash counts and refresh
         await loadDailyCashCounts();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -3729,9 +3665,7 @@ async function unlockDailyCashCount(dateString, reason) {
         
         // Reload and refresh
         await loadDailyCashCounts();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -5473,9 +5407,7 @@ async function resetTodayPayments() {
         
         // Reload and refresh
         await loadRepairs();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -5580,9 +5512,7 @@ async function resetTodayExpenses() {
         
         // Reload and refresh
         await loadTechExpenses();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -5717,9 +5647,7 @@ async function fullResetToday() {
         // Reload and refresh
         await loadRepairs();
         await loadTechExpenses();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -5844,9 +5772,7 @@ async function adminAddPaymentToReleased(repairId) {
         
         // Reload and refresh
         await loadRepairs();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -5961,9 +5887,7 @@ async function adminUnreleaseDevice(repairId) {
         
         // Reload and refresh
         await loadRepairs();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -6074,9 +5998,7 @@ async function releaseRTODevice(repairId) {
         
         // Reload and refresh
         await loadRepairs();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -6139,9 +6061,7 @@ async function addRTODiagnosisFee(repairId) {
         
         // Reload and refresh
         await loadRepairs();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // loadRepairs() Firebase listener will auto-refresh the page
         
     } catch (error) {
         utils.showLoading(false);
@@ -6218,9 +6138,7 @@ async function collectRTODiagnosisFee(repairId) {
         
         // Reload and refresh
         await loadRepairs();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -6285,9 +6203,7 @@ async function revertRTOStatus(repairId) {
         
         // Reload and refresh
         await loadRepairs();
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
@@ -6454,10 +6370,7 @@ async function createUser(event) {
         
         closeCreateUserModal();
         
-        // Refresh users tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         utils.showLoading(false);
@@ -6627,10 +6540,7 @@ async function updateUser(event) {
         
         closeEditUserModal();
         
-        // Refresh users tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         utils.showLoading(false);
@@ -6677,10 +6587,7 @@ async function toggleUserStatus(userId) {
         utils.showLoading(false);
         alert(`✅ User ${action}d successfully!`);
         
-        // Refresh users tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         utils.showLoading(false);
@@ -6908,10 +6815,7 @@ async function submitEditReceivedDetails(e, repairId) {
         
         alert('✅ Device details updated successfully!');
         
-        // Auto-refresh
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         console.error('Error updating details:', error);
@@ -7031,10 +6935,7 @@ async function submitDiagnosisUpdate(e, repairId) {
         
         alert('✅ Diagnosis update added successfully!');
         
-        // Auto-refresh
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
     } catch (error) {
         console.error('Error updating diagnosis:', error);

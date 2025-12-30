@@ -143,10 +143,7 @@ async function addInventoryItem(itemData) {
         // Reload inventory
         await loadInventory();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
         return itemId;
     } catch (error) {
@@ -181,10 +178,7 @@ async function updateInventoryItem(itemId, updates) {
         // Reload inventory
         await loadInventory();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
     } catch (error) {
         utils.showLoading(false);
         console.error('Error updating inventory item:', error);
@@ -229,10 +223,7 @@ async function deleteInventoryItem(itemId) {
         // Reload inventory
         await loadInventory();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
     } catch (error) {
         utils.showLoading(false);
         console.error('Error deleting inventory item:', error);
@@ -299,10 +290,7 @@ async function adjustStock(itemId, adjustment, reason) {
         // Reload inventory
         await loadInventory();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
     } catch (error) {
         utils.showLoading(false);
         console.error('Error adjusting stock:', error);
@@ -400,10 +388,7 @@ async function addSupplier(supplierData) {
         // Reload suppliers
         await loadSuppliers();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
         
         return supplierId;
     } catch (error) {
@@ -432,10 +417,7 @@ async function updateSupplier(supplierId, updates) {
         // Reload suppliers
         await loadSuppliers();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
     } catch (error) {
         utils.showLoading(false);
         console.error('Error updating supplier:', error);
@@ -473,10 +455,7 @@ async function deleteSupplier(supplierId) {
         // Reload suppliers
         await loadSuppliers();
         
-        // Refresh current tab
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
+        // Firebase listener will auto-refresh the page
     } catch (error) {
         utils.showLoading(false);
         console.error('Error deleting supplier:', error);
