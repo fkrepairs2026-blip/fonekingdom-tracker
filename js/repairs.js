@@ -4988,16 +4988,31 @@ function openSingleDayRemittanceModal(dateString) {
     const displayDate = new Date(dateString + 'T00:00:00');
     const dateDisplay = isToday ? 'Today' : utils.formatDate(dateString);
     
-    // Build modal
-    const modal = document.getElementById('mainModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalContent = document.getElementById('modalContent');
+    // Get or create modal
+    let modal = document.getElementById('remittanceModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'remittanceModal';
+        modal.style.cssText = 'display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);overflow-y:auto;';
+        document.body.appendChild(modal);
+        
+        const modalContent = document.createElement('div');
+        modalContent.id = 'remittanceModalContent';
+        modalContent.style.cssText = 'background-color:#fefefe;margin:2% auto;padding:0;border:1px solid #888;width:90%;max-width:800px;border-radius:10px;';
+        modal.appendChild(modalContent);
+    }
+    
+    const modalContent = document.getElementById('remittanceModalContent');
     
     let html = `
-        <div style="max-height:70vh;overflow-y:auto;">
+        <div style="padding:20px;max-height:85vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h2 style="margin:0;color:#333;">💵 Remit ${dateDisplay}</h2>
+                <button onclick="closeRemittanceModal()" style="background:none;border:none;font-size:28px;cursor:pointer;color:#999;">&times;</button>
+            </div>
+            
             <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #2196f3;">
-                <h3 style="margin:0;color:#1976d2;">📅 ${dateDisplay}</h3>
-                <p style="margin:5px 0 0 0;color:#666;font-size:14px;">Single-day remittance submission</p>
+                <p style="margin:0;color:#1976d2;"><strong>📅 ${dateDisplay}</strong> - Single-day remittance submission</p>
             </div>
             
             ${hasOlderPending ? `
@@ -5011,9 +5026,9 @@ function openSingleDayRemittanceModal(dateString) {
             ` : ''}
             
             <!-- Payment Breakdown -->
-            <div class="card" style="margin:15px 0;">
-                <h3>💰 Payment Breakdown</h3>
-                <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
+            <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:20px;">
+                <h3 style="margin-top:0;color:#333;">💰 Payment Breakdown</h3>
+                <div style="background:white;padding:15px;border-radius:8px;border:1px solid #eee;">
                     <div style="display:flex;justify-content:space-between;margin:10px 0;">
                         <span>Gross Cash Collected:</span>
                         <strong>₱${paymentsTotal.toFixed(2)}</strong>
@@ -5047,11 +5062,11 @@ function openSingleDayRemittanceModal(dateString) {
             
             <!-- Payment Items -->
             ${payments.length > 0 ? `
-                <div class="card" style="margin:15px 0;">
-                    <h3>📥 Payments (${payments.length} item${payments.length > 1 ? 's' : ''})</h3>
-                    <div style="background:#f9f9f9;border-radius:8px;overflow:hidden;">
+                <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:20px;">
+                    <h3 style="margin-top:0;color:#333;">📥 Payments (${payments.length} item${payments.length > 1 ? 's' : ''})</h3>
+                    <div style="background:white;border-radius:8px;overflow:hidden;border:1px solid #eee;">
                         ${payments.map((p, idx) => `
-                            <div style="padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+                            <div style="padding:12px;border-bottom:${idx < payments.length - 1 ? '1px solid #eee' : 'none'};display:flex;justify-content:space-between;align-items:center;">
                                 <div>
                                     <div style="font-weight:600;color:#333;">${p.customerName}</div>
                                     <div style="font-size:12px;color:#666;">Repair ID: ${p.repairId}</div>
@@ -5065,11 +5080,11 @@ function openSingleDayRemittanceModal(dateString) {
             
             <!-- Expenses -->
             ${expenses.length > 0 ? `
-                <div class="card" style="margin:15px 0;">
-                    <h3>📋 Expenses (${expenses.length} item${expenses.length > 1 ? 's' : ''})</h3>
-                    <div style="background:#f9f9f9;border-radius:8px;overflow:hidden;">
+                <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:20px;">
+                    <h3 style="margin-top:0;color:#333;">📋 Expenses (${expenses.length} item${expenses.length > 1 ? 's' : ''})</h3>
+                    <div style="background:white;border-radius:8px;overflow:hidden;border:1px solid #eee;">
                         ${expenses.map((e, idx) => `
-                            <div style="padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+                            <div style="padding:12px;border-bottom:${idx < expenses.length - 1 ? '1px solid #eee' : 'none'};display:flex;justify-content:space-between;align-items:center;">
                                 <div>
                                     <div style="font-weight:600;color:#333;">${e.category || e.type}</div>
                                     <div style="font-size:12px;color:#666;">${e.description || '-'}</div>
@@ -5082,11 +5097,11 @@ function openSingleDayRemittanceModal(dateString) {
             ` : ''}
             
             <!-- Remittance Entry -->
-            <div class="card" style="margin:15px 0;background:#f0f7ff;border-left:4px solid #2196f3;">
-                <h3>💵 Submit Remittance</h3>
+            <div style="background:#f0f7ff;padding:15px;border-radius:8px;border-left:4px solid #2196f3;margin-bottom:20px;">
+                <h3 style="margin-top:0;color:#333;">💵 Submit Remittance</h3>
                 
-                <div class="form-group">
-                    <label style="font-weight:bold;">Amount to Remit *</label>
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:8px;">Amount to Remit *</label>
                     <div style="display:flex;align-items:center;gap:10px;">
                         <span style="font-size:18px;">₱</span>
                         <input type="number" 
@@ -5101,8 +5116,8 @@ function openSingleDayRemittanceModal(dateString) {
                     </small>
                 </div>
                 
-                <div class="form-group">
-                    <label style="font-weight:bold;">Who are you giving this to? *</label>
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:8px;">Who are you giving this to? *</label>
                     <select id="remittanceRecipient" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;">
                         <option value="">-- Select recipient --</option>
                         ${Object.values(window.allUsers)
@@ -5112,8 +5127,8 @@ function openSingleDayRemittanceModal(dateString) {
                     </select>
                 </div>
                 
-                <div class="form-group">
-                    <label style="font-weight:bold;">Notes (if amount differs)</label>
+                <div style="margin-bottom:15px;">
+                    <label style="font-weight:bold;display:block;margin-bottom:8px;">Notes (if amount differs)</label>
                     <textarea id="remittanceNotes" 
                               placeholder="Explain any discrepancy..." 
                               style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;min-height:60px;"></textarea>
@@ -5127,19 +5142,28 @@ function openSingleDayRemittanceModal(dateString) {
             <input type="hidden" id="remittanceExpensesTotal" value="${expensesTotal.toFixed(2)}">
             <input type="hidden" id="remittanceCommissionDeduction" value="${commissionDeduction.toFixed(2)}">
             <input type="hidden" id="hasOlderPending" value="${hasOlderPending}">
-        </div>
-        
-        <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
-            <button onclick="closeModal()" class="btn-secondary">Cancel</button>
-            <button onclick="confirmSingleDayRemittance()" class="btn-primary" style="background:#4caf50;border-color:#4caf50;">
-                ✓ Submit Remittance
-            </button>
+            
+            <!-- Action Buttons -->
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:20px;border-top:1px solid #eee;">
+                <button onclick="closeRemittanceModal()" style="padding:12px 20px;background:#999;color:white;border:none;border-radius:5px;cursor:pointer;font-weight:bold;">
+                    Cancel
+                </button>
+                <button onclick="confirmSingleDayRemittance()" style="padding:12px 20px;background:#4caf50;color:white;border:none;border-radius:5px;cursor:pointer;font-weight:bold;">
+                    ✓ Submit Remittance
+                </button>
+            </div>
         </div>
     `;
     
-    modalTitle.textContent = `Remit ${dateDisplay}`;
     modalContent.innerHTML = html;
     modal.style.display = 'block';
+}
+
+function closeRemittanceModal() {
+    const modal = document.getElementById('remittanceModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 /**
@@ -6063,10 +6087,6 @@ function removeRemittedDateFromUI(dateString) {
             }, 300);
         }
     });
-}
-
-function closeRemittanceModal() {
-    document.getElementById('remittanceModal').style.display = 'none';
 }
 
 /**
