@@ -4996,6 +4996,8 @@ function openSingleDayRemittanceModal(dateString) {
             return ['admin', 'manager', 'cashier'].includes(role);
         });
     
+    alert(`Found ${eligibleRecipients.length} eligible recipients:\n` + eligibleRecipients.map(u => `${u.displayName} (${u.role})`).join('\n'));
+    
     // Get or create modal
     let modal = document.getElementById('remittanceModal');
     if (!modal) {
