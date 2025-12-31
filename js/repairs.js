@@ -4536,11 +4536,13 @@ function getPendingRemittanceDates(techId) {
         });
     }
     
-    // Calculate commission per date (40% of net after expenses)
+    // Calculate commission and unremitted balance per date (40% of net after expenses)
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
         const netAfterExpenses = dateData.totalPayments - dateData.totalExpenses;
         dateData.totalCommission = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
+        // Unremitted balance = net after expenses - commission (which is 60% of net)
+        dateData.unremittedBalance = netAfterExpenses - dateData.totalCommission;
     });
     
     // Convert to array and sort by date (oldest first)
