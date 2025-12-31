@@ -4988,11 +4988,10 @@ function openSingleDayRemittanceModal(dateString) {
     const displayDate = new Date(dateString + 'T00:00:00');
     const dateDisplay = isToday ? 'Today' : utils.formatDate(dateString);
     
-    // DEBUG: Check all fields in users
+    // DEBUG: Check actual role values
     const allUsersDebug = Object.values(window.allUsers || {});
-    const allFields = new Set();
-    allUsersDebug.forEach(u => Object.keys(u).forEach(k => allFields.add(k)));
-    alert('All user fields: ' + Array.from(allFields).join(', '));
+    const roles = allUsersDebug.map(u => `${u.displayName}: "${u.role}"`).join('\n');
+    alert('User roles:\n' + roles);
     
     // Get eligible recipients (admin, manager, cashier)
     const eligibleRecipients = Object.values(window.allUsers || {})
