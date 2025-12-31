@@ -5192,10 +5192,11 @@ function openSingleDayRemittanceModal(dateString) {
     
     // Populate recipient dropdown AFTER modal is visible (ensures DOM is ready)
     setTimeout(() => {
-        console.log('🔍 Looking for remittanceRecipient dropdown...');
+        console.log('🔍 Looking for remittanceRecipient dropdown in singleDayRemittanceModal...');
         console.log('🔍 Eligible recipients:', eligibleRecipients.length, eligibleRecipients);
         
-        const recipientSelect = document.getElementById('remittanceRecipient');
+        // Search within the specific modal to avoid conflicts with other modals
+        const recipientSelect = modal.querySelector('#remittanceRecipient');
         console.log('🔍 Found select element:', recipientSelect);
         
         if (recipientSelect) {
