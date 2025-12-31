@@ -4965,6 +4965,12 @@ function openSingleDayRemittanceModal(dateString) {
     const todayDateString = getLocalDateString(today);
     const isToday = dateString === todayDateString;
     
+    // IMPORTANT: Hide/remove any existing remittance modal from HTML
+    const existingHtmlModal = document.querySelector('#remittanceModal.modal');
+    if (existingHtmlModal) {
+        existingHtmlModal.style.display = 'none';
+    }
+    
     // Get data for this specific date
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
@@ -4996,23 +5002,26 @@ function openSingleDayRemittanceModal(dateString) {
             return ['admin', 'manager', 'cashier'].includes(role);
         });
     
-    // Get or create modal
-    let modal = document.getElementById('remittanceModal');
+    // Get or create modal (use unique ID for single-day remittance)
+    let modal = document.getElementById('singleDayRemittanceModal');
     if (!modal) {
         modal = document.createElement('div');
-        modal.id = 'remittanceModal';
+        modal.id = 'singleDayRemittanceModal';
         modal.style.cssText = 'display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);overflow-y:auto;';
         document.body.appendChild(modal);
     }
     
     // Get or create modal content
-    let modalContent = document.getElementById('remittanceModalContent');
+    let modalContent = document.getElementById('singleDayRemittanceModalContent');
     if (!modalContent) {
         modalContent = document.createElement('div');
-        modalContent.id = 'remittanceModalContent';
+        modalContent.id = 'singleDayRemittanceModalContent';
         modalContent.style.cssText = 'background-color:#fefefe;margin:2% auto;padding:0;border:1px solid #888;width:90%;max-width:800px;border-radius:10px;';
         modal.appendChild(modalContent);
     }
+    
+    // Clear any previous content
+    modalContent.innerHTML = '';
     
     let html = `
         <div style="padding:20px;max-height:85vh;overflow-y:auto;">
@@ -5215,9 +5224,15 @@ function openSingleDayRemittanceModal(dateString) {
 }
 
 function closeRemittanceModal() {
-    const modal = document.getElementById('remittanceModal');
-    if (modal) {
-        modal.style.display = 'none';
+    // Close both types of remittance modals
+    const htmlModal = document.getElementById('remittanceModal');
+    if (htmlModal) {
+        htmlModal.style.display = 'none';
+    }
+    
+    const dynamicModal = document.getElementById('singleDayRemittanceModal');
+    if (dynamicModal) {
+        dynamicModal.style.display = 'none';
     }
 }
 
