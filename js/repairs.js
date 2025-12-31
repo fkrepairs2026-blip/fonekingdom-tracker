@@ -4972,9 +4972,11 @@ function openRemittanceModal() {
         alert(message);
     }
     
-    // NEW CALCULATION: Cash remittance does NOT deduct commission
-    // Commission is paid separately at end of day
-    const expectedAmount = paymentsTotal - expensesTotal;
+    // FIXED CALCULATION: Cash remittance applies 60/40 split
+    // Commission (40%) is deducted from the remittance at submission time
+    // Technician remits 60%, keeps 40% as commission
+    const commissionDeduction = paymentsTotal * 0.40;  // 40% commission on gross cash
+    const expectedAmount = (paymentsTotal - expensesTotal) - commissionDeduction;  // 60% of (collected - expenses)
     
     // Build summary
     let summary = `
@@ -5024,23 +5026,27 @@ function openRemittanceModal() {
             
             <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
                 <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                    <span>Cash Collected:</span>
+                    <span>💵 Gross Cash Collected:</span>
                     <strong>₱${paymentsTotal.toFixed(2)}</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                    <span>Less: Expenses</span>
+                    <span>📦 Less: Your Expenses</span>
                     <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                    <span>👤 Less: Your Commission (40%)</span>
+                    <strong style="color:#2196f3;">-₱${(paymentsTotal * 0.40).toFixed(2)}</strong>
                 </div>
                 <hr style="border:none;border-top:2px solid #ddd;margin:15px 0;">
                 <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;">
-                    <span>Amount to Remit:</span>
+                    <span>💳 Amount to Remit to Shop (60%):</span>
                     <span style="color:#4caf50;">₱${expectedAmount.toFixed(2)}</span>
                 </div>
             </div>
             
-            <p style="margin-top:15px;font-size:13px;color:#666;">
-                ℹ️ <strong>Note:</strong> Commission is NOT deducted from cash remittance. 
-                You will receive your commission separately at end of day.
+            <p style="margin-top:15px;font-size:13px;color:#666;background:#e8f5e9;padding:12px;border-radius:6px;border-left:4px solid #4caf50;">
+                ✓ <strong>Your 40% Commission (₱${(paymentsTotal * 0.40).toFixed(2)})</strong> is automatically deducted from your remittance. 
+                Shop will credit this to you at end of day via your selected payment method.
             </p>
         </div>
         
@@ -5227,8 +5233,10 @@ async function confirmRemittance() {
         return;
     }
     
-    // NEW CALCULATION: Cash remittance does NOT deduct commission
-    const expectedAmount = paymentsTotal - expensesTotal;
+    // FIXED CALCULATION: Cash remittance applies 60/40 split
+    // Commission (40%) is deducted from the remittance at submission time
+    const commissionDeduction = paymentsTotal * 0.40;  // 40% commission on gross cash
+    const expectedAmount = (paymentsTotal - expensesTotal) - commissionDeduction;  // 60% of (collected - expenses)
     const discrepancy = actualAmount - expectedAmount;
     
     // Require notes if there's a discrepancy
