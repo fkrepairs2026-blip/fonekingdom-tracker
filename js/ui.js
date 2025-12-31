@@ -480,6 +480,7 @@ function buildForReleasePage(container) {
     window.currentTabRefresh = () => buildForReleasePage(document.getElementById('forreleaseTab'));
     
     const forReleaseRepairs = window.allRepairs.filter(r => r.status === 'Ready for Pickup');
+    const releasedRepairs = window.allRepairs.filter(r => r.status === 'Released');
     
     container.innerHTML = `
         <div class="card">
@@ -487,6 +488,16 @@ function buildForReleasePage(container) {
             <p style="color:#666;margin-bottom:15px;">Devices ready to be released to customers</p>
             <div id="forReleaseList"></div>
         </div>
+        
+        ${releasedRepairs.length > 0 ? `
+        <div class="card" style="border-left:4px solid #ff9800;background:#fffbf0;margin-top:20px;">
+            <h3 style="color:#f57c00;">⚡ Released - Awaiting Finalization (${releasedRepairs.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">
+                Devices handed to customers. Will auto-finalize at <strong>6pm Manila time</strong> or can be manually finalized now.
+            </p>
+            <div id="releasedList"></div>
+        </div>
+        ` : ''}
     `;
     
     setTimeout(() => {
@@ -497,6 +508,11 @@ function buildForReleasePage(container) {
             } else {
                 displayCompactRepairsList(forReleaseRepairs, listContainer, 'forrelease');
             }
+        }
+        
+        const releasedContainer = document.getElementById('releasedList');
+        if (releasedContainer && releasedRepairs.length > 0) {
+            displayCompactRepairsList(releasedRepairs, releasedContainer, 'released');
         }
     }, 0);
 }
@@ -971,6 +987,12 @@ function buildReceiveDeviceTab(container) {
                     <label>Detailed Problem Description *</label>
                     <textarea name="problem" id="problemDescription" rows="3" required placeholder="Describe the issue in detail..."></textarea>
                     <small style="color:#666;">Be specific: What happened? When? Any error messages?</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Estimated Repair Cost (₱) (Optional)</label>
+                    <input type="number" id="estimatedCost" name="estimatedCost" min="0" step="0.01" value="" placeholder="e.g., 2000">
+                    <small style="color:#666;">💡 If you know approximate cost, enter it here. This will cap advance payments customers can make.</small>
                 </div>
                 
                 <div class="form-group">
@@ -1793,6 +1815,8 @@ function renderContextButtons(repair, role, context) {
             return renderRTODeviceButtons(repair, role);
         case 'forrelease':
             return renderForReleaseButtons(repair, role);
+        case 'released':
+            return renderReleasedButtons(repair, role);
         case 'claimed':
             return renderClaimedButtons(repair, role);
         default:
@@ -1902,6 +1926,61 @@ function renderForReleaseButtons(r, role) {
         buttons += `
             <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">
                 🗑️ Request Delete
+            </button>
+        `;
+    }
+    
+    // Admin delete button
+    if (role === 'admin') {
+        buttons += `
+            <button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">
+                🗑️ Delete
+            </button>
+        `;
+    }
+    
+    return buttons;
+}
+
+/**
+ * Render buttons for Released context (devices handed to customer but not yet finalized)
+ */
+function renderReleasedButtons(r, role) {
+    let buttons = '';
+    
+    // Show countdown timer
+    if (r.releasedAt && window.getCountdownTo6PM) {
+        const countdown = window.getCountdownTo6PM(r.releasedAt);
+        buttons += `
+            <div style="background:#fff3cd;padding:10px;border-radius:6px;margin-bottom:10px;border-left:3px solid #ffc107;">
+                <span style="color:#856404;font-weight:600;font-size:13px;">
+                    ⏱️ ${countdown}
+                </span>
+            </div>
+        `;
+    }
+    
+    // Finalize button (all roles can finalize)
+    buttons += `
+        <button class="btn-small btn-success" onclick="finalizeClaimDevice('${r.id}', false)" 
+                style="background:#4caf50;color:white;font-weight:bold;">
+            ⚡ Finalize Now
+        </button>
+    `;
+    
+    // View details button
+    buttons += `
+        <button class="btn-small" onclick="viewClaimDetails('${r.id}')" 
+                style="background:#2196f3;color:white;">
+            📄 View Details
+        </button>
+    `;
+    
+    // Status update button for authorized roles
+    if (role === 'admin' || role === 'manager' || role === 'technician') {
+        buttons += `
+            <button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">
+                📝 Update Status
             </button>
         `;
     }
@@ -2195,7 +2274,8 @@ function buildMyRepairsTab(container) {
     
     const myRepairs = window.allRepairs.filter(r => 
         r.acceptedBy === window.currentUser.uid && 
-        r.status !== 'Claimed'
+        r.status !== 'Claimed' &&
+        r.status !== 'Released'
     );
     
     container.innerHTML = `
@@ -3703,6 +3783,7 @@ window.displayRepairsInContainer = displayRepairsInContainer;
 window.displayCompactRepairsList = displayCompactRepairsList;
 window.renderExpandedRepairDetails = renderExpandedRepairDetails;
 window.renderForReleaseButtons = renderForReleaseButtons;
+window.renderReleasedButtons = renderReleasedButtons;
 window.renderClaimedButtons = renderClaimedButtons;
 window.toggleRepairDetails = toggleRepairDetails;
 window.buildAllRepairsTab = buildAllRepairsTab;

@@ -591,6 +591,58 @@
         </div>
     </div>
 
+    <!-- Finalize Claim Device Modal -->
+    <div id="finalizeClaimModal" class="modal">
+        <div class="modal-content" style="max-width:550px;">
+            <h3>✅ Finalize Device Claim</h3>
+            
+            <input type="hidden" id="finalizeRepairId">
+            
+            <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #2196f3;">
+                <p style="margin:0;font-size:14px;">
+                    📋 Device is currently in <strong style="color:#ff9800;">Released</strong> status.
+                    Finalize to mark as <strong style="color:#4caf50;">Claimed</strong> and activate warranty.
+                </p>
+            </div>
+            
+            <div class="form-group">
+                <label>Warranty Period (Days) *</label>
+                <input type="number" 
+                       id="finalizeWarrantyDays" 
+                       min="0" 
+                       max="365" 
+                       value="30" 
+                       required
+                       style="font-size:16px;">
+                <small style="color:#666;display:block;margin-top:5px;">
+                    Standard warranty: 30 days. Enter 0 for no warranty.
+                </small>
+            </div>
+            
+            <div class="form-group">
+                <label>Final Notes (Optional)</label>
+                <textarea id="finalizeFinalNotes" 
+                          rows="3" 
+                          placeholder="Any final notes or warranty conditions..."></textarea>
+            </div>
+            
+            <div style="background:#fff3cd;padding:12px;border-radius:6px;margin:15px 0;border-left:3px solid #ffc107;">
+                <small style="color:#856404;">
+                    ⚠️ This will mark the device as Claimed and activate the warranty period.
+                </small>
+            </div>
+            
+            <div class="form-actions">
+                <button onclick="confirmFinalizeDevice()" class="btn-success" style="font-size:16px;">
+                    ✅ Finalize & Activate Warranty
+                </button>
+                <button onclick="closeFinalizeModal()" class="btn-secondary">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Device Info Modal -->
     <div id="editDeviceModal" class="modal">
         <div class="modal-content" style="max-width:600px;">

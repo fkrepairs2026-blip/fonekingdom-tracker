@@ -460,6 +460,118 @@ function getFinancialReport(startDate, endDate) {
     };
 }
 
+// ===== ADVANCE PAYMENT ANALYTICS =====
+
+/**
+ * Get advance payment analytics
+ */
+function getAdvancePaymentAnalytics(startDate, endDate) {
+    const start = new Date(startDate).setHours(0, 0, 0, 0);
+    const end = new Date(endDate).setHours(23, 59, 59, 999);
+    
+    let totalAdvances = 0;
+    let totalAdvancesApplied = 0;
+    let totalAdvancesRefunded = 0;
+    let totalAdvancesPending = 0;
+    
+    let countAdvances = 0;
+    let countApplied = 0;
+    let countRefunded = 0;
+    let countPending = 0;
+    
+    let repairsWithAdvances = 0;
+    const repairsProcessed = new Set();
+    const pendingAdvanceRepairs = [];
+    
+    // Analyze all repairs for advance payments
+    window.allRepairs.forEach(repair => {
+        let hasAdvance = false;
+        
+        (repair.payments || []).forEach(payment => {
+            if (!payment.isAdvance) return;
+            
+            const paymentDate = new Date(payment.recordedDate || payment.paymentDate).getTime();
+            if (paymentDate < start || paymentDate > end) return;
+            
+            hasAdvance = true;
+            countAdvances++;
+            
+            if (payment.advanceStatus === 'pending') {
+                totalAdvancesPending += payment.amount;
+                countPending++;
+                
+                // Track repair with pending advance
+                if (!pendingAdvanceRepairs.find(r => r.id === repair.id)) {
+                    pendingAdvanceRepairs.push({
+                        id: repair.id,
+                        customerName: repair.customerName,
+                        brand: repair.brand,
+                        model: repair.model,
+                        advanceAmount: payment.amount,
+                        recordedDate: payment.recordedDate || payment.paymentDate,
+                        estimatedCost: repair.estimatedCost || null,
+                        total: repair.total || 0
+                    });
+                }
+            } else if (payment.advanceStatus === 'applied') {
+                totalAdvancesApplied += payment.amount;
+                countApplied++;
+                totalAdvances += payment.amount;
+            } else if (payment.advanceStatus === 'refunded') {
+                totalAdvancesRefunded += payment.amount;
+                countRefunded++;
+            }
+        });
+        
+        if (hasAdvance && !repairsProcessed.has(repair.id)) {
+            repairsWithAdvances++;
+            repairsProcessed.add(repair.id);
+        }
+    });
+    
+    totalAdvances = totalAdvancesApplied; // Only count applied advances in total revenue
+    const avgAdvanceAmount = countAdvances > 0 ? (totalAdvancesApplied + totalAdvancesPending + totalAdvancesRefunded) / countAdvances : 0;
+    
+    // Calculate advance-to-final-cost ratio for applied advances
+    let totalFinalCost = 0;
+    let appliedAdvancesCount = 0;
+    
+    window.allRepairs.forEach(repair => {
+        const hasAppliedAdvance = (repair.payments || []).some(p => 
+            p.isAdvance && 
+            p.advanceStatus === 'applied' &&
+            new Date(p.recordedDate || p.paymentDate).getTime() >= start &&
+            new Date(p.recordedDate || p.paymentDate).getTime() <= end
+        );
+        
+        if (hasAppliedAdvance && repair.total > 0) {
+            totalFinalCost += repair.total;
+            appliedAdvancesCount++;
+        }
+    });
+    
+    const avgAdvanceToFinalRatio = appliedAdvancesCount > 0 && totalFinalCost > 0 
+        ? (totalAdvancesApplied / totalFinalCost) * 100 
+        : 0;
+    
+    return {
+        summary: {
+            totalAdvancesCollected: totalAdvances,
+            totalPending: totalAdvancesPending,
+            totalApplied: totalAdvancesApplied,
+            totalRefunded: totalAdvancesRefunded,
+            countAdvances,
+            countPending,
+            countApplied,
+            countRefunded,
+            avgAdvanceAmount,
+            repairsWithAdvances,
+            avgAdvanceToFinalRatio
+        },
+        pendingAdvances: pendingAdvanceRepairs
+    };
+}
+
 // ===== EXPORT FUNCTIONS =====
 
 /**
@@ -508,6 +620,7 @@ window.getCustomerAnalytics = getCustomerAnalytics;
 window.getRepairTypeAnalytics = getRepairTypeAnalytics;
 window.getInventoryAnalytics = getInventoryAnalytics;
 window.getFinancialReport = getFinancialReport;
+window.getAdvancePaymentAnalytics = getAdvancePaymentAnalytics;
 window.exportToCSV = exportToCSV;
 
 console.log('✅ analytics.js loaded');

@@ -235,6 +235,7 @@ async function submitReceiveDevice(e) {
         
         problemType: data.get('problemType') || 'Pending Diagnosis',
         problem: data.get('problem'),
+        estimatedCost: parseFloat(data.get('estimatedCost')) || null,
         repairType: 'Pending Diagnosis',
         partType: '',
         partSource: '',
@@ -769,8 +770,14 @@ function openPaymentModal(repairId) {
         return;
     }
     
+    // Calculate total paid (verified payments only)
     const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
+    
+    // Calculate advance payments (when total is 0 or undefined)
+    const isAdvancePayment = !repair.total || repair.total === 0;
+    const totalAdvances = isAdvancePayment ? (repair.payments || []).filter(p => p.isAdvance && p.verified).reduce((sum, p) => sum + p.amount, 0) : 0;
+    const pendingAdvances = (repair.payments || []).filter(p => p.isAdvance && p.advanceStatus === 'pending');
     
     const content = document.getElementById('paymentModalContent');
     
@@ -779,18 +786,31 @@ function openPaymentModal(repairId) {
             <h4 style="margin:0 0 10px 0;">Payment Summary</h4>
             <p><strong>Customer:</strong> ${repair.customerName}</p>
             <p><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
-            <p><strong>Total Amount:</strong> ₱${repair.total.toFixed(2)}</p>
-            <p><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></p>
-            <p><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-size:18px;font-weight:bold;">₱${balance.toFixed(2)}</span></p>
+            ${repair.estimatedCost ? `<p><strong>Estimated Cost:</strong> ₱${repair.estimatedCost.toFixed(2)}</p>` : ''}
+            ${isAdvancePayment ? `
+                <p style="color:#ff9800;font-weight:bold;">⚠️ Pricing not finalized yet</p>
+                ${totalAdvances > 0 ? `<p><strong>Advances Collected:</strong> <span style="color:#ff9800;">₱${totalAdvances.toFixed(2)}</span></p>` : ''}
+                ${pendingAdvances.length > 0 ? `<p style="font-size:12px;color:#666;">${pendingAdvances.length} advance payment(s) pending resolution</p>` : ''}
+            ` : `
+                <p><strong>Total Amount:</strong> ₱${repair.total.toFixed(2)}</p>
+                <p><strong>Paid:</strong> <span style="color:green;">₱${totalPaid.toFixed(2)}</span></p>
+                <p><strong>Balance:</strong> <span style="color:${balance > 0 ? 'red' : 'green'};font-size:18px;font-weight:bold;">₱${balance.toFixed(2)}</span></p>
+            `}
         </div>
         
-        ${balance <= 0 ? `
+        ${balance <= 0 && !isAdvancePayment && !isAdvancePayment ? `
             <div class="alert-success" style="text-align:center;">
                 <h3 style="color:green;margin:0;">✅ FULLY PAID</h3>
                 <p style="margin:10px 0 0;">This repair has been fully paid.</p>
             </div>
         ` : `
-            <h4>Record New Payment</h4>
+            <h4>${isAdvancePayment ? '💰 Record Advance Payment (Deposit)' : 'Record New Payment'}</h4>
+            ${isAdvancePayment ? `
+                <div class="alert-warning" style="margin-bottom:15px;">
+                    <p style="margin:0;"><strong>⚠️ Advance Payment:</strong> Pricing not yet finalized. This payment will be held as a deposit until repair cost is determined.</p>
+                    ${repair.estimatedCost ? `<p style="margin:5px 0 0;font-size:13px;">💡 Maximum allowed: ₱${repair.estimatedCost.toFixed(2)} (estimated cost)</p>` : ''}
+                </div>
+            ` : ''}
             
             <div class="form-group">
                 <label>Payment Date *</label>
@@ -800,8 +820,8 @@ function openPaymentModal(repairId) {
             
             <div class="form-group">
                 <label>Payment Amount (₱) *</label>
-                <input type="number" id="paymentAmount" step="0.01" min="0.01" max="${balance}" value="${balance}" required>
-                <small style="color:#666;">Maximum: ₱${balance.toFixed(2)} (remaining balance)</small>
+                <input type="number" id="paymentAmount" step="0.01" min="0.01" ${isAdvancePayment ? (repair.estimatedCost ? `max="${repair.estimatedCost}"` : '') : `max="${balance}"`} value="${isAdvancePayment ? '' : balance}" required>
+                <small style="color:#666;">${isAdvancePayment ? (repair.estimatedCost ? `Maximum: ₱${repair.estimatedCost.toFixed(2)} (estimated cost)` : 'Enter advance amount') : `Maximum: ₱${balance.toFixed(2)} (remaining balance)`}</small>
             </div>
             
             <div class="form-group">
@@ -833,10 +853,35 @@ function openPaymentModal(repairId) {
             <div style="margin-top:20px;">
                 <h4>Payment History</h4>
                 <div style="max-height:300px;overflow-y:auto;">
-                    ${repair.payments.map((p, i) => `
+                    ${repair.payments.map((p, i) => {
+                        // Determine advance status display
+                        let advanceIcon = '';
+                        let advanceColor = '';
+                        let advanceLabel = '';
+                        
+                        if (p.isAdvance) {
+                            if (p.advanceStatus === 'pending') {
+                                advanceIcon = '💰';
+                                advanceColor = '#ff9800';
+                                advanceLabel = 'ADVANCE (Pending)';
+                            } else if (p.advanceStatus === 'applied') {
+                                advanceIcon = '✅';
+                                advanceColor = '#4caf50';
+                                advanceLabel = 'ADVANCE (Applied)';
+                            } else if (p.advanceStatus === 'refunded') {
+                                advanceIcon = '↩️';
+                                advanceColor = '#2196f3';
+                                advanceLabel = 'ADVANCE (Refunded)';
+                            }
+                        }
+                        
+                        return `
                         <div class="${p.verified ? 'alert-success-compact' : 'alert-warning-compact'}">
                             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                                <strong style="color:${p.verified ? '#2e7d32' : '#e65100'};">₱${p.amount.toFixed(2)}</strong>
+                                <div>
+                                    <strong style="color:${p.verified ? '#2e7d32' : '#e65100'};">₱${p.amount.toFixed(2)}</strong>
+                                    ${p.isAdvance ? `<span style="color:${advanceColor};font-size:11px;margin-left:5px;">${advanceIcon} ${advanceLabel}</span>` : ''}
+                                </div>
                                 <span style="background:${p.verified ? '#4caf50' : '#ff9800'};color:white;padding:2px 8px;border-radius:3px;font-size:12px;">
                                     ${p.verified ? '✅ Verified' : '⏳ Pending'}
                                 </span>
@@ -848,6 +893,8 @@ function openPaymentModal(repairId) {
                                 <div><strong>Received by:</strong> ${p.receivedBy}</div>
                                 ${p.notes ? `<div><strong>Notes:</strong> ${p.notes}</div>` : ''}
                                 ${p.verifiedBy ? `<div><strong>Verified by:</strong> ${p.verifiedBy} on ${utils.formatDateTime(p.verifiedAt)}</div>` : ''}
+                                ${p.refundedBy ? `<div style="color:#2196f3;"><strong>Refunded by:</strong> ${p.refundedBy} on ${utils.formatDateTime(p.refundedAt)}</div>` : ''}
+                                ${p.refundNotes ? `<div style="color:#2196f3;"><strong>Refund Notes:</strong> ${p.refundNotes}</div>` : ''}
                             </div>
                             ${p.photo ? `
                                 <div style="margin-top:8px;">
@@ -860,6 +907,11 @@ function openPaymentModal(repairId) {
                                         ✅ Verify Payment
                                     </button>
                                 ` : ''}
+                                ${p.isAdvance && p.advanceStatus === 'pending' && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? `
+                                    <button onclick="refundAdvancePayment('${repairId}', ${i})" style="background:#2196f3;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+                                        ↩️ Mark as Refunded
+                                    </button>
+                                ` : ''}
                                 ${(window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
     <button onclick="${window.currentUserData.role === 'admin' ? `editPaymentDate('${repairId}', ${i})` : `requestPaymentDateModification('${repairId}', ${i})`}" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
         📅 ${window.currentUserData.role === 'admin' ? 'Edit Payment Date' : 'Request Edit Payment Date'}
@@ -867,7 +919,7 @@ function openPaymentModal(repairId) {
 ` : ''}
                             </div>
                         </div>
-                    `).join('')}
+                    `}).join('')}
                 </div>
             </div>
         ` : ''}
@@ -927,9 +979,22 @@ async function savePayment(repairId) {
     const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
     
-    if (amount > balance) {
+    // Check if this is an advance payment (total not set or 0)
+    const isAdvancePayment = !repair.total || repair.total === 0;
+    
+    // Validate payment amount
+    if (!isAdvancePayment && amount > balance) {
         alert(`Payment amount cannot exceed balance of ₱${balance.toFixed(2)}`);
         return;
+    }
+    
+    // For advance payments, check against estimated cost if provided
+    if (isAdvancePayment && repair.estimatedCost && amount > repair.estimatedCost) {
+        const confirm = window.confirm(
+            `⚠️ Warning: Payment amount (₱${amount.toFixed(2)}) exceeds estimated cost (₱${repair.estimatedCost.toFixed(2)}).\n\n` +
+            `Continue anyway?`
+        );
+        if (!confirm) return;
     }
     
     const selectedDate = new Date(paymentDateInput.value + 'T00:00:00');
@@ -955,6 +1020,9 @@ async function savePayment(repairId) {
         receivedById: window.currentUser.uid,
         notes: notes,
         photo: paymentProofPhoto || null,
+        // Advance payment tracking
+        isAdvance: isAdvancePayment,
+        advanceStatus: isAdvancePayment ? 'pending' : null,
         // Technician payment flags
         collectedByTech: isTechnician,
         techRemittanceId: null,
@@ -985,18 +1053,78 @@ async function savePayment(repairId) {
     
     paymentProofPhoto = null;
     
-    const newBalance = balance - amount;
     const paymentDateStr = utils.formatDate(paymentDate);
     
-    if (newBalance === 0) {
-        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n🎉 FULLY PAID! Balance is now ₱0.00`);
+    if (isAdvancePayment) {
+        alert(`✅ Advance Payment Recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n🔔 This advance will be applied when repair pricing is finalized.`);
     } else {
-        alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n📊 Remaining Balance: ₱${newBalance.toFixed(2)}`);
+        const newBalance = balance - amount;
+        if (newBalance === 0) {
+            alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n🎉 FULLY PAID! Balance is now ₱0.00`);
+        } else {
+            alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n📊 Remaining Balance: ₱${newBalance.toFixed(2)}`);
+        }
     }
     
     closePaymentModal();
     
     // Firebase listener will auto-refresh the page
+}
+
+/**
+ * Refund advance payment
+ */
+async function refundAdvancePayment(repairId, paymentIndex) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payment = repair.payments[paymentIndex];
+    
+    if (!payment.isAdvance || payment.advanceStatus !== 'pending') {
+        alert('⚠️ This payment is not a pending advance payment');
+        return;
+    }
+    
+    const refundNotes = prompt(
+        `Mark this advance payment as refunded?\n\n` +
+        `Amount: ₱${payment.amount.toFixed(2)}\n` +
+        `Customer: ${repair.customerName}\n\n` +
+        `Enter refund notes (e.g., "Customer declined repair", "Parts unavailable"):`
+    );
+    
+    if (!refundNotes || !refundNotes.trim()) {
+        return;
+    }
+    
+    try {
+        const payments = [...repair.payments];
+        payments[paymentIndex] = {
+            ...payments[paymentIndex],
+            advanceStatus: 'refunded',
+            refundedBy: window.currentUserData.displayName,
+            refundedAt: new Date().toISOString(),
+            refundNotes: refundNotes.trim()
+        };
+        
+        await db.ref('repairs/' + repairId).update({
+            payments: payments,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Log refund activity
+        await logActivity('advance_refunded', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            amount: payment.amount,
+            reason: refundNotes.trim()
+        }, `₱${payment.amount.toFixed(2)} advance refunded to ${repair.customerName} by ${window.currentUserData.displayName}`);
+        
+        alert(`✅ Advance payment marked as refunded!\n\n₱${payment.amount.toFixed(2)} refunded to ${repair.customerName}`);
+        
+        setTimeout(() => openPaymentModal(repairId), 100);
+    } catch (error) {
+        console.error('Error refunding advance:', error);
+        alert('Error: ' + error.message);
+    }
 }
 
 /**
@@ -3553,6 +3681,22 @@ async function submitPricingUpdate(e, repairId) {
         return;
     }
     
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    // Check for pending advance payments and auto-apply them
+    const pendingAdvances = (repair.payments || []).filter(p => p.isAdvance && p.advanceStatus === 'pending');
+    const updatedPayments = (repair.payments || []).map(p => {
+        if (p.isAdvance && p.advanceStatus === 'pending') {
+            return {
+                ...p,
+                advanceStatus: 'applied',
+                appliedAt: new Date().toISOString(),
+                appliedTo: total
+            };
+        }
+        return p;
+    });
+    
     const updateData = {
         repairType: formData.get('repairType'),
         partType: formData.get('partType') || '',
@@ -3560,6 +3704,8 @@ async function submitPricingUpdate(e, repairId) {
         partsCost: partsCost,
         laborCost: laborCost,
         total: total,
+        // Update payments array if there were pending advances
+        ...(pendingAdvances.length > 0 ? { payments: updatedPayments } : {}),
         // Mark diagnosis as created
         diagnosisCreated: true,
         diagnosisCreatedAt: new Date().toISOString(),
@@ -3577,7 +3723,23 @@ async function submitPricingUpdate(e, repairId) {
     
     try {
         await db.ref('repairs/' + repairId).update(updateData);
-        alert(`✅ Diagnosis Created!\n\n📋 Repair Type: ${updateData.repairType}\n💰 Total: ₱${total.toFixed(2)}\n\n⏳ Status: Pending Customer Approval\n\nNext: Customer must approve this price before technician can accept the repair.`);
+        
+        let successMsg = `✅ Diagnosis Created!\n\n📋 Repair Type: ${updateData.repairType}\n💰 Total: ₱${total.toFixed(2)}`;
+        
+        if (pendingAdvances.length > 0) {
+            const totalAdvances = pendingAdvances.reduce((sum, p) => sum + p.amount, 0);
+            successMsg += `\n\n💰 ${pendingAdvances.length} advance payment(s) automatically applied: ₱${totalAdvances.toFixed(2)}`;
+            const remaining = total - totalAdvances;
+            if (remaining > 0) {
+                successMsg += `\n📊 Remaining balance: ₱${remaining.toFixed(2)}`;
+            } else if (remaining === 0) {
+                successMsg += `\n🎉 Fully paid with advances!`;
+            }
+        }
+        
+        successMsg += `\n\n⏳ Status: Pending Customer Approval\n\nNext: Customer must approve this price before technician can accept the repair.`;
+        
+        alert(successMsg);
         closeStatusModal();
         
         // Refresh current tab after a short delay to ensure Firebase has processed
@@ -6932,8 +7094,8 @@ async function confirmReleaseDevice() {
     
     // Build release data
     const releaseData = {
-        status: 'Claimed',
-        claimedAt: new Date().toISOString(),
+        status: 'Released',
+        releasedAt: new Date().toISOString(),
         releaseDate: new Date().toISOString(),
         releasedBy: window.currentUserData.displayName,
         releasedById: window.currentUser.uid,
@@ -7089,6 +7251,144 @@ async function confirmReleaseDevice() {
 function closeReleaseDeviceModal() {
     document.getElementById('releaseDeviceModal').style.display = 'none';
     serviceSlipPhoto = null;
+}
+
+/**
+ * Finalize Released Device - Manual or Automatic
+ * Convert Released status to Claimed
+ */
+async function finalizeClaimDevice(repairId, isAutomatic = false) {
+    try {
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        if (!repair) {
+            alert('Repair not found');
+            return;
+        }
+        
+        if (repair.status !== 'Released') {
+            alert('⚠️ This device is not in Released status');
+            return;
+        }
+        
+        // If manual finalization, show modal for warranty info
+        if (!isAutomatic) {
+            openFinalizeModal(repairId);
+            return;
+        }
+        
+        // Automatic finalization at 6pm
+        const finalizeData = {
+            status: 'Claimed',
+            claimedAt: new Date().toISOString(),
+            finalizedAt: new Date().toISOString(),
+            finalizedBy: isAutomatic ? 'System Auto-Finalize' : window.currentUserData.displayName,
+            finalizedById: isAutomatic ? 'system' : window.currentUser.uid,
+            autoFinalized: isAutomatic,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: isAutomatic ? 'System' : window.currentUserData.displayName
+        };
+        
+        await db.ref(`repairs/${repairId}`).update(finalizeData);
+        
+        // Log activity
+        await logActivity('device_finalized', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            autoFinalized: isAutomatic,
+            finalizedBy: finalizeData.finalizedBy
+        }, `Device finalized: ${repair.customerName} - ${isAutomatic ? 'Auto at 6pm' : 'Manual'}`);
+        
+        if (!isAutomatic) {
+            alert('✅ Device finalized successfully!');
+            closeFinalizeModal();
+            if (window.currentTabRefresh) window.currentTabRefresh();
+            if (window.buildStats) window.buildStats();
+        }
+        
+    } catch (error) {
+        console.error('Error finalizing device:', error);
+        if (!isAutomatic) {
+            alert('Error: ' + error.message);
+        }
+    }
+}
+
+function openFinalizeModal(repairId) {
+    document.getElementById('finalizeRepairId').value = repairId;
+    document.getElementById('finalizeWarrantyDays').value = '30';
+    document.getElementById('finalizeFinalNotes').value = '';
+    document.getElementById('finalizeClaimModal').style.display = 'block';
+}
+
+async function confirmFinalizeDevice() {
+    const repairId = document.getElementById('finalizeRepairId').value;
+    const warrantyDays = parseInt(document.getElementById('finalizeWarrantyDays').value) || 0;
+    const finalNotes = document.getElementById('finalizeFinalNotes').value.trim();
+    
+    if (!repairId) {
+        alert('Invalid repair ID');
+        return;
+    }
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    if (!confirm(`✅ Finalize and mark as Claimed?\n\nWarranty: ${warrantyDays} days`)) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const warrantyEndDate = new Date();
+        warrantyEndDate.setDate(warrantyEndDate.getDate() + warrantyDays);
+        
+        const finalizeData = {
+            status: 'Claimed',
+            claimedAt: new Date().toISOString(),
+            finalizedAt: new Date().toISOString(),
+            finalizedBy: window.currentUserData.displayName,
+            finalizedById: window.currentUser.uid,
+            autoFinalized: false,
+            warrantyDays: warrantyDays,
+            warrantyEndDate: warrantyEndDate.toISOString(),
+            finalNotes: finalNotes || '',
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        };
+        
+        await db.ref(`repairs/${repairId}`).update(finalizeData);
+        
+        // Log activity
+        await logActivity('device_finalized', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            autoFinalized: false,
+            warrantyDays: warrantyDays,
+            finalizedBy: window.currentUserData.displayName
+        }, `Device manually finalized: ${repair.customerName} - ${warrantyDays} days warranty`);
+        
+        utils.showLoading(false);
+        alert('✅ Device finalized successfully!');
+        closeFinalizeModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) window.currentTabRefresh();
+            if (window.buildStats) window.buildStats();
+        }, 300);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error finalizing device:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+function closeFinalizeModal() {
+    document.getElementById('finalizeClaimModal').style.display = 'none';
 }
 
 /**
@@ -7259,6 +7559,7 @@ window.isoToDateInput = isoToDateInput;
 window.openPaymentModal = openPaymentModal;
 window.previewPaymentProof = previewPaymentProof;
 window.savePayment = savePayment;
+window.refundAdvancePayment = refundAdvancePayment;
 window.editPaymentDate = editPaymentDate;
 window.savePaymentDateEdit = savePaymentDateEdit;
 window.verifyPayment = verifyPayment;
@@ -7276,6 +7577,10 @@ window.submitAcceptRepair = submitAcceptRepair;
 window.openClaimModal = openClaimModal;
 window.updateWarrantyInfo = updateWarrantyInfo;
 window.claimDevice = claimDevice;
+window.finalizeClaimDevice = finalizeClaimDevice;
+window.openFinalizeModal = openFinalizeModal;
+window.confirmFinalizeDevice = confirmFinalizeDevice;
+window.closeFinalizeModal = closeFinalizeModal;
 window.viewClaimDetails = viewClaimDetails;
 window.openWarrantyClaimModal = openWarrantyClaimModal;
 window.processWarrantyClaim = processWarrantyClaim;
@@ -9903,6 +10208,145 @@ window.adminDeletePayment = adminDeletePayment;
 window.adminUnremitPayment = adminUnremitPayment;
 window.adminDeleteExpense = adminDeleteExpense;
 window.requestRepairDeletion = requestRepairDeletion;
+
+// ==================== AUTO-FINALIZATION FOR RELEASED STATUS ====================
+
+/**
+ * Check and auto-finalize Released devices at 6pm Manila time
+ */
+async function checkAndAutoFinalizeReleased() {
+    try {
+        if (!window.allRepairs || !window.currentUser) return;
+        
+        // Get current date and time in Manila timezone
+        const manilaTimeStr = new Date().toLocaleString('en-US', {
+            timeZone: 'Asia/Manila',
+            hour12: false
+        });
+        const manilaDate = new Date(manilaTimeStr);
+        const currentHour = manilaDate.getHours();
+        const currentMinute = manilaDate.getMinutes();
+        
+        // Only run at 6pm Manila time (18:00) - with 10-minute window
+        if (currentHour !== 18 || currentMinute >= 10) {
+            return;
+        }
+        
+        console.log('🕒 Checking for Released devices to auto-finalize...');
+        
+        // Get today's date in Manila timezone (YYYY-MM-DD)
+        const todayManilaStr = manilaDate.toISOString().split('T')[0];
+        
+        // Find all Released devices from today or earlier
+        const releasedDevices = window.allRepairs.filter(repair => {
+            if (repair.status !== 'Released') return false;
+            if (!repair.releasedAt) return false;
+            
+            // Get release date in Manila timezone
+            const releasedDate = new Date(repair.releasedAt);
+            const releasedManilaStr = new Date(releasedDate.toLocaleString('en-US', {
+                timeZone: 'Asia/Manila'
+            })).toISOString().split('T')[0];
+            
+            // Finalize if released today or before
+            return releasedManilaStr <= todayManilaStr;
+        });
+        
+        if (releasedDevices.length === 0) {
+            console.log('✅ No Released devices to auto-finalize');
+            return;
+        }
+        
+        console.log(`📋 Auto-finalizing ${releasedDevices.length} Released device(s)...`);
+        
+        // Auto-finalize each device
+        for (const repair of releasedDevices) {
+            await finalizeClaimDevice(repair.id, true);
+            console.log(`✅ Auto-finalized: ${repair.customerName} (${repair.id})`);
+        }
+        
+        console.log('✅ Auto-finalization complete');
+        
+        // Refresh UI if needed
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        if (window.buildStats) {
+            window.buildStats();
+        }
+        
+    } catch (error) {
+        console.error('❌ Error in auto-finalization:', error);
+    }
+}
+
+/**
+ * Get countdown to 6pm Manila time for a Released device
+ */
+function getCountdownTo6PM(releasedAt) {
+    try {
+        const releasedDate = new Date(releasedAt);
+        
+        // Get release date in Manila timezone
+        const releasedManilaStr = new Date(releasedDate.toLocaleString('en-US', {
+            timeZone: 'Asia/Manila'
+        })).toISOString().split('T')[0];
+        
+        // Create 6pm Manila time for the release date
+        const finalizeTime = new Date(`${releasedManilaStr}T18:00:00+08:00`);
+        
+        // Get current time in Manila
+        const nowManilaStr = new Date().toLocaleString('en-US', {
+            timeZone: 'Asia/Manila',
+            hour12: false
+        });
+        const nowManila = new Date(nowManilaStr);
+        
+        // Calculate difference
+        const diff = finalizeTime - nowManila;
+        
+        if (diff <= 0) {
+            return 'Finalizing...';
+        }
+        
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        
+        return `${hours}h ${minutes}m until auto-finalize`;
+        
+    } catch (error) {
+        console.error('Error calculating countdown:', error);
+        return 'Pending finalization';
+    }
+}
+
+// Start auto-finalization checker (runs every 5 minutes)
+let autoFinalizeInterval = null;
+
+function startAutoFinalizeChecker() {
+    // Clear existing interval if any
+    if (autoFinalizeInterval) {
+        clearInterval(autoFinalizeInterval);
+    }
+    
+    // Run check every 5 minutes (300000 ms)
+    autoFinalizeInterval = setInterval(checkAndAutoFinalizeReleased, 300000);
+    
+    // Also run once immediately
+    setTimeout(checkAndAutoFinalizeReleased, 5000); // Wait 5 seconds after load
+    
+    console.log('✅ Auto-finalization checker started (every 5 minutes)');
+}
+
+// Export functions
+window.checkAndAutoFinalizeReleased = checkAndAutoFinalizeReleased;
+window.getCountdownTo6PM = getCountdownTo6PM;
+window.startAutoFinalizeChecker = startAutoFinalizeChecker;
+
+// Start checker when repairs are loaded
+if (window.allRepairs) {
+    startAutoFinalizeChecker();
+}
 window.processDeletionRequest = processDeletionRequest;
 
 console.log('✅ repairs.js loaded');

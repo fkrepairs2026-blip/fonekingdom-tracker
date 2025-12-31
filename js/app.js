@@ -88,6 +88,12 @@ async function initializeApp() {
         console.log('🎨 Initializing sidebars...');
         initSidebar();
         
+        // Start auto-finalization checker for Released devices
+        if (window.startAutoFinalizeChecker) {
+            console.log('⏱️ Starting auto-finalization checker...');
+            window.startAutoFinalizeChecker();
+        }
+        
         // CRITICAL: ALWAYS hide loading at the end
         utils.showLoading(false);
         
