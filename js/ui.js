@@ -4228,25 +4228,25 @@ function buildDailyRemittanceTab(container) {
                                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
                                             <div>
                                                 <div style="font-size:12px;color:#666;">Payments Collected</div>
-                                                <div style="font-size:16px;font-weight:bold;">₱${r.totalPaymentsCollected.toFixed(2)}</div>
+                                                <div style="font-size:16px;font-weight:bold;">₱${(r.totalPaymentsCollected || 0).toFixed(2)}</div>
                                                 <div style="font-size:11px;color:#999;">${(r.paymentsList || []).length} payment(s)</div>
                                             </div>
                                             <div>
                                                 <div style="font-size:12px;color:#666;">Expenses</div>
-                                                <div style="font-size:16px;font-weight:bold;color:#f44336;">-₱${r.totalExpenses.toFixed(2)}</div>
+                                                <div style="font-size:16px;font-weight:bold;color:#f44336;">-₱${(r.totalExpenses || 0).toFixed(2)}</div>
                                                 <div style="font-size:11px;color:#999;">${(r.expensesList || []).length} item(s)</div>
                                             </div>
                                             <div>
                                                 <div style="font-size:12px;color:#666;">Commission (40%)</div>
-                                                <div style="font-size:16px;font-weight:bold;color:#2196f3;">₱${r.totalCommission.toFixed(2)}</div>
+                                                <div style="font-size:16px;font-weight:bold;color:#2196f3;">₱${(r.totalCommission || 0).toFixed(2)}</div>
                                                 <div style="font-size:11px;color:#999;">${r.commissionPaymentPreference || 'N/A'}</div>
                                             </div>
                                             <div>
                                                 <div style="font-size:12px;color:#666;">Remitted (60%)</div>
-                                                <div style="font-size:16px;font-weight:bold;color:#4caf50;">₱${r.actualAmount.toFixed(2)}</div>
-                                                ${r.discrepancy !== 0 ? `
-                                                    <div style="font-size:11px;color:${r.discrepancy > 0 ? '#4caf50' : '#f44336'};">
-                                                        ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}
+                                                <div style="font-size:16px;font-weight:bold;color:#4caf50;">₱${(r.actualAmount || 0).toFixed(2)}</div>
+                                                ${(r.discrepancy || 0) !== 0 ? `
+                                                    <div style="font-size:11px;color:${(r.discrepancy || 0) > 0 ? '#4caf50' : '#f44336'};">
+                                                        ${(r.discrepancy || 0) > 0 ? '+' : ''}₱${(r.discrepancy || 0).toFixed(2)}
                                                     </div>
                                                 ` : ''}
                                             </div>
@@ -4316,10 +4316,10 @@ function buildDailyRemittanceTab(container) {
                                                 ${(r.paymentsList || []).map(p => `
                                                     <div style="padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
                                                         <div>
-                                                            <div style="font-weight:600;font-size:13px;">${p.customerName}</div>
-                                                            <div style="font-size:11px;color:#666;">${p.repairId}</div>
+                                                            <div style="font-weight:600;font-size:13px;">${p.customerName || 'Unknown'}</div>
+                                                            <div style="font-size:11px;color:#666;">${p.repairId || '-'}</div>
                                                         </div>
-                                                        <div style="font-weight:bold;">₱${p.amount.toFixed(2)}</div>
+                                                        <div style="font-weight:bold;">₱${(p.amount || 0).toFixed(2)}</div>
                                                     </div>
                                                 `).join('')}
                                             </div>
@@ -4335,10 +4335,10 @@ function buildDailyRemittanceTab(container) {
                                                     ${(r.expensesList || []).map(e => `
                                                         <div style="padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
                                                             <div>
-                                                                <div style="font-weight:600;font-size:13px;">${e.category}</div>
+                                                                <div style="font-weight:600;font-size:13px;">${e.category || 'Unknown'}</div>
                                                                 <div style="font-size:11px;color:#666;">${e.description || '-'}</div>
                                                             </div>
-                                                            <div style="font-weight:bold;color:#f44336;">-₱${e.amount.toFixed(2)}</div>
+                                                            <div style="font-weight:bold;color:#f44336;">-₱${(e.amount || 0).toFixed(2)}</div>
                                                         </div>
                                                     `).join('')}
                                                 </div>
