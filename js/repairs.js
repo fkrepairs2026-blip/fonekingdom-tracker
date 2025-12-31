@@ -4761,6 +4761,61 @@ function getPendingRemittanceDates(techId) {
 }
 
 /**
+ * Get pending GCash remittance dates for technician
+ */
+function getPendingGCashDates(techId) {
+    const dateMap = {};
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach((payment, index) => {
+                // Only GCash payments that haven't been reported yet
+                if (payment.method === 'GCash' && 
+                    payment.receivedById === techId &&
+                    !payment.gcashRemittanceId) {
+                    
+                    const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                    const dateString = getLocalDateString(paymentDate);
+                    
+                    if (!dateMap[dateString]) {
+                        dateMap[dateString] = {
+                            dateString: dateString,
+                            date: new Date(dateString + 'T00:00:00'),
+                            payments: [],
+                            totalPayments: 0,
+                            totalCommission: 0
+                        };
+                    }
+                    
+                    dateMap[dateString].payments.push({
+                        repairId: repair.id,
+                        paymentIndex: index,
+                        customerName: repair.customerName,
+                        amount: payment.amount,
+                        method: payment.method,
+                        gcashReferenceNumber: payment.gcashReferenceNumber,
+                        paymentDate: payment.paymentDate,
+                        recordedDate: payment.recordedDate
+                    });
+                    dateMap[dateString].totalPayments += payment.amount;
+                }
+            });
+        }
+    });
+    
+    // Calculate commission per date (40% of total GCash)
+    Object.keys(dateMap).forEach(dateString => {
+        const dateData = dateMap[dateString];
+        dateData.totalCommission = dateData.totalPayments * 0.40;
+        // 60% is "remitted" (already in shop account)
+        dateData.remittedAmount = dateData.totalPayments * 0.60;
+    });
+    
+    // Convert to array and sort by date (oldest first)
+    return Object.values(dateMap).sort((a, b) => a.date - b.date);
+}
+
+/**
  * Calculate unremitted balance for a specific date
  * Returns: (totalPayments - totalExpenses - commission)
  */
@@ -6286,6 +6341,152 @@ async function markCommissionReceived(remittanceId) {
 window.markCommissionReceived = markCommissionReceived;
 
 /**
+ * Mark rejected remittance as manually resolved (Admin/Cashier only)
+ */
+async function markRemittanceAsResolved(remittanceId) {
+    const remittance = window.techRemittances.find(r => r.id === remittanceId);
+    if (!remittance) {
+        alert('Remittance not found');
+        return;
+    }
+    
+    // Check if user has permission (admin, cashier, or manager)
+    const userRole = window.currentUserData.role;
+    if (!['admin', 'cashier', 'manager'].includes(userRole)) {
+        alert('⚠️ Only admin, cashier, or manager can mark remittances as resolved');
+        return;
+    }
+    
+    // Check if already resolved
+    if (remittance.manuallyResolved) {
+        alert('ℹ️ This remittance is already marked as resolved');
+        return;
+    }
+    
+    // Check if it's rejected
+    if (remittance.status !== 'rejected') {
+        alert('⚠️ Only rejected remittances can be marked as resolved');
+        return;
+    }
+    
+    // Ask for resolution notes
+    const notes = prompt(
+        'Mark Remittance as Resolved\n\n' +
+        `Tech: ${remittance.techName}\n` +
+        `Date: ${utils.formatDate(remittance.date)}\n` +
+        `Amount: ₱${remittance.actualAmount.toFixed(2)}\n\n` +
+        'Please explain how this was resolved (minimum 10 characters):'
+    );
+    
+    if (!notes || notes.trim().length < 10) {
+        alert('Please provide a detailed explanation (at least 10 characters)');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const updateData = {
+            manuallyResolved: true,
+            resolvedBy: window.currentUserData.displayName,
+            resolvedById: window.currentUser.uid,
+            resolvedAt: new Date().toISOString(),
+            resolutionNotes: notes.trim()
+        };
+        
+        await db.ref(`techRemittances/${remittanceId}`).update(updateData);
+        
+        alert('✅ Remittance marked as resolved!');
+        
+        utils.showLoading(false);
+        
+        // Refresh tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error marking remittance as resolved:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+window.markRemittanceAsResolved = markRemittanceAsResolved;
+
+/**
+ * Mark rejected remittance as manually resolved (Admin/Cashier only)
+ */
+async function markRemittanceAsResolved(remittanceId) {
+    const remittance = window.techRemittances.find(r => r.id === remittanceId);
+    if (!remittance) {
+        alert('Remittance not found');
+        return;
+    }
+    
+    // Check if user has permission (admin, cashier, or manager)
+    const userRole = window.currentUserData.role;
+    if (!['admin', 'cashier', 'manager'].includes(userRole)) {
+        alert('⚠️ Only admin, cashier, or manager can mark remittances as resolved');
+        return;
+    }
+    
+    // Check if already resolved
+    if (remittance.manuallyResolved) {
+        alert('ℹ️ This remittance is already marked as resolved');
+        return;
+    }
+    
+    // Check if it's rejected
+    if (remittance.status !== 'rejected') {
+        alert('⚠️ Only rejected remittances can be marked as resolved');
+        return;
+    }
+    
+    // Ask for resolution notes
+    const notes = prompt(
+        'Mark Remittance as Resolved\n\n' +
+        `Tech: ${remittance.techName}\n` +
+        `Date: ${utils.formatDate(remittance.date)}\n` +
+        `Amount: ₱${remittance.actualAmount.toFixed(2)}\n\n` +
+        'Please explain how this was resolved (minimum 10 characters):'
+    );
+    
+    if (!notes || notes.trim().length < 10) {
+        alert('Please provide a detailed explanation (at least 10 characters)');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const updateData = {
+            manuallyResolved: true,
+            resolvedBy: window.currentUserData.displayName,
+            resolvedById: window.currentUser.uid,
+            resolvedAt: new Date().toISOString(),
+            resolutionNotes: notes.trim()
+        };
+        
+        await db.ref(`techRemittances/${remittanceId}`).update(updateData);
+        
+        alert('✅ Remittance marked as resolved!');
+        
+        utils.showLoading(false);
+        
+        // Refresh tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error marking remittance as resolved:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+window.markRemittanceAsResolved = markRemittanceAsResolved;
+
+/**
  * Submit multiple day remittance (catch-up)
  */
 async function submitMultipleDayRemittance(recipientId, recipient, notes) {
@@ -6879,6 +7080,423 @@ async function rejectRemittance() {
 function closeVerifyRemittanceModal() {
     document.getElementById('verifyRemittanceModal').style.display = 'none';
 }
+
+/**
+ * ============================================
+ * GCASH REMITTANCE FUNCTIONS
+ * ============================================
+ */
+
+/**
+ * Open GCash Remittance Modal for a specific date
+ */
+function openGCashRemittanceModal(dateString) {
+    const techId = window.currentUser.uid;
+    
+    // Get GCash payments for this date
+    const dateData = getPendingGCashDates(techId).find(d => d.dateString === dateString);
+    if (!dateData) {
+        alert('⚠️ No pending GCash payments for this date');
+        return;
+    }
+    
+    const payments = dateData.payments;
+    const paymentsTotal = dateData.totalPayments;
+    const commissionAmount = dateData.totalCommission; // 40%
+    const remittedAmount = dateData.remittedAmount; // 60%
+    
+    // Get list of users who can receive GCash (admin, manager, cashier)
+    const gcashReceivers = Object.values(window.allUsers).filter(u => 
+        ['admin', 'manager', 'cashier'].includes(u.role)
+    );
+    
+    const modal = document.getElementById('remittanceModal');
+    if (!modal) {
+        console.error('Remittance modal not found');
+        return;
+    }
+    
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width:700px;max-height:90vh;overflow-y:auto;">
+            <span class="close" onclick="closeRemittanceModal()">&times;</span>
+            <h2 style="margin:0 0 20px 0;color:#00bcd4;">📱 Report GCash Remittance</h2>
+            <p style="font-size:14px;color:#666;margin-bottom:20px;">
+                ${utils.formatDate(dateString)}
+            </p>
+            
+            <!-- Summary Box -->
+            <div style="background:#e1f5fe;padding:20px;border-radius:10px;border-left:4px solid #00bcd4;margin-bottom:20px;">
+                <h3 style="margin-top:0;color:#0097a7;">💰 GCash Summary</h3>
+                <div style="background:white;padding:15px;border-radius:8px;margin-top:15px;">
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>📱 Total GCash Collected:</span>
+                        <strong>₱${paymentsTotal.toFixed(2)}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>🏦 Remitted to Shop (60%):</span>
+                        <strong style="color:#4caf50;">₱${remittedAmount.toFixed(2)}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>👤 Your Commission (40%):</span>
+                        <strong style="color:#2196f3;">₱${commissionAmount.toFixed(2)}</strong>
+                    </div>
+                </div>
+                
+                <p style="margin-top:15px;font-size:13px;color:#0097a7;background:white;padding:12px;border-radius:6px;">
+                    ℹ️ <strong>GCash goes directly to shop account.</strong> This report is for tracking your commission and verifying the receiver got the payment.
+                </p>
+            </div>
+            
+            <!-- GCash Payments List -->
+            ${payments.length > 0 ? `
+                <div style="background:#f9f9f9;padding:15px;border-radius:8px;margin-bottom:20px;">
+                    <h3 style="margin-top:0;color:#333;">📱 GCash Payments (${payments.length})</h3>
+                    <div style="background:white;border-radius:8px;overflow:hidden;border:1px solid #eee;">
+                        ${payments.map((p, idx) => `
+                            <div style="padding:12px;border-bottom:${idx < payments.length - 1 ? '1px solid #eee' : 'none'};display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div style="font-weight:600;color:#333;">${p.customerName}</div>
+                                    <div style="font-size:12px;color:#666;">Ref: ${p.gcashReferenceNumber || 'N/A'}</div>
+                                </div>
+                                <div style="text-align:right;font-weight:bold;color:#00bcd4;">₱${p.amount.toFixed(2)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- GCash Receiver Selection (REQUIRED) -->
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="font-weight:bold;margin-bottom:8px;display:block;color:#333;">
+                    📱 Who's GCash Account Received This? <span style="color:red;">*</span>
+                </label>
+                <select id="gcashReceiverSelect" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;font-size:14px;" required>
+                    <option value="">-- Select Receiver --</option>
+                    ${gcashReceivers.map(u => `
+                        <option value="${u.uid}" data-name="${u.displayName}" data-role="${u.role}">
+                            ${u.displayName} (${u.role}) ${u.email ? '- ' + u.email : ''}
+                        </option>
+                    `).join('')}
+                </select>
+                <small style="color:#666;display:block;margin-top:5px;">
+                    Select which admin/cashier's GCash account received these payments
+                </small>
+            </div>
+            
+            <!-- Commission Payment Preference (REQUIRED) -->
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="font-weight:bold;margin-bottom:8px;display:block;color:#333;">
+                    💰 How do you want to receive your ₱${commissionAmount.toFixed(2)} commission? <span style="color:red;">*</span>
+                </label>
+                <select id="gcashCommissionPreference" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;font-size:14px;" required>
+                    <option value="">-- Select Payment Method --</option>
+                    <option value="cash">💵 Cash</option>
+                    <option value="gcash">📱 GCash</option>
+                </select>
+            </div>
+            
+            <!-- Optional Notes -->
+            <div class="form-group" style="margin-bottom:20px;">
+                <label style="font-weight:bold;margin-bottom:8px;display:block;color:#333;">
+                    📝 Optional Notes
+                </label>
+                <textarea id="gcashRemittanceNotes" 
+                          style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;min-height:80px;font-family:inherit;"
+                          placeholder="Any additional notes about these GCash payments..."></textarea>
+            </div>
+            
+            <!-- Hidden Fields -->
+            <input type="hidden" id="gcashDateString" value="${dateString}">
+            <input type="hidden" id="gcashTotalAmount" value="${paymentsTotal}">
+            <input type="hidden" id="gcashRemittedAmount" value="${remittedAmount}">
+            <input type="hidden" id="gcashCommissionAmount" value="${commissionAmount}">
+            
+            <!-- Actions -->
+            <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:30px;padding-top:20px;border-top:1px solid #eee;">
+                <button onclick="closeRemittanceModal()" class="btn-secondary" style="padding:10px 20px;">
+                    Cancel
+                </button>
+                <button onclick="confirmGCashRemittance()" class="btn-primary" style="padding:10px 20px;background:#00bcd4;">
+                    📱 Submit GCash Report
+                </button>
+            </div>
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Confirm and Submit GCash Remittance
+ */
+async function confirmGCashRemittance() {
+    const techId = window.currentUser.uid;
+    
+    // Get values from modal
+    const modal = document.getElementById('remittanceModal');
+    if (!modal) {
+        alert('Modal not found');
+        return;
+    }
+    
+    const dateString = modal.querySelector('#gcashDateString').value;
+    const totalAmount = parseFloat(modal.querySelector('#gcashTotalAmount').value);
+    const remittedAmount = parseFloat(modal.querySelector('#gcashRemittedAmount').value);
+    const commissionAmount = parseFloat(modal.querySelector('#gcashCommissionAmount').value);
+    const receiverSelect = modal.querySelector('#gcashReceiverSelect');
+    const receiverUid = receiverSelect.value;
+    const commissionPreference = modal.querySelector('#gcashCommissionPreference').value;
+    const notes = modal.querySelector('#gcashRemittanceNotes').value.trim();
+    
+    // Validation
+    if (!receiverUid) {
+        alert('⚠️ Please select who received the GCash payments');
+        return;
+    }
+    
+    if (!commissionPreference) {
+        alert('⚠️ Please select how you want to receive your commission');
+        return;
+    }
+    
+    const receiver = window.allUsers[receiverUid];
+    if (!receiver) {
+        alert('⚠️ Selected receiver not found');
+        return;
+    }
+    
+    // Get GCash payments for this date
+    const dateData = getPendingGCashDates(techId).find(d => d.dateString === dateString);
+    if (!dateData) {
+        alert('⚠️ No pending GCash payments for this date');
+        return;
+    }
+    
+    const payments = dateData.payments;
+    
+    // Confirm
+    if (!confirm(
+        `Submit GCash Remittance Report?\n\n` +
+        `Total GCash: ₱${totalAmount.toFixed(2)}\n` +
+        `Remitted (60%): ₱${remittedAmount.toFixed(2)}\n` +
+        `Commission (40%): ₱${commissionAmount.toFixed(2)}\n` +
+        `Receiver: ${receiver.displayName}\n` +
+        `Commission Method: ${commissionPreference}\n\n` +
+        `This will be submitted for verification.`
+    )) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Create GCash remittance record
+        const remittance = {
+            remittanceType: 'gcash',  // KEY: Distinguish from cash
+            techId: techId,
+            techName: window.currentUserData.displayName,
+            date: new Date(dateString + 'T00:00:00').toISOString(),
+            dateString: dateString,
+            // GCash receiver tracking
+            submittedTo: receiverUid,
+            submittedToName: receiver.displayName,
+            submittedToRole: receiver.role,
+            gcashReceiverUid: receiverUid,
+            gcashReceiverName: receiver.displayName,
+            gcashReceiverAccount: receiver.email || '',
+            gcashNote: notes,
+            // Payments
+            paymentIds: payments.map(p => `${p.repairId}_${p.paymentIndex}`),
+            totalPaymentsCollected: totalAmount,
+            paymentsList: payments.map(p => ({
+                repairId: p.repairId,
+                customerName: p.customerName,
+                amount: p.amount,
+                method: 'GCash',
+                gcashReferenceNumber: p.gcashReferenceNumber
+            })),
+            // Commission (40% of GCash total)
+            totalCommission: commissionAmount,
+            gcashCommission: commissionAmount,
+            cashCommission: 0,
+            commissionPaymentPreference: commissionPreference,
+            commissionBreakdown: [],  // Can be expanded if needed
+            hasManualOverride: false,
+            finalApprovedCommission: commissionAmount,
+            // No expenses for GCash
+            expenseIds: [],
+            totalExpenses: 0,
+            expensesList: [],
+            // Amount tracking (60% "remitted" - already in shop account)
+            expectedRemittance: remittedAmount,
+            actualAmount: remittedAmount,
+            discrepancy: 0,
+            // Status
+            status: 'pending',  // Awaits receiver verification
+            submittedAt: new Date().toISOString(),
+            verifiedBy: null,
+            verifiedAt: null,
+            verificationNotes: '',
+            // Commission payment tracking
+            commissionPaid: false,
+            commissionPaidAt: null,
+            commissionPaidConfirmedBy: null
+        };
+        
+        const remittanceRef = await db.ref('techRemittances').push(remittance);
+        const remittanceId = remittanceRef.key;
+        
+        // Update all GCash payments with remittance ID
+        const updatePromises = [];
+        payments.forEach(p => {
+            const repair = window.allRepairs.find(r => r.id === p.repairId);
+            if (repair && repair.payments) {
+                const updatedPayments = [...repair.payments];
+                updatedPayments[p.paymentIndex] = {
+                    ...updatedPayments[p.paymentIndex],
+                    gcashRemittanceId: remittanceId,
+                    remittanceStatus: 'remitted'  // Mark as remitted (reported)
+                };
+                updatePromises.push(
+                    db.ref(`repairs/${p.repairId}`).update({ payments: updatedPayments })
+                );
+            }
+        });
+        
+        await Promise.all(updatePromises);
+        
+        // Log activity
+        await logActivity('gcash_remittance_submitted', {
+            remittanceId: remittanceId,
+            submittedBy: window.currentUserData.displayName,
+            submittedTo: receiver.displayName,
+            gcashCollected: totalAmount,
+            remittedAmount: remittedAmount,
+            commission: commissionAmount
+        }, `${window.currentUserData.displayName} submitted GCash remittance report of ₱${totalAmount.toFixed(2)} to ${receiver.displayName}`);
+        
+        utils.showLoading(false);
+        alert(`✅ GCash remittance reported!\n\n💰 Total: ₱${totalAmount.toFixed(2)}\n🏦 Remitted (60%): ₱${remittedAmount.toFixed(2)}\n👤 Commission (40%): ₱${commissionAmount.toFixed(2)}\n\n⏳ Waiting for ${receiver.displayName} to verify receipt.`);
+        closeRemittanceModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error submitting GCash remittance:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Verify GCash Remittance (Receiver confirms)
+ */
+async function verifyGCashRemittance(remittanceId, approved) {
+    const remittance = window.techRemittances.find(r => r.id === remittanceId);
+    if (!remittance) {
+        alert('Remittance not found');
+        return;
+    }
+    
+    // Check if user is the receiver or admin
+    const currentUserId = window.currentUser.uid;
+    const isReceiver = remittance.gcashReceiverUid === currentUserId;
+    const isAdmin = window.currentUserData.role === 'admin';
+    
+    if (!isReceiver && !isAdmin) {
+        alert('⚠️ Only the GCash receiver or admin can verify this remittance');
+        return;
+    }
+    
+    // Ask for notes
+    let notes = '';
+    if (approved) {
+        notes = prompt(
+            'Confirm GCash Received\n\n' +
+            `Total GCash: ₱${remittance.totalPaymentsCollected.toFixed(2)}\n` +
+            `From: ${remittance.techName}\n\n` +
+            'Optional: Add verification notes:'
+        ) || 'GCash payments verified and received in account';
+    } else {
+        notes = prompt(
+            '⚠️ Reject GCash Remittance\n\n' +
+            `Total GCash: ₱${remittance.totalPaymentsCollected.toFixed(2)}\n` +
+            `From: ${remittance.techName}\n\n` +
+            'Please explain why GCash was not found (minimum 10 characters):'
+        );
+        
+        if (!notes || notes.trim().length < 10) {
+            alert('Please provide a detailed explanation (at least 10 characters)');
+            return;
+        }
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const updateData = {
+            status: approved ? 'approved' : 'rejected',
+            verifiedBy: window.currentUserData.displayName,
+            verifiedById: currentUserId,
+            verifiedAt: new Date().toISOString(),
+            verificationNotes: notes.trim()
+        };
+        
+        await db.ref(`techRemittances/${remittanceId}`).update(updateData);
+        
+        // If rejected, reset payment statuses
+        if (!approved) {
+            const updatePromises = [];
+            remittance.paymentsList.forEach((p, idx) => {
+                const paymentId = remittance.paymentIds[idx];
+                const [repairId, paymentIndex] = paymentId.split('_');
+                const repair = window.allRepairs.find(r => r.id === repairId);
+                
+                if (repair && repair.payments) {
+                    const updatedPayments = [...repair.payments];
+                    updatedPayments[parseInt(paymentIndex)] = {
+                        ...updatedPayments[parseInt(paymentIndex)],
+                        gcashRemittanceId: null,
+                        remittanceStatus: 'pending'
+                    };
+                    updatePromises.push(
+                        db.ref(`repairs/${repairId}`).update({ payments: updatedPayments })
+                    );
+                }
+            });
+            
+            await Promise.all(updatePromises);
+        }
+        
+        // Log activity
+        await logActivity(approved ? 'gcash_remittance_approved' : 'gcash_remittance_rejected', {
+            remittanceId: remittanceId,
+            techName: remittance.techName,
+            verifiedBy: window.currentUserData.displayName,
+            amount: remittance.totalPaymentsCollected
+        }, `${window.currentUserData.displayName} ${approved ? 'approved' : 'rejected'} GCash remittance from ${remittance.techName}`);
+        
+        utils.showLoading(false);
+        alert(approved ? '✅ GCash remittance approved!' : '❌ GCash remittance rejected. Technician can resubmit.');
+        
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error verifying GCash remittance:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * ============================================
+ * COMMISSION PAYMENT FUNCTIONS
+ * ============================================
+ */
 
 /**
  * Mark Commission as Paid
@@ -9442,6 +10060,10 @@ window.approveRemittance = approveRemittance;
 window.rejectRemittance = rejectRemittance;
 window.markCommissionAsPaid = markCommissionAsPaid;
 window.closeVerifyRemittanceModal = closeVerifyRemittanceModal;
+window.openGCashRemittanceModal = openGCashRemittanceModal;
+window.confirmGCashRemittance = confirmGCashRemittance;
+window.verifyGCashRemittance = verifyGCashRemittance;
+window.getPendingGCashDates = getPendingGCashDates;
 
 /**
  * ============================================

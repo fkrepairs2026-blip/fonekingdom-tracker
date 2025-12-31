@@ -3819,7 +3819,9 @@ function buildDailyRemittanceTab(container) {
     // Get technician's remittances
     const myRemittances = window.techRemittances.filter(r => r.techId === techId);
     const pendingRemittances = myRemittances.filter(r => r.status === 'pending');
-    const rejectedRemittances = myRemittances.filter(r => r.status === 'rejected');
+    const rejectedRemittances = myRemittances.filter(r => 
+        r.status === 'rejected' && !r.manuallyResolved
+    );
     const approvedCommissions = myRemittances.filter(r => 
         r.status === 'approved' && r.commissionPaid === false
     );
@@ -3881,11 +3883,20 @@ function buildDailyRemittanceTab(container) {
                             <p style="margin:8px 0 0 0;color:#666;">${r.verificationNotes || 'No reason provided'}</p>
                         </div>
                         
-                        <button onclick="openSingleDayRemittanceModal('${getLocalDateString(new Date(r.date))}')" 
-                                class="btn-primary" 
-                                style="background:#f44336;width:100%;margin-top:10px;">
-                            🔄 Resubmit This Date
-                        </button>
+                        <div style="display:grid;grid-template-columns:${(!r.remittanceType || r.remittanceType === 'cash') ? '1fr 1fr' : '1fr'};gap:10px;margin-top:10px;">
+                            <button onclick="open${r.remittanceType === 'gcash' ? 'GCash' : 'SingleDay'}RemittanceModal('${getLocalDateString(new Date(r.date))}')" 
+                                    class="btn-primary" 
+                                    style="background:#f44336;padding:10px;">
+                                🔄 Resubmit
+                            </button>
+                            ${(!r.remittanceType || r.remittanceType === 'cash') ? `
+                                <button onclick="markRemittanceAsResolved('${r.id}')" 
+                                        class="btn-secondary" 
+                                        style="padding:10px;">
+                                    ✅ Mark as Manually Fixed
+                                </button>
+                            ` : ''}
+                        </div>
                     </div>
                 `).join('')}
             </div>
@@ -4036,9 +4047,64 @@ function buildDailyRemittanceTab(container) {
             </div>
         </div>
         
-        <!-- Pending Remittance Dates -->
+        <!-- PENDING GCASH REMITTANCES -->
+        ${window.getPendingGCashDates && (() => {
+            const pendingGCashDates = window.getPendingGCashDates(techId);
+            return pendingGCashDates.length > 0 ? `
+                <div class="card" style="margin:20px 0;background:#e1f5fe;border-left:4px solid #00bcd4;">
+                    <h3 style="color:#0097a7;">📱 Pending GCash Remittances (${pendingGCashDates.length})</h3>
+                    <p style="color:#666;font-size:14px;margin-bottom:15px;">
+                        Report GCash payments received to track your commission
+                    </p>
+                    
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        ${pendingGCashDates.map((dateData) => {
+                            const isToday = dateData.dateString === todayStr;
+                            const displayLabel = isToday ? '📅 Today' : `📅 ${utils.formatDate(dateData.dateString)}`;
+                            const daysAgo = Math.floor((new Date() - dateData.date) / (1000 * 60 * 60 * 24));
+                            const daysLabel = isToday ? '' : `(${daysAgo} day${daysAgo > 1 ? 's' : ''} ago)`;
+                            
+                            return `
+                                <div style="background:white;border:2px solid #00bcd4;border-radius:10px;padding:15px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                        <div>
+                                            <div style="font-weight:bold;font-size:16px;color:#0097a7;">${displayLabel} ${daysLabel}</div>
+                                            <div style="font-size:12px;color:#999;margin-top:3px;">${dateData.payments.length} GCash payment(s)</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="background:#e1f5fe;padding:12px;border-radius:8px;margin-bottom:12px;">
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;">
+                                            <span>📱 Total GCash:</span>
+                                            <strong>₱${dateData.totalPayments.toFixed(2)}</strong>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#4caf50;">
+                                            <span>🏦 Remitted (60%):</span>
+                                            <strong>₱${dateData.remittedAmount.toFixed(2)}</strong>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#2196f3;">
+                                            <span>👤 Commission (40%):</span>
+                                            <strong>₱${dateData.totalCommission.toFixed(2)}</strong>
+                                        </div>
+                                    </div>
+                                    
+                                    <button onclick="openGCashRemittanceModal('${dateData.dateString}')" 
+                                            style="width:100%;padding:10px;background:#00bcd4;color:white;border:none;border-radius:6px;font-weight:bold;cursor:pointer;transition:background 0.3s;"
+                                            onmouseover="this.style.background='#0097a7';"
+                                            onmouseout="this.style.background='#00bcd4';">
+                                        📱 Report GCash Remittance
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            ` : '';
+        })()}
+        
+        <!-- Pending Remittance Dates (CASH) -->
         <div class="card" style="margin:20px 0;">
-            <h3>📋 Pending Remittances${pendingDates.length > 0 ? ` (${pendingDates.length} date${pendingDates.length > 1 ? 's' : ''})` : ''}</h3>
+            <h3>💵 Pending Cash Remittances${pendingDates.length > 0 ? ` (${pendingDates.length} date${pendingDates.length > 1 ? 's' : ''})` : ''}</h3>
             
             ${pendingDates.length > 0 ? `
                 <div style="margin:15px 0;">
@@ -4118,16 +4184,30 @@ function buildDailyRemittanceTab(container) {
             
             <!-- Date Filter -->
             <div style="margin:15px 0;padding:15px;background:#f5f5f5;border-radius:8px;">
-                <label style="font-weight:bold;margin-bottom:10px;display:block;">📅 Filter by Date:</label>
-                <select id="historyFilter" 
-                        onchange="window.remittanceHistoryFilter=this.value;window.remittanceHistoryPage=0;window.currentTabRefresh();"
-                        style="padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;max-width:300px;">
-                    <option value="last7" ${historyFilter === 'last7' ? 'selected' : ''}>Last 7 Days</option>
-                    <option value="last30" ${historyFilter === 'last30' ? 'selected' : ''}>Last 30 Days</option>
-                    <option value="last90" ${historyFilter === 'last90' ? 'selected' : ''}>Last 90 Days</option>
-                    <option value="all" ${historyFilter === 'all' ? 'selected' : ''}>All Time</option>
-                    <option value="custom" ${historyFilter === 'custom' ? 'selected' : ''}>Custom Range</option>
-                </select>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:10px;">
+                    <div>
+                        <label style="font-weight:bold;margin-bottom:10px;display:block;">📅 Filter by Date:</label>
+                        <select id="historyFilter" 
+                                onchange="window.remittanceHistoryFilter=this.value;window.remittanceHistoryPage=0;window.currentTabRefresh();"
+                                style="padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;">
+                            <option value="last7" ${historyFilter === 'last7' ? 'selected' : ''}>Last 7 Days</option>
+                            <option value="last30" ${historyFilter === 'last30' ? 'selected' : ''}>Last 30 Days</option>
+                            <option value="last90" ${historyFilter === 'last90' ? 'selected' : ''}>Last 90 Days</option>
+                            <option value="all" ${historyFilter === 'all' ? 'selected' : ''}>All Time</option>
+                            <option value="custom" ${historyFilter === 'custom' ? 'selected' : ''}>Custom Range</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label style="font-weight:bold;margin-bottom:10px;display:block;">💰 Filter by Type:</label>
+                        <select id="typeFilter" 
+                                onchange="window.remittanceTypeFilter=this.value;window.remittanceHistoryPage=0;window.currentTabRefresh();"
+                                style="padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;">
+                            <option value="all" ${(window.remittanceTypeFilter || 'all') === 'all' ? 'selected' : ''}>All Types</option>
+                            <option value="cash" ${window.remittanceTypeFilter === 'cash' ? 'selected' : ''}>💵 Cash Only</option>
+                            <option value="gcash" ${window.remittanceTypeFilter === 'gcash' ? 'selected' : ''}>📱 GCash Only</option>
+                        </select>
+                    </div>
+                </div>
                 
                 ${historyFilter === 'custom' ? `
                     <div style="margin-top:15px;display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
@@ -4158,7 +4238,16 @@ function buildDailyRemittanceTab(container) {
                 // Filter history based on selection
                 let filteredHistory = myRemittances;
                 const now = new Date();
+                const typeFilter = window.remittanceTypeFilter || 'all';
                 
+                // Apply type filter first
+                if (typeFilter === 'cash') {
+                    filteredHistory = filteredHistory.filter(r => !r.remittanceType || r.remittanceType === 'cash');
+                } else if (typeFilter === 'gcash') {
+                    filteredHistory = filteredHistory.filter(r => r.remittanceType === 'gcash');
+                }
+                
+                // Apply date filter
                 if (historyFilter === 'last7') {
                     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
                     filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= sevenDaysAgo);
@@ -4209,6 +4298,9 @@ function buildDailyRemittanceTab(container) {
                             const statusText = r.status === 'approved' ? 'APPROVED' : 
                                                r.status === 'rejected' ? 'REJECTED' : 'PENDING';
                             
+                            const remitType = r.remittanceType === 'gcash' ? '📱 GCash' : '💵 Cash';
+                            const remitColor = r.remittanceType === 'gcash' ? '#00bcd4' : '#4caf50';
+                            
                             return `
                                 <details class="repair-card" style="border-left-color:${statusColor};">
                                     <summary style="cursor:pointer;font-weight:bold;padding:10px;background:#f5f5f5;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
@@ -4216,6 +4308,9 @@ function buildDailyRemittanceTab(container) {
                                             <span style="font-size:16px;">${utils.formatDate(r.date)}</span>
                                             <span style="font-size:13px;color:#666;margin-left:10px;">
                                                 ₱${r.actualAmount.toFixed(2)}
+                                            </span>
+                                            <span style="font-size:12px;color:${remitColor};margin-left:8px;font-weight:bold;">
+                                                ${remitType}
                                             </span>
                                         </div>
                                         <span class="status-badge" style="background:${statusColor};color:white;">
@@ -4496,13 +4591,18 @@ function buildRemittanceVerificationTab(container) {
     const currentUserRole = window.currentUserData.role;
     const isAdmin = currentUserRole === 'admin';
     
-    // Separate remittances: for me vs others
-    const forMe = window.techRemittances
-        .filter(r => r.status === 'pending' && r.submittedTo === currentUserId)
+    // Separate CASH remittances: for me vs others
+    const cashForMe = window.techRemittances
+        .filter(r => r.status === 'pending' && r.submittedTo === currentUserId && (!r.remittanceType || r.remittanceType === 'cash'))
         .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
     
-    const forOthers = window.techRemittances
-        .filter(r => r.status === 'pending' && r.submittedTo && r.submittedTo !== currentUserId)
+    const cashForOthers = window.techRemittances
+        .filter(r => r.status === 'pending' && r.submittedTo && r.submittedTo !== currentUserId && (!r.remittanceType || r.remittanceType === 'cash'))
+        .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+    
+    // GCASH remittances: for me (receiver verification)
+    const gcashForMe = window.techRemittances
+        .filter(r => r.status === 'pending' && r.remittanceType === 'gcash' && r.gcashReceiverUid === currentUserId)
         .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
     
     // Legacy pending (no recipient specified)
@@ -4524,39 +4624,119 @@ function buildRemittanceVerificationTab(container) {
         
         <!-- Stats -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
-            <div class="stat-card" style="background:#fff3cd;border-left:4px solid #ff9800;">
-                <h3>${forMe.length}</h3>
-                <p>👤 For Me</p>
-                <small>Submitted directly to you</small>
+            <div class="stat-card" style="background:#fffbf0;border-left:4px solid #ff9800;">
+                <h3>${cashForMe.length}</h3>
+                <p>💵 Cash For Me</p>
+                <small>Cash remittances submitted to you</small>
+            </div>
+            <div class="stat-card" style="background:#e1f5fe;border-left:4px solid #00bcd4;">
+                <h3>${gcashForMe.length}</h3>
+                <p>📱 GCash For Me</p>
+                <small>GCash reports awaiting verification</small>
             </div>
             ${isAdmin ? `
                 <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
-                    <h3>${forOthers.length}</h3>
+                    <h3>${cashForOthers.length}</h3>
                     <p>👥 For Others</p>
                     <small>Submitted to other staff</small>
                 </div>
-            ` : forOthers.length > 0 ? `
+            ` : cashForOthers.length > 0 ? `
                 <div class="stat-card" style="background:#f5f5f5;border-left:4px solid #999;">
-                    <h3>${forOthers.length}</h3>
+                    <h3>${cashForOthers.length}</h3>
                     <p>👥 For Others</p>
                     <small>Cannot verify these</small>
                 </div>
             ` : ''}
             <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
-                <h3>₱${[...forMe].reduce((sum, r) => sum + r.actualAmount, 0).toFixed(2)}</h3>
+                <h3>₱${([...cashForMe, ...gcashForMe].reduce((sum, r) => sum + (r.actualAmount || r.totalPaymentsCollected || 0), 0)).toFixed(2)}</h3>
                 <p>💰 Total For Me</p>
-                <small>Amount awaiting your verification</small>
+                <small>Combined amount awaiting verification</small>
             </div>
         </div>
         
-        <!-- For Me Section (Priority) -->
-        ${forMe.length > 0 ? `
-            <div class="card" style="border-left:4px solid #ff9800;background:#fffbf0;margin:20px 0;">
-                <h3 style="color:#f57c00;">👤 Remittances For Me (${forMe.length})</h3>
-                <p style="color:#666;margin-bottom:15px;">These technicians submitted their remittances to YOU</p>
+        <!-- GCash For Me Section (Priority - Simple Verify) -->
+        ${gcashForMe.length > 0 ? `
+            <div class="card" style="border-left:4px solid #00bcd4;background:#e1f5fe;margin:20px 0;">
+                <h3 style="color:#0097a7;">📱 GCash Reports For Me (${gcashForMe.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">Verify that you received these GCash payments in your account</p>
                 
                 <div class="repairs-list">
-                    ${forMe.map(r => {
+                    ${gcashForMe.map(r => {
+                        return `
+                            <div class="remittance-card" style="border-left-color:#00bcd4;background:#fff;">
+                                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:15px;">
+                                    <div>
+                                        <h4 style="color:#0097a7;">${r.techName}</h4>
+                                        <p style="font-size:14px;color:#666;margin:5px 0;">
+                                            Date: ${utils.formatDate(r.date)}
+                                        </p>
+                                        <p style="font-size:13px;color:#999;margin:5px 0;">
+                                            Submitted: ${utils.formatDateTime(r.submittedAt)}
+                                        </p>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:24px;font-weight:bold;color:#00bcd4;">
+                                            ₱${r.totalPaymentsCollected.toFixed(2)}
+                                        </div>
+                                        <div style="font-size:12px;color:#666;">Total GCash</div>
+                                    </div>
+                                </div>
+                                
+                                <div style="background:#e1f5fe;padding:15px;border-radius:8px;margin:15px 0;">
+                                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                                        <div>
+                                            <div style="font-size:12px;color:#666;">📱 ${r.paymentsList.length} GCash Payment(s)</div>
+                                            <div style="font-size:18px;font-weight:bold;color:#00bcd4;">₱${r.totalPaymentsCollected.toFixed(2)}</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size:12px;color:#666;">👤 Tech Commission (40%)</div>
+                                            <div style="font-size:18px;font-weight:bold;color:#2196f3;">₱${r.totalCommission.toFixed(2)}</div>
+                                        </div>
+                                    </div>
+                                    ${r.gcashNote ? `
+                                        <div style="margin-top:10px;padding:10px;background:white;border-radius:4px;">
+                                            <strong style="font-size:12px;color:#666;">Note:</strong>
+                                            <p style="margin:5px 0 0 0;font-size:13px;">${r.gcashNote}</p>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
+                                <div style="background:#fff3cd;padding:12px;border-radius:6px;margin:15px 0;">
+                                    <strong style="color:#f57c00;">⚠️ Verification Instructions:</strong>
+                                    <ul style="margin:10px 0;padding-left:20px;color:#666;">
+                                        <li>Check your GCash account for ₱${r.totalPaymentsCollected.toFixed(2)} from ${r.techName}</li>
+                                        <li>If received, click "✅ GCash Received"</li>
+                                        <li>If NOT received, click "❌ GCash Not Found" and explain</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="display:flex;gap:10px;margin-top:15px;">
+                                    <button onclick="verifyGCashRemittance('${r.id}', true)" 
+                                            class="btn-primary" 
+                                            style="flex:1;background:#4caf50;padding:12px;">
+                                        ✅ GCash Received
+                                    </button>
+                                    <button onclick="verifyGCashRemittance('${r.id}', false)" 
+                                            class="btn-secondary" 
+                                            style="flex:1;background:#f44336;color:white;padding:12px;">
+                                        ❌ GCash Not Found
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        ` : ''}
+        
+        <!-- Cash For Me Section (Standard Verification) -->
+        ${cashForMe.length > 0 ? `
+            <div class="card" style="border-left:4px solid #ff9800;background:#fffbf0;margin:20px 0;">
+                <h3 style="color:#f57c00;">💵 Cash Remittances For Me (${cashForMe.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">These technicians submitted their cash remittances to YOU</p>
+                
+                <div class="repairs-list">
+                    ${cashForMe.map(r => {
                         const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
                         const isLargeDiscrepancy = Math.abs(r.discrepancy) > r.expectedRemittance * 0.05;
                         return `
