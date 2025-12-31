@@ -71,6 +71,7 @@ function buildTabs() {
         // Inventory & Reports
         sections.inventory.tabs.push(
             { id: 'all', label: 'All Repairs', icon: '📋', build: buildAllRepairsTab },
+            { id: 'historical-review', label: 'Historical Review', icon: '📅', build: buildHistoricalReviewTab },
             { id: 'tech-logs', label: 'Technician Logs', icon: '📊', build: buildTechnicianLogsTab },
             { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab }
         );
@@ -94,6 +95,7 @@ function buildTabs() {
         // Inventory & Reports
         sections.inventory.tabs.push(
             { id: 'all', label: 'All Repairs', icon: '📋', build: buildAllRepairsTab },
+            { id: 'historical-review', label: 'Historical Review', icon: '📅', build: buildHistoricalReviewTab },
             { id: 'analytics', label: 'Analytics & Reports', icon: '📊', build: buildAnalyticsTab },
             { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
             { id: 'suppliers', label: 'Supplier Report', icon: '📊', build: buildSuppliersTab },
@@ -132,6 +134,7 @@ function buildTabs() {
         // Inventory & Reports
         sections.inventory.tabs.push(
             { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
+            { id: 'historical-review', label: 'Historical Review', icon: '📅', build: buildHistoricalReviewTab },
             { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab }
         );
     }
@@ -533,7 +536,7 @@ function buildRTODevicesTab(container) {
 }
 
 /**
- * Build Dashboard Tab (Overview)
+ * Build Dashboard Tab (Overview) - Now with User-Grouped Activities
  */
 function buildDashboardTab(container) {
     console.log('📊 Building dashboard tab...');
@@ -554,14 +557,10 @@ function buildDashboardTab(container) {
     const pendingDeletions = role === 'admin' && window.allModificationRequests ? 
         window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request') : [];
     
-    // Get recent activity
-    const repairs = window.allRepairs || [];
-    const recentRepairs = repairs
-        .filter(r => !r.deleted)
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-        .slice(0, 10);
+    // Build user-grouped activity feed
+    const userActivities = buildUserGroupedActivityFeed();
     
-    // Build clean dashboard with welcome and recent activity
+    // Build clean dashboard with welcome and user-grouped activity
     const html = `
         <div class="dashboard-container">
             <div class="page-header">
@@ -588,53 +587,17 @@ function buildDashboardTab(container) {
             ` : ''}
             
             <div style="margin-top:30px;">
-                <h3 style="margin-bottom:15px;color:var(--text-primary);">📋 Recent Activity</h3>
-                ${recentRepairs.length === 0 ? `
+                <h3 style="margin-bottom:15px;color:var(--text-primary);">👥 Recent Activity by User</h3>
+                ${Object.keys(userActivities).length === 0 ? `
                     <div style="text-align:center;padding:40px;color:var(--text-secondary);">
                         <div style="font-size:48px;margin-bottom:10px;">📦</div>
-                        <p>No recent repairs yet. Start by receiving a device!</p>
+                        <p>No recent activity yet. Start by receiving a device!</p>
                     </div>
                 ` : `
-                    <div style="display:grid;gap:12px;">
-                        ${recentRepairs.map(repair => {
-                            // Map actual status values to color variables
-                            const statusColors = {
-                                'Received': 'var(--status-received)',
-                                'In Progress': 'var(--status-in-progress)',
-                                'Waiting for Parts': 'var(--status-waiting-parts)',
-                                'Ready for Pickup': 'var(--status-ready)',
-                                'Completed': 'var(--status-completed)',
-                                'Claimed': 'var(--status-claimed)',
-                                'RTO': 'var(--status-rto)',
-                                'Pending Customer Approval': 'var(--status-waiting-parts)'
-                            };
-                            const statusColor = statusColors[repair.status] || 'var(--text-secondary)';
-                            
-                            return `
-                                <div style="background:var(--bg-white);border:1px solid var(--border-color);border-radius:10px;padding:15px;border-left:4px solid ${statusColor};">
-                                    <div style="display:flex;justify-content:space-between;align-items:start;">
-                                        <div>
-                                            <h4 style="margin:0 0 5px 0;">${repair.customerName}</h4>
-                                            <p style="margin:0;color:var(--text-secondary);font-size:14px;">${repair.brand} ${repair.model}</p>
-                                            <p style="margin:5px 0 0 0;color:var(--text-secondary);font-size:13px;">
-                                                ${repair.problem ? repair.problem.substring(0, 60) + (repair.problem.length > 60 ? '...' : '') : 'No description'}
-                                            </p>
-                                            <p style="margin:5px 0 0 0;color:var(--text-secondary);font-size:12px;">
-                                                📥 Received by: ${repair.receivedBy || 'Unknown'}
-                                            </p>
-                                        </div>
-                                        <div style="text-align:right;">
-                                            <span style="display:inline-block;padding:4px 12px;background:${statusColor};color:white;border-radius:20px;font-size:12px;font-weight:600;text-transform:uppercase;">
-                                                ${repair.status.replace('-', ' ')}
-                                            </span>
-                                            <p style="margin:8px 0 0 0;color:var(--text-secondary);font-size:12px;">
-                                                ${utils.daysAgo(repair.createdAt)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
+                    <div style="display:grid;gap:15px;">
+                        ${Object.entries(userActivities).map(([userId, userData]) => 
+                            renderUserActivitySection(userId, userData)
+                        ).join('')}
                     </div>
                 `}
             </div>
@@ -646,6 +609,192 @@ function buildDashboardTab(container) {
     `;
     
     container.innerHTML = html;
+}
+
+/**
+ * Build user-grouped activity feed
+ * Groups recent activities by user ID
+ */
+function buildUserGroupedActivityFeed() {
+    const userActivities = {};
+    const today = new Date();
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(today.getDate() - 3);
+    
+    // Get recent repairs (last 3 days)
+    (window.allRepairs || []).forEach(repair => {
+        if (repair.deleted) return;
+        
+        const createdDate = new Date(repair.createdAt);
+        if (createdDate < threeDaysAgo) return;
+        
+        // Group by creator
+        if (repair.createdBy) {
+            if (!userActivities[repair.createdBy]) {
+                userActivities[repair.createdBy] = {
+                    userName: repair.createdByName || 'Unknown',
+                    userId: repair.createdBy,
+                    activities: []
+                };
+            }
+            
+            userActivities[repair.createdBy].activities.push({
+                type: 'repair_created',
+                timestamp: repair.createdAt,
+                data: {
+                    customer: repair.customerName,
+                    device: `${repair.brand} ${repair.model}`,
+                    status: repair.status,
+                    repairId: repair.id
+                }
+            });
+        }
+        
+        // Group payments by receiver
+        if (repair.payments) {
+            repair.payments.forEach(payment => {
+                const paymentDate = new Date(payment.paymentDate || payment.recordedDate);
+                if (paymentDate < threeDaysAgo) return;
+                
+                if (payment.receivedById) {
+                    if (!userActivities[payment.receivedById]) {
+                        userActivities[payment.receivedById] = {
+                            userName: payment.receivedByName || 'Unknown',
+                            userId: payment.receivedById,
+                            activities: []
+                        };
+                    }
+                    
+                    userActivities[payment.receivedById].activities.push({
+                        type: 'payment_recorded',
+                        timestamp: payment.recordedDate || payment.paymentDate,
+                        data: {
+                            customer: repair.customerName,
+                            amount: payment.amount,
+                            method: payment.method
+                        }
+                    });
+                }
+            });
+        }
+    });
+    
+    // Get recent remittances (last 3 days)
+    (window.techRemittances || []).forEach(remittance => {
+        const remitDate = new Date(remittance.submittedAt || remittance.date);
+        if (remitDate < threeDaysAgo) return;
+        
+        if (remittance.techId) {
+            if (!userActivities[remittance.techId]) {
+                userActivities[remittance.techId] = {
+                    userName: remittance.techName || 'Unknown',
+                    userId: remittance.techId,
+                    activities: []
+                };
+            }
+            
+            userActivities[remittance.techId].activities.push({
+                type: 'remittance_submitted',
+                timestamp: remittance.submittedAt || remittance.date,
+                data: {
+                    amount: remittance.actualAmount,
+                    status: remittance.status
+                }
+            });
+        }
+    });
+    
+    // Sort activities within each user by timestamp (most recent first)
+    Object.values(userActivities).forEach(userData => {
+        userData.activities.sort((a, b) => 
+            new Date(b.timestamp) - new Date(a.timestamp)
+        );
+        // Limit to 5 most recent activities per user
+        userData.activities = userData.activities.slice(0, 5);
+    });
+    
+    return userActivities;
+}
+
+/**
+ * Render a user's activity section
+ */
+function renderUserActivitySection(userId, userData) {
+    const activityTypeIcons = {
+        'repair_created': '🔧',
+        'payment_recorded': '💰',
+        'remittance_submitted': '📤'
+    };
+    
+    const activityTypeColors = {
+        'repair_created': '#667eea',
+        'payment_recorded': '#4caf50',
+        'remittance_submitted': '#2196f3'
+    };
+    
+    return `
+        <div style="background:var(--bg-white);border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
+            <!-- User Header (Collapsible) -->
+            <div onclick="toggleUserActivitySection('${userId}')" 
+                 style="padding:15px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <h4 style="margin:0;font-size:16px;">👤 ${userData.userName}</h4>
+                    <p style="margin:5px 0 0 0;font-size:13px;opacity:0.9;">
+                        ${userData.activities.length} recent ${userData.activities.length === 1 ? 'activity' : 'activities'}
+                    </p>
+                </div>
+                <span id="toggle-icon-${userId}" style="font-size:20px;transition:transform 0.3s;">▼</span>
+            </div>
+            
+            <!-- Activity List (Collapsible Content) -->
+            <div id="user-activities-${userId}" style="padding:15px;display:block;">
+                ${userData.activities.map((activity, index) => {
+                    const icon = activityTypeIcons[activity.type] || '📌';
+                    const color = activityTypeColors[activity.type] || '#999';
+                    
+                    let activityText = '';
+                    if (activity.type === 'repair_created') {
+                        activityText = `Created repair for <strong>${activity.data.customer}</strong> - ${activity.data.device}`;
+                    } else if (activity.type === 'payment_recorded') {
+                        activityText = `Recorded payment of <strong>₱${parseFloat(activity.data.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong> (${activity.data.method}) from ${activity.data.customer}`;
+                    } else if (activity.type === 'remittance_submitted') {
+                        activityText = `Submitted remittance of <strong>₱${parseFloat(activity.data.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong> - ${activity.data.status}`;
+                    }
+                    
+                    return `
+                        <div style="display:flex;gap:12px;padding:10px;${index < userData.activities.length - 1 ? 'border-bottom:1px solid var(--border-color);' : ''}">
+                            <div style="font-size:24px;flex-shrink:0;">${icon}</div>
+                            <div style="flex:1;">
+                                <p style="margin:0;font-size:14px;color:var(--text-primary);">${activityText}</p>
+                                <p style="margin:5px 0 0 0;font-size:12px;color:var(--text-secondary);">
+                                    ${utils.daysAgo(activity.timestamp)}
+                                </p>
+                            </div>
+                            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-top:6px;flex-shrink:0;"></span>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Toggle user activity section
+ */
+function toggleUserActivitySection(userId) {
+    const content = document.getElementById(`user-activities-${userId}`);
+    const icon = document.getElementById(`toggle-icon-${userId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        icon.style.transform = 'rotate(0deg)';
+        icon.textContent = '▼';
+    } else {
+        content.style.display = 'none';
+        icon.style.transform = 'rotate(-90deg)';
+        icon.textContent = '▶';
+    }
 }
 
 /**
@@ -3538,6 +3687,7 @@ function changeRemittanceDate(dateOrAction) {
 // Export to global scope
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
+window.toggleUserActivitySection = toggleUserActivitySection;
 window.changeRemittanceDate = changeRemittanceDate;
 window.buildReceivedDevicesPage = buildReceivedDevicesPage;
 window.buildInProgressPage = buildInProgressPage;
