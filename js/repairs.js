@@ -5162,29 +5162,39 @@ function openSingleDayRemittanceModal(dateString) {
     `;
     
     modalContent.innerHTML = html;
-    
-    // Populate recipient dropdown using DOM manipulation (more reliable than template literals)
-    const recipientSelect = document.getElementById('remittanceRecipient');
-    if (recipientSelect) {
-        // Clear existing options (keeps the first "-- Select recipient --" option)
-        while (recipientSelect.options.length > 1) {
-            recipientSelect.remove(1);
-        }
-        
-        // Add eligible recipients
-        eligibleRecipients.forEach(user => {
-            const option = document.createElement('option');
-            option.value = user.uid;
-            option.textContent = `${user.displayName || user.name || 'Unknown'} (${user.role})`;
-            recipientSelect.appendChild(option);
-        });
-        
-        console.log('✅ Dropdown populated with', eligibleRecipients.length, 'recipients');
-    } else {
-        console.error('❌ Could not find remittanceRecipient select element');
-    }
-    
     modal.style.display = 'block';
+    
+    // Populate recipient dropdown AFTER modal is visible (ensures DOM is ready)
+    setTimeout(() => {
+        console.log('🔍 Looking for remittanceRecipient dropdown...');
+        console.log('🔍 Eligible recipients:', eligibleRecipients.length, eligibleRecipients);
+        
+        const recipientSelect = document.getElementById('remittanceRecipient');
+        console.log('🔍 Found select element:', recipientSelect);
+        
+        if (recipientSelect) {
+            console.log('🔍 Current options count:', recipientSelect.options.length);
+            
+            // Clear existing options (keeps the first "-- Select recipient --" option)
+            while (recipientSelect.options.length > 1) {
+                recipientSelect.remove(1);
+            }
+            
+            // Add eligible recipients
+            eligibleRecipients.forEach(user => {
+                console.log('➕ Adding option:', user.displayName, user.role, user.uid);
+                const option = document.createElement('option');
+                option.value = user.uid;
+                option.textContent = `${user.displayName || user.name || 'Unknown'} (${user.role})`;
+                recipientSelect.appendChild(option);
+            });
+            
+            console.log('✅ Dropdown populated! Final options count:', recipientSelect.options.length);
+        } else {
+            console.error('❌ Could not find remittanceRecipient select element');
+            alert('ERROR: Dropdown element not found! Check console.');
+        }
+    }, 100);
 }
 
 function closeRemittanceModal() {
