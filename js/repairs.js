@@ -4988,6 +4988,12 @@ function openSingleDayRemittanceModal(dateString) {
     const displayDate = new Date(dateString + 'T00:00:00');
     const dateDisplay = isToday ? 'Today' : utils.formatDate(dateString);
     
+    // Get eligible recipients (admin, manager, cashier)
+    const eligibleRecipients = Object.values(window.allUsers || {})
+        .filter(u => u && ['admin', 'manager', 'cashier'].includes(u.role));
+    
+    console.log('🔍 Eligible recipients:', eligibleRecipients.length, eligibleRecipients);
+    
     // Get or create modal
     let modal = document.getElementById('remittanceModal');
     if (!modal) {
@@ -5122,11 +5128,9 @@ function openSingleDayRemittanceModal(dateString) {
                     <label style="font-weight:bold;display:block;margin-bottom:8px;">Who are you giving this to? *</label>
                     <select id="remittanceRecipient" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;">
                         <option value="">-- Select recipient --</option>
-                        ${Object.values(window.allUsers)
-                            .filter(u => ['admin', 'manager', 'cashier'].includes(u.role))
-                            .map(u => `<option value="${u.uid}">${u.displayName} (${u.role})</option>`)
-                            .join('')}
+                        ${eligibleRecipients.map(u => `<option value="${u.uid}">${u.displayName || u.name || 'Unknown'} (${u.role})</option>`).join('')}
                     </select>
+                    ${eligibleRecipients.length === 0 ? `<small style="color:#f44336;display:block;margin-top:5px;">⚠️ No eligible recipients found. Please contact admin.</small>` : ''}
                 </div>
                 
                 <div style="margin-bottom:15px;">
