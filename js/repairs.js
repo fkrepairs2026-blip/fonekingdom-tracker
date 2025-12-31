@@ -5110,6 +5110,23 @@ function openSingleDayRemittanceModal(dateString) {
             <div style="background:#f0f7ff;padding:15px;border-radius:8px;border-left:4px solid #2196f3;margin-bottom:20px;">
                 <h3 style="margin-top:0;color:#333;">💵 Submit Remittance</h3>
                 
+                ${commissionDeduction > 0 ? `
+                <div style="background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:15px;border-left:3px solid #4caf50;">
+                    <h4 style="margin:0 0 10px;color:#2e7d32;">💰 Your Commission: ₱${commissionDeduction.toFixed(2)}</h4>
+                    <div class="form-group" style="margin:0;">
+                        <label style="font-weight:bold;">How do you want to receive your commission? *</label>
+                        <select id="commissionPaymentPreference" required style="width:100%;padding:10px;font-size:15px;border:1px solid #ddd;border-radius:5px;">
+                            <option value="">-- Select payment method --</option>
+                            <option value="cash">💵 Cash (Shop gives me cash at end of day)</option>
+                            <option value="gcash">📱 GCash (Shop sends to my GCash account)</option>
+                        </select>
+                        <small style="color:#666;display:block;margin-top:5px;">
+                            💡 This tells the shop how to pay your commission
+                        </small>
+                    </div>
+                </div>
+                ` : ''}
+                
                 <div style="margin-bottom:15px;">
                     <label style="font-weight:bold;display:block;margin-bottom:8px;">Amount to Remit *</label>
                     <div style="display:flex;align-items:center;gap:10px;">
@@ -5764,9 +5781,19 @@ async function confirmSingleDayRemittance() {
     const hasOlderPending = document.getElementById('hasOlderPending').value === 'true';
     const isToday = dateString === todayDateString;
     
+    // Get commission payment preference if commission exists
+    const commissionPaymentPreferenceSelect = document.getElementById('commissionPaymentPreference');
+    const commissionPaymentPreference = commissionPaymentPreferenceSelect ? commissionPaymentPreferenceSelect.value : '';
+    
     // Validate
     if (!recipientId) {
         alert('⚠️ Please select who you are giving this money to');
+        return;
+    }
+    
+    // Validate commission payment preference if there's commission
+    if (commissionDeduction > 0 && !commissionPaymentPreference) {
+        alert('⚠️ Please select how you want to receive your commission');
         return;
     }
     
@@ -5847,6 +5874,7 @@ async function confirmSingleDayRemittance() {
             })),
             // Commission
             commissionDeduction: commissionDeduction,
+            commissionPaymentPreference: commissionPaymentPreference || null,
             // Expenses
             expenseIds: expenses.map(e => e.id),
             totalExpenses: expensesTotal,
