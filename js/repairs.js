@@ -4996,8 +4996,6 @@ function openSingleDayRemittanceModal(dateString) {
             return ['admin', 'manager', 'cashier'].includes(role);
         });
     
-    alert(`Found ${eligibleRecipients.length} eligible recipients:\n` + eligibleRecipients.map(u => `${u.displayName} (${u.role})`).join('\n'));
-    
     // Get or create modal
     let modal = document.getElementById('remittanceModal');
     if (!modal) {
@@ -5132,9 +5130,7 @@ function openSingleDayRemittanceModal(dateString) {
                     <label style="font-weight:bold;display:block;margin-bottom:8px;">Who are you giving this to? *</label>
                     <select id="remittanceRecipient" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;">
                         <option value="">-- Select recipient --</option>
-                        ${eligibleRecipients.map(u => `<option value="${u.uid}">${u.displayName || u.name || 'Unknown'} (${u.role})</option>`).join('')}
                     </select>
-                    ${eligibleRecipients.length === 0 ? `<small style="color:#f44336;display:block;margin-top:5px;">⚠️ No eligible recipients found. Please contact admin.</small>` : ''}
                 </div>
                 
                 <div style="margin-bottom:15px;">
@@ -5166,6 +5162,28 @@ function openSingleDayRemittanceModal(dateString) {
     `;
     
     modalContent.innerHTML = html;
+    
+    // Populate recipient dropdown using DOM manipulation (more reliable than template literals)
+    const recipientSelect = document.getElementById('remittanceRecipient');
+    if (recipientSelect) {
+        // Clear existing options (keeps the first "-- Select recipient --" option)
+        while (recipientSelect.options.length > 1) {
+            recipientSelect.remove(1);
+        }
+        
+        // Add eligible recipients
+        eligibleRecipients.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.uid;
+            option.textContent = `${user.displayName || user.name || 'Unknown'} (${user.role})`;
+            recipientSelect.appendChild(option);
+        });
+        
+        console.log('✅ Dropdown populated with', eligibleRecipients.length, 'recipients');
+    } else {
+        console.error('❌ Could not find remittanceRecipient select element');
+    }
+    
     modal.style.display = 'block';
 }
 
