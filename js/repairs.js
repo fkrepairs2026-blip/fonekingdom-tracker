@@ -7153,8 +7153,14 @@ async function confirmReleaseDevice() {
         
         // If payment was collected during release, save it
         if (paymentCollected) {
-            const role = window.currentUserData.role;
-            const isTech = role === 'technician';
+            // FIX: Payment should be credited to the technician who worked on the repair,
+            // not the person who releases the device (could be cashier/admin)
+            const technicianId = repair.acceptedBy; // Who worked on the repair
+            const technicianName = repair.acceptedByName || 'Unknown';
+            
+            // Check if the technician has a technician role (for remittance tracking)
+            const technicianUser = technicianId ? window.allUsers[technicianId] : null;
+            const isTechRole = technicianUser && technicianUser.role === 'technician';
             
             // Create payment object
             // NOTE: Payments are ALWAYS auto-verified when recorded
@@ -7170,11 +7176,16 @@ async function confirmReleaseDevice() {
                 recordedDate: paymentCollected.collectedAt, // When we recorded it (MUST use recordedDate, not recordedAt)
                 recordedBy: paymentCollected.collectedBy,
                 recordedById: paymentCollected.collectedById,
-                receivedBy: paymentCollected.collectedBy, // Who received the payment
-                receivedById: paymentCollected.collectedById,
-                // GCash goes to shop, not to tech for remittance
-                collectedByTech: !isGCash && isTech, // Only true for Cash collected by tech
-                remittanceStatus: (!isGCash && isTech) ? 'pending' : 'n/a', // Only Cash by tech needs remittance
+                // FIX: Credit payment to technician who worked on repair, not releasing user
+                receivedBy: technicianName, // Technician who earned the payment
+                receivedById: technicianId || window.currentUser.uid, // Tech UID (fallback to releaser if no tech)
+                // Track who physically released the device (for audit trail)
+                releaseCollectedBy: paymentCollected.collectedBy,
+                releaseCollectedById: paymentCollected.collectedById,
+                releaseCollectedByRole: paymentCollected.collectedByRole,
+                // FIX: Check technician's role, not releasing user's role
+                collectedByTech: !isGCash && isTechRole, // Only true for Cash earned by tech
+                remittanceStatus: (!isGCash && isTechRole) ? 'pending' : 'n/a', // Only Cash by tech needs remittance
                 verified: true, // ALWAYS auto-verified
                 verifiedAt: paymentCollected.collectedAt,
                 verifiedBy: paymentCollected.collectedBy,
