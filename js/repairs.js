@@ -4995,14 +4995,16 @@ function openSingleDayRemittanceModal(dateString) {
         modal.id = 'remittanceModal';
         modal.style.cssText = 'display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);overflow-y:auto;';
         document.body.appendChild(modal);
-        
-        const modalContent = document.createElement('div');
+    }
+    
+    // Get or create modal content
+    let modalContent = document.getElementById('remittanceModalContent');
+    if (!modalContent) {
+        modalContent = document.createElement('div');
         modalContent.id = 'remittanceModalContent';
         modalContent.style.cssText = 'background-color:#fefefe;margin:2% auto;padding:0;border:1px solid #888;width:90%;max-width:800px;border-radius:10px;';
         modal.appendChild(modalContent);
     }
-    
-    const modalContent = document.getElementById('remittanceModalContent');
     
     let html = `
         <div style="padding:20px;max-height:85vh;overflow-y:auto;">
