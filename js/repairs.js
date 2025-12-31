@@ -1431,6 +1431,7 @@ async function updateRepairStatus(repairId) {
                 <option value="In Progress">In Progress</option>
                 <option value="Waiting for Parts">Waiting for Parts</option>
                 <option value="Ready for Pickup">Ready for Pickup</option>
+                <option value="Released">Released</option>
                 <option value="Completed">Completed</option>
                 ${isMicrosoldering ? '<option value="Unsuccessful">Unsuccessful</option>' : ''}
                 <option value="RTO">RTO (Return to Owner)</option>
