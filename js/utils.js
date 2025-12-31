@@ -413,6 +413,63 @@ const utils = {
         };
         
         return mapping[problemType] || '';
+    },
+    
+    /**
+     * Update remittance badge for technician
+     */
+    updateRemittanceBadge: function() {
+        if (!window.currentUser || !window.currentUserData) return;
+        if (window.currentUserData.role !== 'technician') return;
+        
+        const techId = window.currentUser.uid;
+        
+        // Count pending and rejected remittances for this tech
+        const pending = window.techRemittances.filter(r => 
+            r.techId === techId && r.status === 'pending'
+        ).length;
+        
+        const rejected = window.techRemittances.filter(r => 
+            r.techId === techId && r.status === 'rejected'
+        ).length;
+        
+        // Find the Daily Remittance tab button
+        const remittanceTab = document.querySelector('[data-tab=\"remittance\"]');
+        if (!remittanceTab) return;
+        
+        // Remove existing badges
+        const existingBadge = remittanceTab.querySelector('.tab-badge');
+        if (existingBadge) existingBadge.remove();
+        
+        // Add badge if there are notifications
+        if (pending > 0 || rejected > 0) {
+            const badge = document.createElement('span');
+            badge.className = 'tab-badge';
+            badge.style.cssText = `
+                position: absolute;
+                top: 5px;
+                right: 5px;
+                background: ${rejected > 0 ? '#f44336' : '#ff9800'};
+                color: white;
+                font-size: 10px;
+                padding: 2px 6px;
+                border-radius: 10px;
+                font-weight: bold;
+                min-width: 18px;
+                text-align: center;
+            `;
+            
+            if (rejected > 0) {
+                badge.textContent = `❌ ${rejected}`;
+                badge.title = `${rejected} rejected remittance${rejected > 1 ? 's' : ''}`;
+            } else {
+                badge.textContent = `⏳ ${pending}`;
+                badge.title = `${pending} pending verification`;
+            }
+            
+            remittanceTab.style.position = 'relative';
+            remittanceTab.appendChild(badge);
+        }
     }
 };
 

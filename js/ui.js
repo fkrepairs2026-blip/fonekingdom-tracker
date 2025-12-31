@@ -3804,10 +3804,10 @@ window.changeLogPage = changeLogPage;
 window.handleProblemTypeChange = handleProblemTypeChange;
 
 /**
- * Build Daily Remittance Tab (Technician) - NEW: Show pending dates to remit one by one
+ * Build Daily Remittance Tab (Technician) - Enhanced with status & history
  */
 function buildDailyRemittanceTab(container) {
-    console.log('💸 Building Daily Remittance tab - Daily single submission');
+    console.log('💸 Building Daily Remittance tab - Enhanced with status & history');
     
     const techId = window.currentUser.uid;
     const today = new Date();
@@ -3815,6 +3815,14 @@ function buildDailyRemittanceTab(container) {
     
     // Set refresh function
     window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'));
+    
+    // Get technician's remittances
+    const myRemittances = window.techRemittances.filter(r => r.techId === techId);
+    const pendingRemittances = myRemittances.filter(r => r.status === 'pending');
+    const rejectedRemittances = myRemittances.filter(r => r.status === 'rejected');
+    const approvedCommissions = myRemittances.filter(r => 
+        r.status === 'approved' && r.commissionPaid === false
+    );
     
     // Get all pending dates with balances
     const pendingDates = window.getPendingRemittanceDates(techId);
@@ -3829,11 +3837,177 @@ function buildDailyRemittanceTab(container) {
     const todayBalance = window.getUnremittedBalance(techId, todayStr);
     const hasUnremittedToday = pendingDates.some(d => d.dateString === todayStr);
     
+    // History filtering state
+    const historyFilter = window.remittanceHistoryFilter || 'last30';
+    const historyPage = window.remittanceHistoryPage || 0;
+    const itemsPerPage = 10;
+    
     container.innerHTML = `
         <div class="page-header">
             <h2>💸 Daily Cash Remittance</h2>
-            <p>Submit remittance one day at a time - oldest dates first</p>
+            <p>Track your submissions, commissions, and remittance history</p>
         </div>
+        
+        <!-- REJECTED REMITTANCES ALERT -->
+        ${rejectedRemittances.length > 0 ? `
+            <div class="card" style="background:#ffebee;border-left:4px solid #f44336;margin:20px 0;">
+                <h3 style="color:#c62828;">⚠️ Rejected Remittances (${rejectedRemittances.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">These remittances were rejected and need to be resubmitted</p>
+                
+                ${rejectedRemittances.map(r => `
+                    <div class="repair-card" style="border-left-color:#f44336;background:white;margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                            <div>
+                                <h4 style="color:#c62828;margin:0 0 5px 0;">
+                                    ${utils.formatDate(r.date)}
+                                </h4>
+                                <p style="font-size:13px;color:#666;margin:5px 0;">
+                                    Amount: ₱${r.actualAmount.toFixed(2)}
+                                </p>
+                                <p style="font-size:13px;color:#666;margin:5px 0;">
+                                    Rejected by: ${r.verifiedBy || 'Unknown'}
+                                </p>
+                                <p style="font-size:12px;color:#999;margin:5px 0;">
+                                    ${utils.formatDateTime(r.verifiedAt)}
+                                </p>
+                            </div>
+                            <span class="status-badge" style="background:#f44336;color:white;">
+                                ❌ REJECTED
+                            </span>
+                        </div>
+                        
+                        <div style="background:#ffebee;padding:12px;border-radius:8px;margin:10px 0;">
+                            <strong style="color:#c62828;">Rejection Reason:</strong>
+                            <p style="margin:8px 0 0 0;color:#666;">${r.verificationNotes || 'No reason provided'}</p>
+                        </div>
+                        
+                        <button onclick="openSingleDayRemittanceModal('${getLocalDateString(new Date(r.date))}')" 
+                                class="btn-primary" 
+                                style="background:#f44336;width:100%;margin-top:10px;">
+                            🔄 Resubmit This Date
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        ` : ''}
+        
+        <!-- PENDING VERIFICATION STATUS -->
+        ${pendingRemittances.length > 0 ? `
+            <div class="card" style="background:#fff3cd;border-left:4px solid #ff9800;margin:20px 0;">
+                <h3 style="color:#f57c00;">⏳ Pending Verification (${pendingRemittances.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">Waiting for approval from cashier/admin</p>
+                
+                ${pendingRemittances.map(r => {
+                    const submittedDate = new Date(r.submittedAt);
+                    const hoursPending = Math.floor((new Date() - submittedDate) / (1000 * 60 * 60));
+                    
+                    return `
+                        <div class="repair-card" style="border-left-color:#ff9800;background:white;margin-bottom:15px;">
+                            <div style="display:flex;justify-content:space-between;align-items:start;">
+                                <div style="flex:1;">
+                                    <h4 style="color:#f57c00;margin:0 0 5px 0;">
+                                        ${utils.formatDate(r.date)}
+                                    </h4>
+                                    <p style="font-size:13px;color:#666;margin:5px 0;">
+                                        Amount: ₱${r.actualAmount.toFixed(2)}
+                                    </p>
+                                    <p style="font-size:13px;color:#666;margin:5px 0;">
+                                        Submitted to: ${r.submittedToName || 'Unknown'}
+                                    </p>
+                                    <p style="font-size:12px;color:#999;margin:5px 0;">
+                                        ${utils.timeAgo(r.submittedAt)} (${utils.formatDateTime(r.submittedAt)})
+                                    </p>
+                                    <p style="font-size:12px;color:${hoursPending > 24 ? '#f44336' : '#999'};margin:5px 0;font-weight:${hoursPending > 24 ? 'bold' : 'normal'};">
+                                        ⏰ ${hoursPending < 1 ? 'Less than 1 hour' : `${hoursPending} hour${hoursPending > 1 ? 's' : ''}`} pending
+                                    </p>
+                                </div>
+                                <span class="status-badge" style="background:#ff9800;color:white;">
+                                    ⏳ PENDING
+                                </span>
+                            </div>
+                            
+                            ${r.totalCommission > 0 ? `
+                                <div style="background:#e8f5e9;padding:10px;border-radius:6px;margin-top:10px;font-size:13px;">
+                                    💰 Commission: ₱${r.totalCommission.toFixed(2)} (${r.commissionPaymentPreference || 'Not specified'})
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        ` : ''}
+        
+        <!-- APPROVED COMMISSIONS AWAITING PAYMENT -->
+        ${approvedCommissions.length > 0 ? `
+            <div class="card" style="background:#e8f5e9;border-left:4px solid #4caf50;margin:20px 0;">
+                <h3 style="color:#2e7d32;">💰 Approved Commissions Awaiting Payment (${approvedCommissions.length})</h3>
+                <p style="color:#666;margin-bottom:15px;">These commissions have been approved. Mark as received when you get paid.</p>
+                
+                ${(() => {
+                    const totalCash = approvedCommissions.reduce((sum, r) => 
+                        r.commissionPaymentPreference === 'cash' ? sum + (r.totalCommission || 0) : sum, 0
+                    );
+                    const totalGCash = approvedCommissions.reduce((sum, r) => 
+                        r.commissionPaymentPreference === 'gcash' ? sum + (r.totalCommission || 0) : sum, 0
+                    );
+                    
+                    return `
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+                            ${totalCash > 0 ? `
+                                <div style="background:white;padding:15px;border-radius:8px;text-align:center;">
+                                    <div style="font-size:14px;color:#666;">💵 Cash Commission</div>
+                                    <div style="font-size:24px;font-weight:bold;color:#4caf50;margin:10px 0;">₱${totalCash.toFixed(2)}</div>
+                                </div>
+                            ` : ''}
+                            ${totalGCash > 0 ? `
+                                <div style="background:white;padding:15px;border-radius:8px;text-align:center;">
+                                    <div style="font-size:14px;color:#666;">📱 GCash Commission</div>
+                                    <div style="font-size:24px;font-weight:bold;color:#00bcd4;margin:10px 0;">₱${totalGCash.toFixed(2)}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                })()}
+                
+                ${approvedCommissions.map(r => `
+                    <div class="repair-card" style="border-left-color:#4caf50;background:white;margin-bottom:15px;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                            <div>
+                                <h4 style="color:#2e7d32;margin:0 0 5px 0;">
+                                    ${utils.formatDate(r.date)}
+                                </h4>
+                                <p style="font-size:13px;color:#666;margin:5px 0;">
+                                    Commission: ₱${r.totalCommission.toFixed(2)}
+                                </p>
+                                <p style="font-size:13px;color:#666;margin:5px 0;">
+                                    Payment Method: ${r.commissionPaymentPreference === 'cash' ? '💵 Cash' : '📱 GCash'}
+                                </p>
+                                <p style="font-size:12px;color:#999;margin:5px 0;">
+                                    Approved by: ${r.verifiedBy}
+                                </p>
+                                <p style="font-size:12px;color:#999;margin:5px 0;">
+                                    ${utils.formatDateTime(r.verifiedAt)}
+                                </p>
+                            </div>
+                            <span class="status-badge" style="background:#4caf50;color:white;">
+                                ✅ APPROVED
+                            </span>
+                        </div>
+                        
+                        <button onclick="markCommissionReceived('${r.id}')" 
+                                class="btn-primary" 
+                                style="background:#4caf50;width:100%;margin-top:10px;">
+                            ✅ Mark as Received
+                        </button>
+                    </div>
+                `).join('')}
+                
+                <p style="font-size:12px;color:#666;margin-top:15px;padding:10px;background:white;border-radius:6px;">
+                    ℹ️ <strong>Note:</strong> Click "Mark as Received" after you physically receive the commission payment. 
+                    If there's any discrepancy in the amount, you can report it during confirmation.
+                </p>
+            </div>
+        ` : ''}
         
         <!-- Today's Summary -->
         <div style="background:#e3f2fd;padding:20px;border-radius:10px;border-left:4px solid #2196f3;margin:20px 0;">
@@ -3880,7 +4054,7 @@ function buildDailyRemittanceTab(container) {
                             
                             return `
                                 <div data-remittance-date="${dateData.dateString}" 
-                                     style="background:white;border:2px solid #e0e0e0;border-radius:10px;padding:15px;cursor:pointer;transition:all 0.3s;hover:border-color:#2196f3;hover:box-shadow:0 4px 12px rgba(33,150,243,0.2);"
+                                     style="background:white;border:2px solid #e0e0e0;border-radius:10px;padding:15px;cursor:pointer;transition:all 0.3s;"
                                      onmouseover="this.style.borderColor='#2196f3';this.style.boxShadow='0 4px 12px rgba(33,150,243,0.2)';"
                                      onmouseout="this.style.borderColor='#e0e0e0';this.style.boxShadow='none';">
                                     
@@ -3938,7 +4112,268 @@ function buildDailyRemittanceTab(container) {
             `}
         </div>
         
-        <!-- Today's Details -->
+        <!-- REMITTANCE HISTORY -->
+        <div class="card" style="margin:20px 0;">
+            <h3>📋 Remittance History</h3>
+            
+            <!-- Date Filter -->
+            <div style="margin:15px 0;padding:15px;background:#f5f5f5;border-radius:8px;">
+                <label style="font-weight:bold;margin-bottom:10px;display:block;">📅 Filter by Date:</label>
+                <select id="historyFilter" 
+                        onchange="window.remittanceHistoryFilter=this.value;window.remittanceHistoryPage=0;window.currentTabRefresh();"
+                        style="padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;max-width:300px;">
+                    <option value="last7" ${historyFilter === 'last7' ? 'selected' : ''}>Last 7 Days</option>
+                    <option value="last30" ${historyFilter === 'last30' ? 'selected' : ''}>Last 30 Days</option>
+                    <option value="last90" ${historyFilter === 'last90' ? 'selected' : ''}>Last 90 Days</option>
+                    <option value="all" ${historyFilter === 'all' ? 'selected' : ''}>All Time</option>
+                    <option value="custom" ${historyFilter === 'custom' ? 'selected' : ''}>Custom Range</option>
+                </select>
+                
+                ${historyFilter === 'custom' ? `
+                    <div style="margin-top:15px;display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+                        <div>
+                            <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;">From:</label>
+                            <input type="date" 
+                                   id="customDateFrom" 
+                                   value="${window.customDateFrom || ''}"
+                                   style="padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;">
+                        </div>
+                        <div>
+                            <label style="font-size:12px;color:#666;display:block;margin-bottom:5px;">To:</label>
+                            <input type="date" 
+                                   id="customDateTo" 
+                                   value="${window.customDateTo || ''}"
+                                   style="padding:8px;border:1px solid #ddd;border-radius:4px;width:100%;">
+                        </div>
+                        <button onclick="applyCustomDateFilter()" 
+                                class="btn-primary" 
+                                style="padding:8px 15px;height:38px;">
+                            Apply
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+            
+            ${(() => {
+                // Filter history based on selection
+                let filteredHistory = myRemittances;
+                const now = new Date();
+                
+                if (historyFilter === 'last7') {
+                    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= sevenDaysAgo);
+                } else if (historyFilter === 'last30') {
+                    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                    filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= thirtyDaysAgo);
+                } else if (historyFilter === 'last90') {
+                    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                    filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= ninetyDaysAgo);
+                } else if (historyFilter === 'custom' && window.customDateFrom && window.customDateTo) {
+                    const fromDate = new Date(window.customDateFrom);
+                    const toDate = new Date(window.customDateTo);
+                    toDate.setHours(23, 59, 59, 999);
+                    filteredHistory = filteredHistory.filter(r => {
+                        const submitDate = new Date(r.submittedAt);
+                        return submitDate >= fromDate && submitDate <= toDate;
+                    });
+                }
+                
+                // Pagination
+                const totalItems = filteredHistory.length;
+                const startIndex = historyPage * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
+                const hasMore = endIndex < totalItems;
+                
+                if (filteredHistory.length === 0) {
+                    return `
+                        <div style="text-align:center;padding:40px 20px;">
+                            <div style="font-size:48px;margin-bottom:10px;">📭</div>
+                            <h3 style="color:#999;margin:10px 0;">No Remittances Found</h3>
+                            <p style="color:#999;">No remittance history for the selected period.</p>
+                        </div>
+                    `;
+                }
+                
+                return `
+                    <p style="color:#666;margin:15px 0;">
+                        Showing ${startIndex + 1}-${Math.min(endIndex, totalItems)} of ${totalItems} remittance${totalItems > 1 ? 's' : ''}
+                    </p>
+                    
+                    <div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
+                        ${paginatedHistory.map(r => {
+                            const statusColor = r.status === 'approved' ? '#4caf50' : 
+                                                r.status === 'rejected' ? '#f44336' : '#ff9800';
+                            const statusIcon = r.status === 'approved' ? '✅' : 
+                                               r.status === 'rejected' ? '❌' : '⏳';
+                            const statusText = r.status === 'approved' ? 'APPROVED' : 
+                                               r.status === 'rejected' ? 'REJECTED' : 'PENDING';
+                            
+                            return `
+                                <details class="repair-card" style="border-left-color:${statusColor};">
+                                    <summary style="cursor:pointer;font-weight:bold;padding:10px;background:#f5f5f5;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+                                        <div>
+                                            <span style="font-size:16px;">${utils.formatDate(r.date)}</span>
+                                            <span style="font-size:13px;color:#666;margin-left:10px;">
+                                                ₱${r.actualAmount.toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <span class="status-badge" style="background:${statusColor};color:white;">
+                                            ${statusIcon} ${statusText}
+                                        </span>
+                                    </summary>
+                                    
+                                    <div style="padding:15px;background:white;">
+                                        <!-- Summary -->
+                                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
+                                            <div>
+                                                <div style="font-size:12px;color:#666;">Payments Collected</div>
+                                                <div style="font-size:16px;font-weight:bold;">₱${r.totalPaymentsCollected.toFixed(2)}</div>
+                                                <div style="font-size:11px;color:#999;">${r.paymentsList.length} payment(s)</div>
+                                            </div>
+                                            <div>
+                                                <div style="font-size:12px;color:#666;">Expenses</div>
+                                                <div style="font-size:16px;font-weight:bold;color:#f44336;">-₱${r.totalExpenses.toFixed(2)}</div>
+                                                <div style="font-size:11px;color:#999;">${r.expensesList.length} item(s)</div>
+                                            </div>
+                                            <div>
+                                                <div style="font-size:12px;color:#666;">Commission (40%)</div>
+                                                <div style="font-size:16px;font-weight:bold;color:#2196f3;">₱${r.totalCommission.toFixed(2)}</div>
+                                                <div style="font-size:11px;color:#999;">${r.commissionPaymentPreference || 'N/A'}</div>
+                                            </div>
+                                            <div>
+                                                <div style="font-size:12px;color:#666;">Remitted (60%)</div>
+                                                <div style="font-size:16px;font-weight:bold;color:#4caf50;">₱${r.actualAmount.toFixed(2)}</div>
+                                                ${r.discrepancy !== 0 ? `
+                                                    <div style="font-size:11px;color:${r.discrepancy > 0 ? '#4caf50' : '#f44336'};">
+                                                        ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Submission Info -->
+                                        <div style="background:#f5f5f5;padding:12px;border-radius:6px;margin-bottom:15px;">
+                                            <div style="font-size:12px;color:#666;margin-bottom:8px;">
+                                                <strong>Submitted to:</strong> ${r.submittedToName || 'Unknown'} (${r.submittedToRole || 'N/A'})
+                                            </div>
+                                            <div style="font-size:12px;color:#666;">
+                                                <strong>Submitted:</strong> ${utils.formatDateTime(r.submittedAt)}
+                                            </div>
+                                            ${r.verifiedAt ? `
+                                                <div style="font-size:12px;color:#666;margin-top:8px;">
+                                                    <strong>${r.status === 'approved' ? 'Approved' : 'Rejected'} by:</strong> ${r.verifiedBy || 'Unknown'}
+                                                </div>
+                                                <div style="font-size:12px;color:#666;">
+                                                    <strong>${r.status === 'approved' ? 'Approved' : 'Rejected'}:</strong> ${utils.formatDateTime(r.verifiedAt)}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                        
+                                        <!-- Rejection Reason -->
+                                        ${r.status === 'rejected' && r.verificationNotes ? `
+                                            <div style="background:#ffebee;padding:12px;border-radius:6px;margin-bottom:15px;">
+                                                <strong style="color:#c62828;">Rejection Reason:</strong>
+                                                <p style="margin:8px 0 0 0;color:#666;">${r.verificationNotes}</p>
+                                            </div>
+                                        ` : ''}
+                                        
+                                        <!-- Commission Status -->
+                                        ${r.status === 'approved' && r.totalCommission > 0 ? `
+                                            <div style="background:${r.commissionPaid ? '#e8f5e9' : '#fff3cd'};padding:12px;border-radius:6px;margin-bottom:15px;">
+                                                <strong style="color:${r.commissionPaid ? '#2e7d32' : '#f57c00'};">
+                                                    ${r.commissionPaid ? '✅' : '⏳'} Commission: 
+                                                </strong>
+                                                ${r.commissionPaid ? `
+                                                    <span style="color:#2e7d32;">Received</span>
+                                                    <div style="font-size:12px;color:#666;margin-top:5px;">
+                                                        Confirmed: ${utils.formatDateTime(r.commissionPaidAt)}
+                                                    </div>
+                                                    ${r.hasCommissionDiscrepancy ? `
+                                                        <div style="background:#ffebee;padding:8px;border-radius:4px;margin-top:8px;">
+                                                            <strong style="color:#c62828;">⚠️ Discrepancy Reported</strong>
+                                                        </div>
+                                                    ` : ''}
+                                                ` : `
+                                                    <span style="color:#f57c00;">Awaiting Payment</span>
+                                                    <div style="margin-top:10px;">
+                                                        <button onclick="markCommissionReceived('${r.id}')" 
+                                                                class="btn-primary" 
+                                                                style="background:#4caf50;padding:6px 12px;font-size:13px;">
+                                                            ✅ Mark as Received
+                                                        </button>
+                                                    </div>
+                                                `}
+                                            </div>
+                                        ` : ''}
+                                        
+                                        <!-- Payment Details -->
+                                        <details style="margin-top:10px;">
+                                            <summary style="cursor:pointer;font-weight:bold;color:#2196f3;font-size:13px;">
+                                                View Payment Details (${r.paymentsList.length})
+                                            </summary>
+                                            <div style="margin-top:10px;max-height:200px;overflow-y:auto;">
+                                                ${r.paymentsList.map(p => `
+                                                    <div style="padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+                                                        <div>
+                                                            <div style="font-weight:600;font-size:13px;">${p.customerName}</div>
+                                                            <div style="font-size:11px;color:#666;">${p.repairId}</div>
+                                                        </div>
+                                                        <div style="font-weight:bold;">₱${p.amount.toFixed(2)}</div>
+                                                    </div>
+                                                `).join('')}
+                                            </div>
+                                        </details>
+                                        
+                                        <!-- Expense Details -->
+                                        ${r.expensesList.length > 0 ? `
+                                            <details style="margin-top:10px;">
+                                                <summary style="cursor:pointer;font-weight:bold;color:#f44336;font-size:13px;">
+                                                    View Expense Details (${r.expensesList.length})
+                                                </summary>
+                                                <div style="margin-top:10px;max-height:200px;overflow-y:auto;">
+                                                    ${r.expensesList.map(e => `
+                                                        <div style="padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
+                                                            <div>
+                                                                <div style="font-weight:600;font-size:13px;">${e.category}</div>
+                                                                <div style="font-size:11px;color:#666;">${e.description || '-'}</div>
+                                                            </div>
+                                                            <div style="font-weight:bold;color:#f44336;">-₱${e.amount.toFixed(2)}</div>
+                                                        </div>
+                                                    `).join('')}
+                                                </div>
+                                            </details>
+                                        ` : ''}
+                                    </div>
+                                </details>
+                            `;
+                        }).join('')}
+                    </div>
+                    
+                    <!-- Pagination -->
+                    ${hasMore || historyPage > 0 ? `
+                        <div style="display:flex;justify-content:center;gap:10px;margin-top:20px;">
+                            ${historyPage > 0 ? `
+                                <button onclick="window.remittanceHistoryPage--;window.currentTabRefresh();" 
+                                        class="btn-primary" 
+                                        style="padding:10px 20px;">
+                                    ← Previous
+                                </button>
+                            ` : ''}
+                            ${hasMore ? `
+                                <button onclick="window.remittanceHistoryPage++;window.currentTabRefresh();" 
+                                        class="btn-primary" 
+                                        style="padding:10px 20px;">
+                                    Load More →
+                                </button>
+                            ` : ''}
+                        </div>
+                    ` : ''}
+                `;
+            })()}
+        </div>
+        
+        <!-- Today's Details (existing sections remain) -->
         ${hasUnremittedToday ? `
             <div class="card" style="margin:20px 0;background:#e3f2fd;border-left:4px solid #2196f3;">
                 <h3>📥 Today's Cash Payments</h3>
@@ -3958,7 +4393,6 @@ function buildDailyRemittanceTab(container) {
             </div>
         ` : ''}
         
-        <!-- GCash Info -->
         ${gcashPayments.length > 0 ? `
             <div class="card" style="margin:20px 0;background:#e1f5fe;border-left:4px solid #00bcd4;">
                 <h3>📱 GCash Payments (Not included in cash remittance)</h3>
@@ -3977,7 +4411,6 @@ function buildDailyRemittanceTab(container) {
             </div>
         ` : ''}
         
-        <!-- Expenses -->
         ${expensesTotal > 0 ? `
             <div class="card" style="margin:20px 0;">
                 <h3>💸 Today's Expenses</h3>
@@ -4004,7 +4437,6 @@ function buildDailyRemittanceTab(container) {
             </div>
         `}
         
-        <!-- Commission Info -->
         ${commissionTotal > 0 ? `
             <div class="card" style="margin:20px 0;background:#e8f5e9;border-left:4px solid #4caf50;">
                 <h3>💰 Today's Commission</h3>
@@ -4023,6 +4455,36 @@ function buildDailyRemittanceTab(container) {
     `;
 }
 
+/**
+ * Apply custom date range filter
+ */
+function applyCustomDateFilter() {
+    const fromInput = document.getElementById('customDateFrom');
+    const toInput = document.getElementById('customDateTo');
+    
+    if (!fromInput.value || !toInput.value) {
+        alert('⚠️ Please select both From and To dates');
+        return;
+    }
+    
+    const fromDate = new Date(fromInput.value);
+    const toDate = new Date(toInput.value);
+    
+    if (fromDate > toDate) {
+        alert('⚠️ From date cannot be after To date');
+        return;
+    }
+    
+    window.customDateFrom = fromInput.value;
+    window.customDateTo = toInput.value;
+    window.remittanceHistoryPage = 0;
+    
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+window.applyCustomDateFilter = applyCustomDateFilter;
 /**
  * Build Remittance Verification Tab (Cashier/Admin/Manager)
  */

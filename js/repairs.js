@@ -20,6 +20,8 @@ window.allModificationRequests = [];
 window.allActivityLogs = [];
 // Global users list
 window.allUsers = {};
+// Global tech remittances
+window.techRemittances = [];
 
 /**
  * Load all repairs from Firebase
@@ -131,6 +133,50 @@ async function loadActivityLogs() {
 }
 
 window.loadActivityLogs = loadActivityLogs;
+
+/**
+ * Load tech remittances from Firebase with real-time updates
+ */
+async function loadTechRemittances() {
+    return new Promise((resolve) => {
+        console.log('📦 Loading tech remittances...');
+        
+        // Use limitToLast to improve performance - last 100 remittances
+        db.ref('techRemittances').orderByChild('submittedAt').limitToLast(100).on('value', (snapshot) => {
+            window.techRemittances = [];
+            
+            snapshot.forEach((child) => {
+                window.techRemittances.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Sort by submission date (newest first)
+            window.techRemittances.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
+            
+            console.log('✅ Tech remittances loaded:', window.techRemittances.length);
+            
+            // Update remittance badges
+            if (window.currentUserData && window.currentUserData.role === 'technician') {
+                if (window.updateRemittanceBadge) {
+                    window.updateRemittanceBadge();
+                }
+            }
+            
+            // Auto-refresh current tab if it's remittance-related
+            if (window.currentTabRefresh) {
+                setTimeout(() => {
+                    window.currentTabRefresh();
+                }, 400);
+            }
+            
+            resolve(window.techRemittances);
+        });
+    });
+}
+
+window.loadTechRemittances = loadTechRemittances;
 
 /**
  * Log activity to Firebase
@@ -5933,7 +5979,7 @@ async function confirmRemittance() {
         await loadTechExpenses();
         
         utils.showLoading(false);
-        alert(`✅ Remittance submitted!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n👤 Submitted to: ${recipient.displayName}\n\nWaiting for ${recipient.displayName} to verify receipt.`);
+        alert(`✅ Remittance submitted!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n👤 Submitted to: ${recipient.displayName}\n\n⏳ Track verification status in Daily Remittance tab (check badge for updates).`);
         closeRemittanceModal();
         
         setTimeout(() => {
@@ -6141,6 +6187,103 @@ async function confirmSingleDayRemittance() {
         alert('Error: ' + error.message);
     }
 }
+
+/**
+ * Mark commission as received by technician
+ */
+async function markCommissionReceived(remittanceId) {
+    const remittance = window.techRemittances.find(r => r.id === remittanceId);
+    if (!remittance) {
+        alert('Remittance not found');
+        return;
+    }
+    
+    // Verify it's the technician's own remittance
+    if (remittance.techId !== window.currentUser.uid) {
+        alert('⚠️ You can only mark your own commissions as received');
+        return;
+    }
+    
+    // Check if already marked as paid
+    if (remittance.commissionPaid) {
+        alert('ℹ️ This commission is already marked as received');
+        return;
+    }
+    
+    // Ask for optional notes and discrepancy report
+    const reportDiscrepancy = confirm(
+        `Mark commission as received?\n\n` +
+        `Amount: ₱${remittance.totalCommission.toFixed(2)}\n` +
+        `Payment Method: ${remittance.commissionPaymentPreference}\n\n` +
+        `Click OK to confirm, or Cancel to report a discrepancy.`
+    );
+    
+    let notes = '';
+    let hasDiscrepancy = !reportDiscrepancy;
+    
+    if (hasDiscrepancy) {
+        notes = prompt(
+            '⚠️ Report Commission Discrepancy\n\n' +
+            'Please describe the discrepancy (minimum 10 characters):'
+        );
+        
+        if (!notes || notes.trim().length < 10) {
+            alert('Please provide a detailed explanation (at least 10 characters)');
+            return;
+        }
+    } else {
+        notes = prompt(
+            'Commission Receipt Confirmation\n\n' +
+            'Optional: Add any notes about this commission payment:'
+        ) || '';
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const updateData = {
+            commissionPaid: true,
+            commissionPaidAt: new Date().toISOString(),
+            commissionPaidConfirmedBy: window.currentUserData.displayName,
+            commissionReceivedNotes: notes.trim(),
+            hasCommissionDiscrepancy: hasDiscrepancy
+        };
+        
+        await db.ref(`techRemittances/${remittanceId}`).update(updateData);
+        
+        // If there's a discrepancy, create a modification request
+        if (hasDiscrepancy) {
+            await db.ref('modificationRequests').push({
+                requestType: 'commission_discrepancy',
+                remittanceId: remittanceId,
+                requestedBy: window.currentUser.uid,
+                requestedByName: window.currentUserData.displayName,
+                reason: notes.trim(),
+                status: 'pending',
+                requestedAt: new Date().toISOString(),
+                commissionAmount: remittance.totalCommission,
+                verifiedBy: remittance.verifiedBy
+            });
+            
+            alert('✅ Commission discrepancy reported!\n\nAdmin will review your report.');
+        } else {
+            alert('✅ Commission marked as received!');
+        }
+        
+        utils.showLoading(false);
+        
+        // Refresh tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error marking commission received:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+window.markCommissionReceived = markCommissionReceived;
 
 /**
  * Submit multiple day remittance (catch-up)
