@@ -5926,32 +5926,30 @@ async function confirmSingleDayRemittance() {
             singleDaySubmission: true
         };
         
-        // Save to Firebase
-        const db = firebase.firestore();
-        await db.collection('techRemittances').doc(remittanceId).set(remittance);
+        // Save to Firebase Realtime Database
+        await db.ref(`techRemittances/${remittanceId}`).set(remittance);
         
         // Update all payments to mark as remitted and link to this remittance
-        const batch = db.batch();
+        const updates = {};
         payments.forEach(payment => {
-            window.allRepairs.forEach(repair => {
-                if (repair.id === payment.repairId && repair.payments) {
-                    const paymentObj = repair.payments[payment.paymentIndex];
-                    if (paymentObj) {
-                        paymentObj.remittanceStatus = 'remitted';
-                        paymentObj.techRemittanceId = remittanceId;
-                    }
-                }
-            });
+            const repair = window.allRepairs.find(r => r.id === payment.repairId);
+            if (repair && repair.payments && repair.payments[payment.paymentIndex]) {
+                // Update payment status
+                repair.payments[payment.paymentIndex].remittanceStatus = 'remitted';
+                repair.payments[payment.paymentIndex].techRemittanceId = remittanceId;
+                
+                // Prepare Firebase update
+                updates[`repairs/${repair.id}/payments`] = repair.payments;
+            }
         });
         
-        // Update repairsCollection in Firebase
-        window.allRepairs.forEach(repair => {
-            const docRef = db.collection('repairs').doc(repair.id);
-            const updatedPayments = repair.payments || [];
-            batch.update(docRef, { payments: updatedPayments });
+        // Update expenses to link to this remittance
+        expenses.forEach(expense => {
+            updates[`techExpenses/${expense.id}/remittanceId`] = remittanceId;
         });
         
-        await batch.commit();
+        // Apply all updates
+        await db.ref().update(updates);
         
         // Reload data
         await loadRepairs();
@@ -5962,7 +5960,7 @@ async function confirmSingleDayRemittance() {
         
         // Show success with visual confirmation
         alert(`✅ Remittance submitted for ${utils.formatDate(dateString)}!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n👤 Submitted to: ${recipient.displayName}`);
-        closeModal();
+        closeRemittanceModal();
         
         // Remove this date from the pending list in real-time
         removeRemittedDateFromUI(dateString);
@@ -6085,34 +6083,32 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
             multiDaySubmission: true
         };
         
-        // Save to Firebase
-        const db = firebase.firestore();
-        await db.collection('techRemittances').doc(remittanceId).set(remittance);
+        // Save to Firebase Realtime Database
+        await db.ref(`techRemittances/${remittanceId}`).set(remittance);
         
         // Update all payments to mark as remitted
-        const batch = db.batch();
+        const updates = {};
         pendingDates.forEach(dateData => {
             dateData.payments.forEach(payment => {
-                window.allRepairs.forEach(repair => {
-                    if (repair.id === payment.repairId && repair.payments) {
-                        const paymentObj = repair.payments[payment.paymentIndex];
-                        if (paymentObj) {
-                            paymentObj.remittanceStatus = 'remitted';
-                            paymentObj.techRemittanceId = remittanceId;
-                        }
-                    }
-                });
+                const repair = window.allRepairs.find(r => r.id === payment.repairId);
+                if (repair && repair.payments && repair.payments[payment.paymentIndex]) {
+                    // Update payment status
+                    repair.payments[payment.paymentIndex].remittanceStatus = 'remitted';
+                    repair.payments[payment.paymentIndex].techRemittanceId = remittanceId;
+                    
+                    // Prepare Firebase update
+                    updates[`repairs/${repair.id}/payments`] = repair.payments;
+                }
             });
         });
         
-        // Update repairs in Firebase
-        window.allRepairs.forEach(repair => {
-            const docRef = db.collection('repairs').doc(repair.id);
-            const updatedPayments = repair.payments || [];
-            batch.update(docRef, { payments: updatedPayments });
+        // Update expenses to link to this remittance
+        allExpenseIds.forEach(expenseId => {
+            updates[`techExpenses/${expenseId}/remittanceId`] = remittanceId;
         });
         
-        await batch.commit();
+        // Apply all updates
+        await db.ref().update(updates);
         
         // Reload data
         await loadRepairs();
@@ -6126,7 +6122,7 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
             `💰 Amount: ₱${expectedRemittance.toFixed(2)}\n` +
             `👤 Submitted to: ${recipient.displayName}`);
         
-        closeModal();
+        closeRemittanceModal();
         
         // Remove all remitted dates from UI
         pendingDates.forEach(dateData => {
