@@ -4952,15 +4952,15 @@ function openRemittanceModal() {
     });
     
     const dates = Object.keys(paymentsByDate).sort();
-    const todayStr = getLocalDateString(today);
-    const historicalDates = dates.filter(d => d !== todayStr);
+    const todayDateStr = getLocalDateString(today);
+    const historicalDates = dates.filter(d => d !== todayDateStr);
     
     if (historicalDates.length > 0) {
         let message = '💡 Including Historical Payments\n\n';
         message += 'Your remittance will include:\n\n';
         
         dates.forEach(dateStr => {
-            const isToday = dateStr === todayStr;
+            const isToday = dateStr === todayDateStr;
             const data = paymentsByDate[dateStr];
             message += `${isToday ? '📅 Today' : '⚠️ ' + utils.formatDate(dateStr)}: ${data.count} payment(s) = ₱${data.total.toFixed(2)}\n`;
         });
@@ -5061,12 +5061,12 @@ function openRemittanceModal() {
                     // Check if there are multiple dates
                     const dates = Object.keys(paymentsByDate).sort();
                     const hasMultipleDates = dates.length > 1;
-                    const todayStr = getLocalDateString(today);
+                    const todayStrModal = todayDateString; // Use the variable from parent scope
                     
                     // Show warning if historical items included
                     let html = '';
                     if (hasMultipleDates) {
-                        const historicalDates = dates.filter(d => d !== todayStr);
+                        const historicalDates = dates.filter(d => d !== todayStrModal);
                         if (historicalDates.length > 0) {
                             html += `
                                 <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ff9800;">
@@ -5084,7 +5084,7 @@ function openRemittanceModal() {
                     html += dates.map(dateStr => {
                         const datePayments = paymentsByDate[dateStr];
                         const dateTotal = datePayments.reduce((sum, p) => sum + p.amount, 0);
-                        const isToday = dateStr === todayStr;
+                        const isToday = dateStr === todayStrModal;
                         
                         return `
                             <div style="margin:15px 0;padding:15px;background:${isToday ? '#e3f2fd' : '#fff3cd'};border-radius:8px;border-left:4px solid ${isToday ? '#2196f3' : '#ff9800'};">
