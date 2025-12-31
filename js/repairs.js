@@ -4988,14 +4988,13 @@ function openSingleDayRemittanceModal(dateString) {
     const displayDate = new Date(dateString + 'T00:00:00');
     const dateDisplay = isToday ? 'Today' : utils.formatDate(dateString);
     
-    // DEBUG: Check actual role values
-    const allUsersDebug = Object.values(window.allUsers || {});
-    const roles = allUsersDebug.map(u => `${u.displayName}: "${u.role}"`).join('\n');
-    alert('User roles:\n' + roles);
-    
-    // Get eligible recipients (admin, manager, cashier)
+    // Get eligible recipients (admin, manager, cashier) - case insensitive
     const eligibleRecipients = Object.values(window.allUsers || {})
-        .filter(u => u && ['admin', 'manager', 'cashier'].includes(u.role));
+        .filter(u => {
+            if (!u || !u.role) return false;
+            const role = (u.role || '').toLowerCase().trim();
+            return ['admin', 'manager', 'cashier'].includes(role);
+        });
     
     // Get or create modal
     let modal = document.getElementById('remittanceModal');
