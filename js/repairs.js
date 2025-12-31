@@ -4473,6 +4473,107 @@ function getAllPendingPayments(techId) {
 }
 
 /**
+ * Get all pending dates for a technician (dates with unremitted payments)
+ * Returns array of dates sorted oldest to newest with balance info
+ */
+function getPendingRemittanceDates(techId) {
+    const dateMap = {};
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach((payment, index) => {
+                const paymentMethod = payment.method || 'Cash';
+                
+                // Only Cash payments that are pending
+                if (payment.collectedByTech && 
+                    payment.receivedById === techId && 
+                    paymentMethod === 'Cash' &&
+                    payment.remittanceStatus === 'pending' &&
+                    !payment.techRemittanceId) {
+                    
+                    const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                    const dateString = getLocalDateString(paymentDate);
+                    
+                    if (!dateMap[dateString]) {
+                        dateMap[dateString] = {
+                            dateString: dateString,
+                            date: new Date(dateString + 'T00:00:00'),
+                            payments: [],
+                            expenses: [],
+                            totalPayments: 0,
+                            totalExpenses: 0,
+                            totalCommission: 0
+                        };
+                    }
+                    
+                    dateMap[dateString].payments.push({
+                        repairId: repair.id,
+                        paymentIndex: index,
+                        customerName: repair.customerName,
+                        amount: payment.amount,
+                        method: payment.method,
+                        paymentDate: payment.paymentDate,
+                        recordedDate: payment.recordedDate
+                    });
+                    dateMap[dateString].totalPayments += payment.amount;
+                }
+            });
+        }
+    });
+    
+    // Add expenses for each date
+    if (window.allExpenses) {
+        window.allExpenses.forEach(expense => {
+            if (expense.techId === techId) {
+                const expenseDate = new Date(expense.date);
+                const dateString = getLocalDateString(expenseDate);
+                
+                if (dateMap[dateString]) {
+                    dateMap[dateString].expenses.push(expense);
+                    dateMap[dateString].totalExpenses += expense.amount;
+                }
+            }
+        });
+    }
+    
+    // Calculate commission per date (40% of net after expenses)
+    Object.keys(dateMap).forEach(dateString => {
+        const dateData = dateMap[dateString];
+        const netAfterExpenses = dateData.totalPayments - dateData.totalExpenses;
+        dateData.totalCommission = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
+    });
+    
+    // Convert to array and sort by date (oldest first)
+    const dates = Object.values(dateMap).sort((a, b) => a.date - b.date);
+    
+    return dates;
+}
+
+/**
+ * Calculate unremitted balance for a specific date
+ * Returns: (totalPayments - totalExpenses - commission)
+ */
+function getUnremittedBalance(techId, dateString) {
+    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
+    
+    // Commission is 40% of (payments - expenses)
+    const netAfterExpenses = paymentsTotal - expensesTotal;
+    const commissionDeduction = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
+    
+    const unremittedBalance = netAfterExpenses - commissionDeduction;
+    
+    return {
+        paymentsTotal,
+        expensesTotal,
+        netAfterExpenses,
+        commissionDeduction,
+        unremittedBalance,
+        paymentCount: payments.length
+    };
+}
+
+/**
  * Get technician's daily GCash payments (for display only, not remittance)
  */
 function getTechDailyGCashPayments(techId, date) {
@@ -4848,6 +4949,193 @@ function showCommissionBreakdown() {
     const modalContent = document.getElementById('userModalContent');
     
     modalTitle.textContent = 'Commission Details';
+    modalContent.innerHTML = html;
+    modal.style.display = 'block';
+}
+
+/**
+ * Open Single-Day Remittance Modal
+ * Called when technician selects a specific date to remit
+ */
+function openSingleDayRemittanceModal(dateString) {
+    const techId = window.currentUser.uid;
+    const today = new Date();
+    const todayDateString = getLocalDateString(today);
+    const isToday = dateString === todayDateString;
+    
+    // Get data for this specific date
+    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
+    
+    // Commission: 40% of (payments - expenses)
+    const netAfterExpenses = paymentsTotal - expensesTotal;
+    const commissionDeduction = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
+    const expectedAmount = netAfterExpenses - commissionDeduction;
+    
+    if (payments.length === 0 && expenses.length === 0) {
+        alert('⚠️ No pending payments or expenses for this date.');
+        return;
+    }
+    
+    // Check if user has any older pending dates
+    const pendingDates = getPendingRemittanceDates(techId);
+    const olderPendingDates = pendingDates.filter(d => d.dateString < dateString);
+    const hasOlderPending = olderPendingDates.length > 0;
+    
+    // Format date for display
+    const displayDate = new Date(dateString + 'T00:00:00');
+    const dateDisplay = isToday ? 'Today' : utils.formatDate(dateString);
+    
+    // Build modal
+    const modal = document.getElementById('mainModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    
+    let html = `
+        <div style="max-height:70vh;overflow-y:auto;">
+            <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #2196f3;">
+                <h3 style="margin:0;color:#1976d2;">📅 ${dateDisplay}</h3>
+                <p style="margin:5px 0 0 0;color:#666;font-size:14px;">Single-day remittance submission</p>
+            </div>
+            
+            ${hasOlderPending ? `
+                <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                    <strong>⚠️ Pending Older Dates</strong><br>
+                    <small style="color:#666;">
+                        You have ${olderPendingDates.length} older date(s) with pending remittance. 
+                        Recommended: Remit in order (oldest first).
+                    </small>
+                </div>
+            ` : ''}
+            
+            <!-- Payment Breakdown -->
+            <div class="card" style="margin:15px 0;">
+                <h3>💰 Payment Breakdown</h3>
+                <div style="background:#f5f5f5;padding:15px;border-radius:8px;">
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>Gross Cash Collected:</span>
+                        <strong>₱${paymentsTotal.toFixed(2)}</strong>
+                    </div>
+                    ${expensesTotal > 0 ? `
+                        <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                            <span>📦 Less: Your Expenses</span>
+                            <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
+                        </div>
+                    ` : ''}
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>Net After Expenses:</span>
+                        <strong>₱${netAfterExpenses.toFixed(2)}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>👤 Less: Your Commission (40%)</span>
+                        <strong style="color:#2196f3;">-₱${commissionDeduction.toFixed(2)}</strong>
+                    </div>
+                    <hr style="border:none;border-top:2px solid #ddd;margin:15px 0;">
+                    <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;">
+                        <span>💳 Amount to Remit to Shop (60%):</span>
+                        <span style="color:#4caf50;">₱${expectedAmount.toFixed(2)}</span>
+                    </div>
+                </div>
+                
+                <p style="margin-top:15px;font-size:13px;color:#666;background:#e8f5e9;padding:12px;border-radius:6px;border-left:4px solid #4caf50;">
+                    ✓ <strong>Your 40% Commission (₱${commissionDeduction.toFixed(2)})</strong> is automatically deducted. 
+                    Shop will credit this via your selected payment method.
+                </p>
+            </div>
+            
+            <!-- Payment Items -->
+            ${payments.length > 0 ? `
+                <div class="card" style="margin:15px 0;">
+                    <h3>📥 Payments (${payments.length} item${payments.length > 1 ? 's' : ''})</h3>
+                    <div style="background:#f9f9f9;border-radius:8px;overflow:hidden;">
+                        ${payments.map((p, idx) => `
+                            <div style="padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div style="font-weight:600;color:#333;">${p.customerName}</div>
+                                    <div style="font-size:12px;color:#666;">Repair ID: ${p.repairId}</div>
+                                </div>
+                                <div style="text-align:right;font-weight:bold;color:#4caf50;">₱${p.amount.toFixed(2)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Expenses -->
+            ${expenses.length > 0 ? `
+                <div class="card" style="margin:15px 0;">
+                    <h3>📋 Expenses (${expenses.length} item${expenses.length > 1 ? 's' : ''})</h3>
+                    <div style="background:#f9f9f9;border-radius:8px;overflow:hidden;">
+                        ${expenses.map((e, idx) => `
+                            <div style="padding:12px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div style="font-weight:600;color:#333;">${e.category || e.type}</div>
+                                    <div style="font-size:12px;color:#666;">${e.description || '-'}</div>
+                                </div>
+                                <div style="text-align:right;font-weight:bold;color:#f44336;">-₱${e.amount.toFixed(2)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- Remittance Entry -->
+            <div class="card" style="margin:15px 0;background:#f0f7ff;border-left:4px solid #2196f3;">
+                <h3>💵 Submit Remittance</h3>
+                
+                <div class="form-group">
+                    <label style="font-weight:bold;">Amount to Remit *</label>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:18px;">₱</span>
+                        <input type="number" 
+                               id="actualRemittanceAmount" 
+                               value="${expectedAmount.toFixed(2)}" 
+                               step="0.01" 
+                               min="0"
+                               style="flex:1;padding:10px;border:1px solid #ddd;border-radius:5px;font-size:16px;font-weight:bold;">
+                    </div>
+                    <small style="color:#666;margin-top:5px;display:block;">
+                        Expected: ₱${expectedAmount.toFixed(2)} | If different, add note below
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-weight:bold;">Who are you giving this to? *</label>
+                    <select id="remittanceRecipient" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;">
+                        <option value="">-- Select recipient --</option>
+                        ${Object.values(window.allUsers)
+                            .filter(u => ['admin', 'manager', 'cashier'].includes(u.role))
+                            .map(u => `<option value="${u.uid}">${u.displayName} (${u.role})</option>`)
+                            .join('')}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label style="font-weight:bold;">Notes (if amount differs)</label>
+                    <textarea id="remittanceNotes" 
+                              placeholder="Explain any discrepancy..." 
+                              style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;min-height:60px;"></textarea>
+                </div>
+            </div>
+            
+            <!-- Store date info for confirmation -->
+            <input type="hidden" id="remittanceDateString" value="${dateString}">
+            <input type="hidden" id="remittanceExpectedAmount" value="${expectedAmount.toFixed(2)}">
+            <input type="hidden" id="remittancePaymentsTotal" value="${paymentsTotal.toFixed(2)}">
+            <input type="hidden" id="remittanceExpensesTotal" value="${expensesTotal.toFixed(2)}">
+            <input type="hidden" id="remittanceCommissionDeduction" value="${commissionDeduction.toFixed(2)}">
+            <input type="hidden" id="hasOlderPending" value="${hasOlderPending}">
+        </div>
+        
+        <div style="margin-top:20px;display:flex;gap:10px;justify-content:flex-end;">
+            <button onclick="closeModal()" class="btn-secondary">Cancel</button>
+            <button onclick="confirmSingleDayRemittance()" class="btn-primary" style="background:#4caf50;border-color:#4caf50;">
+                ✓ Submit Remittance
+            </button>
+        </div>
+    `;
+    
+    modalTitle.textContent = `Remit ${dateDisplay}`;
     modalContent.innerHTML = html;
     modal.style.display = 'block';
 }
@@ -5390,6 +5678,389 @@ async function confirmRemittance() {
         console.error('Error submitting remittance:', error);
         alert('Error: ' + error.message);
     }
+}
+
+/**
+ * Confirm and Submit Single-Day Remittance
+ */
+async function confirmSingleDayRemittance() {
+    const techId = window.currentUser.uid;
+    const today = new Date();
+    const todayDateString = getLocalDateString(today);
+    
+    // Get values from modal
+    const dateString = document.getElementById('remittanceDateString').value;
+    const actualAmount = parseFloat(document.getElementById('actualRemittanceAmount').value);
+    const notes = document.getElementById('remittanceNotes').value.trim();
+    const recipientId = document.getElementById('remittanceRecipient').value;
+    const expectedAmount = parseFloat(document.getElementById('remittanceExpectedAmount').value);
+    const paymentsTotal = parseFloat(document.getElementById('remittancePaymentsTotal').value);
+    const expensesTotal = parseFloat(document.getElementById('remittanceExpensesTotal').value);
+    const commissionDeduction = parseFloat(document.getElementById('remittanceCommissionDeduction').value);
+    const hasOlderPending = document.getElementById('hasOlderPending').value === 'true';
+    const isToday = dateString === todayDateString;
+    
+    // Validate
+    if (!recipientId) {
+        alert('⚠️ Please select who you are giving this money to');
+        return;
+    }
+    
+    if (isNaN(actualAmount) || actualAmount < 0) {
+        alert('Please enter a valid remittance amount');
+        return;
+    }
+    
+    const discrepancy = actualAmount - expectedAmount;
+    if (Math.abs(discrepancy) > 0.01 && !notes) {
+        alert('Please provide a note explaining the discrepancy');
+        return;
+    }
+    
+    const recipient = window.allUsers[recipientId];
+    if (!recipient) {
+        alert('⚠️ Selected recipient not found');
+        return;
+    }
+    
+    // Check for multi-day prompt only if TODAY and there are older pending dates
+    if (isToday && hasOlderPending) {
+        const pendingDates = getPendingRemittanceDates(techId);
+        const olderPendingDates = pendingDates.filter(d => d.dateString < dateString);
+        
+        if (olderPendingDates.length > 0) {
+            const olderDatesStr = olderPendingDates.map(d => utils.formatDate(d.dateString)).join(', ');
+            const olderTotal = olderPendingDates.reduce((sum, d) => sum + d.unremittedBalance, 0);
+            const combinedTotal = actualAmount + olderTotal;
+            
+            const message = `You have pending remittance from: ${olderDatesStr}\n\n` +
+                `Today only: ₱${actualAmount.toFixed(2)}\n` +
+                `All pending + today: ₱${combinedTotal.toFixed(2)}\n\n` +
+                `Do you want to:\n` +
+                `1. Remit TODAY ONLY (₱${actualAmount.toFixed(2)})\n` +
+                `2. CATCH UP all pending + today (₱${combinedTotal.toFixed(2)})`;
+            
+            const choice = confirm(message + '\n\n(OK = Catch up all, CANCEL = Today only)');
+            
+            if (choice) {
+                // Catch up all pending dates
+                await submitMultipleDayRemittance(recipientId, recipient, notes);
+                return;
+            }
+        }
+    }
+    
+    // Proceed with single-day submission
+    try {
+        utils.showLoading(true);
+        
+        // Get payments for this specific date
+        const { payments, total: paymentsCheckTotal } = getTechDailyPayments(techId, dateString);
+        const { expenses, total: expensesCheckTotal } = getTechDailyExpenses(techId, dateString);
+        
+        // Create remittance record for this specific date
+        const remittanceDate = new Date(dateString + 'T00:00:00');
+        const remittanceId = `rem_${techId}_${dateString.replace(/-/g, '')}_${Date.now()}`;
+        
+        const remittance = {
+            id: remittanceId,
+            techId: techId,
+            techName: window.currentUserData.displayName,
+            date: remittanceDate.toISOString(),
+            dateString: dateString,
+            // Recipient tracking
+            submittedTo: recipientId,
+            submittedToName: recipient.displayName,
+            submittedToRole: recipient.role,
+            // Payments
+            paymentIds: payments.map(p => `${p.repairId}_${p.paymentIndex}`),
+            totalPaymentsCollected: paymentsTotal,
+            paymentsList: payments.map(p => ({
+                repairId: p.repairId,
+                customerName: p.customerName,
+                amount: p.amount,
+                method: p.method
+            })),
+            // Commission
+            commissionDeduction: commissionDeduction,
+            // Expenses
+            expenseIds: expenses.map(e => e.id),
+            totalExpenses: expensesTotal,
+            expensesList: expenses.map(e => ({
+                category: e.category,
+                amount: e.amount,
+                description: e.description
+            })),
+            // Calculation
+            expectedRemittance: expectedAmount,
+            actualAmount: actualAmount,
+            discrepancy: discrepancy,
+            // Status
+            status: 'pending',
+            submittedAt: new Date().toISOString(),
+            discrepancyReason: notes || '',
+            // For single-day tracking
+            singleDaySubmission: true
+        };
+        
+        // Save to Firebase
+        const db = firebase.firestore();
+        await db.collection('techRemittances').doc(remittanceId).set(remittance);
+        
+        // Update all payments to mark as remitted and link to this remittance
+        const batch = db.batch();
+        payments.forEach(payment => {
+            window.allRepairs.forEach(repair => {
+                if (repair.id === payment.repairId && repair.payments) {
+                    const paymentObj = repair.payments[payment.paymentIndex];
+                    if (paymentObj) {
+                        paymentObj.remittanceStatus = 'remitted';
+                        paymentObj.techRemittanceId = remittanceId;
+                    }
+                }
+            });
+        });
+        
+        // Update repairsCollection in Firebase
+        window.allRepairs.forEach(repair => {
+            const docRef = db.collection('repairs').doc(repair.id);
+            const updatedPayments = repair.payments || [];
+            batch.update(docRef, { payments: updatedPayments });
+        });
+        
+        await batch.commit();
+        
+        // Reload data
+        await loadRepairs();
+        await loadTechRemittances();
+        await loadTechExpenses();
+        
+        utils.showLoading(false);
+        
+        // Show success with visual confirmation
+        alert(`✅ Remittance submitted for ${utils.formatDate(dateString)}!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n👤 Submitted to: ${recipient.displayName}`);
+        closeModal();
+        
+        // Remove this date from the pending list in real-time
+        removeRemittedDateFromUI(dateString);
+        
+        // Refresh current tab
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error submitting single-day remittance:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Submit multiple day remittance (catch-up)
+ */
+async function submitMultipleDayRemittance(recipientId, recipient, notes) {
+    const techId = window.currentUser.uid;
+    
+    try {
+        utils.showLoading(true);
+        
+        const pendingDates = getPendingRemittanceDates(techId);
+        if (pendingDates.length === 0) {
+            alert('No pending remittances found');
+            utils.showLoading(false);
+            return;
+        }
+        
+        let totalPayments = 0;
+        let totalExpenses = 0;
+        let totalCommission = 0;
+        const allPaymentIds = [];
+        const allExpenseIds = [];
+        const paymentsList = [];
+        const expensesList = [];
+        
+        // Aggregate all pending dates
+        pendingDates.forEach(dateData => {
+            totalPayments += dateData.totalPayments;
+            totalExpenses += dateData.totalExpenses;
+            totalCommission += dateData.totalCommission;
+            
+            dateData.payments.forEach(p => {
+                allPaymentIds.push(`${p.repairId}_${p.paymentIndex}`);
+                paymentsList.push({
+                    repairId: p.repairId,
+                    customerName: p.customerName,
+                    amount: p.amount,
+                    method: p.method,
+                    date: dateData.dateString
+                });
+            });
+            
+            dateData.expenses.forEach(e => {
+                allExpenseIds.push(e.id);
+                expensesList.push({
+                    category: e.category,
+                    amount: e.amount,
+                    description: e.description,
+                    date: dateData.dateString
+                });
+            });
+        });
+        
+        const expectedRemittance = totalPayments - totalExpenses - totalCommission;
+        
+        // Confirm with user
+        const confirmMsg = `Catch-up Remittance:\n\n` +
+            `Dates: ${pendingDates.map(d => utils.formatDate(d.dateString)).join(', ')}\n` +
+            `Payments: ₱${totalPayments.toFixed(2)}\n` +
+            `Expenses: -₱${totalExpenses.toFixed(2)}\n` +
+            `Commission (40%): -₱${totalCommission.toFixed(2)}\n` +
+            `Amount to Remit: ₱${expectedRemittance.toFixed(2)}\n\nConfirm?`;
+        
+        if (!confirm(confirmMsg)) {
+            utils.showLoading(false);
+            return;
+        }
+        
+        // Create remittance record
+        const today = new Date();
+        const remittanceId = `rem_${techId}_multi_${Date.now()}`;
+        
+        const remittance = {
+            id: remittanceId,
+            techId: techId,
+            techName: window.currentUserData.displayName,
+            date: today.toISOString(),
+            dateString: getLocalDateString(today),
+            datesIncluded: pendingDates.map(d => d.dateString),
+            // Recipient
+            submittedTo: recipientId,
+            submittedToName: recipient.displayName,
+            submittedToRole: recipient.role,
+            // Payments
+            paymentIds: allPaymentIds,
+            totalPaymentsCollected: totalPayments,
+            paymentsList: paymentsList,
+            // Commission
+            commissionDeduction: totalCommission,
+            // Expenses
+            expenseIds: allExpenseIds,
+            totalExpenses: totalExpenses,
+            expensesList: expensesList,
+            // Calculation
+            expectedRemittance: expectedRemittance,
+            actualAmount: expectedRemittance,
+            discrepancy: 0,
+            // Status
+            status: 'pending',
+            submittedAt: new Date().toISOString(),
+            discrepancyReason: notes || '',
+            // Multi-day tracking
+            multiDaySubmission: true
+        };
+        
+        // Save to Firebase
+        const db = firebase.firestore();
+        await db.collection('techRemittances').doc(remittanceId).set(remittance);
+        
+        // Update all payments to mark as remitted
+        const batch = db.batch();
+        pendingDates.forEach(dateData => {
+            dateData.payments.forEach(payment => {
+                window.allRepairs.forEach(repair => {
+                    if (repair.id === payment.repairId && repair.payments) {
+                        const paymentObj = repair.payments[payment.paymentIndex];
+                        if (paymentObj) {
+                            paymentObj.remittanceStatus = 'remitted';
+                            paymentObj.techRemittanceId = remittanceId;
+                        }
+                    }
+                });
+            });
+        });
+        
+        // Update repairs in Firebase
+        window.allRepairs.forEach(repair => {
+            const docRef = db.collection('repairs').doc(repair.id);
+            const updatedPayments = repair.payments || [];
+            batch.update(docRef, { payments: updatedPayments });
+        });
+        
+        await batch.commit();
+        
+        // Reload data
+        await loadRepairs();
+        await loadTechRemittances();
+        await loadTechExpenses();
+        
+        utils.showLoading(false);
+        
+        alert(`✅ Multi-day remittance submitted!\n\n` +
+            `Dates: ${pendingDates.map(d => utils.formatDate(d.dateString)).join(', ')}\n` +
+            `💰 Amount: ₱${expectedRemittance.toFixed(2)}\n` +
+            `👤 Submitted to: ${recipient.displayName}`);
+        
+        closeModal();
+        
+        // Remove all remitted dates from UI
+        pendingDates.forEach(dateData => {
+            removeRemittedDateFromUI(dateData.dateString);
+        });
+        
+        // Refresh current tab
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error submitting multi-day remittance:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Remove remitted date from UI without page refresh
+ */
+function removeRemittedDateFromUI(dateString) {
+    // Find and remove the date element from the pending dates list
+    const dateElements = document.querySelectorAll('[data-remittance-date]');
+    dateElements.forEach(el => {
+        if (el.getAttribute('data-remittance-date') === dateString) {
+            // Show confirmation toast
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                background: #4caf50;
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                z-index: 10000;
+                animation: slideInUp 0.3s ease-in-out;
+            `;
+            toast.innerHTML = `✓ Remitted ${utils.formatDate(dateString)}`;
+            document.body.appendChild(toast);
+            
+            // Remove element with animation
+            el.style.opacity = '0';
+            el.style.transform = 'translateX(100%)';
+            el.style.transition = 'all 0.3s ease-in-out';
+            
+            setTimeout(() => {
+                el.remove();
+                // Remove toast
+                setTimeout(() => toast.remove(), 2000);
+            }, 300);
+        }
+    });
 }
 
 function closeRemittanceModal() {

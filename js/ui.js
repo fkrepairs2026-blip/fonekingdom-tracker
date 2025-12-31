@@ -3573,436 +3573,222 @@ window.changeLogPage = changeLogPage;
 window.handleProblemTypeChange = handleProblemTypeChange;
 
 /**
- * Build Daily Remittance Tab (Technician)
+ * Build Daily Remittance Tab (Technician) - NEW: Show pending dates to remit one by one
  */
-function buildDailyRemittanceTab(container, selectedDate = null) {
-    console.log('💸 Building Daily Remittance tab');
+function buildDailyRemittanceTab(container) {
+    console.log('💸 Building Daily Remittance tab - Daily single submission');
     
     const techId = window.currentUser.uid;
     const today = new Date();
+    const todayStr = getLocalDateString(today);
     
-    // Use selected date or default to today (with proper timezone handling)
-    const viewDate = selectedDate ? new Date(selectedDate + 'T00:00:00') : today;
-    window.selectedRemittanceDate = selectedDate; // Store for refresh
+    // Set refresh function
+    window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'));
     
-    // Use local date strings to avoid timezone issues
-    const viewDateString = getLocalDateString(viewDate); // YYYY-MM-DD format
-    const isToday = getLocalDateString(viewDate) === getLocalDateString(today);
-    const todayStr = viewDate.toDateString();
+    // Get all pending dates with balances
+    const pendingDates = window.getPendingRemittanceDates(techId);
     
-    // Update refresh to use selected date
-    window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'), window.selectedRemittanceDate);
+    // Get today's summary for display
+    const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, todayStr);
+    const { payments: gcashPayments, total: gcashTotal } = window.getTechDailyGCashPayments(techId, todayStr);
+    const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, todayStr);
+    const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, todayStr);
     
-    // Get data for selected date
-    const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, viewDateString);
-    const { payments: gcashPayments, total: gcashTotal } = window.getTechDailyGCashPayments(techId, viewDateString);
-    const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, viewDateString);
-    const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, viewDateString);
-    
-    // Calculate commission breakdown by payment method (Cash vs GCash)
-    let cashCommission = 0;
-    let gcashCommission = 0;
-    let cashRepairCount = 0;
-    let gcashRepairCount = 0;
-    
-    commissionBreakdown.forEach(c => {
-        const repair = window.allRepairs.find(r => r.id === c.repairId);
-        if (repair && repair.payments) {
-            // Check if this repair has any GCash payment
-            const hasGCashPayment = repair.payments.some(p => p.method === 'GCash');
-            
-            if (hasGCashPayment) {
-                gcashCommission += c.commission;
-                gcashRepairCount++;
-            } else {
-                cashCommission += c.commission;
-                cashRepairCount++;
-            }
-        }
-    });
-    
-    const totalCommission = cashCommission + gcashCommission;
-    
-    // NEW CALCULATION: Cash remittance does NOT deduct commission
-    // Commission is paid separately at end of day
-    const expectedAmount = paymentsTotal - expensesTotal;
-    
-    // Check if already submitted for this date
-    const dateRemittance = window.techRemittances.find(r => {
-        const remDate = new Date(r.date).toDateString();
-        return r.techId === techId && remDate === todayStr;
-    });
-    
-    // NEW: Check for ANY historical pending items
-    let hasHistoricalPending = false;
-    window.allRepairs.forEach(repair => {
-        if (repair.payments) {
-            repair.payments.forEach(payment => {
-                if (payment.collectedByTech && 
-                    payment.receivedById === techId && 
-                    payment.remittanceStatus === 'pending' &&
-                    !payment.techRemittanceId) {
-                    hasHistoricalPending = true;
-                }
-            });
-        }
-    });
-    
-    // Check for unclaimed commissions
-    let hasUnclaimedCommission = false;
-    window.allRepairs.forEach(repair => {
-        if (repair.acceptedBy === techId && 
-            repair.status === 'Claimed' && 
-            !repair.commissionClaimedBy) {
-            const totalPaid = (repair.payments || [])
-                .filter(p => p.verified)
-                .reduce((sum, p) => sum + p.amount, 0);
-            if (totalPaid >= repair.total) {
-                hasUnclaimedCommission = true;
-            }
-        }
-    });
-    
-    const hasPendingItems = payments.length > 0 || expenses.length > 0 || commissionBreakdown.length > 0;
-    
-    // Get recent remittances
-    const recentRemittances = window.techRemittances
-        .filter(r => r.techId === techId)
-        .sort((a, b) => new Date(b.date) - new Date(a.date))
-        .slice(0, 10);
+    // Today's unremitted balance
+    const todayBalance = window.getUnremittedBalance(techId, todayStr);
+    const hasUnremittedToday = pendingDates.some(d => d.dateString === todayStr);
     
     container.innerHTML = `
         <div class="page-header">
-            <h2>💸 Daily Cash Remittance & Commission</h2>
-            <p>Track your collected payments, commission earned, and expenses</p>
-        </div>
-        
-        <!-- Date Selector -->
-        <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin:20px 0;border-left:4px solid #2196f3;">
-            <div style="display:flex;align-items:center;gap:15px;flex-wrap:wrap;">
-                <div style="flex:1;min-width:200px;">
-                    <label style="display:block;font-weight:600;margin-bottom:5px;">📅 Select Date:</label>
-                    <input type="date" 
-                           id="remittanceDatePicker" 
-                           value="${viewDateString}"
-                           max="${getLocalDateString(today)}"
-                           onchange="window.changeRemittanceDate(this.value)"
-                           style="padding:8px;border:1px solid #ddd;border-radius:5px;width:100%;max-width:200px;">
-                </div>
-                <div style="display:flex;gap:10px;">
-                    ${!isToday ? `
-                        <button onclick="window.changeRemittanceDate(null)" class="btn-primary" style="padding:8px 15px;">
-                            📅 Today
-                        </button>
-                    ` : ''}
-                    <button onclick="window.changeRemittanceDate('prev')" class="btn-secondary" style="padding:8px 15px;">
-                        ◀ Previous Day
-                    </button>
-                    <button onclick="window.changeRemittanceDate('next')" class="btn-secondary" style="padding:8px 15px;"
-                            ${isToday ? 'disabled' : ''}>
-                        Next Day ▶
-                    </button>
-                </div>
-            </div>
-            ${!isToday ? `
-                <div style="margin-top:10px;padding:10px;background:#fff3cd;border-radius:5px;font-size:13px;">
-                    ℹ️ Viewing historical data for <strong>${utils.formatDate(viewDate)}</strong>
-                    ${dateRemittance ? 
-                        `<br>✅ Remittance was submitted on this date (${dateRemittance.status})` : 
-                        `<br>⚠️ No remittance was submitted for this date`
-                    }
-                </div>
-            ` : ''}
+            <h2>💸 Daily Cash Remittance</h2>
+            <p>Submit remittance one day at a time - oldest dates first</p>
         </div>
         
         <!-- Today's Summary -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
-            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
-                <h3>₱${paymentsTotal.toFixed(2)}</h3>
-                <p>💵 Cash Collected</p>
-                <small>${payments.length} cash payment(s)</small>
-            </div>
-            <div class="stat-card" style="background:#e1f5fe;border-left:4px solid #00bcd4;">
-                <h3>₱${gcashTotal.toFixed(2)}</h3>
-                <p>📱 GCash Processed</p>
-                <small>${gcashPayments.length} GCash payment(s)</small>
-            </div>
-            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
-                <h3>₱${totalCommission.toFixed(2)}</h3>
-                <p>🎯 Commission Earned</p>
-                <small>💵 ₱${cashCommission.toFixed(2)} | 📱 ₱${gcashCommission.toFixed(2)}</small>
-            </div>
-            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
-                <h3>₱${expensesTotal.toFixed(2)}</h3>
-                <p>💸 Expenses</p>
-                <small>${expenses.length} expense(s)</small>
-            </div>
-            <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
-                <h3>₱${expectedAmount.toFixed(2)}</h3>
-                <p>💵 ${isToday ? 'Cash to Remit' : 'Net Cash'}</p>
-                <small>Cash - Expenses (No commission deduction)</small>
+        <div style="background:#e3f2fd;padding:20px;border-radius:10px;border-left:4px solid #2196f3;margin:20px 0;">
+            <h3 style="margin-top:0;">📅 Today - ${utils.formatDate(today)}</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:15px 0;">
+                <div>
+                    <div style="font-size:14px;color:#666;">💵 Cash Collected</div>
+                    <div style="font-size:20px;font-weight:bold;color:#1976d2;">₱${paymentsTotal.toFixed(2)}</div>
+                    <div style="font-size:12px;color:#999;">${payments.length} payment(s)</div>
+                </div>
+                <div>
+                    <div style="font-size:14px;color:#666;">📱 GCash Processed</div>
+                    <div style="font-size:20px;font-weight:bold;color:#0097a7;">₱${gcashTotal.toFixed(2)}</div>
+                    <div style="font-size:12px;color:#999;">${gcashPayments.length} payment(s)</div>
+                </div>
+                <div>
+                    <div style="font-size:14px;color:#666;">💸 Expenses</div>
+                    <div style="font-size:20px;font-weight:bold;color:#f44336;">-₱${expensesTotal.toFixed(2)}</div>
+                    <div style="font-size:12px;color:#999;">${expenses.length} item(s)</div>
+                </div>
+                <div style="background:white;padding:10px;border-radius:8px;">
+                    <div style="font-size:14px;color:#666;">💳 To Remit (60%)</div>
+                    <div style="font-size:20px;font-weight:bold;color:#4caf50;">₱${todayBalance.unremittedBalance.toFixed(2)}</div>
+                    <div style="font-size:12px;color:#999;">After commission</div>
+                </div>
             </div>
         </div>
         
-        <!-- Quick Actions (only on today view) -->
-        ${isToday ? `
-            <div style="margin:20px 0;display:flex;gap:10px;flex-wrap:wrap;">
-                <button onclick="openExpenseModal()" class="btn-primary">
-                    ➕ Record General Expense
-                </button>
-                ${(hasPendingItems || hasHistoricalPending || hasUnclaimedCommission) && !dateRemittance ? `
-                    <button onclick="openRemittanceModal()" class="btn-success">
-                        📤 Submit Remittance
-                    </button>
-                ` : ''}
+        <!-- Pending Remittance Dates -->
+        <div class="card" style="margin:20px 0;">
+            <h3>📋 Pending Remittances${pendingDates.length > 0 ? ` (${pendingDates.length} date${pendingDates.length > 1 ? 's' : ''})` : ''}</h3>
+            
+            ${pendingDates.length > 0 ? `
+                <div style="margin:15px 0;">
+                    <p style="color:#666;font-size:14px;margin-bottom:10px;">
+                        Click a date below to submit remittance. Recommended: Start with oldest date.
+                    </p>
+                    <div style="display:flex;flex-direction:column;gap:10px;">
+                        ${pendingDates.map((dateData, idx) => {
+                            const isToday = dateData.dateString === todayStr;
+                            const displayLabel = isToday ? '📅 Today' : `📅 ${utils.formatDate(dateData.dateString)}`;
+                            const daysAgo = Math.floor((new Date() - dateData.date) / (1000 * 60 * 60 * 24));
+                            const daysLabel = isToday ? '' : `(${daysAgo} day${daysAgo > 1 ? 's' : ''} ago)`;
+                            
+                            return `
+                                <div data-remittance-date="${dateData.dateString}" 
+                                     style="background:white;border:2px solid #e0e0e0;border-radius:10px;padding:15px;cursor:pointer;transition:all 0.3s;hover:border-color:#2196f3;hover:box-shadow:0 4px 12px rgba(33,150,243,0.2);"
+                                     onmouseover="this.style.borderColor='#2196f3';this.style.boxShadow='0 4px 12px rgba(33,150,243,0.2)';"
+                                     onmouseout="this.style.borderColor='#e0e0e0';this.style.boxShadow='none';">
+                                    
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                        <div>
+                                            <div style="font-weight:bold;font-size:16px;color:#333;">${displayLabel} ${daysLabel}</div>
+                                            <div style="font-size:12px;color:#999;margin-top:3px;">${dateData.payments.length} payment(s) • ${dateData.expenses.length} expense(s)</div>
+                                        </div>
+                                        ${idx === 0 && !isToday ? `
+                                            <span style="background:#ff9800;color:white;padding:5px 10px;border-radius:20px;font-size:11px;font-weight:bold;">
+                                                ⭐ START HERE
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                    
+                                    <div style="background:#f5f5f5;padding:12px;border-radius:8px;margin-bottom:12px;">
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;">
+                                            <span>Collected:</span>
+                                            <strong>₱${dateData.totalPayments.toFixed(2)}</strong>
+                                        </div>
+                                        ${dateData.totalExpenses > 0 ? `
+                                            <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#f44336;">
+                                                <span>Expenses:</span>
+                                                <strong>-₱${dateData.totalExpenses.toFixed(2)}</strong>
+                                            </div>
+                                        ` : ''}
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#2196f3;">
+                                            <span>Commission (40%):</span>
+                                            <strong>-₱${dateData.totalCommission.toFixed(2)}</strong>
+                                        </div>
+                                        <div style="border-top:2px solid #ddd;margin:10px 0;"></div>
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:15px;font-weight:bold;">
+                                            <span>To Remit (60%):</span>
+                                            <span style="color:#4caf50;">₱${dateData.unremittedBalance.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button onclick="openSingleDayRemittanceModal('${dateData.dateString}')" 
+                                            style="width:100%;padding:10px;background:#4caf50;color:white;border:none;border-radius:6px;font-weight:bold;cursor:pointer;transition:background 0.3s;"
+                                            onmouseover="this.style.background='#45a049';"
+                                            onmouseout="this.style.background='#4caf50';">
+                                        💵 Remit This Day
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            ` : `
+                <div style="text-align:center;padding:40px 20px;">
+                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
+                    <h3 style="color:#4caf50;margin:10px 0;">All Clear!</h3>
+                    <p style="color:#999;">No pending remittances. All cash has been submitted.</p>
+                </div>
+            `}
+        </div>
+        
+        <!-- Today's Details -->
+        ${hasUnremittedToday ? `
+            <div class="card" style="margin:20px 0;background:#e3f2fd;border-left:4px solid #2196f3;">
+                <h3>📥 Today's Cash Payments</h3>
+                ${payments.length > 0 ? `
+                    <div style="background:white;border-radius:8px;overflow:hidden;">
+                        ${payments.map((p, idx) => `
+                            <div style="padding:12px;border-bottom:${idx < payments.length - 1 ? '1px solid #eee' : 'none'};display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <div style="font-weight:600;color:#333;">${p.customerName}</div>
+                                    <div style="font-size:12px;color:#666;">Repair: ${p.repairId}</div>
+                                </div>
+                                <div style="font-weight:bold;color:#4caf50;font-size:16px;">₱${p.amount.toFixed(2)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '<p style="color:#999;text-align:center;padding:20px;">No cash payments today</p>'}
             </div>
-            
-            ${(hasHistoricalPending || hasUnclaimedCommission) && !dateRemittance ? `
-                <div style="background:#fff3cd;padding:15px;border-radius:8px;border-left:4px solid #ff9800;margin:20px 0;">
-                    <strong>⚠️ You have pending items to remit:</strong><br>
-                    ${hasHistoricalPending ? '• Pending payments from previous dates<br>' : ''}
-                    ${hasUnclaimedCommission ? '• Unclaimed commission from completed repairs<br>' : ''}
-                    <small style="color:#666;">Click "Submit Remittance" above to process these items.</small>
+        ` : ''}
+        
+        <!-- GCash Info -->
+        ${gcashPayments.length > 0 ? `
+            <div class="card" style="margin:20px 0;background:#e1f5fe;border-left:4px solid #00bcd4;">
+                <h3>📱 GCash Payments (Not included in cash remittance)</h3>
+                <p style="color:#666;font-size:13px;margin-bottom:15px;">GCash payments go directly to shop account - no remittance needed.</p>
+                <div style="background:white;border-radius:8px;overflow:hidden;">
+                    ${gcashPayments.map((gp, idx) => `
+                        <div style="padding:12px;border-bottom:${idx < gcashPayments.length - 1 ? '1px solid #eee' : 'none'};display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-weight:600;color:#333;">${gp.customerName}</div>
+                                <div style="font-size:12px;color:#666;">Ref: ${gp.gcashReferenceNumber || 'N/A'}</div>
+                            </div>
+                            <div style="font-weight:bold;color:#00bcd4;font-size:16px;">₱${gp.amount.toFixed(2)}</div>
+                        </div>
+                    `).join('')}
                 </div>
-            ` : ''}
-            
-            ${!hasPendingItems && !hasHistoricalPending && !hasUnclaimedCommission && !dateRemittance ? `
-                <div style="background:#e8f5e9;padding:15px;border-radius:8px;border-left:4px solid #4caf50;margin:20px 0;">
-                    ✅ <strong>All clear!</strong> No pending payments or commissions to remit today.
+            </div>
+        ` : ''}
+        
+        <!-- Expenses -->
+        ${expensesTotal > 0 ? `
+            <div class="card" style="margin:20px 0;">
+                <h3>💸 Today's Expenses</h3>
+                <div style="background:white;border-radius:8px;overflow:hidden;">
+                    ${expenses.map((e, idx) => `
+                        <div style="padding:12px;border-bottom:${idx < expenses.length - 1 ? '1px solid #eee' : 'none'};display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-weight:600;color:#333;">${e.category || e.type}</div>
+                                <div style="font-size:12px;color:#666;">${e.description || '-'}</div>
+                            </div>
+                            <div style="font-weight:bold;color:#f44336;font-size:16px;">-₱${e.amount.toFixed(2)}</div>
+                        </div>
+                    `).join('')}
                 </div>
-            ` : ''}
+                <button onclick="openExpenseModal()" class="btn-primary" style="margin-top:15px;width:100%;">
+                    ➕ Add Expense
+                </button>
+            </div>
         ` : `
-            <!-- Historical view message -->
-            <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin:20px 0;border-left:4px solid #2196f3;">
-                ℹ️ <strong>Historical View</strong><br>
-                You are viewing data from ${utils.formatDate(viewDate)}. 
-                ${dateRemittance ? 
-                    `This date's remittance was ${dateRemittance.status} (₱${dateRemittance.actualAmount.toFixed(2)})` :
-                    `No remittance was submitted for this date.`
-                }
-                <br><button onclick="window.changeRemittanceDate(null)" class="btn-primary" style="margin-top:10px;">
-                    Return to Today
+            <div style="margin:20px 0;">
+                <button onclick="openExpenseModal()" class="btn-primary" style="width:100%;">
+                    ➕ Record Expense
                 </button>
             </div>
         `}
         
-        ${dateRemittance ? `
-            <div class="remittance-card" style="background:#${dateRemittance.status === 'approved' ? 'e8f5e9' : (dateRemittance.status === 'rejected' ? 'ffebee' : 'fff3e0')};border-left:4px solid #${dateRemittance.status === 'approved' ? '4caf50' : (dateRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};padding:20px;border-radius:10px;margin:20px 0;">
-                <h4>Today's Remittance Status</h4>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin:10px 0;">
-                    <span style="font-size:18px;font-weight:600;">₱${dateRemittance.actualAmount.toFixed(2)}</span>
-                    <span class="status-badge" style="background:#${dateRemittance.status === 'approved' ? '4caf50' : (dateRemittance.status === 'rejected' ? 'f44336' : 'ff9800')};color:white;">
-                        ${dateRemittance.status === 'approved' ? '✅ Approved' : (dateRemittance.status === 'rejected' ? '❌ Rejected' : '⏳ Pending')}
-                    </span>
-                </div>
-                <p style="font-size:13px;color:#666;">
-                    Submitted: ${utils.formatDateTime(dateRemittance.submittedAt)}
-                </p>
-                ${dateRemittance.verifiedBy ? `
-                    <p style="font-size:13px;color:#666;">
-                        Verified by: ${dateRemittance.verifiedBy} on ${utils.formatDateTime(dateRemittance.verifiedAt)}
+        <!-- Commission Info -->
+        ${commissionTotal > 0 ? `
+            <div class="card" style="margin:20px 0;background:#e8f5e9;border-left:4px solid #4caf50;">
+                <h3>💰 Today's Commission</h3>
+                <p style="color:#666;font-size:13px;margin-bottom:15px;">40% commission on labor (Total - Parts Cost)</p>
+                <div style="background:white;border-radius:8px;padding:15px;">
+                    <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:bold;">
+                        <span>Commission Earned:</span>
+                        <span style="color:#4caf50;">₱${commissionTotal.toFixed(2)}</span>
+                    </div>
+                    <p style="font-size:12px;color:#666;margin-top:10px;">
+                        ℹ️ Commission is deducted from your remittance amount and credited to you via your selected payment method.
                     </p>
-                ` : ''}
-                ${dateRemittance.verificationNotes ? `
-                    <div style="margin-top:10px;padding:10px;background:rgba(0,0,0,0.05);border-radius:5px;">
-                        <strong>Verification Notes:</strong>
-                        <p style="margin:5px 0 0 0;">${dateRemittance.verificationNotes}</p>
-                    </div>
-                ` : ''}
-                
-                ${(dateRemittance.totalCommission || dateRemittance.commissionEarned || 0) > 0 ? `
-                    <div style="margin-top:15px;padding:12px;background:${dateRemittance.commissionPaid ? '#e8f5e9' : '#fff3cd'};border-radius:8px;border-left:4px solid ${dateRemittance.commissionPaid ? '#4caf50' : '#ff9800'};">
-                        <strong style="font-size:14px;">💰 Your Commission: ₱${(dateRemittance.totalCommission || dateRemittance.commissionEarned || 0).toFixed(2)}</strong><br>
-                        <small style="color:#666;display:block;margin-top:5px;">
-                            Payment Method: ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : dateRemittance.commissionPaymentPreference === 'gcash' ? '📱 GCash' : 'Not specified'}<br>
-                            Status: ${dateRemittance.commissionPaid ? 
-                                `<strong style="color:#4caf50;">✅ PAID</strong> by ${dateRemittance.commissionPaidBy} on ${utils.formatDateTime(dateRemittance.commissionPaidAt)}` : 
-                                `<strong style="color:#ff9800;">⏳ NOT YET PAID</strong> - Will be paid at end of day`
-                            }
-                            ${dateRemittance.commissionPaymentNotes ? `<br>Notes: ${dateRemittance.commissionPaymentNotes}` : ''}
-                        </small>
-                    </div>
-                ` : ''}
-            </div>
-        ` : ''}
-        
-        <!-- Cash Payments -->
-        <div class="card" style="margin:20px 0;">
-            <h3>💵 Cash Payments Collected (${payments.length})</h3>
-            <p style="color:#666;font-size:14px;margin-bottom:15px;">Cash you physically collected - must be remitted</p>
-            ${payments.length > 0 ? `
-                <div class="repairs-list">
-                    ${payments.map(p => `
-                        <div class="repair-card" style="border-left-color:#2196f3;">
-                            <div style="display:flex;justify-content:space-between;align-items:start;">
-                                <div>
-                                    <h4>${p.customerName}</h4>
-                                    <p style="font-size:13px;color:#666;">
-                                        💵 ${p.method} • ${utils.formatDateTime(p.recordedDate)}
-                                    </p>
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-size:20px;font-weight:600;color:#4caf50;">₱${p.amount.toFixed(2)}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            ` : '<p style="color:#999;text-align:center;padding:20px;">No cash payments collected today</p>'}
-        </div>
-        
-        <!-- Commission Earned Today -->
-        ${totalCommission > 0 ? `
-            <div class="card" style="margin:20px 0;background:#e8f5e9;">
-                <h3>💰 Commission Earned Today</h3>
-                <p style="color:#666;font-size:14px;margin-bottom:15px;">
-                    40% commission on labor (Total - Parts Cost) - Paid separately at end of day
-                </p>
-                
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px;margin:15px 0;">
-                    ${cashCommission > 0 ? `
-                        <div class="stat-card" style="background:white;border-left:4px solid #2196f3;">
-                            <h3>₱${cashCommission.toFixed(2)}</h3>
-                            <p>💵 From Cash Repairs</p>
-                            <small>${cashRepairCount} repair(s)</small>
-                        </div>
-                    ` : ''}
-                    
-                    ${gcashCommission > 0 ? `
-                        <div class="stat-card" style="background:white;border-left:4px solid #00bcd4;">
-                            <h3>₱${gcashCommission.toFixed(2)}</h3>
-                            <p>📱 From GCash Repairs</p>
-                            <small>${gcashRepairCount} repair(s)</small>
-                        </div>
-                    ` : ''}
-                    
-                    <div class="stat-card" style="background:#4caf50;color:white;border-left:4px solid #2e7d32;">
-                        <h3>₱${totalCommission.toFixed(2)}</h3>
-                        <p>🎯 Total Commission</p>
-                        <small>Paid at end of day</small>
-                    </div>
-                </div>
-                
-                ${dateRemittance ? `
-                    ${dateRemittance.commissionPaid ? `
-                        <div style="background:#e8f5e9;padding:12px;border-radius:8px;border-left:4px solid #4caf50;margin-top:10px;">
-                            <strong>✅ Commission Payment Status: PAID</strong><br>
-                            <small style="color:#666;">
-                                Paid by: ${dateRemittance.commissionPaidBy}<br>
-                                Date: ${utils.formatDateTime(dateRemittance.commissionPaidAt)}<br>
-                                Method: ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : '📱 GCash'}<br>
-                                ${dateRemittance.commissionPaymentNotes ? `Notes: ${dateRemittance.commissionPaymentNotes}` : ''}
-                            </small>
-                        </div>
-                    ` : dateRemittance.commissionPaymentPreference ? `
-                        <div style="background:#fff3cd;padding:12px;border-radius:8px;border-left:4px solid #ff9800;margin-top:10px;">
-                            <strong>📋 Payment Preference: ${dateRemittance.commissionPaymentPreference === 'cash' ? '💵 Cash' : '📱 GCash'}</strong><br>
-                            <small style="color:#666;">⏳ Payment will be made after remittance approval</small>
-                        </div>
-                    ` : ''}
-                ` : ''}
-                
-                <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-top:15px;border-left:4px solid #2196f3;">
-                    <strong>💡 Important:</strong><br>
-                    <small style="color:#666;">
-                        • Commission is NOT deducted from your cash remittance<br>
-                        • You will receive your commission separately at end of day<br>
-                        • Choose Cash or GCash payment when submitting remittance
-                    </small>
                 </div>
             </div>
         ` : ''}
-        
-        <!-- GCash Payments (Tracking Only) -->
-        ${gcashPayments.length > 0 ? `
-            <div class="card" style="margin:20px 0;background:#e1f5fe;">
-                <h3>📱 GCash Payments Processed (${gcashPayments.length})</h3>
-                <p style="color:#666;font-size:14px;margin-bottom:15px;">
-                    GCash payments went directly to shop account - NOT included in cash remittance
-                </p>
-                <div class="repairs-list">
-                    ${gcashPayments.map(gp => {
-                        return `
-                            <div class="repair-card" style="border-left-color:#00bcd4;background:white;">
-                                <div style="display:flex;justify-content:space-between;align-items:start;">
-                                    <div style="flex:1;">
-                                        <h4>${gp.customerName}</h4>
-                                        <p style="font-size:13px;color:#666;">
-                                            📱 GCash • ${utils.formatDateTime(gp.recordedDate)}<br>
-                                            Ref: <code style="background:#f5f5f5;padding:2px 6px;border-radius:3px;font-size:12px;">${gp.gcashReferenceNumber || 'N/A'}</code>
-                                        </p>
-                                    </div>
-                                    <div style="text-align:right;">
-                                        <div style="font-size:20px;font-weight:600;color:#00bcd4;">₱${gp.amount.toFixed(2)}</div>
-                                        <span style="font-size:11px;color:#666;">→ Shop Account</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        ` : ''}
-        
-        <!-- Today's Expenses -->
-        <div class="card" style="margin:20px 0;">
-            <h3>💸 Today's Expenses (${expenses.length})</h3>
-            ${expenses.length > 0 ? `
-                <div class="repairs-list">
-                    ${expenses.map(e => `
-                        <div class="repair-card" style="border-left-color:#ff9800;">
-                            <div style="display:flex;justify-content:space-between;align-items:start;">
-                                <div style="flex:1;">
-                                    <h4>${e.description}</h4>
-                                    <p style="font-size:13px;color:#666;">
-                                        ${e.category} • ${e.type === 'repair-specific' ? 'Repair-Specific' : 'General'}
-                                    </p>
-                                    ${e.notes ? `<p style="font-size:12px;color:#999;margin-top:5px;">${e.notes}</p>` : ''}
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-size:18px;font-weight:600;color:#f44336;">-₱${e.amount.toFixed(2)}</div>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            ` : '<p style="color:#999;text-align:center;padding:20px;">No expenses recorded today</p>'}
-        </div>
-        
-        <!-- Remittance History -->
-        <div class="card" style="margin:20px 0;">
-            <h3>📋 Remittance History</h3>
-            ${recentRemittances.length > 0 ? `
-                <div class="repairs-list">
-                    ${recentRemittances.map(r => `
-                        <div class="repair-card" style="border-left-color:#${r.status === 'approved' ? '4caf50' : (r.status === 'rejected' ? 'f44336' : 'ff9800')};">
-                            <div style="display:flex;justify-content:space-between;align-items:start;">
-                                <div style="flex:1;">
-                                    <h4>${utils.formatDate(r.date)}</h4>
-                                    <p style="font-size:13px;color:#666;">
-                                        ${(r.paymentsList || []).length} payment(s) • ${(r.expensesList || []).length} expense(s)
-                                    </p>
-                                    <p style="font-size:12px;color:#999;">
-                                        Submitted: ${utils.formatDateTime(r.submittedAt)}
-                                    </p>
-                                </div>
-                                <div style="text-align:right;">
-                                    <div style="font-size:18px;font-weight:600;color:#4caf50;">₱${r.actualAmount.toFixed(2)}</div>
-                                    <span class="status-badge" style="background:#${r.status === 'approved' ? '4caf50' : (r.status === 'rejected' ? 'f44336' : 'ff9800')};color:white;font-size:11px;">
-                                        ${r.status === 'approved' ? '✅ Approved' : (r.status === 'rejected' ? '❌ Rejected' : '⏳ Pending')}
-                                    </span>
-                                </div>
-                            </div>
-                            ${Math.abs(r.discrepancy) > 0.01 ? `
-                                <div style="margin-top:10px;padding:8px;background:rgba(255,152,0,0.1);border-radius:5px;font-size:12px;">
-                                    Discrepancy: ${r.discrepancy > 0 ? '+' : ''}₱${r.discrepancy.toFixed(2)}
-                                </div>
-                            ` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            ` : '<p style="color:#999;text-align:center;padding:20px;">No remittance history</p>'}
-        </div>
     `;
 }
 
