@@ -5547,9 +5547,17 @@ async function confirmRemittance() {
     const techId = window.currentUser.uid;
     const today = new Date();
     const todayDateString = getLocalDateString(today);
-    const actualAmount = parseFloat(document.getElementById('actualRemittanceAmount').value);
-    const notes = document.getElementById('remittanceNotes').value.trim();
-    const recipientId = document.getElementById('remittanceRecipient').value;
+    
+    // Get the HTML modal to read values from the correct elements
+    const modal = document.getElementById('remittanceModal');
+    if (!modal) {
+        alert('Modal not found');
+        return;
+    }
+    
+    const actualAmount = parseFloat(modal.querySelector('#actualRemittanceAmount').value);
+    const notes = modal.querySelector('#remittanceNotes').value.trim();
+    const recipientId = modal.querySelector('#remittanceRecipient').value;
     
     // Validate recipient selection
     if (!recipientId) {
@@ -5570,13 +5578,13 @@ async function confirmRemittance() {
     }
     
     // Get commission payment preference
-    const commissionPreferenceSelect = document.getElementById('commissionPaymentPreference');
+    const commissionPreferenceSelect = modal.querySelector('#commissionPaymentPreference');
     const commissionPaymentPreference = commissionPreferenceSelect ? commissionPreferenceSelect.value : '';
     
     // Get manual override fields
-    const hasManualOverride = document.getElementById('hasManualCommission').checked;
-    const manualCommission = hasManualOverride ? parseFloat(document.getElementById('manualCommissionAmount').value) : null;
-    const overrideReason = hasManualOverride ? document.getElementById('manualCommissionReason').value.trim() : '';
+    const hasManualOverride = modal.querySelector('#hasManualCommission').checked;
+    const manualCommission = hasManualOverride ? parseFloat(modal.querySelector('#manualCommissionAmount').value) : null;
+    const overrideReason = hasManualOverride ? modal.querySelector('#manualCommissionReason').value.trim() : '';
     
     if (isNaN(actualAmount) || actualAmount < 0) {
         alert('Please enter a valid remittance amount');
@@ -5785,20 +5793,27 @@ async function confirmSingleDayRemittance() {
     const today = new Date();
     const todayDateString = getLocalDateString(today);
     
-    // Get values from modal
-    const dateString = document.getElementById('remittanceDateString').value;
-    const actualAmount = parseFloat(document.getElementById('actualRemittanceAmount').value);
-    const notes = document.getElementById('remittanceNotes').value.trim();
-    const recipientId = document.getElementById('remittanceRecipient').value;
-    const expectedAmount = parseFloat(document.getElementById('remittanceExpectedAmount').value);
-    const paymentsTotal = parseFloat(document.getElementById('remittancePaymentsTotal').value);
-    const expensesTotal = parseFloat(document.getElementById('remittanceExpensesTotal').value);
-    const commissionDeduction = parseFloat(document.getElementById('remittanceCommissionDeduction').value);
-    const hasOlderPending = document.getElementById('hasOlderPending').value === 'true';
+    // Get the modal to read values from the correct elements
+    const modal = document.getElementById('singleDayRemittanceModal');
+    if (!modal) {
+        alert('Modal not found');
+        return;
+    }
+    
+    // Get values from modal - use querySelector to get elements from THIS modal
+    const dateString = modal.querySelector('#remittanceDateString').value;
+    const actualAmount = parseFloat(modal.querySelector('#actualRemittanceAmount').value);
+    const notes = modal.querySelector('#remittanceNotes').value.trim();
+    const recipientId = modal.querySelector('#remittanceRecipient').value;
+    const expectedAmount = parseFloat(modal.querySelector('#remittanceExpectedAmount').value);
+    const paymentsTotal = parseFloat(modal.querySelector('#remittancePaymentsTotal').value);
+    const expensesTotal = parseFloat(modal.querySelector('#remittanceExpensesTotal').value);
+    const commissionDeduction = parseFloat(modal.querySelector('#remittanceCommissionDeduction').value);
+    const hasOlderPending = modal.querySelector('#hasOlderPending').value === 'true';
     const isToday = dateString === todayDateString;
     
     // Get commission payment preference if commission exists
-    const commissionPaymentPreferenceSelect = document.getElementById('commissionPaymentPreference');
+    const commissionPaymentPreferenceSelect = modal.querySelector('#commissionPaymentPreference');
     const commissionPaymentPreference = commissionPaymentPreferenceSelect ? commissionPaymentPreferenceSelect.value : '';
     
     // Validate
