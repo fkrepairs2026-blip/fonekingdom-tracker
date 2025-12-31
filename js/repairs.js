@@ -4988,9 +4988,11 @@ function openSingleDayRemittanceModal(dateString) {
     const displayDate = new Date(dateString + 'T00:00:00');
     const dateDisplay = isToday ? 'Today' : utils.formatDate(dateString);
     
-    // DEBUG: Check what's in the user objects
+    // DEBUG: Check all fields in users
     const allUsersDebug = Object.values(window.allUsers || {});
-    alert('First user object: ' + JSON.stringify(allUsersDebug[0], null, 2));
+    const allFields = new Set();
+    allUsersDebug.forEach(u => Object.keys(u).forEach(k => allFields.add(k)));
+    alert('All user fields: ' + Array.from(allFields).join(', '));
     
     // Get eligible recipients (admin, manager, cashier)
     const eligibleRecipients = Object.values(window.allUsers || {})
