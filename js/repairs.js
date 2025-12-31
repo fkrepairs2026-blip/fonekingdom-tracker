@@ -4430,6 +4430,49 @@ function getTechDailyPayments(techId, date) {
 }
 
 /**
+ * Get ALL pending payments for a technician (any date) - for remittance submission
+ */
+function getAllPendingPayments(techId) {
+    const payments = [];
+    let total = 0;
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.payments) {
+            repair.payments.forEach((payment, index) => {
+                const paymentMethod = payment.method || 'Cash';
+                
+                // Include ALL pending cash payments regardless of date
+                if (payment.collectedByTech && 
+                    payment.receivedById === techId && 
+                    paymentMethod === 'Cash' &&
+                    payment.remittanceStatus === 'pending' &&
+                    !payment.techRemittanceId) {
+                    
+                    const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                    
+                    payments.push({
+                        repairId: repair.id,
+                        paymentIndex: index,
+                        customerName: repair.customerName,
+                        amount: payment.amount,
+                        method: payment.method,
+                        paymentDate: payment.paymentDate,
+                        recordedDate: payment.recordedDate,
+                        dateString: getLocalDateString(paymentDate)
+                    });
+                    total += payment.amount;
+                }
+            });
+        }
+    });
+    
+    // Sort by date (oldest first)
+    payments.sort((a, b) => new Date(a.recordedDate || a.paymentDate) - new Date(b.recordedDate || b.paymentDate));
+    
+    return { payments, total };
+}
+
+/**
  * Get technician's daily GCash payments (for display only, not remittance)
  */
 function getTechDailyGCashPayments(techId, date) {
@@ -4667,6 +4710,76 @@ function getTechDailyCommission(techId, date) {
 }
 
 /**
+ * Get ALL pending commission for a technician (any date) - for remittance submission
+ */
+function getAllPendingCommission(techId) {
+    const breakdown = [];
+    
+    window.allRepairs.forEach(repair => {
+        // Check if commission NOT yet claimed
+        if (repair.acceptedBy === techId && 
+            repair.status === 'Claimed' && 
+            !repair.commissionClaimedBy) {
+            
+            // Check if repair is fully paid
+            const totalPaid = (repair.payments || [])
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + p.amount, 0);
+            
+            if (totalPaid >= (repair.total || 0)) {
+                // Calculate commission
+                const commission = calculateRepairCommission(repair, techId);
+                
+                if (commission.eligible && commission.amount > 0) {
+                    // Find when it was fully paid (for date grouping)
+                    let fullyPaidDate = null;
+                    let runningTotal = 0;
+                    const repairTotal = repair.total || 0;
+                    
+                    if (repair.payments) {
+                        const sortedPayments = [...repair.payments]
+                            .filter(p => p.verified)
+                            .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
+                        
+                        for (const payment of sortedPayments) {
+                            runningTotal += payment.amount;
+                            if (runningTotal >= repairTotal) {
+                                fullyPaidDate = new Date(payment.verifiedAt || payment.recordedDate);
+                                break;
+                            }
+                        }
+                    }
+                    
+                    breakdown.push({
+                        repairId: repair.id,
+                        customerName: repair.customerName,
+                        deviceInfo: `${repair.brand} ${repair.model}`,
+                        repairType: repair.repairType || 'General Repair',
+                        repairTotal: commission.breakdown.repairTotal,
+                        partsCost: commission.breakdown.partsCost,
+                        deliveryExpenses: commission.breakdown.deliveryExpenses,
+                        netAmount: commission.breakdown.netAmount,
+                        commission: commission.amount,
+                        dateString: fullyPaidDate ? getLocalDateString(fullyPaidDate) : getLocalDateString(new Date())
+                    });
+                }
+            }
+        }
+    });
+    
+    // Sort by date (oldest first)
+    breakdown.sort((a, b) => {
+        const dateA = new Date(a.dateString + 'T00:00:00');
+        const dateB = new Date(b.dateString + 'T00:00:00');
+        return dateA - dateB;
+    });
+    
+    const total = breakdown.reduce((sum, item) => sum + item.commission, 0);
+    
+    return { breakdown, total };
+}
+
+/**
  * Toggle manual commission fields
  */
 function toggleManualCommissionFields() {
@@ -4758,11 +4871,11 @@ function openRemittanceModal() {
         return;
     }
     
-    // Get today's data
+    // Get ALL pending data (not just today - includes historical items)
     const todayDateString = getLocalDateString(today);
-    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, todayDateString);
-    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString);
-    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, todayDateString);
+    const { payments, total: paymentsTotal } = getAllPendingPayments(techId);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString); // Expenses stay date-specific
+    const { breakdown: commissionBreakdown, total: commissionTotal } = getAllPendingCommission(techId);
     
     // Calculate commission breakdown by payment method (Cash vs GCash)
     let cashCommission = 0;
@@ -4827,12 +4940,36 @@ function openRemittanceModal() {
         return;
     }
     
-    // Show info message if including historical items
-    if ((hasHistoricalPending || hasUnclaimedCommission) && !hasTodayItems) {
-        alert('ℹ️ Remitting Historical Items\n\nYou are submitting a remittance that includes:\n' +
-              (hasHistoricalPending ? '• Pending payments from previous dates\n' : '') +
-              (hasUnclaimedCommission ? '• Unclaimed commission from completed repairs\n' : '') +
-              '\nNo new transactions from today.');
+    // Show detailed info message if including historical items
+    const paymentsByDate = {};
+    payments.forEach(p => {
+        const dateStr = p.dateString;
+        if (!paymentsByDate[dateStr]) {
+            paymentsByDate[dateStr] = { count: 0, total: 0 };
+        }
+        paymentsByDate[dateStr].count++;
+        paymentsByDate[dateStr].total += p.amount;
+    });
+    
+    const dates = Object.keys(paymentsByDate).sort();
+    const todayStr = getLocalDateString(today);
+    const historicalDates = dates.filter(d => d !== todayStr);
+    
+    if (historicalDates.length > 0) {
+        let message = '💡 Including Historical Payments\n\n';
+        message += 'Your remittance will include:\n\n';
+        
+        dates.forEach(dateStr => {
+            const isToday = dateStr === todayStr;
+            const data = paymentsByDate[dateStr];
+            message += `${isToday ? '📅 Today' : '⚠️ ' + utils.formatDate(dateStr)}: ${data.count} payment(s) = ₱${data.total.toFixed(2)}\n`;
+        });
+        
+        message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `TOTAL: ${payments.length} payment(s) = ₱${paymentsTotal.toFixed(2)}\n\n`;
+        message += 'All pending items will be submitted together in one remittance.';
+        
+        alert(message);
     }
     
     // NEW CALCULATION: Cash remittance does NOT deduct commission
@@ -4908,16 +5045,69 @@ function openRemittanceModal() {
         </div>
         
         ${payments.length > 0 ? `
-            <div class="remittance-summary-section">
-                <h4>📥 Cash Payments (${payments.length})</h4>
-                <div class="remittance-list">
-                    ${payments.map(p => `
-                        <div class="remittance-item">
-                            <span>${p.customerName}</span>
-                            <span>₱${p.amount.toFixed(2)}</span>
-                        </div>
-                    `).join('')}
-                </div>
+            <div class="card" style="margin:20px 0;">
+                <h3>📥 Cash Payments Breakdown (${payments.length} payment${payments.length > 1 ? 's' : ''})</h3>
+                ${(() => {
+                    // Group payments by date
+                    const paymentsByDate = {};
+                    payments.forEach(p => {
+                        const dateStr = p.dateString;
+                        if (!paymentsByDate[dateStr]) {
+                            paymentsByDate[dateStr] = [];
+                        }
+                        paymentsByDate[dateStr].push(p);
+                    });
+                    
+                    // Check if there are multiple dates
+                    const dates = Object.keys(paymentsByDate).sort();
+                    const hasMultipleDates = dates.length > 1;
+                    const todayStr = getLocalDateString(today);
+                    
+                    // Show warning if historical items included
+                    let html = '';
+                    if (hasMultipleDates) {
+                        const historicalDates = dates.filter(d => d !== todayStr);
+                        if (historicalDates.length > 0) {
+                            html += `
+                                <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                                    <strong>⚠️ Including Historical Items</strong><br>
+                                    <small style="color:#666;">
+                                        This remittance includes payments from ${historicalDates.length} previous date(s).
+                                        All pending items will be submitted together.
+                                    </small>
+                                </div>
+                            `;
+                        }
+                    }
+                    
+                    // Display grouped by date
+                    html += dates.map(dateStr => {
+                        const datePayments = paymentsByDate[dateStr];
+                        const dateTotal = datePayments.reduce((sum, p) => sum + p.amount, 0);
+                        const isToday = dateStr === todayStr;
+                        
+                        return `
+                            <div style="margin:15px 0;padding:15px;background:${isToday ? '#e3f2fd' : '#fff3cd'};border-radius:8px;border-left:4px solid ${isToday ? '#2196f3' : '#ff9800'};">
+                                <h4 style="margin:0 0 10px 0;color:#333;">
+                                    ${isToday ? '📅 Today' : '⚠️ Previous Date'}: ${utils.formatDate(dateStr)}
+                                </h4>
+                                <div class="remittance-list">
+                                    ${datePayments.map(p => `
+                                        <div class="remittance-item" style="background:white;padding:8px;border-radius:4px;margin:5px 0;">
+                                            <span>${p.customerName}</span>
+                                            <span style="font-weight:600;color:#4caf50;">₱${p.amount.toFixed(2)}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                                <div style="text-align:right;margin-top:10px;padding-top:10px;border-top:2px solid rgba(0,0,0,0.1);">
+                                    <strong>Subtotal: ₱${dateTotal.toFixed(2)}</strong>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                    
+                    return html;
+                })()}
             </div>
         ` : ''}
         
@@ -5008,9 +5198,10 @@ async function confirmRemittance() {
         return;
     }
     
-    const { payments, total: paymentsTotal } = getTechDailyPayments(techId, todayDateString);
-    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString);
-    const { breakdown: commissionBreakdown, total: commissionTotal } = getTechDailyCommission(techId, todayDateString);
+    // Use the same functions as openRemittanceModal - get ALL pending items
+    const { payments, total: paymentsTotal } = getAllPendingPayments(techId);
+    const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString); // Expenses stay date-specific
+    const { breakdown: commissionBreakdown, total: commissionTotal } = getAllPendingCommission(techId);
     
     // Calculate commission breakdown by payment method
     let cashCommission = 0;
