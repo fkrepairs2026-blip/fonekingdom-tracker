@@ -4229,12 +4229,12 @@ function buildDailyRemittanceTab(container) {
                                             <div>
                                                 <div style="font-size:12px;color:#666;">Payments Collected</div>
                                                 <div style="font-size:16px;font-weight:bold;">₱${r.totalPaymentsCollected.toFixed(2)}</div>
-                                                <div style="font-size:11px;color:#999;">${r.paymentsList.length} payment(s)</div>
+                                                <div style="font-size:11px;color:#999;">${(r.paymentsList || []).length} payment(s)</div>
                                             </div>
                                             <div>
                                                 <div style="font-size:12px;color:#666;">Expenses</div>
                                                 <div style="font-size:16px;font-weight:bold;color:#f44336;">-₱${r.totalExpenses.toFixed(2)}</div>
-                                                <div style="font-size:11px;color:#999;">${r.expensesList.length} item(s)</div>
+                                                <div style="font-size:11px;color:#999;">${(r.expensesList || []).length} item(s)</div>
                                             </div>
                                             <div>
                                                 <div style="font-size:12px;color:#666;">Commission (40%)</div>
@@ -4310,10 +4310,10 @@ function buildDailyRemittanceTab(container) {
                                         <!-- Payment Details -->
                                         <details style="margin-top:10px;">
                                             <summary style="cursor:pointer;font-weight:bold;color:#2196f3;font-size:13px;">
-                                                View Payment Details (${r.paymentsList.length})
+                                                View Payment Details (${(r.paymentsList || []).length})
                                             </summary>
                                             <div style="margin-top:10px;max-height:200px;overflow-y:auto;">
-                                                ${r.paymentsList.map(p => `
+                                                ${(r.paymentsList || []).map(p => `
                                                     <div style="padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
                                                         <div>
                                                             <div style="font-weight:600;font-size:13px;">${p.customerName}</div>
@@ -4326,13 +4326,13 @@ function buildDailyRemittanceTab(container) {
                                         </details>
                                         
                                         <!-- Expense Details -->
-                                        ${r.expensesList.length > 0 ? `
+                                        ${(r.expensesList || []).length > 0 ? `
                                             <details style="margin-top:10px;">
                                                 <summary style="cursor:pointer;font-weight:bold;color:#f44336;font-size:13px;">
-                                                    View Expense Details (${r.expensesList.length})
+                                                    View Expense Details (${(r.expensesList || []).length})
                                                 </summary>
                                                 <div style="margin-top:10px;max-height:200px;overflow-y:auto;">
-                                                    ${r.expensesList.map(e => `
+                                                    ${(r.expensesList || []).map(e => `
                                                         <div style="padding:8px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;">
                                                             <div>
                                                                 <div style="font-weight:600;font-size:13px;">${e.category}</div>
