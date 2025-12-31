@@ -6727,10 +6727,9 @@ async function approveRemittance() {
         alert('✅ Remittance approved and all payments verified!');
         closeVerifyRemittanceModal();
         
+        // Auto-close and refresh page
         setTimeout(() => {
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
+            location.reload();
         }, 300);
     } catch (error) {
         utils.showLoading(false);
@@ -6866,10 +6865,9 @@ async function rejectRemittance() {
         alert('❌ Remittance rejected. Technician can resubmit with corrections.');
         closeVerifyRemittanceModal();
         
+        // Auto-close and refresh page
         setTimeout(() => {
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
+            location.reload();
         }, 300);
     } catch (error) {
         utils.showLoading(false);
@@ -9157,7 +9155,10 @@ async function createUser(event) {
         
         closeCreateUserModal();
         
-        // Firebase listener will auto-refresh the page
+        // Auto-close and refresh page
+        setTimeout(() => {
+            location.reload();
+        }, 300);
         
     } catch (error) {
         utils.showLoading(false);
@@ -9327,7 +9328,10 @@ async function updateUser(event) {
         
         closeEditUserModal();
         
-        // Firebase listener will auto-refresh the page
+        // Auto-close and refresh page
+        setTimeout(() => {
+            location.reload();
+        }, 300);
         
     } catch (error) {
         utils.showLoading(false);

@@ -143,7 +143,10 @@ async function addInventoryItem(itemData) {
         // Reload inventory
         await loadInventory();
         
-        // Firebase listener will auto-refresh the page
+        // Auto-close and refresh page
+        setTimeout(() => {
+            location.reload();
+        }, 300);
         
         return itemId;
     } catch (error) {
@@ -178,7 +181,10 @@ async function updateInventoryItem(itemId, updates) {
         // Reload inventory
         await loadInventory();
         
-        // Firebase listener will auto-refresh the page
+        // Auto-close and refresh page
+        setTimeout(() => {
+            location.reload();
+        }, 300);
     } catch (error) {
         utils.showLoading(false);
         console.error('Error updating inventory item:', error);
@@ -388,7 +394,10 @@ async function addSupplier(supplierData) {
         // Reload suppliers
         await loadSuppliers();
         
-        // Firebase listener will auto-refresh the page
+        // Auto-close and refresh page
+        setTimeout(() => {
+            location.reload();
+        }, 300);
         
         return supplierId;
     } catch (error) {
@@ -417,7 +426,10 @@ async function updateSupplier(supplierId, updates) {
         // Reload suppliers
         await loadSuppliers();
         
-        // Firebase listener will auto-refresh the page
+        // Auto-close and refresh page
+        setTimeout(() => {
+            location.reload();
+        }, 300);
     } catch (error) {
         utils.showLoading(false);
         console.error('Error updating supplier:', error);
