@@ -1925,6 +1925,19 @@ function renderReleasedButtons(r, role) {
         `;
     }
 
+    // Payment button (for unpaid/partially paid devices)
+    const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+    const balance = r.total - totalPaid;
+    const hidePaymentActions = role === 'technician';
+    
+    if (!hidePaymentActions && r.total > 0 && balance > 0) {
+        buttons += `
+            <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">
+                💰 Payment (₱${balance.toFixed(2)})
+            </button>
+        `;
+    }
+
     // Finalize button (all roles can finalize)
     buttons += `
         <button class="btn-small btn-success" onclick="finalizeClaimDevice('${r.id}', false)" 
@@ -1967,6 +1980,19 @@ function renderReleasedButtons(r, role) {
  */
 function renderClaimedButtons(r, role) {
     let buttons = '';
+
+    // Payment button (for unpaid/partially paid devices)
+    const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+    const balance = r.total - totalPaid;
+    const hidePaymentActions = role === 'technician';
+    
+    if (!hidePaymentActions && r.total > 0 && balance > 0) {
+        buttons += `
+            <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">
+                💰 Payment (₱${balance.toFixed(2)})
+            </button>
+        `;
+    }
 
     // Warranty claim button (admin/manager only)
     if (role === 'admin' || role === 'manager') {
