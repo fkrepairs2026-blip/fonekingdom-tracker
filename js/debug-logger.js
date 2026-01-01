@@ -279,12 +279,12 @@ Data: ${JSON.stringify(log.data, null, 2)}
 
         console.log('📊 REPAIR OVERVIEW:');
         console.log(`   Total Repairs: ${allRepairs.filter(r => !r.deleted).length}`);
-        console.log(`   Your Repairs: ${techRepairs.length}`);
-        console.log(`   Released: ${techRepairs.filter(r => r.status === 'Released').length}`);
-        console.log(`   For Release: ${techRepairs.filter(r => r.status === 'Ready for Pickup').length}\n`);
+        console.log(`   Released: ${allRepairs.filter(r => r.status === 'Released' && !r.deleted).length}`);
+        console.log(`   Claimed: ${allRepairs.filter(r => r.status === 'Claimed' && !r.deleted).length}`);
+        console.log(`   For Release: ${allRepairs.filter(r => r.status === 'Ready for Pickup' && !r.deleted).length}\n`);
 
-        // Analyze each repair in detail
-        techRepairs.forEach((repair, index) => {
+        // Analyze ALL repairs in detail (not just tech repairs)
+        allRepairs.filter(r => !r.deleted).forEach((repair, index) => {
             console.log(`\n📱 DEVICE ${index + 1}: ${repair.customerName || 'Unknown'}`);
             console.log('   ID:', repair.id);
             console.log('   Status:', repair.status);
