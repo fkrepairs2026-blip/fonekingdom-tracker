@@ -338,12 +338,12 @@ function buildAdminDashboard(userName, stats) {
         '✅'
     )}
                 ${utils.createStatCard(
-        'Active Repairs',
+        'All Devices',
         stats.totalActive,
         `${stats.inProgress} in progress`,
         'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         'all',
-        '🔧'
+        '📱'
     )}
                 ${utils.createStatCard(
         'Avg Completion Time',

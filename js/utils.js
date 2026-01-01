@@ -320,11 +320,23 @@ const utils = {
                 r.acceptedBy === currentUserId && r.status === 'Ready for Pickup'
             ).length;
             
-            // Commission tracking
+            // Count Released and Claimed devices by this tech
+            stats.myClaimedCount = activeRepairs.filter(r => 
+                r.acceptedBy === currentUserId && 
+                (r.status === 'Released' || r.status === 'Claimed') &&
+                !r.deleted
+            ).length;
+            
+            // Commission tracking - include both Released and Claimed devices
             stats.myCommissionThisMonth = activeRepairs.filter(r => {
-                if (r.acceptedBy !== currentUserId || !r.commissionAmount || !r.claimedAt) return false;
-                const claimed = new Date(r.claimedAt);
-                return claimed.getMonth() === now.getMonth() && claimed.getFullYear() === now.getFullYear();
+                if (r.acceptedBy !== currentUserId || !r.commissionAmount) return false;
+                
+                // Check finalization date (Released uses releasedAt, Claimed uses claimedAt)
+                const finalizeDate = r.claimedAt || r.releasedAt;
+                if (!finalizeDate) return false;
+                
+                const finalized = new Date(finalizeDate);
+                return finalized.getMonth() === now.getMonth() && finalized.getFullYear() === now.getFullYear();
             }).reduce((sum, r) => sum + (parseFloat(r.commissionAmount) || 0), 0);
             
             // Remittance status
@@ -368,14 +380,15 @@ const utils = {
                 return completed >= today;
             }).length;
             
-            // Daily revenue
+            // Daily revenue (shop's 60% share after 40% tech commission)
             stats.revenueToday = activeRepairs.reduce((sum, r) => {
                 const verifiedPayments = (r.payments || []).filter(p => {
                     if (!p.verified) return false;
                     const payDate = new Date(p.recordedDate || p.paymentDate);
                     return payDate >= today;
                 });
-                return sum + verifiedPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                const totalPayments = verifiedPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+                return sum + (totalPayments * 0.6); // Shop's 60% share
             }, 0);
             
             // Average completion time this week
