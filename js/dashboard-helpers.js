@@ -20,7 +20,7 @@ function buildTechnicianDashboard(userName, stats) {
                     stats.myActiveJobs,
                     'Currently in progress',
                     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'myJobs',
+                    'my',
                     '🔧'
                 )}
                 ${utils.createStatCard(
@@ -28,7 +28,7 @@ function buildTechnicianDashboard(userName, stats) {
                     stats.myCompletedToday,
                     'Finished repairs',
                     'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-                    'myJobs',
+                    'my',
                     '✅'
                 )}
                 ${utils.createStatCard(
@@ -36,7 +36,7 @@ function buildTechnicianDashboard(userName, stats) {
                     stats.myReadyForPickup,
                     'Awaiting customer',
                     'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'forRelease',
+                    'forrelease',
                     '📦'
                 )}
                 ${utils.createStatCard(
@@ -56,14 +56,14 @@ function buildTechnicianDashboard(userName, stats) {
                         'Pending Remittance',
                         stats.pendingRemittanceCount,
                         'high',
-                        'dailyRemittance',
+                        'remittance',
                         '📤'
                     )}
                     ${utils.createAlertCard(
                         'Pending Customer Approval',
                         stats.pendingApproval,
                         'medium',
-                        'inProgress',
+                        'inprogress',
                         '⏳'
                     )}
                 </div>
@@ -123,7 +123,7 @@ function buildCashierDashboard(userName, stats) {
                     stats.readyForPickup,
                     'Awaiting customer pickup',
                     'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'forRelease',
+                    'forrelease',
                     '📦'
                 )}
                 ${utils.createStatCard(
@@ -133,7 +133,7 @@ function buildCashierDashboard(userName, stats) {
                     stats.cashCountDone 
                         ? 'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)'
                         : 'linear-gradient(135deg, #ff922b 0%, #fd7e14 100%)',
-                    'cashCount',
+                    'cash',
                     '💰'
                 )}
             </div>
@@ -145,14 +145,14 @@ function buildCashierDashboard(userName, stats) {
                         'Remittances to Verify',
                         stats.pendingRemittances,
                         'high',
-                        'verifyRemittance',
+                        'verify-remittance',
                         '📥'
                     )}
                     ${utils.createAlertCard(
                         'Overdue Pickups (>3 days)',
                         stats.overduePickup,
                         'medium',
-                        'forRelease',
+                        'forrelease',
                         '⚠️'
                     )}
                 </div>
@@ -224,7 +224,7 @@ function buildManagerDashboard(userName, stats) {
                     stats.inProgress,
                     'Active repairs',
                     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'inProgress',
+                    'inprogress',
                     '🔧'
                 )}
                 ${utils.createStatCard(
@@ -244,21 +244,21 @@ function buildManagerDashboard(userName, stats) {
                         'Stale Repairs (>5 days)',
                         stats.staleInProgress,
                         'high',
-                        'inProgress',
+                        'inprogress',
                         '🔴'
                     )}
                     ${utils.createAlertCard(
                         'Overdue Pickups (>3 days)',
                         stats.overduePickup,
                         'medium',
-                        'forRelease',
+                        'forrelease',
                         '⚠️'
                     )}
                     ${utils.createAlertCard(
                         'Pending Remittances',
                         stats.pendingRemittances,
                         'medium',
-                        'verifyRemittance',
+                        'verify-remittance',
                         '📥'
                     )}
                 </div>
@@ -334,7 +334,7 @@ function buildAdminDashboard(userName, stats) {
                     stats.totalActive,
                     `${stats.inProgress} in progress`,
                     'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'allRepairs',
+                    'all',
                     '🔧'
                 )}
                 ${utils.createStatCard(
@@ -361,21 +361,21 @@ function buildAdminDashboard(userName, stats) {
                         'Stale Repairs (>5 days)',
                         stats.staleInProgress,
                         'high',
-                        'inProgress',
+                        'inprogress',
                         '🔴'
                     )}
                     ${utils.createAlertCard(
                         'Overdue Pickups (>3 days)',
                         stats.overduePickup,
                         'medium',
-                        'forRelease',
+                        'forrelease',
                         '⚠️'
                     )}
                     ${utils.createAlertCard(
                         'Pending Remittances',
                         stats.pendingRemittances,
                         'medium',
-                        'verifyRemittance',
+                        'verify-remittance',
                         '📥'
                     )}
                 </div>
