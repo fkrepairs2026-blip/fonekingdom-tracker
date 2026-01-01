@@ -7328,7 +7328,7 @@ async function confirmGCashRemittance() {
                 customerName: p.customerName,
                 amount: p.amount,
                 method: 'GCash',
-                gcashReferenceNumber: p.gcashReferenceNumber
+                gcashReferenceNumber: p.gcashReferenceNumber || ''  // Handle undefined
             })),
             // Commission (40% of GCash total)
             totalCommission: commissionAmount,
