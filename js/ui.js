@@ -4746,15 +4746,15 @@ function buildRemittanceVerificationTab(container) {
         `}
         
         <!-- For Others Section (Admin can override) -->
-        ${forOthers.length > 0 && isAdmin ? `
+        ${cashForOthers.length > 0 && isAdmin ? `
             <div class="card" style="margin:20px 0;">
-                <h3>👥 Remittances For Other Staff (${forOthers.length})</h3>
+                <h3>👥 Remittances For Other Staff (${cashForOthers.length})</h3>
                 <p style="color:#666;margin-bottom:15px;">
                     ⚠️ These were submitted to other staff members. As admin, you can verify them if needed.
                 </p>
                 
                 <div class="repairs-list">
-                    ${forOthers.map(r => `
+                    ${cashForOthers.map(r => `
                         <div class="repair-card">
                             <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
                                 <div style="flex:1;">
@@ -4777,10 +4777,10 @@ function buildRemittanceVerificationTab(container) {
                     `).join('')}
                 </div>
             </div>
-        ` : forOthers.length > 0 ? `
+        ` : cashForOthers.length > 0 ? `
             <div class="card" style="margin:20px 0;background:#f5f5f5;">
                 <p style="text-align:center;color:#666;padding:20px;">
-                    📋 ${forOthers.length} remittance(s) submitted to other staff members
+                    📋 ${cashForOthers.length} remittance(s) submitted to other staff members
                 </p>
             </div>
         ` : ''}
