@@ -4550,7 +4550,8 @@ html {
 .rate-limit-warning strong {
     display: block;
     margin-bottom: 0.5rem;
-} 
+}
+ 
  
 /* ===== HELP SYSTEM STYLING ===== */
 
@@ -4711,5 +4712,270 @@ html {
     
     .help-box summary {
         font-size: 14px;
+    }
+}
+
+/* ===== DASHBOARD STYLES ===== */
+
+/* Dashboard Container */
+.dashboard-container {
+    padding: 20px;
+}
+
+/* Dashboard Stats Grid - Primary Metrics */
+.dashboard-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+/* Dashboard Stat Card */
+.dashboard-stat-card {
+    position: relative;
+    padding: 25px;
+    border-radius: var(--radius-lg);
+    color: white;
+    overflow: hidden;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: var(--shadow-md);
+}
+
+.dashboard-stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.dashboard-stat-card[onclick] {
+    cursor: pointer;
+}
+
+.stat-card-gradient {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.dashboard-stat-card:hover .stat-card-gradient {
+    opacity: 0.9;
+}
+
+/* Dashboard Alerts Grid - Secondary Alerts */
+.dashboard-alerts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+/* Dashboard Alert Card */
+.dashboard-alert-card {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+    border-radius: var(--radius-md);
+    color: white;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+}
+
+.dashboard-alert-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.alert-icon {
+    font-size: 32px;
+    flex-shrink: 0;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-count {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.alert-title {
+    font-size: 13px;
+    opacity: 0.95;
+}
+
+/* Quick Stats Row */
+.quick-stats {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    padding: 20px;
+    background: var(--bg-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+.quick-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 10px 20px;
+    border-left: 3px solid var(--primary);
+    flex: 1;
+    min-width: 120px;
+}
+
+.quick-stat-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.quick-stat-value {
+    font-size: 24px;
+    font-weight: bold;
+    color: var(--text-primary);
+}
+
+/* Activity Feed */
+.activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: var(--bg-white);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.2s ease;
+}
+
+.activity-item:hover {
+    background: var(--bg-secondary);
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-text {
+    font-size: 14px;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+
+.activity-time {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    background: var(--bg-white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+}
+
+/* Mobile Dashboard Responsiveness */
+@media (max-width: 768px) {
+    .dashboard-container {
+        padding: 10px;
+    }
+    
+    .dashboard-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+    
+    .dashboard-stat-card {
+        padding: 15px;
+    }
+    
+    .dashboard-stat-card > div:nth-child(1) {
+        font-size: 11px !important;
+    }
+    
+    .dashboard-stat-card > div:nth-child(2) {
+        font-size: 24px !important;
+    }
+    
+    .dashboard-stat-card > div:nth-child(3) {
+        font-size: 10px !important;
+    }
+    
+    .dashboard-alerts-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .dashboard-alert-card {
+        padding: 15px;
+    }
+    
+    .alert-count {
+        font-size: 22px;
+    }
+    
+    .alert-title {
+        font-size: 12px;
+    }
+    
+    .quick-stats {
+        padding: 15px;
+        gap: 15px;
+    }
+    
+    .quick-stat-item {
+        min-width: 100px;
+        padding: 8px 15px;
+    }
+    
+    .quick-stat-value {
+        font-size: 20px;
+    }
+    
+    .activity-feed {
+        padding: 15px;
+    }
+    
+    .activity-item {
+        padding: 10px;
+    }
+    
+    .activity-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 18px;
     }
 }

@@ -552,14 +552,16 @@ function buildRTODevicesTab(container) {
 }
 
 /**
- * Build Dashboard Tab (Overview) - Now with User-Grouped Activities
+ * Build Dashboard Tab - Role-Specific Personalized Command Center
  */
 function buildDashboardTab(container) {
-    console.log('📊 Building dashboard tab...');
-
-    window.currentTabRefresh = () => buildDashboardTab(
-        document.getElementById('dashboardTab')
-    );
+    console.log('📊 Building Dashboard tab');
+    
+    window.currentTabRefresh = () => {
+        // Invalidate cache on refresh
+        utils.invalidateDashboardCache();
+        buildDashboardTab(document.getElementById('dashboardTab'));
+    };
 
     if (!container) {
         console.warn('Container not found for dashboard');
@@ -569,62 +571,23 @@ function buildDashboardTab(container) {
     const role = window.currentUserData.role;
     const userName = window.currentUserData.displayName;
 
-    // Count pending deletion requests (admin only)
-    const pendingDeletions = role === 'admin' && window.allModificationRequests ?
-        window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request') : [];
+    // Get cached or fresh stats
+    const stats = utils.getCachedDashboardStats(role);
 
-    // Build user-grouped activity feed
-    const userActivities = buildUserGroupedActivityFeed();
+    // Build role-specific dashboard
+    let dashboardHTML = '';
+    
+    if (role === 'technician') {
+        dashboardHTML = buildTechnicianDashboard(userName, stats);
+    } else if (role === 'cashier') {
+        dashboardHTML = buildCashierDashboard(userName, stats);
+    } else if (role === 'manager') {
+        dashboardHTML = buildManagerDashboard(userName, stats);
+    } else if (role === 'admin') {
+        dashboardHTML = buildAdminDashboard(userName, stats);
+    }
 
-    // Build clean dashboard with welcome and user-grouped activity
-    const html = `
-        <div class="dashboard-container">
-            <div class="page-header">
-                <h2>👋 Welcome back, ${userName}!</h2>
-                <p style="color:var(--text-secondary);">Here's what's happening in your repair shop</p>
-            </div>
-            
-            ${pendingDeletions.length > 0 ? `
-                <div class="stat-badge-alert" style="background:#ffebee;border-left:4px solid #d32f2f;padding:15px;border-radius:8px;margin-top:20px;">
-                    <div style="display:flex;align-items:center;gap:12px;">
-                        <div style="font-size:32px;">🗑️</div>
-                        <div style="flex:1;">
-                            <h4 style="margin:0;color:#d32f2f;">⚠️ ${pendingDeletions.length} Deletion Request${pendingDeletions.length > 1 ? 's' : ''} Pending</h4>
-                            <p style="margin:5px 0 0 0;color:#666;font-size:14px;">
-                                Technicians have requested deletion of ${pendingDeletions.length} repair${pendingDeletions.length > 1 ? 's' : ''}. Please review in 
-                                <a href="#" onclick="switchTab('mod-requests');return false;" style="color:#d32f2f;font-weight:bold;text-decoration:underline;">Mod Requests</a> tab.
-                            </p>
-                        </div>
-                        <button onclick="switchTab('mod-requests')" style="background:#d32f2f;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;white-space:nowrap;">
-                            Review Now
-                        </button>
-                    </div>
-                </div>
-            ` : ''}
-            
-            <div style="margin-top:30px;">
-                <h3 style="margin-bottom:15px;color:var(--text-primary);">👥 Recent Activity by User</h3>
-                ${Object.keys(userActivities).length === 0 ? `
-                    <div style="text-align:center;padding:40px;color:var(--text-secondary);">
-                        <div style="font-size:48px;margin-bottom:10px;">📦</div>
-                        <p>No recent activity yet. Start by receiving a device!</p>
-                    </div>
-                ` : `
-                    <div style="display:grid;gap:15px;">
-                        ${Object.entries(userActivities).map(([userId, userData]) =>
-        renderUserActivitySection(userId, userData)
-    ).join('')}
-                    </div>
-                `}
-            </div>
-            
-            <div style="margin-top:30px;text-align:center;color:var(--text-secondary);">
-                <p>💡 View stats above or navigate using the sidebar →</p>
-            </div>
-        </div>
-    `;
-
-    container.innerHTML = html;
+    container.innerHTML = dashboardHTML;
 }
 
 /**

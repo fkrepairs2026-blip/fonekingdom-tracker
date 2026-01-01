@@ -214,6 +214,266 @@ const utils = {
     },
 
     /**
+     * Dashboard cache - stores calculated metrics with TTL
+     */
+    dashboardCache: {
+        stats: null,
+        activities: null,
+        lastUpdated: null,
+        ttl: 5000  // 5 seconds
+    },
+
+    /**
+     * Get cached dashboard stats or recalculate
+     * @param {string} role - User role (admin, manager, cashier, technician)
+     * @returns {object} Calculated stats for the role
+     */
+    getCachedDashboardStats: function(role) {
+        const now = Date.now();
+        
+        // Return cached stats if still valid
+        if (this.dashboardCache.stats && 
+            this.dashboardCache.lastUpdated &&
+            (now - this.dashboardCache.lastUpdated) < this.dashboardCache.ttl) {
+            console.log('📊 Using cached dashboard stats');
+            return this.dashboardCache.stats;
+        }
+        
+        // Recalculate stats
+        console.log('🔄 Calculating fresh dashboard stats');
+        const stats = this.calculateDashboardStats(role);
+        
+        // Cache the results
+        this.dashboardCache.stats = stats;
+        this.dashboardCache.lastUpdated = now;
+        
+        return stats;
+    },
+
+    /**
+     * Invalidate dashboard cache (called by auto-refresh)
+     */
+    invalidateDashboardCache: function() {
+        this.dashboardCache.stats = null;
+        this.dashboardCache.activities = null;
+        this.dashboardCache.lastUpdated = null;
+        console.log('🗑️ Dashboard cache invalidated');
+    },
+
+    /**
+     * Calculate dashboard statistics based on role
+     * @param {string} role - User role
+     * @returns {object} Calculated statistics
+     */
+    calculateDashboardStats: function(role) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekAgo = new Date(today);
+        weekAgo.setDate(today.getDate() - 7);
+        
+        const repairs = window.allRepairs || [];
+        const activeRepairs = repairs.filter(r => !r.deleted);
+        const currentUserId = window.currentUser ? window.currentUser.uid : null;
+        
+        const stats = {
+            // Common stats for all roles
+            totalActive: activeRepairs.length,
+            received: activeRepairs.filter(r => r.status === 'Received').length,
+            inProgress: activeRepairs.filter(r => r.status === 'In Progress' || r.status === 'Waiting for Parts').length,
+            readyForPickup: activeRepairs.filter(r => r.status === 'Ready for Pickup').length,
+            released: activeRepairs.filter(r => r.status === 'Released').length,
+            
+            // Priority alerts
+            staleInProgress: activeRepairs.filter(r => {
+                const isInProgress = r.status === 'In Progress' || r.status === 'Waiting for Parts';
+                if (!isInProgress || !r.acceptedAt) return false;
+                const days = Math.floor((now - new Date(r.acceptedAt)) / (1000 * 60 * 60 * 24));
+                return days > 5;
+            }).length,
+            
+            overduePickup: activeRepairs.filter(r => {
+                if (r.status !== 'Ready for Pickup' || !r.completedAt) return false;
+                const days = Math.floor((now - new Date(r.completedAt)) / (1000 * 60 * 60 * 24));
+                return days > 3;
+            }).length,
+            
+            pendingApproval: activeRepairs.filter(r => 
+                r.status === 'Pending Customer Approval' && r.diagnosisCreated && !r.customerApproved
+            ).length
+        };
+        
+        // Role-specific calculations
+        if (role === 'technician') {
+            // Personal job stats
+            stats.myActiveJobs = activeRepairs.filter(r => 
+                r.acceptedBy === currentUserId && 
+                (r.status === 'In Progress' || r.status === 'Waiting for Parts')
+            ).length;
+            
+            stats.myCompletedToday = activeRepairs.filter(r => {
+                if (r.acceptedBy !== currentUserId || !r.completedAt) return false;
+                const completedDate = new Date(r.completedAt);
+                return completedDate >= today;
+            }).length;
+            
+            stats.myReadyForPickup = activeRepairs.filter(r => 
+                r.acceptedBy === currentUserId && r.status === 'Ready for Pickup'
+            ).length;
+            
+            // Commission tracking
+            stats.myCommissionThisMonth = activeRepairs.filter(r => {
+                if (r.acceptedBy !== currentUserId || !r.commissionAmount || !r.claimedAt) return false;
+                const claimed = new Date(r.claimedAt);
+                return claimed.getMonth() === now.getMonth() && claimed.getFullYear() === now.getFullYear();
+            }).reduce((sum, r) => sum + (parseFloat(r.commissionAmount) || 0), 0);
+            
+            // Remittance status
+            const techRemittances = window.techRemittances || [];
+            const myPendingRemittances = techRemittances.filter(r => 
+                r.techId === currentUserId && r.status === 'pending'
+            );
+            stats.pendingRemittanceCount = myPendingRemittances.length;
+            stats.pendingRemittanceAmount = myPendingRemittances.reduce((sum, r) => 
+                sum + (parseFloat(r.actualAmount) || 0), 0
+            );
+            
+        } else if (role === 'cashier') {
+            // Payment-focused stats
+            stats.unpaidCount = activeRepairs.filter(r => {
+                const total = parseFloat(r.total) || 0;
+                const paid = (r.payments || [])
+                    .filter(p => p.verified)
+                    .reduce((sum, p) => sum + parseFloat(p.amount), 0);
+                return total > paid;
+            }).length;
+            
+            stats.pendingVerification = activeRepairs.filter(r => {
+                const hasUnverified = (r.payments || []).some(p => !p.verified);
+                return hasUnverified;
+            }).length;
+            
+            const techRemittances = window.techRemittances || [];
+            stats.pendingRemittances = techRemittances.filter(r => r.status === 'pending').length;
+            
+            // Cash count status
+            const dailyCashCounts = window.dailyCashCounts || {};
+            const todayKey = today.toISOString().split('T')[0];
+            stats.cashCountDone = !!dailyCashCounts[todayKey];
+            
+        } else if (role === 'admin' || role === 'manager') {
+            // System-wide metrics
+            stats.completedToday = activeRepairs.filter(r => {
+                if (!r.completedAt) return false;
+                const completed = new Date(r.completedAt);
+                return completed >= today;
+            }).length;
+            
+            // Daily revenue
+            stats.revenueToday = activeRepairs.reduce((sum, r) => {
+                const verifiedPayments = (r.payments || []).filter(p => {
+                    if (!p.verified) return false;
+                    const payDate = new Date(p.recordedDate || p.paymentDate);
+                    return payDate >= today;
+                });
+                return sum + verifiedPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
+            }, 0);
+            
+            // Average completion time this week
+            const completedThisWeek = activeRepairs.filter(r => {
+                if (!r.completedAt) return false;
+                const completed = new Date(r.completedAt);
+                return completed >= weekAgo;
+            });
+            
+            if (completedThisWeek.length > 0) {
+                const totalDays = completedThisWeek.reduce((sum, r) => {
+                    if (!r.acceptedAt || !r.completedAt) return sum;
+                    const days = (new Date(r.completedAt) - new Date(r.acceptedAt)) / (1000 * 60 * 60 * 24);
+                    return sum + days;
+                }, 0);
+                stats.avgCompletionDays = (totalDays / completedThisWeek.length).toFixed(1);
+            } else {
+                stats.avgCompletionDays = 0;
+            }
+            
+            // Modification requests (admin only)
+            if (role === 'admin') {
+                const modRequests = window.allModificationRequests || [];
+                stats.pendingModRequests = modRequests.filter(r => r.status === 'pending').length;
+            }
+            
+            // Remittances pending verification
+            const techRemittances = window.techRemittances || [];
+            stats.pendingRemittances = techRemittances.filter(r => r.status === 'pending').length;
+        }
+        
+        return stats;
+    },
+
+    /**
+     * Create stat card HTML
+     * @param {string} label - Card label
+     * @param {string|number} value - Main value to display
+     * @param {string} subtext - Optional subtext
+     * @param {string} gradient - CSS gradient string
+     * @param {function|string} clickAction - Click handler function name or tab name
+     * @param {string} icon - Optional emoji icon
+     * @returns {string} HTML string
+     */
+    createStatCard: function(label, value, subtext, gradient, clickAction, icon = '') {
+        const clickHandler = typeof clickAction === 'function' 
+            ? `onclick="${clickAction.name}()"` 
+            : clickAction 
+                ? `onclick="switchTab('${clickAction}')" style="cursor:pointer;"` 
+                : '';
+        
+        return `
+            <div class="dashboard-stat-card" ${clickHandler}>
+                <div style="font-size:13px;color:rgba(255,255,255,0.9);margin-bottom:8px;">
+                    ${icon} ${label}
+                </div>
+                <div style="font-size:32px;font-weight:bold;color:white;margin-bottom:5px;">
+                    ${value}
+                </div>
+                ${subtext ? `<div style="font-size:11px;color:rgba(255,255,255,0.8);">${subtext}</div>` : ''}
+                <div class="stat-card-gradient" style="background:${gradient};"></div>
+            </div>
+        `;
+    },
+
+    /**
+     * Create alert card HTML for urgent items
+     * @param {string} title - Alert title
+     * @param {number} count - Count of items
+     * @param {string} urgency - 'high', 'medium', 'low'
+     * @param {string} targetTab - Tab to switch to on click
+     * @param {string} icon - Emoji icon
+     * @returns {string} HTML string
+     */
+    createAlertCard: function(title, count, urgency, targetTab, icon = '⚠️') {
+        const colors = {
+            high: 'linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%)',
+            medium: 'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+            low: 'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)'
+        };
+        
+        const gradient = colors[urgency] || colors.medium;
+        
+        if (count === 0) return '';  // Don't show alerts with zero count
+        
+        return `
+            <div class="dashboard-alert-card" onclick="switchTab('${targetTab}')" style="cursor:pointer;">
+                <div class="alert-icon">${icon}</div>
+                <div class="alert-content">
+                    <div class="alert-count">${count}</div>
+                    <div class="alert-title">${title}</div>
+                </div>
+                <div class="stat-card-gradient" style="background:${gradient};"></div>
+            </div>
+        `;
+    },
+
+    /**
      * Get device and browser information
      */
     getDeviceInfo: function () {
