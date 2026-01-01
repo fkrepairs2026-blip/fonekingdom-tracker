@@ -8302,6 +8302,29 @@ async function confirmReleaseDevice() {
                 collectedByRole: window.currentUserData.role,
                 customerName: repair.customerName
             }, `Payment of ₱${payment.amount.toFixed(2)} collected at release by ${paymentCollected.collectedBy}`);
+            
+            // Calculate and set commission if device is fully paid
+            const totalPaid = [...existingPayments, payment]
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + (p.amount || 0), 0);
+            const balance = repair.total - totalPaid;
+            
+            if (balance <= 0 && repair.acceptedBy) {
+                const commission = calculateRepairCommission(repair, repair.acceptedBy);
+                if (commission.eligible && !repair.commissionAmount) {
+                    await db.ref(`repairs/${repairId}`).update({
+                        commissionEligible: true,
+                        commissionAmount: commission.amount,
+                        commissionCalculatedAt: new Date().toISOString()
+                    });
+                    DebugLogger.log('COMMISSION', 'Commission Calculated at Release', {
+                        repairId: repairId,
+                        technicianId: repair.acceptedBy,
+                        amount: commission.amount,
+                        eligible: commission.eligible
+                    });
+                }
+            }
         }
 
         // Log device release activity
@@ -8645,6 +8668,29 @@ async function confirmFinalizeDevice() {
                 creditedTo: technicianName,
                 customerName: repair.customerName
             }, `Payment of ₱${payment.amount.toFixed(2)} collected at claim finalization - credited to ${technicianName}`);
+            
+            // Calculate and set commission if device is fully paid
+            const totalPaid = [...existingPayments, payment]
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + (p.amount || 0), 0);
+            const balance = repair.total - totalPaid;
+            
+            if (balance <= 0 && repair.acceptedBy) {
+                const commission = calculateRepairCommission(repair, repair.acceptedBy);
+                if (commission.eligible && !repair.commissionAmount) {
+                    await db.ref(`repairs/${repairId}`).update({
+                        commissionEligible: true,
+                        commissionAmount: commission.amount,
+                        commissionCalculatedAt: new Date().toISOString()
+                    });
+                    DebugLogger.log('COMMISSION', 'Commission Calculated at Finalization', {
+                        repairId: repairId,
+                        technicianId: repair.acceptedBy,
+                        amount: commission.amount,
+                        eligible: commission.eligible
+                    });
+                }
+            }
         }
 
         // Log finalization activity
