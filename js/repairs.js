@@ -262,6 +262,32 @@ async function submitReceiveDevice(e) {
     // Check if it's a back job
     const isBackJob = document.getElementById('isBackJob').checked;
 
+    // DEBUG: Capture form inputs
+    const formInputs = {
+        customerType: data.get('customerType'),
+        customerName: data.get('customerName'),
+        shopName: data.get('shopName') || '',
+        contactNumber: data.get('contactNumber'),
+        brand: data.get('brand'),
+        model: data.get('model'),
+        imei: data.get('imei') || '',
+        deviceColor: data.get('deviceColor') || 'N/A',
+        storageCapacity: data.get('storageCapacity') || 'N/A',
+        problemType: data.get('problemType') || 'Pending Diagnosis',
+        problem: data.get('problem'),
+        estimatedCost: data.get('estimatedCost'),
+        isBackJob: isBackJob,
+        preApprovedRepairType: document.getElementById('preApprovedRepairType')?.value,
+        preApprovedPartsCost: document.getElementById('preApprovedPartsCost')?.value,
+        preApprovedLaborCost: document.getElementById('preApprovedLaborCost')?.value,
+        assignOption: data.get('assignOption'),
+        photoCount: photoData.length
+    };
+
+    if (window.DebugLogger) {
+        DebugLogger.log('FORM', 'Receive Device Form Submitted', formInputs);
+    }
+
     const repair = {
         customerType: data.get('customerType'),
         customerName: data.get('customerName'),
@@ -445,8 +471,34 @@ async function submitReceiveDevice(e) {
     }
 
     try {
-        await db.ref('repairs').push(repair);
+        if (window.DebugLogger) {
+            DebugLogger.log('REPAIR', 'Saving Device to Firebase', {
+                customer: repair.customerName,
+                device: `${repair.brand} ${repair.model}`,
+                status: repair.status,
+                repairType: repair.repairType,
+                total: repair.total,
+                assignmentMethod: repair.assignmentMethod,
+                acceptedBy: repair.acceptedByName,
+                isBackJob: repair.isBackJob || false,
+                hasPricing: repair.total > 0
+            });
+        }
+
+        const newRef = await db.ref('repairs').push(repair);
+        const repairId = newRef.key;
+        
         console.log('✅ Device received successfully!');
+
+        if (window.DebugLogger) {
+            DebugLogger.log('REPAIR', 'Device Received Successfully', {
+                repairId: repairId,
+                customer: repair.customerName,
+                device: `${repair.brand} ${repair.model}`,
+                status: repair.status,
+                finalTotal: repair.total
+            });
+        }
 
         // Log repair creation
         await logActivity('repair_created', {

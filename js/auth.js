@@ -207,11 +207,17 @@ async function handleLogin(e) {
 
     try {
         console.log('🔐 Logging in...');
+        if (window.DebugLogger) {
+            DebugLogger.log('AUTH', 'Login Attempt', { email });
+        }
 
         // Check rate limit
         try {
             rateLimiter.isRateLimited(`login:${email}`, 5, 15 * 60 * 1000);
         } catch (rateLimitError) {
+            if (window.DebugLogger) {
+                DebugLogger.log('ERROR', 'Login Rate Limited', { email, error: rateLimitError.message });
+            }
             errorEl.textContent = rateLimitError.message;
             errorEl.style.display = 'block';
             errorEl.style.backgroundColor = '#fff3cd';
@@ -236,15 +242,33 @@ async function handleLogin(e) {
         console.log('📊 User data loaded:', window.currentUserData);
 
         if (!window.currentUserData) {
+            if (window.DebugLogger) {
+                DebugLogger.log('ERROR', 'User Data Not Found', { uid: window.currentUser.uid, email });
+            }
             throw new Error('User data not found in database');
         }
 
         // Check if user is active
         if (window.currentUserData.status !== 'active') {
+            if (window.DebugLogger) {
+                DebugLogger.log('ERROR', 'Account Deactivated', { 
+                    email, 
+                    status: window.currentUserData.status 
+                });
+            }
             await auth.signOut();
             errorEl.textContent = 'Account is deactivated. Contact administrator.';
             errorEl.style.display = 'block';
             return;
+        }
+
+        if (window.DebugLogger) {
+            DebugLogger.log('AUTH', 'Login Successful', {
+                uid: window.currentUser.uid,
+                email: window.currentUser.email,
+                displayName: window.currentUserData.displayName,
+                role: window.currentUserData.role
+            });
         }
 
         // Record login event
