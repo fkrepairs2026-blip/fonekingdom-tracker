@@ -5,7 +5,7 @@
  */
 function buildTechnicianDashboard(userName, stats) {
     const recentActivities = getRecentActivitiesForUser(window.currentUser.uid, 10);
-    
+
     return `
         <div class="dashboard-container">
             <div class="page-header">
@@ -16,64 +16,64 @@ function buildTechnicianDashboard(userName, stats) {
             <!-- Primary Metrics -->
             <div class="dashboard-stats-grid">
                 ${utils.createStatCard(
-                    'My Active Jobs',
-                    stats.myActiveJobs,
-                    'Currently in progress',
-                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'my',
-                    '🔧'
-                )}
+        'My Active Jobs',
+        stats.myActiveJobs,
+        'Currently in progress',
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'my',
+        '🔧'
+    )}
                 ${utils.createStatCard(
-                    'Completed Today',
-                    stats.myCompletedToday,
-                    'Finished repairs',
-                    'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-                    'my',
-                    '✅'
-                )}
+        'Completed Today',
+        stats.myCompletedToday,
+        'Finished repairs',
+        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'my',
+        '✅'
+    )}
                 ${utils.createStatCard(
-                    'Ready for Pickup',
-                    stats.myReadyForPickup,
-                    'Awaiting customer',
-                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'forrelease',
-                    '📦'
-                )}
+        'Ready for Pickup',
+        stats.myReadyForPickup,
+        'Awaiting customer',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'forrelease',
+        '📦'
+    )}
                 ${utils.createStatCard(
-                    'My Claimed Devices',
-                    stats.myClaimedCount || 0,
-                    'Successfully completed',
-                    'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-                    'myclaimed',
-                    '✅'
-                )}
+        'My Claimed Devices',
+        stats.myClaimedCount || 0,
+        'Successfully completed',
+        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'myclaimed',
+        '✅'
+    )}
                 ${utils.createStatCard(
-                    'Commission This Month',
-                    '₱' + stats.myCommissionThisMonth.toLocaleString('en-PH', {minimumFractionDigits: 2}),
-                    'Earned commission',
-                    'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-                    null,
-                    '💰'
-                )}
+        'Commission This Month',
+        '₱' + stats.myCommissionThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        'Earned commission',
+        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+        null,
+        '💰'
+    )}
             </div>
             
             <!-- Alerts Section -->
             ${(stats.pendingRemittanceCount > 0 || stats.pendingApproval > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
-                        'Pending Remittance',
-                        stats.pendingRemittanceCount,
-                        'high',
-                        'remittance',
-                        '📤'
-                    )}
+        'Pending Remittance',
+        stats.pendingRemittanceCount,
+        'high',
+        'remittance',
+        '📤'
+    )}
                     ${utils.createAlertCard(
-                        'Pending Customer Approval',
-                        stats.pendingApproval,
-                        'medium',
-                        'inprogress',
-                        '⏳'
-                    )}
+        'Pending Customer Approval',
+        stats.pendingApproval,
+        'medium',
+        'inprogress',
+        '⏳'
+    )}
                 </div>
             ` : ''}
             
@@ -100,7 +100,7 @@ function buildTechnicianDashboard(userName, stats) {
  */
 function buildCashierDashboard(userName, stats) {
     const recentActivities = getRecentActivities(10);
-    
+
     return `
         <div class="dashboard-container">
             <div class="page-header">
@@ -111,58 +111,58 @@ function buildCashierDashboard(userName, stats) {
             <!-- Primary Metrics -->
             <div class="dashboard-stats-grid">
                 ${utils.createStatCard(
-                    'Unpaid Devices',
-                    stats.unpaidCount,
-                    'Need payment collection',
-                    'linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%)',
-                    'unpaid',
-                    '💵'
-                )}
+        'Unpaid Devices',
+        stats.unpaidCount,
+        'Need payment collection',
+        'linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%)',
+        'unpaid',
+        '💵'
+    )}
                 ${utils.createStatCard(
-                    'Pending Verification',
-                    stats.pendingVerification,
-                    'Payments to verify',
-                    'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-                    'pendingVerification',
-                    '✓'
-                )}
+        'Pending Verification',
+        stats.pendingVerification,
+        'Payments to verify',
+        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+        'pendingVerification',
+        '✓'
+    )}
                 ${utils.createStatCard(
-                    'Ready for Release',
-                    stats.readyForPickup,
-                    'Awaiting customer pickup',
-                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'forrelease',
-                    '📦'
-                )}
+        'Ready for Release',
+        stats.readyForPickup,
+        'Awaiting customer pickup',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'forrelease',
+        '📦'
+    )}
                 ${utils.createStatCard(
-                    'Cash Count Status',
-                    stats.cashCountDone ? 'Complete' : 'Pending',
-                    stats.cashCountDone ? 'Done for today' : 'Need to count cash',
-                    stats.cashCountDone 
-                        ? 'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)'
-                        : 'linear-gradient(135deg, #ff922b 0%, #fd7e14 100%)',
-                    'cash',
-                    '💰'
-                )}
+        'Cash Count Status',
+        stats.cashCountDone ? 'Complete' : 'Pending',
+        stats.cashCountDone ? 'Done for today' : 'Need to count cash',
+        stats.cashCountDone
+            ? 'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)'
+            : 'linear-gradient(135deg, #ff922b 0%, #fd7e14 100%)',
+        'cash',
+        '💰'
+    )}
             </div>
             
             <!-- Alerts Section -->
             ${(stats.pendingRemittances > 0 || stats.overduePickup > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
-                        'Remittances to Verify',
-                        stats.pendingRemittances,
-                        'high',
-                        'verify-remittance',
-                        '📥'
-                    )}
+        'Remittances to Verify',
+        stats.pendingRemittances,
+        'high',
+        'verify-remittance',
+        '📥'
+    )}
                     ${utils.createAlertCard(
-                        'Overdue Pickups (>3 days)',
-                        stats.overduePickup,
-                        'medium',
-                        'forrelease',
-                        '⚠️'
-                    )}
+        'Overdue Pickups (>3 days)',
+        stats.overduePickup,
+        'medium',
+        'forrelease',
+        '⚠️'
+    )}
                 </div>
             ` : ''}
             
@@ -201,7 +201,7 @@ function buildCashierDashboard(userName, stats) {
  */
 function buildManagerDashboard(userName, stats) {
     const recentActivities = getRecentActivities(10);
-    
+
     return `
         <div class="dashboard-container">
             <div class="page-header">
@@ -212,63 +212,63 @@ function buildManagerDashboard(userName, stats) {
             <!-- Primary Metrics -->
             <div class="dashboard-stats-grid">
                 ${utils.createStatCard(
-                    'Revenue Today',
-                    '₱' + stats.revenueToday.toLocaleString('en-PH', {minimumFractionDigits: 2}),
-                    'Payments collected',
-                    'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-                    'analytics',
-                    '💰'
-                )}
+        'Revenue Today',
+        '₱' + stats.revenueToday.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        'Payments collected',
+        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'analytics',
+        '💰'
+    )}
                 ${utils.createStatCard(
-                    'Completed Today',
-                    stats.completedToday,
-                    'Repairs finished',
-                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'claimed',
-                    '✅'
-                )}
+        'Released Today',
+        stats.released,
+        'Given to customers',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'claimed',
+        '✅'
+    )}
                 ${utils.createStatCard(
-                    'In Progress',
-                    stats.inProgress,
-                    'Active repairs',
-                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'inprogress',
-                    '🔧'
-                )}
+        'In Progress',
+        stats.inProgress,
+        'Active repairs',
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'inprogress',
+        '🔧'
+    )}
                 ${utils.createStatCard(
-                    'Avg Completion Time',
-                    stats.avgCompletionDays + ' days',
-                    'This week average',
-                    'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-                    'analytics',
-                    '⏱️'
-                )}
+        'Avg Completion Time',
+        stats.avgCompletionDays + ' days',
+        'This week average',
+        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+        'analytics',
+        '⏱️'
+    )}
             </div>
             
             <!-- Alerts Section -->
             ${(stats.staleInProgress > 0 || stats.overduePickup > 0 || stats.pendingRemittances > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
-                        'Stale Repairs (>5 days)',
-                        stats.staleInProgress,
-                        'high',
-                        'inprogress',
-                        '🔴'
-                    )}
+        'Stale Repairs (>5 days)',
+        stats.staleInProgress,
+        'high',
+        'inprogress',
+        '🔴'
+    )}
                     ${utils.createAlertCard(
-                        'Overdue Pickups (>3 days)',
-                        stats.overduePickup,
-                        'medium',
-                        'forrelease',
-                        '⚠️'
-                    )}
+        'Overdue Pickups (>3 days)',
+        stats.overduePickup,
+        'medium',
+        'forrelease',
+        '⚠️'
+    )}
                     ${utils.createAlertCard(
-                        'Pending Remittances',
-                        stats.pendingRemittances,
-                        'medium',
-                        'verify-remittance',
-                        '📥'
-                    )}
+        'Pending Remittances',
+        stats.pendingRemittances,
+        'medium',
+        'verify-remittance',
+        '📥'
+    )}
                 </div>
             ` : ''}
             
@@ -311,7 +311,7 @@ function buildManagerDashboard(userName, stats) {
  */
 function buildAdminDashboard(userName, stats) {
     const recentActivities = getRecentActivities(10);
-    
+
     return `
         <div class="dashboard-container">
             <div class="page-header">
@@ -322,70 +322,70 @@ function buildAdminDashboard(userName, stats) {
             <!-- Primary Metrics -->
             <div class="dashboard-stats-grid">
                 ${utils.createStatCard(
-                    'Revenue Today',
-                    '₱' + stats.revenueToday.toLocaleString('en-PH', {minimumFractionDigits: 2}),
-                    'Payments collected',
-                    'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-                    'analytics',
-                    '💰'
-                )}
+        'Revenue Today',
+        '₱' + stats.revenueToday.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        'Payments collected',
+        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'analytics',
+        '💰'
+    )}
                 ${utils.createStatCard(
-                    'Completed Today',
-                    stats.completedToday,
-                    'Repairs finished',
-                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                    'claimed',
-                    '✅'
-                )}
+        'Released Today',
+        stats.released,
+        'Given to customers',
+        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        'claimed',
+        '✅'
+    )}
                 ${utils.createStatCard(
-                    'Active Repairs',
-                    stats.totalActive,
-                    `${stats.inProgress} in progress`,
-                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    'all',
-                    '🔧'
-                )}
+        'Active Repairs',
+        stats.totalActive,
+        `${stats.inProgress} in progress`,
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'all',
+        '🔧'
+    )}
                 ${utils.createStatCard(
-                    'Avg Completion Time',
-                    stats.avgCompletionDays + ' days',
-                    'This week average',
-                    'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-                    'analytics',
-                    '⏱️'
-                )}
+        'Avg Completion Time',
+        stats.avgCompletionDays + ' days',
+        'This week average',
+        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+        'analytics',
+        '⏱️'
+    )}
             </div>
             
             <!-- Admin Alerts Section -->
             ${(stats.pendingModRequests > 0 || stats.staleInProgress > 0 || stats.overduePickup > 0 || stats.pendingRemittances > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
-                        'Modification Requests',
-                        stats.pendingModRequests || 0,
-                        'high',
-                        'mod-requests',
-                        '🔔'
-                    )}
+        'Modification Requests',
+        stats.pendingModRequests || 0,
+        'high',
+        'mod-requests',
+        '🔔'
+    )}
                     ${utils.createAlertCard(
-                        'Stale Repairs (>5 days)',
-                        stats.staleInProgress,
-                        'high',
-                        'inprogress',
-                        '🔴'
-                    )}
+        'Stale Repairs (>5 days)',
+        stats.staleInProgress,
+        'high',
+        'inprogress',
+        '🔴'
+    )}
                     ${utils.createAlertCard(
-                        'Overdue Pickups (>3 days)',
-                        stats.overduePickup,
-                        'medium',
-                        'forrelease',
-                        '⚠️'
-                    )}
+        'Overdue Pickups (>3 days)',
+        stats.overduePickup,
+        'medium',
+        'forrelease',
+        '⚠️'
+    )}
                     ${utils.createAlertCard(
-                        'Pending Remittances',
-                        stats.pendingRemittances,
-                        'medium',
-                        'verify-remittance',
-                        '📥'
-                    )}
+        'Pending Remittances',
+        stats.pendingRemittances,
+        'medium',
+        'verify-remittance',
+        '📥'
+    )}
                 </div>
             ` : ''}
             
@@ -433,11 +433,11 @@ function buildAdminDashboard(userName, stats) {
 function getRecentActivities(limit = 10) {
     const activities = [];
     const repairs = window.allRepairs || [];
-    
+
     // Collect recent repair creations and completions
     repairs.forEach(repair => {
         if (repair.deleted) return;
-        
+
         if (repair.createdAt) {
             activities.push({
                 type: 'repair_created',
@@ -450,7 +450,7 @@ function getRecentActivities(limit = 10) {
                 }
             });
         }
-        
+
         if (repair.completedAt) {
             activities.push({
                 type: 'repair_completed',
@@ -463,7 +463,7 @@ function getRecentActivities(limit = 10) {
             });
         }
     });
-    
+
     // Sort by timestamp (most recent first) and limit
     activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     return activities.slice(0, limit);
@@ -475,10 +475,10 @@ function getRecentActivities(limit = 10) {
 function getRecentActivitiesForUser(userId, limit = 10) {
     const activities = [];
     const repairs = window.allRepairs || [];
-    
+
     repairs.forEach(repair => {
         if (repair.deleted) return;
-        
+
         // Activities where user is creator
         if (repair.createdBy === userId && repair.createdAt) {
             activities.push({
@@ -491,7 +491,7 @@ function getRecentActivitiesForUser(userId, limit = 10) {
                 }
             });
         }
-        
+
         // Activities where user accepted/completed
         if (repair.acceptedBy === userId) {
             if (repair.acceptedAt) {
@@ -504,7 +504,7 @@ function getRecentActivitiesForUser(userId, limit = 10) {
                     }
                 });
             }
-            
+
             if (repair.completedAt) {
                 activities.push({
                     type: 'repair_completed',
@@ -517,7 +517,7 @@ function getRecentActivitiesForUser(userId, limit = 10) {
             }
         }
     });
-    
+
     activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     return activities.slice(0, limit);
 }
@@ -532,17 +532,17 @@ function renderActivityItem(activity) {
         'repair_completed': '🎉',
         'payment_recorded': '💰'
     };
-    
+
     const colors = {
         'repair_created': '#667eea',
         'repair_accepted': '#51cf66',
         'repair_completed': '#4facfe',
         'payment_recorded': '#ffd93d'
     };
-    
+
     const icon = icons[activity.type] || '📌';
     const color = colors[activity.type] || '#999';
-    
+
     let text = '';
     if (activity.type === 'repair_created') {
         text = `<strong>${activity.data.customer}</strong> - ${activity.data.device} ${activity.user ? `by ${activity.user}` : ''}`;
@@ -551,7 +551,7 @@ function renderActivityItem(activity) {
     } else if (activity.type === 'repair_completed') {
         text = `Completed <strong>${activity.data.customer}</strong> - ${activity.data.device}`;
     }
-    
+
     return `
         <div class="activity-item">
             <div class="activity-icon" style="background:${color}20;color:${color};">${icon}</div>
