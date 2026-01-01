@@ -502,7 +502,7 @@ async function submitReceiveDevice(e) {
 
         const newRef = await db.ref('repairs').push(repair);
         const repairId = newRef.key;
-        
+
         console.log('✅ Device received successfully!');
 
         if (window.DebugLogger) {
@@ -939,10 +939,10 @@ function openPaymentModal(repairId) {
     const pendingAdvances = (repair.payments || []).filter(p => p.isAdvance && p.advanceStatus === 'pending');
 
     const content = document.getElementById('paymentModalContent');
-    
+
     const lang = getCurrentHelpLanguage();
     const helpTitle = lang === 'tl' ? 'Paano Isulat ang Bayad' : 'How to Record Payment';
-    const helpText = lang === 'tl' ? 
+    const helpText = lang === 'tl' ?
         'Pumili ng payment date, ilagay ang halaga, piliin ang payment method (Cash, GCash, atbp.), at i-save.' :
         'Select payment date, enter amount, choose payment method (Cash, GCash, etc.), and save.';
 
@@ -7915,14 +7915,14 @@ function openReleaseDeviceModal(repairId) {
 
     // Set repair ID
     document.getElementById('releaseRepairId').value = repairId;
-    
+
     // Add help text at the top of the modal
     const lang = getCurrentHelpLanguage();
     const helpTitle = lang === 'tl' ? 'Paano I-release ang Device' : 'How to Release Device';
-    const helpText = lang === 'tl' ? 
+    const helpText = lang === 'tl' ?
         'Piliin ang verification method (With/Without Slip), kumpirmahin ang customer name at contact, at i-click ang Release Device. Pwede ring maningil ng bayad habang nire-release.' :
         'Choose verification method (With/Without Slip), confirm customer name and contact, then click Release Device. You can also collect payment during release.';
-    
+
     const helpSection = document.createElement('div');
     helpSection.innerHTML = `
         <details style="margin-bottom:15px;padding:10px;background:#e3f2fd;border-radius:6px;">
@@ -7934,7 +7934,7 @@ function openReleaseDeviceModal(repairId) {
             </p>
         </details>
     `;
-    
+
     // Insert help at the beginning of modal content
     const modalContent = document.getElementById('releaseDeviceModalContent');
     if (modalContent) {
@@ -8053,6 +8053,12 @@ async function uploadServiceSlipPhoto(event) {
  * Confirm Release Device
  */
 async function confirmReleaseDevice() {
+    // DUPLICATE PREVENTION: Check if already processing
+    if (window.processingRelease) {
+        console.warn('⚠️ Release already in progress, ignoring duplicate click');
+        return;
+    }
+
     const repairId = document.getElementById('releaseRepairId').value;
     const verificationMethod = document.getElementById('verificationMethod').value;
     const customerName = document.getElementById('releaseCustomerName').value.trim();
@@ -8077,6 +8083,13 @@ async function confirmReleaseDevice() {
     }
 
     const repair = window.allRepairs.find(r => r.id === repairId);
+
+    // DUPLICATE PREVENTION: Check if already released
+    if (repair.status === 'Released' || repair.status === 'Claimed') {
+        alert('⚠️ This device has already been released!');
+        DebugLogger.log('ERROR', 'Duplicate Release Prevented', { repairId, currentStatus: repair.status });
+        return;
+    }
 
     // Verify customer info
     if (customerName.toLowerCase() !== repair.customerName.toLowerCase()) {
@@ -8201,6 +8214,14 @@ async function confirmReleaseDevice() {
     if (!confirm(confirmMsg)) return;
 
     try {
+        // DUPLICATE PREVENTION: Set processing flag and disable button
+        window.processingRelease = true;
+        const confirmBtn = document.querySelector('#releaseModal button[onclick="confirmReleaseDevice()"]');
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Processing...';
+        }
+
         utils.showLoading(true);
 
         // Update device release status
@@ -8320,6 +8341,9 @@ async function confirmReleaseDevice() {
         alert(successMsg);
         closeReleaseDeviceModal();
 
+        // DUPLICATE PREVENTION: Reset flag
+        window.processingRelease = false;
+
         setTimeout(() => {
             if (window.currentTabRefresh) window.currentTabRefresh();
             if (window.buildStats) window.buildStats();
@@ -8329,6 +8353,14 @@ async function confirmReleaseDevice() {
         utils.showLoading(false);
         console.error('Error releasing device:', error);
         alert('Error: ' + error.message);
+
+        // DUPLICATE PREVENTION: Reset flag and re-enable button on error
+        window.processingRelease = false;
+        const confirmBtn = document.querySelector('#releaseModal button[onclick="confirmReleaseDevice()"]');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Confirm Release';
+        }
     }
 }
 
@@ -8413,7 +8445,7 @@ function openFinalizeModal(repairId) {
     document.getElementById('finalizeRepairId').value = repairId;
     document.getElementById('finalizeWarrantyDays').value = '30';
     document.getElementById('finalizeFinalNotes').value = '';
-    
+
     // Reset payment fields
     document.getElementById('finalizePaymentCheckbox').checked = false;
     document.getElementById('finalizePaymentFields').style.display = 'none';
@@ -8422,11 +8454,17 @@ function openFinalizeModal(repairId) {
     document.getElementById('finalizePaymentNotes').value = '';
     document.getElementById('finalizeGCashReference').value = '';
     document.getElementById('finalizeGCashReferenceGroup').style.display = 'none';
-    
+
     document.getElementById('finalizeClaimModal').style.display = 'block';
 }
 
 async function confirmFinalizeDevice() {
+    // DUPLICATE PREVENTION: Check if already processing
+    if (window.processingFinalize) {
+        console.warn('⚠️ Finalize already in progress, ignoring duplicate click');
+        return;
+    }
+
     const repairId = document.getElementById('finalizeRepairId').value;
     const warrantyDays = parseInt(document.getElementById('finalizeWarrantyDays').value) || 0;
     const finalNotes = document.getElementById('finalizeFinalNotes').value.trim();
@@ -8493,6 +8531,13 @@ async function confirmFinalizeDevice() {
         return;
     }
 
+    // DUPLICATE PREVENTION: Check if already claimed
+    if (repair.status === 'Claimed') {
+        alert('⚠️ This device has already been claimed!');
+        DebugLogger.log('ERROR', 'Duplicate Finalize Prevented', { repairId, currentStatus: repair.status });
+        return;
+    }
+
     const confirmMsg = paymentCollected
         ? `✅ Finalize and mark as Claimed?\n\nWarranty: ${warrantyDays} days\n💰 Payment: ₱${paymentCollected.amount.toFixed(2)} (${paymentCollected.method})`
         : `✅ Finalize and mark as Claimed?\n\nWarranty: ${warrantyDays} days`;
@@ -8502,6 +8547,14 @@ async function confirmFinalizeDevice() {
     }
 
     try {
+        // DUPLICATE PREVENTION: Set processing flag and disable button
+        window.processingFinalize = true;
+        const confirmBtn = document.querySelector('#finalizeModal button[onclick="confirmFinalizeDevice()"]');
+        if (confirmBtn) {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Processing...';
+        }
+
         utils.showLoading(true);
 
         const warrantyEndDate = new Date();
@@ -8534,7 +8587,7 @@ async function confirmFinalizeDevice() {
             // Credit payment to technician who did the repair (repairedBy)
             const technicianId = repair.acceptedBy || repair.technicianId;
             const technicianName = repair.acceptedByName || repair.repairedBy || 'Unknown';
-            
+
             // Check if technician has technician role
             const technicianUser = technicianId ? window.allUsers[technicianId] : null;
             const isTechRole = technicianUser && technicianUser.role === 'technician';
@@ -8605,14 +8658,14 @@ async function confirmFinalizeDevice() {
         }, `Device manually finalized: ${repair.customerName} - ${warrantyDays} days warranty${paymentCollected ? ` - Collected ₱${paymentCollected.amount.toFixed(2)}` : ''}`);
 
         utils.showLoading(false);
-        
+
         let successMsg = '✅ Device finalized successfully!';
         if (paymentCollected) {
             const totalPaid = (repair.payments || [])
                 .filter(p => p.verified)
                 .reduce((sum, p) => sum + p.amount, 0) + paymentCollected.amount;
             const newBalance = repair.total - totalPaid;
-            
+
             successMsg += `\n\n💰 Payment Recorded: ₱${paymentCollected.amount.toFixed(2)}`;
             if (newBalance > 0) {
                 successMsg += `\n⚠️ Remaining Balance: ₱${newBalance.toFixed(2)}`;
@@ -8628,6 +8681,9 @@ async function confirmFinalizeDevice() {
         alert(successMsg);
         closeFinalizeModal();
 
+        // DUPLICATE PREVENTION: Reset flag
+        window.processingFinalize = false;
+
         setTimeout(() => {
             if (window.currentTabRefresh) window.currentTabRefresh();
             if (window.buildStats) window.buildStats();
@@ -8638,6 +8694,14 @@ async function confirmFinalizeDevice() {
         console.error('Error finalizing device:', error);
         DebugLogger.log('ERROR', 'Finalize Device Failed', { repairId: repairId, error: error.message });
         alert('Error: ' + error.message);
+
+        // DUPLICATE PREVENTION: Reset flag and re-enable button on error
+        window.processingFinalize = false;
+        const confirmBtn = document.querySelector('#finalizeModal button[onclick="confirmFinalizeDevice()"]');
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Confirm Finalize';
+        }
     }
 }
 
@@ -8652,10 +8716,10 @@ function toggleFinalizePaymentFields() {
     const checkbox = document.getElementById('finalizePaymentCheckbox');
     const fields = document.getElementById('finalizePaymentFields');
     const repairId = document.getElementById('finalizeRepairId').value;
-    
+
     if (checkbox.checked) {
         fields.style.display = 'block';
-        
+
         // Pre-fill payment amount with remaining balance
         const repair = window.allRepairs.find(r => r.id === repairId);
         if (repair) {
@@ -8663,9 +8727,9 @@ function toggleFinalizePaymentFields() {
                 .filter(p => p.verified)
                 .reduce((sum, p) => sum + p.amount, 0);
             const balance = repair.total - totalPaid;
-            
+
             document.getElementById('finalizePaymentAmount').value = balance > 0 ? balance.toFixed(2) : '';
-            document.getElementById('finalizeBalanceNote').textContent = 
+            document.getElementById('finalizeBalanceNote').textContent =
                 `Remaining balance: ₱${balance.toFixed(2)}`;
         }
     } else {
@@ -8679,7 +8743,7 @@ function toggleFinalizePaymentFields() {
 function toggleFinalizeGCashField() {
     const method = document.getElementById('finalizePaymentMethod').value;
     const gcashGroup = document.getElementById('finalizeGCashReferenceGroup');
-    
+
     if (method === 'GCash') {
         gcashGroup.style.display = 'block';
     } else {
