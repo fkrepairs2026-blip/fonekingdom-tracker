@@ -9289,6 +9289,9 @@ async function adminUnreleaseDevice(repairId) {
         };
 
         // Only add properties that exist (not undefined/null)
+        if (repair.status) claimBackup.originalStatus = repair.status;
+        if (repair.releasedAt) claimBackup.releasedAt = repair.releasedAt;
+        if (repair.releaseDate) claimBackup.releaseDate = repair.releaseDate;
         if (repair.claimedAt) claimBackup.claimedAt = repair.claimedAt;
         if (repair.claimedBy) claimBackup.claimedBy = repair.claimedBy;
         if (repair.claimedByName) claimBackup.claimedByName = repair.claimedByName;
@@ -9297,6 +9300,8 @@ async function adminUnreleaseDevice(repairId) {
         if (repair.claimVerifiedByName) claimBackup.claimVerifiedByName = repair.claimVerifiedByName;
         if (repair.claimVerifiedAt) claimBackup.claimVerifiedAt = repair.claimVerifiedAt;
         if (repair.pickupSignature) claimBackup.pickupSignature = repair.pickupSignature;
+        if (repair.releasedWithBalance) claimBackup.releasedWithBalance = repair.releasedWithBalance;
+        if (repair.balanceNotes) claimBackup.balanceNotes = repair.balanceNotes;
 
         // Save backup
         await db.ref('unreleasedBackups').push({
@@ -9307,6 +9312,9 @@ async function adminUnreleaseDevice(repairId) {
 
         // Update repair status
         await db.ref(`repairs/${repairId}`).update({
+            status: 'For Release',  // Set back to For Release
+            releasedAt: null,       // Clear release timestamp
+            releaseDate: null,      // Clear release date
             claimedAt: null,
             claimedBy: null,
             claimedByName: null,
@@ -9315,6 +9323,8 @@ async function adminUnreleaseDevice(repairId) {
             claimVerifiedByName: null,
             claimVerifiedAt: null,
             pickupSignature: null,
+            releasedWithBalance: null,  // Clear balance release info
+            balanceNotes: null,
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName,
             adminNote: `[ADMIN] Un-released on ${utils.formatDateTime(new Date().toISOString())}. Reason: ${reason}`
