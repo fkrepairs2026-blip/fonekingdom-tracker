@@ -126,7 +126,7 @@ Data: ${JSON.stringify(log.data, null, 2)}
     // Show logs in a copyable textarea
     showLogsModal(logText = null) {
         const text = logText || this.exportLogs();
-        
+
         const modal = document.createElement('div');
         modal.id = 'debugLogsModal';
         modal.style.cssText = `
@@ -204,10 +204,10 @@ Data: ${JSON.stringify(log.data, null, 2)}
     },
 
     filterLogsInModal(category) {
-        const filteredLogs = category ? 
-            window.debugLogs.filter(log => log.category === category) : 
+        const filteredLogs = category ?
+            window.debugLogs.filter(log => log.category === category) :
             window.debugLogs;
-        
+
         const logText = filteredLogs.map((log, index) => {
             return `[${index + 1}] ${log.timestamp}
 Category: ${log.category} | Action: ${log.action}
@@ -237,8 +237,8 @@ Data: ${JSON.stringify(log.data, null, 2)}
 
     // Get logs for specific repair
     getRepair(repairId) {
-        return window.debugLogs.filter(log => 
-            log.data.repairId === repairId || 
+        return window.debugLogs.filter(log =>
+            log.data.repairId === repairId ||
             log.data.id === repairId
         );
     },
@@ -263,6 +263,142 @@ Data: ${JSON.stringify(log.data, null, 2)}
             summary[log.category] = (summary[log.category] || 0) + 1;
         });
         return summary;
+    },
+
+    // Automatic profit diagnostic
+    runProfitDiagnostic() {
+        console.log('\n🔍 ========================================');
+        console.log('🔍 PROFIT CALCULATION DIAGNOSTIC');
+        console.log('🔍 ========================================\n');
+
+        const allRepairs = window.allRepairs || [];
+        const currentUserId = window.currentUser?.uid;
+        const techRepairs = allRepairs.filter(r => 
+            r.acceptedBy === currentUserId && !r.deleted
+        );
+
+        console.log('📊 REPAIR OVERVIEW:');
+        console.log(`   Total Repairs: ${allRepairs.filter(r => !r.deleted).length}`);
+        console.log(`   Your Repairs: ${techRepairs.length}`);
+        console.log(`   Released: ${techRepairs.filter(r => r.status === 'Released').length}`);
+        console.log(`   For Release: ${techRepairs.filter(r => r.status === 'Ready for Pickup').length}\n`);
+
+        // Analyze each repair in detail
+        techRepairs.forEach((repair, index) => {
+            console.log(`\n📱 DEVICE ${index + 1}: ${repair.customerName || 'Unknown'}`);
+            console.log('   ID:', repair.id);
+            console.log('   Status:', repair.status);
+            console.log('   Total:', '₱' + (repair.total || 0).toLocaleString());
+            console.log('   Parts Cost:', '₱' + (repair.partsCost || 0).toLocaleString());
+
+            const payments = repair.payments || [];
+            const verifiedPayments = payments.filter(p => p.verified);
+            const totalPaid = verifiedPayments.reduce((sum, p) => sum + (p.amount || 0), 0);
+
+            console.log('\n   💰 PAYMENTS:');
+            console.log(`      Total Payments: ${payments.length}`);
+            console.log(`      Verified: ${verifiedPayments.length} (₱${totalPaid.toLocaleString()})`);
+            console.log(`      Balance: ₱${(repair.total - totalPaid).toLocaleString()}`);
+
+            if (payments.length > 0) {
+                console.log('\n      Payment Details:');
+                payments.forEach((p, i) => {
+                    console.log(`      ${i + 1}. ₱${p.amount} - ${p.method} - ${p.verified ? '✅ Verified' : '⏳ Pending'}`);
+                    console.log(`         Date: ${p.paymentDate || p.recordedDate}`);
+                    console.log(`         By: ${p.recordedBy || 'Unknown'}`);
+                    if (p.collectedByTech) console.log(`         🔔 Needs Remittance`);
+                });
+            }
+        });
+
+        // Calculate net profit
+        console.log('\n\n💵 NET PROFIT CALCULATION:');
+        console.log('========================================');
+
+        const allVerifiedPayments = allRepairs
+            .filter(r => !r.deleted)
+            .flatMap(r => (r.payments || []).filter(p => p.verified))
+            .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+        const allPartsCosts = allRepairs
+            .filter(r => !r.deleted)
+            .reduce((sum, r) => sum + (r.partsCost || 0), 0);
+
+        const allExpenses = (window.techExpenses || [])
+            .filter(e => !e.deleted)
+            .reduce((sum, e) => sum + (e.amount || 0), 0);
+
+        console.log('Total Verified Payments:', '₱' + allVerifiedPayments.toLocaleString());
+        console.log('Total Parts Costs:', '₱' + allPartsCosts.toLocaleString());
+        console.log('Total Expenses:', '₱' + allExpenses.toLocaleString());
+        console.log('\n📊 CALCULATED Net Profit:', '₱' + (allVerifiedPayments - allPartsCosts - allExpenses).toLocaleString());
+
+        // Check what dashboard is showing
+        console.log('\n\n📊 DASHBOARD COMPARISON:');
+        console.log('========================================');
+        console.log('Note: Check admin dashboard to compare with calculated value above');
+
+        // Check for issues
+        console.log('\n\n🔎 CHECKING FOR ISSUES:');
+        console.log('========================================');
+
+        let issuesFound = 0;
+
+        // Check for missing parts costs
+        const completedWithoutParts = allRepairs.filter(r => 
+            (r.status === 'Claimed' || r.status === 'Released') && !r.partsCost && !r.deleted
+        );
+        if (completedWithoutParts.length > 0) {
+            issuesFound++;
+            console.log(`⚠️ ${completedWithoutParts.length} completed repairs without parts cost:`);
+            completedWithoutParts.forEach(r => console.log(`   - ${r.customerName} (${r.id})`));
+        }
+
+        // Check for payments without verification
+        const unverifiedPayments = allRepairs
+            .filter(r => !r.deleted)
+            .flatMap(r => (r.payments || []).filter(p => !p.verified));
+        if (unverifiedPayments.length > 0) {
+            console.log(`ℹ️ ${unverifiedPayments.length} unverified payments (normal if awaiting verification)`);
+        }
+
+        // Check for duplicate payments by analyzing same amount/date
+        allRepairs.filter(r => !r.deleted).forEach(repair => {
+            const payments = repair.payments || [];
+            if (payments.length > 1) {
+                const duplicateCheck = payments.reduce((acc, p, i) => {
+                    const key = `${p.amount}_${p.method}_${p.paymentDate}`;
+                    if (!acc[key]) acc[key] = [];
+                    acc[key].push(i + 1);
+                    return acc;
+                }, {});
+                
+                Object.entries(duplicateCheck).forEach(([key, indices]) => {
+                    if (indices.length > 1) {
+                        issuesFound++;
+                        console.log(`❌ Possible duplicate payments in ${repair.customerName}:`);
+                        console.log(`   Payments #${indices.join(', ')} appear identical`);
+                    }
+                });
+            }
+        });
+
+        if (issuesFound === 0) {
+            console.log('✅ No obvious issues detected');
+        }
+
+        console.log('\n\n🔍 Diagnostic Complete!');
+        console.log('========================================\n');
+
+        return {
+            totalRepairs: allRepairs.filter(r => !r.deleted).length,
+            techRepairs: techRepairs.length,
+            totalVerifiedPayments: allVerifiedPayments,
+            totalPartsCosts: allPartsCosts,
+            totalExpenses: allExpenses,
+            calculatedNetProfit: allVerifiedPayments - allPartsCosts - allExpenses,
+            issuesFound
+        };
     }
 };
 
@@ -279,3 +415,4 @@ document.addEventListener('keydown', (e) => {
 
 console.log('🐛 Debug Logger loaded! Press Ctrl+Shift+D to view logs');
 console.log('📝 Commands: DebugLogger.copyToClipboard(), DebugLogger.clear(), DebugLogger.getSummary()');
+console.log('🔍 New: DebugLogger.runProfitDiagnostic() - Auto profit analysis');
