@@ -99,6 +99,16 @@ async function initializeApp() {
         
         console.log('✅ App initialization complete!');
         
+        // Show onboarding wizard for first-time users (after UI is ready)
+        setTimeout(() => {
+            if (!hasSeenOnboarding()) {
+                console.log('👋 Showing onboarding wizard for first-time user');
+                showOnboardingWizard();
+            } else {
+                console.log('✓ User has seen onboarding before');
+            }
+        }, 1000); // Delay to ensure UI is fully rendered
+        
     } catch (error) {
         console.error('❌ Error initializing app:', error);
         console.error('Stack:', error.stack);

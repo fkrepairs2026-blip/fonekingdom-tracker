@@ -73,6 +73,24 @@
                         <div id="userRole" class="user-role"></div>
                     </div>
                 </div>
+                <button onclick="openHelpGuide()" class="btn-small" title="Help Guide / Gabay sa Paggamit">
+                    <span>❓</span>
+                    <span class="btn-text">Help</span>
+                </button>
+                <div class="language-toggle" style="position:relative;">
+                    <button onclick="toggleLanguageDropdown()" class="btn-small" title="Change Language / Baguhin ang Wika" id="langToggleBtn">
+                        <span>🌐</span>
+                        <span class="btn-text" id="currentLangText">EN</span>
+                    </button>
+                    <div id="languageDropdown" class="dropdown-menu" style="display:none;position:absolute;right:0;top:100%;background:white;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:1000;min-width:120px;margin-top:5px;">
+                        <button onclick="setHelpLanguage('en')" style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
+                            🇺🇸 English
+                        </button>
+                        <button onclick="setHelpLanguage('tl')" style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
+                            🇵🇭 Tagalog
+                        </button>
+                    </div>
+                </div>
                 <button onclick="toggleTheme()" class="btn-small theme-toggle" id="themeToggle" title="Toggle Dark Mode">
                     <span class="theme-icon">🌙</span>
                 </button>
@@ -847,9 +865,26 @@
         </div>
     </div>
 
+    <!-- Help Guide Modal -->
+    <div id="helpGuideModal" class="modal">
+        <div class="modal-content" style="max-width:900px;max-height:90vh;overflow-y:auto;">
+            <span class="close" onclick="closeHelpGuide()">&times;</span>
+            <h3 id="helpGuideTitle">❓ Help Guide / Gabay sa Paggamit</h3>
+            <div style="margin:15px 0;">
+                <input type="text" id="helpSearchInput" placeholder="Search help topics... / Maghanap..." 
+                    style="width:100%;padding:10px;border:1px solid #ccc;border-radius:4px;font-size:14px;"
+                    onkeyup="filterHelpTopics()">
+            </div>
+            <div id="helpGuideContent" style="margin-top:20px;">
+                <!-- Help content will be dynamically loaded here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/firebase-config.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/help-content.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/repairs.js"></script>
     <script src="js/inventory.js"></script>

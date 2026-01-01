@@ -20,7 +20,7 @@ let activeTab = '';
 function buildTabs() {
     console.log('🔖 Building sidebar navigation...');
     const role = window.currentUserData.role;
-    
+
     // Define sections with their tabs
     const sections = {
         overview: {
@@ -44,12 +44,12 @@ function buildTabs() {
             tabs: []
         }
     };
-    
+
     // Overview section - Dashboard for all roles
     sections.overview.tabs.push(
         { id: 'dashboard', label: 'Dashboard', icon: '📊', build: buildDashboardTab }
     );
-    
+
     // ROLE-SPECIFIC TABS
     if (role === 'cashier') {
         // Operations
@@ -138,16 +138,16 @@ function buildTabs() {
             { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab }
         );
     }
-    
+
     // Store sections globally for sidebar rendering
     window.sidebarSections = sections;
-    
+
     // Build flat availableTabs array for compatibility
     availableTabs = [];
     for (const section of Object.values(sections)) {
         availableTabs.push(...section.tabs);
     }
-    
+
     console.log('✅ Sidebar sections configured:', Object.keys(sections).length);
     console.log('✅ Total tabs:', availableTabs.length);
     renderSidebar();
@@ -160,39 +160,39 @@ function renderSidebar() {
     console.log('🎨 Rendering sidebar navigation...');
     const sidebarNav = document.getElementById('sidebarNav');
     const contentsContainer = document.getElementById('contentsContainer');
-    
+
     if (!sidebarNav) {
         console.error('❌ Sidebar nav not found!');
         return;
     }
-    
+
     if (!contentsContainer) {
         console.error('❌ Contents container not found!');
         return;
     }
-    
+
     // Calculate pending deletion requests count
-    const pendingDeletions = window.allModificationRequests ? 
+    const pendingDeletions = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request').length : 0;
-    
+
     // Clear existing content
     sidebarNav.innerHTML = '';
     contentsContainer.innerHTML = '';
-    
+
     let html = '';
-    
+
     // Render each section
     for (const [sectionKey, section] of Object.entries(window.sidebarSections)) {
         if (section.tabs.length === 0) continue;
-        
+
         html += `
             <div class="sidebar-section">
                 <div class="sidebar-section-title">${section.title}</div>
                 ${section.tabs.map(tab => {
-                    // Add badge for mod-requests tab if there are pending deletions
-                    const hasBadge = tab.id === 'mod-requests' && pendingDeletions > 0;
-                    
-                    return `
+            // Add badge for mod-requests tab if there are pending deletions
+            const hasBadge = tab.id === 'mod-requests' && pendingDeletions > 0;
+
+            return `
                         <div class="sidebar-item ${tab.id === activeTab ? 'active' : ''}" 
                              data-tab="${tab.id}"
                              id="sidebar-${tab.id}"
@@ -202,32 +202,32 @@ function renderSidebar() {
                             ${hasBadge ? `<span class="sidebar-badge-alert">${pendingDeletions}</span>` : ''}
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         `;
     }
-    
+
     sidebarNav.innerHTML = html;
-    
+
     // Build content containers for all tabs
     availableTabs.forEach((tab, index) => {
         const contentEl = document.createElement('div');
         contentEl.id = `${tab.id}Tab`;
         contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
         contentsContainer.appendChild(contentEl);
-        
+
         console.log('📄 Building content for tab:', tab.label);
         tab.build(contentEl);
     });
-    
+
     // Set first tab as active
     if (availableTabs.length > 0) {
         activeTab = availableTabs[0].id;
     }
-    
+
     // Render mobile bottom nav (keep 4-5 most important tabs)
     renderMobileBottomNav();
-    
+
     console.log('✅ Sidebar rendered successfully');
 }
 
@@ -237,12 +237,12 @@ function renderSidebar() {
 function renderMobileBottomNav() {
     const mobileNav = document.getElementById('mobileBottomNav');
     if (!mobileNav) return;
-    
+
     const role = window.currentUserData.role;
-    
+
     // Select 4-5 most important tabs for quick access
     const quickTabs = [];
-    
+
     if (role === 'cashier') {
         quickTabs.push(
             { id: 'dashboard', icon: '📊', label: 'Dashboard' },
@@ -267,7 +267,7 @@ function renderMobileBottomNav() {
             { id: 'cash', icon: '💵', label: 'Cash' }
         );
     }
-    
+
     mobileNav.innerHTML = quickTabs.map(tab => `
         <div class="mobile-nav-item ${tab.id === activeTab ? 'active' : ''}"
              id="mobile-tab-${tab.id}"
@@ -286,38 +286,38 @@ function renderTabs() {
     const tabsContainer = document.getElementById('tabsContainer');
     const contentsContainer = document.getElementById('contentsContainer');
     const mobileNav = document.getElementById('mobileBottomNav');
-    
+
     if (!tabsContainer || !contentsContainer) {
         console.error('❌ Tab containers not found!');
         return;
     }
-    
+
     tabsContainer.innerHTML = '';
     contentsContainer.innerHTML = '';
-    
+
     // Build mobile navigation (show ALL available tabs)
     if (mobileNav) {
         mobileNav.innerHTML = '';
-        
+
         // Show ALL available tabs in mobile navigation
         availableTabs.forEach((tab, index) => {
             const navItem = document.createElement('div');
             navItem.className = 'mobile-nav-item' + (index === 0 ? ' active' : '');
             navItem.onclick = () => switchTab(tab.id);
             navItem.id = `mobile-tab-${tab.id}`;
-            
+
             // Extract emoji and text
             const label = tab.label;
             const emojiMatch = label.match(/^([^\s]+)\s+(.+)$/);
             const emoji = emojiMatch ? emojiMatch[1] : '📋';
             let text = emojiMatch ? emojiMatch[2] : label;
-            
+
             // Shorten text for mobile - keep it short but readable
             const maxLength = 7;
             if (text.length > maxLength) {
                 text = text.substring(0, maxLength - 1) + '…';
             }
-            
+
             navItem.innerHTML = `
                 <span>${emoji}</span>
                 <span>${text}</span>
@@ -325,7 +325,7 @@ function renderTabs() {
             mobileNav.appendChild(navItem);
         });
     }
-    
+
     availableTabs.forEach((tab, index) => {
         const tabEl = document.createElement('div');
         tabEl.className = 'tab' + (index === 0 ? ' active' : '');
@@ -333,20 +333,20 @@ function renderTabs() {
         tabEl.onclick = () => switchTab(tab.id);
         tabEl.id = `tab-${tab.id}`;
         tabsContainer.appendChild(tabEl);
-        
+
         const contentEl = document.createElement('div');
         contentEl.id = `${tab.id}Tab`;
         contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
         contentsContainer.appendChild(contentEl);
-        
+
         console.log('📄 Building content for tab:', tab.label);
         tab.build(contentEl);
     });
-    
+
     if (availableTabs.length > 0) {
         activeTab = availableTabs[0].id;
     }
-    
+
     console.log('✅ Tabs rendered successfully');
 }
 
@@ -355,33 +355,33 @@ function renderTabs() {
  */
 function switchTab(tabId) {
     console.log('🔄 Switching to tab:', tabId);
-    
+
     // Remove active class from all navigation items
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.mobile-nav-item').forEach(m => m.classList.remove('active'));
     document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
-    
+
     // Activate current tab elements
     const tab = document.getElementById(`tab-${tabId}`);
     const content = document.getElementById(`${tabId}Tab`);
     const mobileTab = document.getElementById(`mobile-tab-${tabId}`);
     const sidebarItem = document.getElementById(`sidebar-${tabId}`);
-    
+
     if (tab) tab.classList.add('active');
     if (content) content.classList.add('active');
     if (mobileTab) mobileTab.classList.add('active');
     if (sidebarItem) sidebarItem.classList.add('active');
-    
+
     activeTab = tabId;
-    
+
     // Close mobile sidebar if open
     if (window.innerWidth <= 768) {
         if (window.closeMobileSidebar) {
             window.closeMobileSidebar();
         }
     }
-    
+
     // For mobile: scroll to show content immediately (above stats at bottom)
     const isMobile = window.innerWidth <= 768;
     if (isMobile && content) {
@@ -406,13 +406,13 @@ function switchTab(tabId) {
 function buildReceivedDevicesPage(container) {
     console.log('📥 Building Received Devices page');
     window.currentTabRefresh = () => buildReceivedDevicesPage(document.getElementById('receivedTab'));
-    
+
     // Show devices that are received but not yet accepted
     // Include both "Received" and "Pending Customer Approval" statuses
-    const receivedDevices = window.allRepairs.filter(r => 
+    const receivedDevices = window.allRepairs.filter(r =>
         (r.status === 'Received' || r.status === 'Pending Customer Approval') && !r.acceptedBy
     );
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>📥 Received Devices (${receivedDevices.length})</h3>
@@ -429,7 +429,7 @@ function buildReceivedDevicesPage(container) {
             `}
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('receivedDevicesList');
         if (listContainer && receivedDevices.length > 0) {
@@ -444,11 +444,11 @@ function buildReceivedDevicesPage(container) {
 function buildInProgressPage(container) {
     console.log('🔧 Building In Progress page');
     window.currentTabRefresh = () => buildInProgressPage(document.getElementById('inprogressTab'));
-    
-    const inProgressDevices = window.allRepairs.filter(r => 
+
+    const inProgressDevices = window.allRepairs.filter(r =>
         r.status === 'In Progress' || r.status === 'Waiting for Parts'
     );
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>🔧 In Progress - Active Repairs (${inProgressDevices.length})</h3>
@@ -463,7 +463,7 @@ function buildInProgressPage(container) {
             `}
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('inProgressList');
         if (listContainer && inProgressDevices.length > 0) {
@@ -478,10 +478,10 @@ function buildInProgressPage(container) {
 function buildForReleasePage(container) {
     console.log('📦 Building For Release page');
     window.currentTabRefresh = () => buildForReleasePage(document.getElementById('forreleaseTab'));
-    
+
     const forReleaseRepairs = window.allRepairs.filter(r => r.status === 'Ready for Pickup');
     const releasedRepairs = window.allRepairs.filter(r => r.status === 'Released');
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>📦 Ready for Customer Pickup (${forReleaseRepairs.length})</h3>
@@ -499,7 +499,7 @@ function buildForReleasePage(container) {
         </div>
         ` : ''}
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('forReleaseList');
         if (listContainer) {
@@ -509,7 +509,7 @@ function buildForReleasePage(container) {
                 displayCompactRepairsList(forReleaseRepairs, listContainer, 'forrelease');
             }
         }
-        
+
         const releasedContainer = document.getElementById('releasedList');
         if (releasedContainer && releasedRepairs.length > 0) {
             displayCompactRepairsList(releasedRepairs, releasedContainer, 'released');
@@ -523,12 +523,12 @@ function buildForReleasePage(container) {
 function buildRTODevicesTab(container) {
     console.log('↩️ Building RTO Devices tab');
     window.currentTabRefresh = () => buildRTODevicesTab(document.getElementById('rtoTab'));
-    
+
     const rtoDevices = window.allRepairs.filter(r => r.status === 'RTO' && !r.claimedAt);
-    
+
     // Sort by RTO date (most recent first)
     rtoDevices.sort((a, b) => new Date(b.rtoDate || b.lastUpdated) - new Date(a.rtoDate || a.lastUpdated));
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>↩️ Return to Owner - RTO Devices (${rtoDevices.length})</h3>
@@ -542,7 +542,7 @@ function buildRTODevicesTab(container) {
             `}
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('rtoDevicesList');
         if (listContainer && rtoDevices.length > 0) {
@@ -556,26 +556,26 @@ function buildRTODevicesTab(container) {
  */
 function buildDashboardTab(container) {
     console.log('📊 Building dashboard tab...');
-    
+
     window.currentTabRefresh = () => buildDashboardTab(
         document.getElementById('dashboardTab')
     );
-    
+
     if (!container) {
         console.warn('Container not found for dashboard');
         return;
     }
-    
+
     const role = window.currentUserData.role;
     const userName = window.currentUserData.displayName;
-    
+
     // Count pending deletion requests (admin only)
-    const pendingDeletions = role === 'admin' && window.allModificationRequests ? 
+    const pendingDeletions = role === 'admin' && window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request') : [];
-    
+
     // Build user-grouped activity feed
     const userActivities = buildUserGroupedActivityFeed();
-    
+
     // Build clean dashboard with welcome and user-grouped activity
     const html = `
         <div class="dashboard-container">
@@ -611,9 +611,9 @@ function buildDashboardTab(container) {
                     </div>
                 ` : `
                     <div style="display:grid;gap:15px;">
-                        ${Object.entries(userActivities).map(([userId, userData]) => 
-                            renderUserActivitySection(userId, userData)
-                        ).join('')}
+                        ${Object.entries(userActivities).map(([userId, userData]) =>
+        renderUserActivitySection(userId, userData)
+    ).join('')}
                     </div>
                 `}
             </div>
@@ -623,7 +623,7 @@ function buildDashboardTab(container) {
             </div>
         </div>
     `;
-    
+
     container.innerHTML = html;
 }
 
@@ -636,14 +636,14 @@ function buildUserGroupedActivityFeed() {
     const today = new Date();
     const threeDaysAgo = new Date(today);
     threeDaysAgo.setDate(today.getDate() - 3);
-    
+
     // Get recent repairs (last 3 days)
     (window.allRepairs || []).forEach(repair => {
         if (repair.deleted) return;
-        
+
         const createdDate = new Date(repair.createdAt);
         if (createdDate < threeDaysAgo) return;
-        
+
         // Group by creator
         if (repair.createdBy) {
             if (!userActivities[repair.createdBy]) {
@@ -653,7 +653,7 @@ function buildUserGroupedActivityFeed() {
                     activities: []
                 };
             }
-            
+
             userActivities[repair.createdBy].activities.push({
                 type: 'repair_created',
                 timestamp: repair.createdAt,
@@ -665,13 +665,13 @@ function buildUserGroupedActivityFeed() {
                 }
             });
         }
-        
+
         // Group payments by receiver
         if (repair.payments) {
             repair.payments.forEach(payment => {
                 const paymentDate = new Date(payment.paymentDate || payment.recordedDate);
                 if (paymentDate < threeDaysAgo) return;
-                
+
                 if (payment.receivedById) {
                     if (!userActivities[payment.receivedById]) {
                         userActivities[payment.receivedById] = {
@@ -680,7 +680,7 @@ function buildUserGroupedActivityFeed() {
                             activities: []
                         };
                     }
-                    
+
                     userActivities[payment.receivedById].activities.push({
                         type: 'payment_recorded',
                         timestamp: payment.recordedDate || payment.paymentDate,
@@ -694,12 +694,12 @@ function buildUserGroupedActivityFeed() {
             });
         }
     });
-    
+
     // Get recent remittances (last 3 days)
     (window.techRemittances || []).forEach(remittance => {
         const remitDate = new Date(remittance.submittedAt || remittance.date);
         if (remitDate < threeDaysAgo) return;
-        
+
         if (remittance.techId) {
             if (!userActivities[remittance.techId]) {
                 userActivities[remittance.techId] = {
@@ -708,7 +708,7 @@ function buildUserGroupedActivityFeed() {
                     activities: []
                 };
             }
-            
+
             userActivities[remittance.techId].activities.push({
                 type: 'remittance_submitted',
                 timestamp: remittance.submittedAt || remittance.date,
@@ -719,16 +719,16 @@ function buildUserGroupedActivityFeed() {
             });
         }
     });
-    
+
     // Sort activities within each user by timestamp (most recent first)
     Object.values(userActivities).forEach(userData => {
-        userData.activities.sort((a, b) => 
+        userData.activities.sort((a, b) =>
             new Date(b.timestamp) - new Date(a.timestamp)
         );
         // Limit to 5 most recent activities per user
         userData.activities = userData.activities.slice(0, 5);
     });
-    
+
     return userActivities;
 }
 
@@ -741,13 +741,13 @@ function renderUserActivitySection(userId, userData) {
         'payment_recorded': '💰',
         'remittance_submitted': '📤'
     };
-    
+
     const activityTypeColors = {
         'repair_created': '#667eea',
         'payment_recorded': '#4caf50',
         'remittance_submitted': '#2196f3'
     };
-    
+
     return `
         <div style="background:var(--bg-white);border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
             <!-- User Header (Collapsible) -->
@@ -765,19 +765,19 @@ function renderUserActivitySection(userId, userData) {
             <!-- Activity List (Collapsible Content) -->
             <div id="user-activities-${userId}" style="padding:15px;display:block;">
                 ${userData.activities.map((activity, index) => {
-                    const icon = activityTypeIcons[activity.type] || '📌';
-                    const color = activityTypeColors[activity.type] || '#999';
-                    
-                    let activityText = '';
-                    if (activity.type === 'repair_created') {
-                        activityText = `Created repair for <strong>${activity.data.customer}</strong> - ${activity.data.device}`;
-                    } else if (activity.type === 'payment_recorded') {
-                        activityText = `Recorded payment of <strong>₱${parseFloat(activity.data.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong> (${activity.data.method}) from ${activity.data.customer}`;
-                    } else if (activity.type === 'remittance_submitted') {
-                        activityText = `Submitted remittance of <strong>₱${parseFloat(activity.data.amount).toLocaleString('en-PH', {minimumFractionDigits: 2})}</strong> - ${activity.data.status}`;
-                    }
-                    
-                    return `
+        const icon = activityTypeIcons[activity.type] || '📌';
+        const color = activityTypeColors[activity.type] || '#999';
+
+        let activityText = '';
+        if (activity.type === 'repair_created') {
+            activityText = `Created repair for <strong>${activity.data.customer}</strong> - ${activity.data.device}`;
+        } else if (activity.type === 'payment_recorded') {
+            activityText = `Recorded payment of <strong>₱${parseFloat(activity.data.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong> (${activity.data.method}) from ${activity.data.customer}`;
+        } else if (activity.type === 'remittance_submitted') {
+            activityText = `Submitted remittance of <strong>₱${parseFloat(activity.data.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</strong> - ${activity.data.status}`;
+        }
+
+        return `
                         <div style="display:flex;gap:12px;padding:10px;${index < userData.activities.length - 1 ? 'border-bottom:1px solid var(--border-color);' : ''}">
                             <div style="font-size:24px;flex-shrink:0;">${icon}</div>
                             <div style="flex:1;">
@@ -789,7 +789,7 @@ function renderUserActivitySection(userId, userData) {
                             <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${color};margin-top:6px;flex-shrink:0;"></span>
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
         </div>
     `;
@@ -801,7 +801,7 @@ function renderUserActivitySection(userId, userData) {
 function toggleUserActivitySection(userId) {
     const content = document.getElementById(`user-activities-${userId}`);
     const icon = document.getElementById(`toggle-icon-${userId}`);
-    
+
     if (content.style.display === 'none') {
         content.style.display = 'block';
         icon.style.transform = 'rotate(0deg)';
@@ -819,7 +819,7 @@ function toggleUserActivitySection(userId) {
 function buildReceiveDeviceTab(container) {
     console.log('📥 Building Receive Device tab');
     window.currentTabRefresh = () => buildReceiveDeviceTab(document.getElementById('receiveTab'));
-    
+
     // Load suppliers for dropdown if not already loaded
     if (!window.allSuppliers) {
         loadSuppliers().then(() => {
@@ -829,7 +829,7 @@ function buildReceiveDeviceTab(container) {
         // Suppliers already loaded, just populate
         setTimeout(() => populateReceiveSupplierDropdown(), 100);
     }
-    
+
     // Get list of techs who have worked on repairs (for back jobs)
     const techsWithJobs = {};
     window.allRepairs.forEach(r => {
@@ -837,11 +837,13 @@ function buildReceiveDeviceTab(container) {
             techsWithJobs[r.acceptedBy] = r.acceptedByName;
         }
     });
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>➕ Receive Device</h3>
             <p style="color:#666;margin-bottom:20px;">Receive new device from customer - Technician will accept it later</p>
+            
+            ${generateHelpBox('deviceIntake', getCurrentHelpLanguage())}
             
             <form onsubmit="submitReceiveDevice(event)">
                 <div class="form-row">
@@ -1077,9 +1079,9 @@ function buildReceiveDeviceTab(container) {
                         <label>Assign to Original Technician *</label>
                         <select id="backJobTech" name="backJobTech">
                             <option value="">Select technician who worked on this before</option>
-                            ${Object.entries(techsWithJobs).map(([uid, name]) => 
-                                `<option value="${uid}">${name}</option>`
-                            ).join('')}
+                            ${Object.entries(techsWithJobs).map(([uid, name]) =>
+        `<option value="${uid}">${name}</option>`
+    ).join('')}
                         </select>
                     </div>
                     <div class="form-group">
@@ -1115,9 +1117,9 @@ function buildReceiveDeviceTab(container) {
                         <div id="assignToTechWrapper" style="display:none;margin-left:30px;margin-top:8px;">
                             <select id="assignToTech" style="width:100%;">
                                 <option value="">Select technician...</option>
-                                ${Object.values(window.allUsers || {}).filter(u => u.role === 'technician' && u.status === 'active').map(u => 
-                                    `<option value="${u.uid}">${u.displayName}</option>`
-                                ).join('')}
+                                ${Object.values(window.allUsers || {}).filter(u => u.role === 'technician' && u.status === 'active').map(u =>
+        `<option value="${u.uid}">${u.displayName}</option>`
+    ).join('')}
                             </select>
                         </div>
                     </div>
@@ -1148,18 +1150,18 @@ function buildReceiveDeviceTab(container) {
 function populateReceiveSupplierDropdown() {
     const supplierSelect = document.getElementById('receiveSupplier');
     if (!supplierSelect || !window.allSuppliers) return;
-    
+
     // Clear existing dynamic options (keep first 3: blank, Stock, Customer Provided)
     while (supplierSelect.options.length > 3) {
         supplierSelect.remove(3);
     }
-    
+
     // Add suppliers from Firebase
     window.allSuppliers.forEach(supplier => {
         const option = new Option(supplier.name, supplier.name);
         supplierSelect.add(option);
     });
-    
+
     console.log(`✅ Loaded ${window.allSuppliers.length} suppliers into receive form`);
 }
 
@@ -1169,11 +1171,11 @@ function populateReceiveSupplierDropdown() {
 function buildMyRequestsTab(container) {
     console.log('📝 Building My Requests tab');
     window.currentTabRefresh = () => buildMyRequestsTab(document.getElementById('requestsTab'));
-    
+
     // Load modification requests for this user
-    const myRequests = window.allModificationRequests ? 
+    const myRequests = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.requestedBy === window.currentUser.uid) : [];
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>📝 My Modification Requests (${myRequests.length})</h3>
@@ -1223,19 +1225,19 @@ function buildMyRequestsTab(container) {
 function buildModificationRequestsTab(container) {
     console.log('🔔 Building Modification Requests tab');
     window.currentTabRefresh = () => buildModificationRequestsTab(document.getElementById('mod-requestsTab'));
-    
+
     // Separate deletion requests from other requests
     const pendingDeletionRequests = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request') : [];
-    
+
     const pendingOtherRequests = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType !== 'deletion_request') : [];
-    
+
     const totalPending = pendingDeletionRequests.length + pendingOtherRequests.length;
-    
+
     const processedRequests = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.status !== 'pending').slice(0, 20) : [];
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>🔔 Modification Requests (${totalPending} pending)</h3>
@@ -1333,12 +1335,12 @@ function buildModificationRequestsTab(container) {
 function buildUnpaidTab(container) {
     console.log('💳 Building Unpaid tab');
     window.currentTabRefresh = () => buildUnpaidTab(document.getElementById('unpaidTab'));
-    
+
     const unpaidRepairs = window.allRepairs.filter(r => {
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         return (r.total - totalPaid) > 0;
     });
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>💳 Unpaid Repairs (${unpaidRepairs.length})</h3>
@@ -1346,7 +1348,7 @@ function buildUnpaidTab(container) {
             <div id="unpaidRepairsList"></div>
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('unpaidRepairsList');
         if (listContainer) {
@@ -1358,11 +1360,11 @@ function buildUnpaidTab(container) {
 function buildPendingPaymentsTab(container) {
     console.log('⏳ Building Pending Payments tab');
     window.currentTabRefresh = () => buildPendingPaymentsTab(document.getElementById('pendingTab'));
-    
-    const pendingRepairs = window.allRepairs.filter(r => 
+
+    const pendingRepairs = window.allRepairs.filter(r =>
         r.payments && r.payments.some(p => !p.verified)
     );
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>⏳ Pending Payment Verification (${pendingRepairs.length})</h3>
@@ -1370,7 +1372,7 @@ function buildPendingPaymentsTab(container) {
             <div id="pendingPaymentsList"></div>
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('pendingPaymentsList');
         if (listContainer) {
@@ -1382,12 +1384,12 @@ function buildPendingPaymentsTab(container) {
 function buildPaidTab(container) {
     console.log('✅ Building Paid tab');
     window.currentTabRefresh = () => buildPaidTab(document.getElementById('paidTab'));
-    
+
     const paidRepairs = window.allRepairs.filter(r => {
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         return (r.total - totalPaid) === 0 && r.total > 0;
     });
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>✅ Fully Paid Repairs (${paidRepairs.length})</h3>
@@ -1395,7 +1397,7 @@ function buildPaidTab(container) {
             <div id="paidRepairsList"></div>
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('paidRepairsList');
         if (listContainer) {
@@ -1406,20 +1408,20 @@ function buildPaidTab(container) {
 
 function buildAllRepairsTab(container) {
     console.log('📋 Building All Repairs tab');
-    
+
     window.currentTabRefresh = () => {
         buildAllRepairsTab(document.getElementById('allTab'));
     };
-    
+
     const repairs = window.allRepairs || [];
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>All Repairs (${repairs.length})</h3>
             <div id="allRepairsList"></div>
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
@@ -1434,26 +1436,26 @@ function displayRepairsInContainer(repairs, container) {
         console.warn('⚠️ Container not found, skipping display');
         return;
     }
-    
+
     if (!container) {
         console.error('❌ Container is null!');
         return;
     }
-    
+
     if (!repairs || repairs.length === 0) {
         container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No repairs found</p>';
         return;
     }
-    
+
     const role = window.currentUserData.role;
     const hidePaymentActions = role === 'technician';
-    
+
     container.innerHTML = repairs.map(r => {
         const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         const balance = r.total - totalPaid;
         const paymentStatus = balance === 0 && r.total > 0 ? 'verified' : (r.payments && r.payments.some(p => !p.verified)) ? 'pending' : 'unpaid';
-        
+
         return `
             <div class="repair-card">
                 <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
@@ -1545,24 +1547,24 @@ function displayCompactRepairsList(repairs, container, context = 'default') {
         console.warn('⚠️ Container not found, skipping display');
         return;
     }
-    
+
     if (!repairs || repairs.length === 0) {
         container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No repairs found</p>';
         return;
     }
-    
+
     // Store context in container dataset for access in toggle function
     container.dataset.context = context;
-    
+
     const role = window.currentUserData.role;
-    
+
     container.innerHTML = repairs.map(r => {
         const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
         const isExpanded = window.expandedRepairId === r.id;
-        
+
         // Truncate problem description for compact view
         const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
-        
+
         return `
             <div class="repair-list-item-compact ${isExpanded ? 'expanded' : ''}" 
                  id="repair-item-${r.id}"
@@ -1606,7 +1608,7 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
     const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = r.total - totalPaid;
     const paymentStatus = balance === 0 && r.total > 0 ? 'verified' : (r.payments && r.payments.some(p => !p.verified)) ? 'pending' : 'unpaid';
-    
+
     return `
         <div class="repair-expanded-details">
             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
@@ -1770,7 +1772,7 @@ function renderRTOSpecificInfo(r) {
     const rtoPaymentStatus = r.rtoPaymentStatus || 'waived';
     const hasFee = diagnosisFee > 0;
     const isPaid = rtoPaymentStatus === 'paid' || rtoPaymentStatus === 'waived';
-    
+
     return `
         ${r.rtoReason ? `
             <div class="alert-warning-compact" style="margin:15px 0;">
@@ -1808,7 +1810,7 @@ function renderRTOSpecificInfo(r) {
  * Render context-specific action buttons based on repair context
  */
 function renderContextButtons(repair, role, context) {
-    switch(context) {
+    switch (context) {
         case 'received':
             return renderReceivedDeviceButtons(repair, role);
         case 'rto':
@@ -1829,21 +1831,21 @@ function renderContextButtons(repair, role, context) {
  */
 function renderStandardButtons(r, role) {
     const hidePaymentActions = role === 'technician';
-    
+
     // Check if there's a pending deletion request for this repair
     const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id && 
-        req.requestType === 'deletion_request' && 
-        req.status === 'pending'
+        req => req.repairId === r.id &&
+            req.requestType === 'deletion_request' &&
+            req.status === 'pending'
     );
-    
+
     // Show delete request button for technician on their own repairs
-    const canRequestDelete = role === 'technician' && 
-                            r.technicianId === window.currentUser.uid && 
-                            !r.deleted && 
-                            r.status !== 'Completed' &&
-                            !hasPendingDeletion;
-    
+    const canRequestDelete = role === 'technician' &&
+        r.technicianId === window.currentUser.uid &&
+        !r.deleted &&
+        r.status !== 'Completed' &&
+        !hasPendingDeletion;
+
     return `
         ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
         ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
@@ -1865,9 +1867,9 @@ function renderForReleaseButtons(r, role) {
     const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = r.total - totalPaid;
     const isFullyPaid = balance <= 0;
-    
+
     let buttons = '';
-    
+
     // Payment button if not fully paid (not for technicians who will collect during release)
     if (!isFullyPaid && role !== 'technician') {
         buttons += `
@@ -1876,14 +1878,14 @@ function renderForReleaseButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Release button - ALL roles can ALWAYS release (payment collection happens during release)
     buttons += `
         <button class="btn-small btn-success" onclick="openReleaseDeviceModal('${r.id}')" style="background:#2e7d32;color:white;font-weight:bold;">
             ✅ Release to Customer${!isFullyPaid ? ' (Collect Payment)' : ''}
         </button>
     `;
-    
+
     // Show balance warning if unpaid
     if (!isFullyPaid) {
         buttons += `
@@ -1892,7 +1894,7 @@ function renderForReleaseButtons(r, role) {
             </span>
         `;
     }
-    
+
     // Additional action buttons for authorized roles
     if (role === 'technician' || role === 'admin' || role === 'manager') {
         buttons += `
@@ -1901,7 +1903,7 @@ function renderForReleaseButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Status update button
     if (role === 'admin' || role === 'manager' || role === 'technician') {
         buttons += `
@@ -1910,17 +1912,17 @@ function renderForReleaseButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Technician delete request button
     const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id && 
-        req.requestType === 'deletion_request' && 
-        req.status === 'pending'
+        req => req.repairId === r.id &&
+            req.requestType === 'deletion_request' &&
+            req.status === 'pending'
     );
-    
-    if (role === 'technician' && 
-        r.technicianId === window.currentUser.uid && 
-        !r.deleted && 
+
+    if (role === 'technician' &&
+        r.technicianId === window.currentUser.uid &&
+        !r.deleted &&
         r.status !== 'Completed' &&
         !hasPendingDeletion) {
         buttons += `
@@ -1929,7 +1931,7 @@ function renderForReleaseButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Admin delete button
     if (role === 'admin') {
         buttons += `
@@ -1938,7 +1940,7 @@ function renderForReleaseButtons(r, role) {
             </button>
         `;
     }
-    
+
     return buttons;
 }
 
@@ -1947,7 +1949,7 @@ function renderForReleaseButtons(r, role) {
  */
 function renderReleasedButtons(r, role) {
     let buttons = '';
-    
+
     // Show countdown timer
     if (r.releasedAt && window.getCountdownTo6PM) {
         const countdown = window.getCountdownTo6PM(r.releasedAt);
@@ -1959,7 +1961,7 @@ function renderReleasedButtons(r, role) {
             </div>
         `;
     }
-    
+
     // Finalize button (all roles can finalize)
     buttons += `
         <button class="btn-small btn-success" onclick="finalizeClaimDevice('${r.id}', false)" 
@@ -1967,7 +1969,7 @@ function renderReleasedButtons(r, role) {
             ⚡ Finalize Now
         </button>
     `;
-    
+
     // View details button
     buttons += `
         <button class="btn-small" onclick="viewClaimDetails('${r.id}')" 
@@ -1975,7 +1977,7 @@ function renderReleasedButtons(r, role) {
             📄 View Details
         </button>
     `;
-    
+
     // Status update button for authorized roles
     if (role === 'admin' || role === 'manager' || role === 'technician') {
         buttons += `
@@ -1984,7 +1986,7 @@ function renderReleasedButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Admin delete button
     if (role === 'admin') {
         buttons += `
@@ -1993,7 +1995,7 @@ function renderReleasedButtons(r, role) {
             </button>
         `;
     }
-    
+
     return buttons;
 }
 
@@ -2002,7 +2004,7 @@ function renderReleasedButtons(r, role) {
  */
 function renderClaimedButtons(r, role) {
     let buttons = '';
-    
+
     // Warranty claim button (admin/manager only)
     if (role === 'admin' || role === 'manager') {
         const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
@@ -2015,7 +2017,7 @@ function renderClaimedButtons(r, role) {
             `;
         }
     }
-    
+
     // View claim details button
     buttons += `
         <button class="btn-small" onclick="viewClaimDetails('${r.id}')" 
@@ -2023,16 +2025,16 @@ function renderClaimedButtons(r, role) {
             📄 View Details
         </button>
     `;
-    
+
     // Technician delete request button
     const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id && 
-        req.requestType === 'deletion_request' && 
-        req.status === 'pending'
+        req => req.repairId === r.id &&
+            req.requestType === 'deletion_request' &&
+            req.status === 'pending'
     );
-    
-    if (role === 'technician' && 
-        r.technicianId === window.currentUser.uid && 
+
+    if (role === 'technician' &&
+        r.technicianId === window.currentUser.uid &&
         !r.deleted &&
         !hasPendingDeletion) {
         buttons += `
@@ -2041,7 +2043,7 @@ function renderClaimedButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Admin tools
     if (role === 'admin') {
         buttons += `
@@ -2050,7 +2052,7 @@ function renderClaimedButtons(r, role) {
             </button>
         `;
     }
-    
+
     return buttons;
 }
 
@@ -2060,14 +2062,14 @@ function renderClaimedButtons(r, role) {
 function renderReceivedDeviceButtons(r, role) {
     const canAccept = (role === 'admin' || role === 'manager' || role === 'technician');
     let buttons = '';
-    
+
     // Always show Edit Details button for all roles (to fix input errors)
     buttons += `
         <button class="btn-small" onclick="openEditReceivedDetails('${r.id}')" style="background:#ff9800;color:white;">
             ✏️ Edit Details
         </button>
     `;
-    
+
     // If no diagnosis created yet
     if (!r.diagnosisCreated || r.repairType === 'Pending Diagnosis') {
         if (role === 'admin' || role === 'manager' || role === 'technician') {
@@ -2079,7 +2081,7 @@ function renderReceivedDeviceButtons(r, role) {
         }
         return buttons;
     }
-    
+
     // Diagnosis created - check approval status
     if (r.status === 'Pending Customer Approval') {
         // Show approval button for admin/manager/cashier
@@ -2092,7 +2094,7 @@ function renderReceivedDeviceButtons(r, role) {
         }
         return buttons;
     }
-    
+
     // Customer approved - show accept or approval button
     if (r.customerApproved && canAccept) {
         buttons += `
@@ -2107,17 +2109,17 @@ function renderReceivedDeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Technician delete request button
     const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id && 
-        req.requestType === 'deletion_request' && 
-        req.status === 'pending'
+        req => req.repairId === r.id &&
+            req.requestType === 'deletion_request' &&
+            req.status === 'pending'
     );
-    
-    if (role === 'technician' && 
-        r.technicianId === window.currentUser.uid && 
-        !r.deleted && 
+
+    if (role === 'technician' &&
+        r.technicianId === window.currentUser.uid &&
+        !r.deleted &&
         r.status !== 'Completed' &&
         !hasPendingDeletion) {
         buttons += `
@@ -2126,7 +2128,7 @@ function renderReceivedDeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     return buttons;
 }
 
@@ -2138,13 +2140,13 @@ function renderRTODeviceButtons(r, role) {
     const rtoPaymentStatus = r.rtoPaymentStatus || 'waived';
     const hasFee = diagnosisFee > 0;
     const isPaid = rtoPaymentStatus === 'paid' || rtoPaymentStatus === 'waived';
-    
+
     const canRelease = ['admin', 'manager', 'cashier'].includes(role);
     const canAddFee = ['admin', 'manager', 'cashier'].includes(role);
     const canRevertStatus = role === 'admin';
-    
+
     let buttons = '';
-    
+
     // Collect fee button (if unpaid)
     if (canAddFee && hasFee && !isPaid) {
         buttons += `
@@ -2153,7 +2155,7 @@ function renderRTODeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Add diagnosis fee button (if no fee)
     if (canAddFee && !hasFee) {
         buttons += `
@@ -2162,7 +2164,7 @@ function renderRTODeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Return to customer button (if paid or no fee)
     if (canRelease && (!hasFee || isPaid)) {
         buttons += `
@@ -2171,7 +2173,7 @@ function renderRTODeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Disabled button if fee not paid
     if (canRelease && hasFee && !isPaid) {
         buttons += `
@@ -2180,7 +2182,7 @@ function renderRTODeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Revert status button (admin only)
     if (canRevertStatus) {
         buttons += `
@@ -2189,17 +2191,17 @@ function renderRTODeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     // Technician delete request button
     const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id && 
-        req.requestType === 'deletion_request' && 
-        req.status === 'pending'
+        req => req.repairId === r.id &&
+            req.requestType === 'deletion_request' &&
+            req.status === 'pending'
     );
-    
-    if (role === 'technician' && 
-        r.technicianId === window.currentUser.uid && 
-        !r.deleted && 
+
+    if (role === 'technician' &&
+        r.technicianId === window.currentUser.uid &&
+        !r.deleted &&
         r.status !== 'Completed' &&
         !hasPendingDeletion) {
         buttons += `
@@ -2208,7 +2210,7 @@ function renderRTODeviceButtons(r, role) {
             </button>
         `;
     }
-    
+
     return buttons;
 }
 
@@ -2219,15 +2221,15 @@ function toggleRepairDetails(repairId, context = 'default') {
     // Get the repair item
     const repairItem = document.getElementById(`repair-item-${repairId}`);
     if (!repairItem) return;
-    
+
     // Get context from data attribute if not provided
     if (context === 'default' && repairItem.dataset.context) {
         context = repairItem.dataset.context;
     }
-    
+
     // Check if this item is already expanded
     const isCurrentlyExpanded = window.expandedRepairId === repairId;
-    
+
     // Collapse all items first
     document.querySelectorAll('.repair-list-item-compact').forEach(item => {
         item.classList.remove('expanded');
@@ -2236,12 +2238,12 @@ function toggleRepairDetails(repairId, context = 'default') {
         const indicator = item.querySelector('.expand-indicator');
         if (indicator) indicator.textContent = '▼';
     });
-    
+
     // If was not expanded, expand it
     if (!isCurrentlyExpanded) {
         window.expandedRepairId = repairId;
         repairItem.classList.add('expanded');
-        
+
         const detailContent = repairItem.querySelector('.repair-detail-content');
         if (detailContent) {
             // If content is empty, render it
@@ -2254,10 +2256,10 @@ function toggleRepairDetails(repairId, context = 'default') {
             }
             detailContent.style.display = 'block';
         }
-        
+
         const indicator = repairItem.querySelector('.expand-indicator');
         if (indicator) indicator.textContent = '▲';
-        
+
         // Scroll into view smoothly
         setTimeout(() => {
             repairItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -2271,13 +2273,13 @@ function toggleRepairDetails(repairId, context = 'default') {
 function buildMyRepairsTab(container) {
     console.log('🔧 Building My Repairs tab');
     window.currentTabRefresh = () => buildMyRepairsTab(document.getElementById('myTab'));
-    
-    const myRepairs = window.allRepairs.filter(r => 
-        r.acceptedBy === window.currentUser.uid && 
+
+    const myRepairs = window.allRepairs.filter(r =>
+        r.acceptedBy === window.currentUser.uid &&
         r.status !== 'Claimed' &&
         r.status !== 'Released'
     );
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>🔧 My Jobs (${myRepairs.length})</h3>
@@ -2285,7 +2287,7 @@ function buildMyRepairsTab(container) {
             <div id="myRepairsList"></div>
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('myRepairsList');
         if (listContainer) {
@@ -2297,18 +2299,18 @@ function buildMyRepairsTab(container) {
 function buildPendingTab(container) {
     console.log('⏳ Building Pending tab');
     window.currentTabRefresh = () => buildPendingTab(document.getElementById('pendingTab'));
-    
-    const pendingRepairs = window.allRepairs.filter(r => 
+
+    const pendingRepairs = window.allRepairs.filter(r =>
         r.payments && r.payments.some(p => !p.verified)
     );
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>⏳ Pending Verification (${pendingRepairs.length})</h3>
             <div id="pendingRepairsList"></div>
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('pendingRepairsList');
         if (listContainer) {
@@ -2320,21 +2322,21 @@ function buildPendingTab(container) {
 function buildCashCountTab(container) {
     console.log('💵 Building Cash Count tab');
     window.currentTabRefresh = () => buildCashCountTab(document.getElementById('cashTab'));
-    
+
     // Get current selected date or default to today
     const selectedDate = window.selectedCashCountDate || new Date();
     const dateString = selectedDate.toISOString().split('T')[0];
     const displayDate = utils.formatDate(selectedDate.toISOString());
-    
+
     // Get cash data for selected date
     const cashData = getDailyCashData(dateString);
     const isLocked = cashData.locked;
     const lockInfo = cashData.lockedInfo;
-    
+
     const role = window.currentUserData.role;
     const canLock = role === 'admin' || role === 'manager';
     const canUnlock = role === 'admin';
-    
+
     container.innerHTML = `
         <div class="card">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -2483,11 +2485,11 @@ function renderHistoricalCashCounts() {
         .filter(([_, data]) => data.locked)
         .sort((a, b) => b[0].localeCompare(a[0]))  // Sort by date descending
         .slice(0, 10);  // Show last 10 locked days
-    
+
     if (lockedDays.length === 0) {
         return '';
     }
-    
+
     return `
         <div class="card" style="margin-top:20px;">
             <h4 style="margin:0 0 15px;">📚 Recent Locked Days</h4>
@@ -2551,7 +2553,7 @@ function viewLockedDay(dateString) {
 function buildSuppliersTab(container) {
     console.log('📊 Building Suppliers tab');
     window.currentTabRefresh = () => buildSuppliersTab(document.getElementById('suppliersTab'));
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>📊 Supplier Price Comparison</h3>
@@ -2563,18 +2565,18 @@ function buildSuppliersTab(container) {
 function buildUsersTab(container) {
     console.log('👥 Building Users tab');
     window.currentTabRefresh = () => buildUsersTab(document.getElementById('usersTab'));
-    
+
     // Get all users
     const users = Object.values(window.allUsers || {});
     const activeUsers = users.filter(u => u.status === 'active');
     const inactiveUsers = users.filter(u => u.status !== 'active');
-    
+
     // Group by role
     const admins = users.filter(u => u.role === 'admin');
     const managers = users.filter(u => u.role === 'manager');
     const cashiers = users.filter(u => u.role === 'cashier');
     const technicians = users.filter(u => u.role === 'technician');
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>👥 User Management</h2>
@@ -2612,16 +2614,16 @@ function buildUsersTab(container) {
             ` : `
                 <div class="repairs-list">
                     ${users.map(user => {
-                        const roleColors = {
-                            admin: '#f44336',
-                            manager: '#ff9800',
-                            cashier: '#2196f3',
-                            technician: '#4caf50'
-                        };
-                        const roleColor = roleColors[user.role] || '#999';
-                        const isActive = user.status === 'active';
-                        
-                        return `
+        const roleColors = {
+            admin: '#f44336',
+            manager: '#ff9800',
+            cashier: '#2196f3',
+            technician: '#4caf50'
+        };
+        const roleColor = roleColors[user.role] || '#999';
+        const isActive = user.status === 'active';
+
+        return `
                             <div class="repair-card" style="border-left-color:${roleColor};">
                                 <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
                                     <div style="flex:1;">
@@ -2663,7 +2665,7 @@ function buildUsersTab(container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+    }).join('')}
                 </div>
             `}
         </div>
@@ -2676,11 +2678,11 @@ function buildUsersTab(container) {
 function buildAdminToolsTab(container) {
     console.log('🔧 Building Admin Tools tab');
     window.currentTabRefresh = () => buildAdminToolsTab(document.getElementById('admin-toolsTab'));
-    
+
     const todayString = new Date().toISOString().split('T')[0];
     const cashData = getDailyCashData(todayString);
     const isLocked = window.dailyCashCounts && window.dailyCashCounts[todayString];
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>🔧 Admin Tools & Reset Functions</h3>
@@ -2833,13 +2835,13 @@ function buildRecentlyReleasedSection() {
     // Get recently released devices (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const recentlyReleased = window.allRepairs.filter(r => {
         if (!r.claimedAt) return false;
         const claimedDate = new Date(r.claimedAt);
         return claimedDate >= sevenDaysAgo;
     }).sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
-    
+
     if (recentlyReleased.length === 0) {
         return `
             <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;">
@@ -2848,17 +2850,17 @@ function buildRecentlyReleasedSection() {
             </div>
         `;
     }
-    
+
     // Check payment status for each
     const devicesHTML = recentlyReleased.slice(0, 10).map(repair => {
         const totalAmount = repair.total || 0;
         const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
         const balance = totalAmount - totalPaid;
         const isPaid = balance <= 0;
-        
+
         const statusColor = isPaid ? '#4caf50' : '#f44336';
         const statusText = isPaid ? '✅ Fully Paid' : `⚠️ Unpaid: ₱${balance.toFixed(2)}`;
-        
+
         return `
             <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid ${statusColor};">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px;">
@@ -2890,7 +2892,7 @@ function buildRecentlyReleasedSection() {
             </div>
         `;
     }).join('');
-    
+
     return `
         <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;">
             <h4 style="margin:0 0 10px;">📦 Recently Released Devices (Last 7 Days)</h4>
@@ -2911,14 +2913,14 @@ function buildTodayTransactionsSection() {
     const todayString = new Date().toISOString().split('T')[0];
     const cashData = getDailyCashData(todayString);
     const isLocked = window.dailyCashCounts && window.dailyCashCounts[todayString];
-    
+
     // If locked, don't show this section
     if (isLocked) {
         return '';
     }
-    
+
     const totalTransactions = cashData.payments.length + cashData.expenses.length;
-    
+
     if (totalTransactions === 0) {
         return `
             <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
@@ -2927,23 +2929,23 @@ function buildTodayTransactionsSection() {
             </div>
         `;
     }
-    
+
     // Build payments list
     const paymentsHTML = cashData.payments.length > 0 ? cashData.payments.map(p => {
         const repair = window.allRepairs.find(r => r.id === p.repairId);
         if (!repair || !repair.payments) return '';
-        
+
         // Find the payment index by matching properties
-        const paymentIndex = repair.payments.findIndex(payment => 
-            payment.amount === p.amount && 
+        const paymentIndex = repair.payments.findIndex(payment =>
+            payment.amount === p.amount &&
             payment.paymentDate === p.paymentDate &&
             (payment.receivedByName === p.receivedByName || payment.receivedBy === p.receivedByName)
         );
-        
+
         if (paymentIndex === -1) return ''; // Payment not found
-        
+
         const payment = repair.payments[paymentIndex];
-        
+
         return `
             <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid #4caf50;">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -2967,7 +2969,7 @@ function buildTodayTransactionsSection() {
             </div>
         `;
     }).join('') : '<p style="color:#999;font-size:13px;">No payments today</p>';
-    
+
     // Build expenses list
     const expensesHTML = cashData.expenses.length > 0 ? cashData.expenses.map(e => `
         <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid #f44336;">
@@ -2990,7 +2992,7 @@ function buildTodayTransactionsSection() {
             </div>
         </div>
     `).join('') : '<p style="color:#999;font-size:13px;">No expenses today</p>';
-    
+
     return `
         <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #2196f3;">
             <h4 style="margin:0 0 10px;">💳 Today's Transactions (Individual Delete)</h4>
@@ -3048,12 +3050,12 @@ function buildTodayTransactionsSection() {
  */
 function buildDeviceManagementSection() {
     // Get all active (non-deleted) devices that can be deleted
-    const deletableDevices = window.allRepairs.filter(r => 
-        !r.deleted && 
-        !r.claimedAt && 
+    const deletableDevices = window.allRepairs.filter(r =>
+        !r.deleted &&
+        !r.claimedAt &&
         r.status !== 'Completed'
     ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
+
     // Group by status
     const byStatus = {};
     deletableDevices.forEach(r => {
@@ -3061,11 +3063,11 @@ function buildDeviceManagementSection() {
         if (!byStatus[status]) byStatus[status] = [];
         byStatus[status].push(r);
     });
-    
-    const statusSummary = Object.keys(byStatus).map(status => 
+
+    const statusSummary = Object.keys(byStatus).map(status =>
         `${status}: ${byStatus[status].length}`
     ).join(' | ');
-    
+
     if (deletableDevices.length === 0) {
         return `
             <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-top:20px;">
@@ -3074,13 +3076,13 @@ function buildDeviceManagementSection() {
             </div>
         `;
     }
-    
+
     // Show last 15 devices
     const devicesHTML = deletableDevices.slice(0, 15).map(repair => {
         const totalAmount = repair.total || 0;
         const totalPaid = repair.payments ? repair.payments.filter(p => p.verified).reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
         const hasPayments = totalPaid > 0;
-        
+
         const statusColors = {
             'Received': '#9e9e9e',
             'Pending Customer Approval': '#ff9800',
@@ -3090,9 +3092,9 @@ function buildDeviceManagementSection() {
             'RTO': '#f44336',
             'Unsuccessful': '#d32f2f'
         };
-        
+
         const statusColor = statusColors[repair.status] || '#757575';
-        
+
         return `
             <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid ${statusColor};">
                 <div style="display:flex;align-items:flex-start;gap:10px;">
@@ -3123,7 +3125,7 @@ function buildDeviceManagementSection() {
             </div>
         `;
     }).join('');
-    
+
     return `
         <div class="form-group" style="background:#fff3cd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #ff9800;">
             <h4 style="margin:0 0 10px;">🗑️ Device Management</h4>
@@ -3173,10 +3175,10 @@ function buildPendingRemittancesSection() {
     if (!window.adminGetPendingRemittances) {
         return '';
     }
-    
+
     const pendingRemittances = window.adminGetPendingRemittances();
     const remittanceStats = window.adminGetRemittanceStats ? window.adminGetRemittanceStats() : {};
-    
+
     if (pendingRemittances.length === 0) {
         return `
             <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
@@ -3185,18 +3187,18 @@ function buildPendingRemittancesSection() {
             </div>
         `;
     }
-    
+
     // Calculate totals
     const totalPending = pendingRemittances.reduce((sum, r) => sum + (r.expectedAmount || r.actualAmount || 0), 0);
     const overdueCount = pendingRemittances.filter(r => r.isOverdue).length;
-    
+
     const remittancesHTML = pendingRemittances.slice(0, 10).map(remittance => {
         const isOverdue = remittance.isOverdue;
         const hasDiscrepancy = Math.abs(remittance.discrepancy) > 0;
-        const discrepancyPercent = remittance.expectedAmount > 0 ? 
+        const discrepancyPercent = remittance.expectedAmount > 0 ?
             Math.abs((remittance.discrepancy / remittance.expectedAmount) * 100) : 0;
         const isMajorDiscrepancy = discrepancyPercent >= 5;
-        
+
         return `
             <div style="background:${isOverdue ? '#ffebee' : '#fff'};padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid ${isOverdue ? '#f44336' : '#ff9800'};">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -3223,7 +3225,7 @@ function buildPendingRemittancesSection() {
             </div>
         `;
     }).join('');
-    
+
     // Tech stats summary
     const techStatsHTML = Object.values(remittanceStats)
         .filter(s => s.pending > 0)
@@ -3234,7 +3236,7 @@ function buildPendingRemittancesSection() {
                 <strong>${s.techName}</strong>: ${s.pending} pending (₱${s.totalPending.toFixed(2)})
             </div>
         `).join('');
-    
+
     return `
         <div class="form-group" style="background:#fff3cd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #ff9800;">
             <h4 style="margin:0 0 10px;">💰 Pending Remittances Dashboard</h4>
@@ -3286,11 +3288,11 @@ function buildDataIntegritySection() {
     if (!window.adminFindOrphanedData) {
         return '';
     }
-    
+
     const dataCheck = window.adminFindOrphanedData();
     const totalIssues = dataCheck.totalIssues;
     const categories = dataCheck.categories;
-    
+
     if (totalIssues === 0) {
         return `
             <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
@@ -3299,7 +3301,7 @@ function buildDataIntegritySection() {
             </div>
         `;
     }
-    
+
     // Build issue summary
     const issueTypes = [
         { key: 'missingCustomerInfo', label: 'Missing Customer Info', icon: '👤', color: '#f44336' },
@@ -3312,7 +3314,7 @@ function buildDataIntegritySection() {
         { key: 'stuckInProgress', label: 'Stuck In Progress (30+ days)', icon: '⏳', color: '#ff9800' },
         { key: 'rtoWithoutFee', label: 'RTO Without Fee', icon: '↩️', color: '#9e9e9e' }
     ];
-    
+
     const issuesHTML = issueTypes
         .filter(type => categories[type.key] > 0)
         .map(type => {
@@ -3334,7 +3336,7 @@ function buildDataIntegritySection() {
                     ` : ''}
                 </div>
             `).join('');
-            
+
             return `
                 <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:8px;border-left:3px solid ${type.color};">
                     <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -3360,7 +3362,7 @@ function buildDataIntegritySection() {
                 </div>
             `;
         }).join('');
-    
+
     return `
         <div class="form-group" style="background:#ffebee;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #f44336;">
             <h4 style="margin:0 0 10px;">🔍 Data Integrity Check</h4>
@@ -3391,7 +3393,7 @@ function buildDataIntegritySection() {
 function buildActivityLogsTab(container) {
     console.log('📋 Building Activity Logs tab');
     window.currentTabRefresh = () => buildActivityLogsTab(document.getElementById('admin-logsTab'));
-    
+
     if (!window.activityLogs || window.activityLogs.length === 0) {
         container.innerHTML = `
             <div class="card">
@@ -3401,12 +3403,12 @@ function buildActivityLogsTab(container) {
         `;
         return;
     }
-    
+
     // Sort logs by timestamp (newest first)
-    const sortedLogs = [...window.activityLogs].sort((a, b) => 
+    const sortedLogs = [...window.activityLogs].sort((a, b) =>
         new Date(b.timestamp) - new Date(a.timestamp)
     );
-    
+
     // Get filter values (if any)
     const filterUser = window.logFilterUser || 'all';
     const filterAction = window.logFilterAction || 'all';
@@ -3415,29 +3417,29 @@ function buildActivityLogsTab(container) {
     if (typeof filterDate !== 'string') {
         filterDate = 'all';
     }
-    
+
     // Apply filters
     let filteredLogs = sortedLogs;
-    
+
     if (filterUser !== 'all') {
         filteredLogs = filteredLogs.filter(log => log.userId === filterUser);
     }
-    
+
     if (filterAction !== 'all') {
         filteredLogs = filteredLogs.filter(log => log.action.toLowerCase().includes(filterAction.toLowerCase()));
     }
-    
+
     if (filterDate !== 'all') {
         filteredLogs = filteredLogs.filter(log => {
             const logDate = new Date(log.timestamp).toISOString().split('T')[0];
             return logDate === filterDate;
         });
     }
-    
+
     // Get unique users and actions for filters
     const uniqueUsers = [...new Set(sortedLogs.map(log => ({ id: log.userId, name: log.userName })))];
     const uniqueActions = [...new Set(sortedLogs.map(log => log.action))];
-    
+
     // Generate action icon
     const getActionIcon = (action) => {
         if (action.includes('Login')) return '🔓';
@@ -3451,7 +3453,7 @@ function buildActivityLogsTab(container) {
         if (action.includes('Verify')) return '✅';
         return '📝';
     };
-    
+
     // Generate action color
     const getActionColor = (action) => {
         if (action.includes('Login')) return '#4caf50';
@@ -3464,7 +3466,7 @@ function buildActivityLogsTab(container) {
         if (action.includes('Device')) return '#9c27b0';
         return '#757575';
     };
-    
+
     // Pagination
     const logsPerPage = 50;
     const currentPage = window.logCurrentPage || 1;
@@ -3472,7 +3474,7 @@ function buildActivityLogsTab(container) {
     const startIndex = (currentPage - 1) * logsPerPage;
     const endIndex = startIndex + logsPerPage;
     const paginatedLogs = filteredLogs.slice(startIndex, endIndex);
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>📋 Activity Logs</h3>
@@ -3517,10 +3519,10 @@ function buildActivityLogsTab(container) {
             <!-- LOGS LIST -->
             <div style="max-height:600px;overflow-y:auto;">
                 ${paginatedLogs.map(log => {
-                    const actionColor = getActionColor(log.action);
-                    const actionIcon = getActionIcon(log.action);
-                    
-                    return `
+        const actionColor = getActionColor(log.action);
+        const actionIcon = getActionIcon(log.action);
+
+        return `
                         <div style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:10px;border-left:4px solid ${actionColor};">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
                                 <div style="flex:1;">
@@ -3547,7 +3549,7 @@ function buildActivityLogsTab(container) {
                             ` : ''}
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
             
             <!-- PAGINATION -->
@@ -3587,7 +3589,7 @@ function applyLogFilters() {
     const dateInput = document.getElementById('logFilterDate').value;
     window.logFilterDate = dateInput || 'all';
     window.logCurrentPage = 1; // Reset to first page
-    
+
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
     }
@@ -3601,7 +3603,7 @@ function clearLogFilters() {
     window.logFilterAction = 'all';
     window.logFilterDate = 'all';
     window.logCurrentPage = 1;
-    
+
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
     }
@@ -3621,7 +3623,7 @@ function changeLogPage(page) {
 function toggleBackJobFields() {
     const isBackJob = document.getElementById('isBackJob').checked;
     const backJobFields = document.getElementById('backJobFields');
-    
+
     if (backJobFields) {
         backJobFields.style.display = isBackJob ? 'block' : 'none';
     }
@@ -3634,7 +3636,7 @@ function calculatePreApprovedTotal() {
     const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
     const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
     const total = partsCost + laborCost;
-    
+
     const totalField = document.getElementById('preApprovedTotal');
     if (totalField) {
         totalField.value = total.toFixed(2);
@@ -3647,7 +3649,7 @@ function calculatePreApprovedTotal() {
 function toggleAssignToTech() {
     const assignOption = document.querySelector('input[name="assignOption"]:checked')?.value;
     const assignToTechWrapper = document.getElementById('assignToTechWrapper');
-    
+
     if (assignToTechWrapper) {
         assignToTechWrapper.style.display = assignOption === 'assign-other' ? 'block' : 'none';
     }
@@ -3659,24 +3661,24 @@ function toggleAssignToTech() {
 function handleProblemTypeChange() {
     const problemType = document.getElementById('problemType')?.value;
     if (!problemType) return;
-    
+
     const softwareWarning = document.getElementById('softwareWarningBox');
     const frpWarning = document.getElementById('frpWarningBox');
-    
-    const softwareIssues = ['FRP Lock', 'Password Lock', 'iCloud Lock', 'Software Restore', 
-                            'Virus/Malware', 'OS Update', 'App Issues', 'Slow Performance', 
-                            'Data Recovery', 'Other Software'];
-    
+
+    const softwareIssues = ['FRP Lock', 'Password Lock', 'iCloud Lock', 'Software Restore',
+        'Virus/Malware', 'OS Update', 'App Issues', 'Slow Performance',
+        'Data Recovery', 'Other Software'];
+
     const lockIssues = ['FRP Lock', 'Password Lock', 'iCloud Lock'];
-    
+
     if (softwareWarning) {
         softwareWarning.style.display = softwareIssues.includes(problemType) ? 'block' : 'none';
     }
-    
+
     if (frpWarning) {
         frpWarning.style.display = lockIssues.includes(problemType) ? 'block' : 'none';
     }
-    
+
     // Auto-suggest repair type in pricing section based on reported problem
     const repairTypeSelect = document.getElementById('preApprovedRepairType');
     if (repairTypeSelect && utils && utils.suggestRepairType) {
@@ -3693,10 +3695,10 @@ function handleProblemTypeChange() {
 function buildClaimedUnitsPage(container) {
     console.log('✅ Building Claimed Units page');
     window.currentTabRefresh = () => buildClaimedUnitsPage(document.getElementById('claimedTab'));
-    
+
     const claimedUnits = window.allRepairs.filter(r => r.claimedAt);
     claimedUnits.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>✅ Claimed Units - Released to Customers (${claimedUnits.length})</h3>
@@ -3712,7 +3714,7 @@ function buildClaimedUnitsPage(container) {
             `}
         </div>
     `;
-    
+
     setTimeout(() => {
         const listContainer = document.getElementById('claimedUnitsList');
         if (listContainer && claimedUnits.length > 0) {
@@ -3726,21 +3728,21 @@ function buildClaimedUnitsPage(container) {
  */
 function changeRemittanceDate(dateOrAction) {
     let newDate;
-    
+
     if (dateOrAction === null) {
         // Go to today
         newDate = null;
     } else if (dateOrAction === 'prev') {
         // Previous day - use local date to avoid timezone issues
-        const current = window.selectedRemittanceDate 
-            ? new Date(window.selectedRemittanceDate + 'T00:00:00') 
+        const current = window.selectedRemittanceDate
+            ? new Date(window.selectedRemittanceDate + 'T00:00:00')
             : new Date();
         current.setDate(current.getDate() - 1);
         newDate = getLocalDateString(current);
     } else if (dateOrAction === 'next') {
         // Next day - use local date to avoid timezone issues
-        const current = window.selectedRemittanceDate 
-            ? new Date(window.selectedRemittanceDate + 'T00:00:00') 
+        const current = window.selectedRemittanceDate
+            ? new Date(window.selectedRemittanceDate + 'T00:00:00')
             : new Date();
         current.setDate(current.getDate() + 1);
         const today = getLocalDateString(new Date());
@@ -3753,10 +3755,10 @@ function changeRemittanceDate(dateOrAction) {
         // Specific date from picker
         newDate = dateOrAction;
     }
-    
+
     // Store the selected date
     window.selectedRemittanceDate = newDate;
-    
+
     // Rebuild tab with selected date
     const container = document.getElementById('remittanceTab');
     if (container) {
@@ -3808,47 +3810,49 @@ window.handleProblemTypeChange = handleProblemTypeChange;
  */
 function buildDailyRemittanceTab(container) {
     console.log('💸 Building Daily Remittance tab - Enhanced with status & history');
-    
+
     const techId = window.currentUser.uid;
     const today = new Date();
     const todayStr = getLocalDateString(today);
-    
+
     // Set refresh function
     window.currentTabRefresh = () => buildDailyRemittanceTab(document.getElementById('remittanceTab'));
-    
+
     // Get technician's remittances
     const myRemittances = window.techRemittances.filter(r => r.techId === techId);
     const pendingRemittances = myRemittances.filter(r => r.status === 'pending');
-    const rejectedRemittances = myRemittances.filter(r => 
+    const rejectedRemittances = myRemittances.filter(r =>
         r.status === 'rejected' && !r.manuallyResolved
     );
-    const approvedCommissions = myRemittances.filter(r => 
+    const approvedCommissions = myRemittances.filter(r =>
         r.status === 'approved' && r.commissionPaid === false
     );
-    
+
     // Get all pending dates with balances
     const pendingDates = window.getPendingRemittanceDates(techId);
-    
+
     // Get today's summary for display
     const { payments, total: paymentsTotal } = window.getTechDailyPayments(techId, todayStr);
     const { payments: gcashPayments, total: gcashTotal } = window.getTechDailyGCashPayments(techId, todayStr);
     const { expenses, total: expensesTotal } = window.getTechDailyExpenses(techId, todayStr);
     const { breakdown: commissionBreakdown, total: commissionTotal } = window.getTechDailyCommission(techId, todayStr);
-    
+
     // Today's unremitted balance
     const todayBalance = window.getUnremittedBalance(techId, todayStr);
     const hasUnremittedToday = pendingDates.some(d => d.dateString === todayStr);
-    
+
     // History filtering state
     const historyFilter = window.remittanceHistoryFilter || 'last30';
     const historyPage = window.remittanceHistoryPage || 0;
     const itemsPerPage = 10;
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>💸 Daily Cash Remittance</h2>
             <p>Track your submissions, commissions, and remittance history</p>
         </div>
+        
+        ${generateHelpBox('techRemittance', getCurrentHelpLanguage())}
         
         <!-- REJECTED REMITTANCES ALERT -->
         ${rejectedRemittances.length > 0 ? `
@@ -3909,10 +3913,10 @@ function buildDailyRemittanceTab(container) {
                 <p style="color:#666;margin-bottom:15px;">Waiting for approval from cashier/admin</p>
                 
                 ${pendingRemittances.map(r => {
-                    const submittedDate = new Date(r.submittedAt);
-                    const hoursPending = Math.floor((new Date() - submittedDate) / (1000 * 60 * 60));
-                    
-                    return `
+        const submittedDate = new Date(r.submittedAt);
+        const hoursPending = Math.floor((new Date() - submittedDate) / (1000 * 60 * 60));
+
+        return `
                         <div class="repair-card" style="border-left-color:#ff9800;background:white;margin-bottom:15px;">
                             <div style="display:flex;justify-content:space-between;align-items:start;">
                                 <div style="flex:1;">
@@ -3944,7 +3948,7 @@ function buildDailyRemittanceTab(container) {
                             ` : ''}
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
         ` : ''}
         
@@ -3955,14 +3959,14 @@ function buildDailyRemittanceTab(container) {
                 <p style="color:#666;margin-bottom:15px;">These commissions have been approved. Mark as received when you get paid.</p>
                 
                 ${(() => {
-                    const totalCash = approvedCommissions.reduce((sum, r) => 
-                        r.commissionPaymentPreference === 'cash' ? sum + (r.totalCommission || 0) : sum, 0
-                    );
-                    const totalGCash = approvedCommissions.reduce((sum, r) => 
-                        r.commissionPaymentPreference === 'gcash' ? sum + (r.totalCommission || 0) : sum, 0
-                    );
-                    
-                    return `
+                const totalCash = approvedCommissions.reduce((sum, r) =>
+                    r.commissionPaymentPreference === 'cash' ? sum + (r.totalCommission || 0) : sum, 0
+                );
+                const totalGCash = approvedCommissions.reduce((sum, r) =>
+                    r.commissionPaymentPreference === 'gcash' ? sum + (r.totalCommission || 0) : sum, 0
+                );
+
+                return `
                         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
                             ${totalCash > 0 ? `
                                 <div style="background:white;padding:15px;border-radius:8px;text-align:center;">
@@ -3978,7 +3982,7 @@ function buildDailyRemittanceTab(container) {
                             ` : ''}
                         </div>
                     `;
-                })()}
+            })()}
                 
                 ${approvedCommissions.map(r => `
                     <div class="repair-card" style="border-left-color:#4caf50;background:white;margin-bottom:15px;">
@@ -4059,12 +4063,12 @@ function buildDailyRemittanceTab(container) {
                     
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         ${pendingGCashDates.map((dateData) => {
-                            const isToday = dateData.dateString === todayStr;
-                            const displayLabel = isToday ? '📅 Today' : `📅 ${utils.formatDate(dateData.dateString)}`;
-                            const daysAgo = Math.floor((new Date() - dateData.date) / (1000 * 60 * 60 * 24));
-                            const daysLabel = isToday ? '' : `(${daysAgo} day${daysAgo > 1 ? 's' : ''} ago)`;
-                            
-                            return `
+                const isToday = dateData.dateString === todayStr;
+                const displayLabel = isToday ? '📅 Today' : `📅 ${utils.formatDate(dateData.dateString)}`;
+                const daysAgo = Math.floor((new Date() - dateData.date) / (1000 * 60 * 60 * 24));
+                const daysLabel = isToday ? '' : `(${daysAgo} day${daysAgo > 1 ? 's' : ''} ago)`;
+
+                return `
                                 <div style="background:white;border:2px solid #00bcd4;border-radius:10px;padding:15px;">
                                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
                                         <div>
@@ -4096,7 +4100,7 @@ function buildDailyRemittanceTab(container) {
                                     </button>
                                 </div>
                             `;
-                        }).join('')}
+            }).join('')}
                     </div>
                 </div>
             ` : '';
@@ -4113,12 +4117,12 @@ function buildDailyRemittanceTab(container) {
                     </p>
                     <div style="display:flex;flex-direction:column;gap:10px;">
                         ${pendingDates.map((dateData, idx) => {
-                            const isToday = dateData.dateString === todayStr;
-                            const displayLabel = isToday ? '📅 Today' : `📅 ${utils.formatDate(dateData.dateString)}`;
-                            const daysAgo = Math.floor((new Date() - dateData.date) / (1000 * 60 * 60 * 24));
-                            const daysLabel = isToday ? '' : `(${daysAgo} day${daysAgo > 1 ? 's' : ''} ago)`;
-                            
-                            return `
+            const isToday = dateData.dateString === todayStr;
+            const displayLabel = isToday ? '📅 Today' : `📅 ${utils.formatDate(dateData.dateString)}`;
+            const daysAgo = Math.floor((new Date() - dateData.date) / (1000 * 60 * 60 * 24));
+            const daysLabel = isToday ? '' : `(${daysAgo} day${daysAgo > 1 ? 's' : ''} ago)`;
+
+            return `
                                 <div data-remittance-date="${dateData.dateString}" 
                                      style="background:white;border:2px solid #e0e0e0;border-radius:10px;padding:15px;cursor:pointer;transition:all 0.3s;"
                                      onmouseover="this.style.borderColor='#2196f3';this.style.boxShadow='0 4px 12px rgba(33,150,243,0.2)';"
@@ -4166,7 +4170,7 @@ function buildDailyRemittanceTab(container) {
                                     </button>
                                 </div>
                             `;
-                        }).join('')}
+        }).join('')}
                     </div>
                 </div>
             ` : `
@@ -4235,73 +4239,73 @@ function buildDailyRemittanceTab(container) {
             </div>
             
             ${(() => {
-                // Filter history based on selection
-                let filteredHistory = myRemittances;
-                const now = new Date();
-                const typeFilter = window.remittanceTypeFilter || 'all';
-                
-                // Apply type filter first
-                if (typeFilter === 'cash') {
-                    filteredHistory = filteredHistory.filter(r => !r.remittanceType || r.remittanceType === 'cash');
-                } else if (typeFilter === 'gcash') {
-                    filteredHistory = filteredHistory.filter(r => r.remittanceType === 'gcash');
-                }
-                
-                // Apply date filter
-                if (historyFilter === 'last7') {
-                    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= sevenDaysAgo);
-                } else if (historyFilter === 'last30') {
-                    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                    filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= thirtyDaysAgo);
-                } else if (historyFilter === 'last90') {
-                    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-                    filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= ninetyDaysAgo);
-                } else if (historyFilter === 'custom' && window.customDateFrom && window.customDateTo) {
-                    const fromDate = new Date(window.customDateFrom);
-                    const toDate = new Date(window.customDateTo);
-                    toDate.setHours(23, 59, 59, 999);
-                    filteredHistory = filteredHistory.filter(r => {
-                        const submitDate = new Date(r.submittedAt);
-                        return submitDate >= fromDate && submitDate <= toDate;
-                    });
-                }
-                
-                // Pagination
-                const totalItems = filteredHistory.length;
-                const startIndex = historyPage * itemsPerPage;
-                const endIndex = startIndex + itemsPerPage;
-                const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
-                const hasMore = endIndex < totalItems;
-                
-                if (filteredHistory.length === 0) {
-                    return `
+            // Filter history based on selection
+            let filteredHistory = myRemittances;
+            const now = new Date();
+            const typeFilter = window.remittanceTypeFilter || 'all';
+
+            // Apply type filter first
+            if (typeFilter === 'cash') {
+                filteredHistory = filteredHistory.filter(r => !r.remittanceType || r.remittanceType === 'cash');
+            } else if (typeFilter === 'gcash') {
+                filteredHistory = filteredHistory.filter(r => r.remittanceType === 'gcash');
+            }
+
+            // Apply date filter
+            if (historyFilter === 'last7') {
+                const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= sevenDaysAgo);
+            } else if (historyFilter === 'last30') {
+                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= thirtyDaysAgo);
+            } else if (historyFilter === 'last90') {
+                const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+                filteredHistory = filteredHistory.filter(r => new Date(r.submittedAt) >= ninetyDaysAgo);
+            } else if (historyFilter === 'custom' && window.customDateFrom && window.customDateTo) {
+                const fromDate = new Date(window.customDateFrom);
+                const toDate = new Date(window.customDateTo);
+                toDate.setHours(23, 59, 59, 999);
+                filteredHistory = filteredHistory.filter(r => {
+                    const submitDate = new Date(r.submittedAt);
+                    return submitDate >= fromDate && submitDate <= toDate;
+                });
+            }
+
+            // Pagination
+            const totalItems = filteredHistory.length;
+            const startIndex = historyPage * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const paginatedHistory = filteredHistory.slice(startIndex, endIndex);
+            const hasMore = endIndex < totalItems;
+
+            if (filteredHistory.length === 0) {
+                return `
                         <div style="text-align:center;padding:40px 20px;">
                             <div style="font-size:48px;margin-bottom:10px;">📭</div>
                             <h3 style="color:#999;margin:10px 0;">No Remittances Found</h3>
                             <p style="color:#999;">No remittance history for the selected period.</p>
                         </div>
                     `;
-                }
-                
-                return `
+            }
+
+            return `
                     <p style="color:#666;margin:15px 0;">
                         Showing ${startIndex + 1}-${Math.min(endIndex, totalItems)} of ${totalItems} remittance${totalItems > 1 ? 's' : ''}
                     </p>
                     
                     <div style="display:flex;flex-direction:column;gap:15px;margin-top:20px;">
                         ${paginatedHistory.map(r => {
-                            const statusColor = r.status === 'approved' ? '#4caf50' : 
-                                                r.status === 'rejected' ? '#f44336' : '#ff9800';
-                            const statusIcon = r.status === 'approved' ? '✅' : 
-                                               r.status === 'rejected' ? '❌' : '⏳';
-                            const statusText = r.status === 'approved' ? 'APPROVED' : 
-                                               r.status === 'rejected' ? 'REJECTED' : 'PENDING';
-                            
-                            const remitType = r.remittanceType === 'gcash' ? '📱 GCash' : '💵 Cash';
-                            const remitColor = r.remittanceType === 'gcash' ? '#00bcd4' : '#4caf50';
-                            
-                            return `
+                const statusColor = r.status === 'approved' ? '#4caf50' :
+                    r.status === 'rejected' ? '#f44336' : '#ff9800';
+                const statusIcon = r.status === 'approved' ? '✅' :
+                    r.status === 'rejected' ? '❌' : '⏳';
+                const statusText = r.status === 'approved' ? 'APPROVED' :
+                    r.status === 'rejected' ? 'REJECTED' : 'PENDING';
+
+                const remitType = r.remittanceType === 'gcash' ? '📱 GCash' : '💵 Cash';
+                const remitColor = r.remittanceType === 'gcash' ? '#00bcd4' : '#4caf50';
+
+                return `
                                 <details class="repair-card" style="border-left-color:${statusColor};">
                                     <summary style="cursor:pointer;font-weight:bold;padding:10px;background:#f5f5f5;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
                                         <div>
@@ -4442,7 +4446,7 @@ function buildDailyRemittanceTab(container) {
                                     </div>
                                 </details>
                             `;
-                        }).join('')}
+            }).join('')}
                     </div>
                     
                     <!-- Pagination -->
@@ -4465,7 +4469,7 @@ function buildDailyRemittanceTab(container) {
                         </div>
                     ` : ''}
                 `;
-            })()}
+        })()}
         </div>
         
         <!-- Today's Details (existing sections remain) -->
@@ -4556,24 +4560,24 @@ function buildDailyRemittanceTab(container) {
 function applyCustomDateFilter() {
     const fromInput = document.getElementById('customDateFrom');
     const toInput = document.getElementById('customDateTo');
-    
+
     if (!fromInput.value || !toInput.value) {
         alert('⚠️ Please select both From and To dates');
         return;
     }
-    
+
     const fromDate = new Date(fromInput.value);
     const toDate = new Date(toInput.value);
-    
+
     if (fromDate > toDate) {
         alert('⚠️ From date cannot be after To date');
         return;
     }
-    
+
     window.customDateFrom = fromInput.value;
     window.customDateTo = toInput.value;
     window.remittanceHistoryPage = 0;
-    
+
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
     }
@@ -4586,36 +4590,36 @@ window.applyCustomDateFilter = applyCustomDateFilter;
 function buildRemittanceVerificationTab(container) {
     console.log('✅ Building Remittance Verification tab');
     window.currentTabRefresh = () => buildRemittanceVerificationTab(document.getElementById('verify-remittanceTab'));
-    
+
     const currentUserId = window.currentUser.uid;
     const currentUserRole = window.currentUserData.role;
     const isAdmin = currentUserRole === 'admin';
-    
+
     // Separate CASH remittances: for me vs others
     const cashForMe = window.techRemittances
         .filter(r => r.status === 'pending' && r.submittedTo === currentUserId && (!r.remittanceType || r.remittanceType === 'cash'))
         .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-    
+
     const cashForOthers = window.techRemittances
         .filter(r => r.status === 'pending' && r.submittedTo && r.submittedTo !== currentUserId && (!r.remittanceType || r.remittanceType === 'cash'))
         .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-    
+
     // GCASH remittances: for me (receiver verification)
     const gcashForMe = window.techRemittances
         .filter(r => r.status === 'pending' && r.remittanceType === 'gcash' && r.gcashReceiverUid === currentUserId)
         .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-    
+
     // Legacy pending (no recipient specified)
     const legacyPending = window.techRemittances
         .filter(r => r.status === 'pending' && !r.submittedTo)
         .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-    
+
     // Get recent verified remittances
     const recentVerified = window.techRemittances
         .filter(r => r.status === 'approved' || r.status === 'rejected')
         .sort((a, b) => new Date(b.verifiedAt) - new Date(a.verifiedAt))
         .slice(0, 10);
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>✅ Verify Remittances</h2>
@@ -4662,7 +4666,7 @@ function buildRemittanceVerificationTab(container) {
                 
                 <div class="repairs-list">
                     ${gcashForMe.map(r => {
-                        return `
+        return `
                             <div class="remittance-card" style="border-left-color:#00bcd4;background:#fff;">
                                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:15px;">
                                     <div>
@@ -4724,7 +4728,7 @@ function buildRemittanceVerificationTab(container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+    }).join('')}
                 </div>
             </div>
         ` : ''}
@@ -4737,9 +4741,9 @@ function buildRemittanceVerificationTab(container) {
                 
                 <div class="repairs-list">
                     ${cashForMe.map(r => {
-                        const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
-                        const isLargeDiscrepancy = Math.abs(r.discrepancy) > r.expectedRemittance * 0.05;
-                        return `
+        const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
+        const isLargeDiscrepancy = Math.abs(r.discrepancy) > r.expectedRemittance * 0.05;
+        return `
                             <div class="remittance-card ${hasDiscrepancy ? (isLargeDiscrepancy ? 'discrepancy-danger' : 'discrepancy-warning') : ''}" style="border-left-color:#ff9800;background:#fff;">
                                 <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:15px;">
                                     <div>
@@ -4767,7 +4771,7 @@ function buildRemittanceVerificationTab(container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+    }).join('')}
                 </div>
             </div>
         ` : `
@@ -4826,8 +4830,8 @@ function buildRemittanceVerificationTab(container) {
                 
                 <div class="repairs-list">
                     ${legacyPending.map(r => {
-                        const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
-                        return `
+        const hasDiscrepancy = Math.abs(r.discrepancy) > 0.01;
+        return `
                             <div class="repair-card">
                                 <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
                                     <div style="flex:1;">
@@ -4853,7 +4857,7 @@ function buildRemittanceVerificationTab(container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+    }).join('')}
                 </div>
             </div>
         ` : ''}
@@ -4896,13 +4900,13 @@ function buildRemittanceVerificationTab(container) {
 function buildTechnicianLogsTab(container) {
     console.log('📊 Building Technician Logs tab');
     window.currentTabRefresh = () => buildTechnicianLogsTab(document.getElementById('tech-logsTab'));
-    
+
     // Get all technicians
     const technicians = Object.values(window.allUsers || {}).filter(u => u.role === 'technician');
-    
+
     // Get selected technician from dropdown (or first one)
     const selectedTechId = window.selectedTechForLogs || (technicians.length > 0 ? technicians[0].id : null);
-    
+
     if (technicians.length === 0) {
         container.innerHTML = `
             <div class="page-header">
@@ -4914,14 +4918,14 @@ function buildTechnicianLogsTab(container) {
         `;
         return;
     }
-    
+
     const selectedTech = technicians.find(t => t.id === selectedTechId) || technicians[0];
-    
+
     // Get date range (default: last 7 days)
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 7);
-    
+
     // Filter data for selected technician
     const techPayments = window.allRepairs
         .filter(r => r.payments && r.payments.some(p => p.receivedById === selectedTech.id))
@@ -4943,18 +4947,18 @@ function buildTechnicianLogsTab(container) {
         })
         .flat()
         .sort((a, b) => new Date(b.paymentDate || b.recordedDate) - new Date(a.paymentDate || a.recordedDate));
-    
+
     const techExpenses = (window.techExpenses || [])
         .filter(e => e.techId === selectedTech.id)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+
     const techRemittances = (window.techRemittances || [])
         .filter(r => r.techId === selectedTech.id)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+
     const techJobs = window.allRepairs.filter(r => r.acceptedBy === selectedTech.id);
     const completedJobs = techJobs.filter(r => r.status === 'Completed' || r.status === 'Claimed');
-    
+
     // Calculate totals
     const totalCollected = techPayments.reduce((sum, p) => sum + p.amount, 0);
     const totalExpenses = techExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -4964,7 +4968,7 @@ function buildTechnicianLogsTab(container) {
     const pendingRemittance = techPayments
         .filter(p => p.remittanceStatus === 'pending')
         .reduce((sum, p) => sum + p.amount, 0);
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>📊 Technician Transaction Logs</h2>
@@ -5036,9 +5040,9 @@ function buildTechnicianLogsTab(container) {
                                     <td style="padding:10px;">${p.method}</td>
                                     <td style="padding:10px;text-align:right;font-weight:600;color:#4caf50;">₱${p.amount.toFixed(2)}</td>
                                     <td style="padding:10px;text-align:center;">
-                                        ${p.remittanceStatus === 'verified' ? '<span style="color:#4caf50;">✅ Verified</span>' : 
-                                          p.remittanceStatus === 'remitted' ? '<span style="color:#ff9800;">📤 Remitted</span>' : 
-                                          '<span style="color:#999;">⏳ Pending</span>'}
+                                        ${p.remittanceStatus === 'verified' ? '<span style="color:#4caf50;">✅ Verified</span>' :
+            p.remittanceStatus === 'remitted' ? '<span style="color:#ff9800;">📤 Remitted</span>' :
+                '<span style="color:#999;">⏳ Pending</span>'}
                                     </td>
                                     ${window.currentUserData.role === 'admin' ? `
                                         <td style="padding:10px;text-align:center;">
@@ -5175,29 +5179,29 @@ function selectTechnicianForLogs(techId) {
  */
 function buildInventoryTab(container) {
     window.currentTabRefresh = () => buildInventoryTab(document.getElementById('inventoryTab'));
-    
+
     const role = window.currentUserData.role;
     const canManage = role === 'admin' || role === 'manager';
-    
+
     // Get low stock items
     const lowStockItems = getLowStockItems();
     const outOfStockItems = getOutOfStockItems();
-    
+
     // Filter active items
     const activeItems = window.allInventoryItems.filter(item => !item.deleted);
-    
+
     // Calculate total value
-    const totalValue = activeItems.reduce((sum, item) => 
+    const totalValue = activeItems.reduce((sum, item) =>
         sum + (item.quantity * item.unitCost), 0
     );
-    
+
     let html = `
         <div style="margin-bottom:20px;">
             <h2>📦 Inventory Management</h2>
             <p class="text-secondary">Track parts, manage stock levels, and monitor inventory</p>
         </div>
     `;
-    
+
     // Low Stock Alerts
     if (lowStockItems.length > 0) {
         html += `
@@ -5210,7 +5214,7 @@ function buildInventoryTab(container) {
             </div>
         `;
     }
-    
+
     // Inventory Summary Stats
     html += `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:25px;">
@@ -5232,12 +5236,12 @@ function buildInventoryTab(container) {
             </div>
         </div>
     `;
-    
+
     // Action Buttons
     html += `
         <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
     `;
-    
+
     if (canManage) {
         html += `
             <button onclick="openAddInventoryItemModal()" class="btn-primary">
@@ -5248,7 +5252,7 @@ function buildInventoryTab(container) {
             </button>
         `;
     }
-    
+
     html += `
             <button onclick="filterInventory('all')" class="btn-secondary" id="filterAll">
                 📋 All Items
@@ -5264,7 +5268,7 @@ function buildInventoryTab(container) {
             </button>
         </div>
     `;
-    
+
     // Search and Filter
     html += `
         <div style="margin-bottom:20px;">
@@ -5275,7 +5279,7 @@ function buildInventoryTab(container) {
                    oninput="filterInventoryTable()">
         </div>
     `;
-    
+
     // Inventory Table
     html += `
         <div style="overflow-x:auto;">
@@ -5296,7 +5300,7 @@ function buildInventoryTab(container) {
                 </thead>
                 <tbody id="inventoryTableBody">
     `;
-    
+
     if (activeItems.length === 0) {
         html += `
             <tr>
@@ -5310,12 +5314,12 @@ function buildInventoryTab(container) {
     } else {
         // Sort by name
         activeItems.sort((a, b) => a.partName.localeCompare(b.partName));
-        
+
         activeItems.forEach(item => {
             const isLowStock = item.quantity <= item.minStockLevel;
             const isOutOfStock = item.quantity === 0;
             const totalValue = item.quantity * item.unitCost;
-            
+
             let stockBadge = '';
             if (isOutOfStock) {
                 stockBadge = '<span class="status-badge" style="background:#f44336;">Out of Stock</span>';
@@ -5324,7 +5328,7 @@ function buildInventoryTab(container) {
             } else {
                 stockBadge = '<span class="status-badge" style="background:#4caf50;">In Stock</span>';
             }
-            
+
             html += `
                 <tr class="inventory-row" data-item-id="${item.id}" data-name="${item.partName.toLowerCase()}" data-number="${item.partNumber.toLowerCase()}" data-brand="${(item.brand || '').toLowerCase()}" data-model="${(item.model || '').toLowerCase()}" data-category="${item.category.toLowerCase()}">
                     <td><strong>${item.partName}</strong></td>
@@ -5356,13 +5360,13 @@ function buildInventoryTab(container) {
             `;
         });
     }
-    
+
     html += `
                 </tbody>
             </table>
         </div>
     `;
-    
+
     container.innerHTML = html;
 }
 
@@ -5372,20 +5376,20 @@ function buildInventoryTab(container) {
 function filterInventoryTable() {
     const searchTerm = document.getElementById('inventorySearch').value.toLowerCase();
     const rows = document.querySelectorAll('.inventory-row');
-    
+
     rows.forEach(row => {
         const name = row.dataset.name;
         const number = row.dataset.number;
         const brand = row.dataset.brand;
         const model = row.dataset.model;
         const category = row.dataset.category;
-        
-        const matches = name.includes(searchTerm) || 
-                        number.includes(searchTerm) || 
-                        brand.includes(searchTerm) || 
-                        model.includes(searchTerm) ||
-                        category.includes(searchTerm);
-        
+
+        const matches = name.includes(searchTerm) ||
+            number.includes(searchTerm) ||
+            brand.includes(searchTerm) ||
+            model.includes(searchTerm) ||
+            category.includes(searchTerm);
+
         row.style.display = matches ? '' : 'none';
     });
 }
@@ -5396,7 +5400,7 @@ function filterInventoryTable() {
 function filterInventory(filter) {
     const allItems = window.allInventoryItems.filter(item => !item.deleted);
     let filteredItems = [];
-    
+
     if (filter === 'lowstock') {
         filteredItems = getLowStockItems();
     } else if (filter === 'outofstock') {
@@ -5404,17 +5408,17 @@ function filterInventory(filter) {
     } else {
         filteredItems = allItems;
     }
-    
+
     // Update button states
     document.querySelectorAll('[id^="filter"]').forEach(btn => {
         btn.classList.remove('active');
     });
-    
+
     const activeButton = document.getElementById(`filter${filter.charAt(0).toUpperCase() + filter.slice(1)}`);
     if (activeButton) {
         activeButton.classList.add('active');
     }
-    
+
     // Show/hide rows
     const rows = document.querySelectorAll('.inventory-row');
     rows.forEach(row => {
@@ -5431,12 +5435,12 @@ function openAddInventoryItemModal() {
     const modal = document.getElementById('userModal');
     const modalContent = document.getElementById('userModalContent');
     const modalTitle = document.getElementById('userModalTitle');
-    
+
     modalTitle.textContent = '➕ Add New Part';
-    
+
     // Get suppliers for dropdown
     const activeSuppliers = window.allSuppliers.filter(s => !s.deleted);
-    
+
     modalContent.innerHTML = `
         <form onsubmit="submitAddInventoryItem(event)" id="addInventoryForm">
             <div class="form-group">
@@ -5529,7 +5533,7 @@ function openAddInventoryItemModal() {
             </div>
         </form>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -5538,10 +5542,10 @@ function openAddInventoryItemModal() {
  */
 async function submitAddInventoryItem(e) {
     e.preventDefault();
-    
+
     const form = e.target;
     const formData = new FormData(form);
-    
+
     const itemData = {
         partName: formData.get('partName'),
         partNumber: formData.get('partNumber'),
@@ -5556,7 +5560,7 @@ async function submitAddInventoryItem(e) {
         location: formData.get('location'),
         notes: formData.get('notes')
     };
-    
+
     try {
         await addInventoryItem(itemData);
         closeUserModal();
@@ -5570,21 +5574,21 @@ async function submitAddInventoryItem(e) {
  */
 function editInventoryItemModal(itemId) {
     const item = window.allInventoryItems.find(i => i.id === itemId);
-    
+
     if (!item) {
         alert('Item not found');
         return;
     }
-    
+
     const modal = document.getElementById('userModal');
     const modalContent = document.getElementById('userModalContent');
     const modalTitle = document.getElementById('userModalTitle');
-    
+
     modalTitle.textContent = '✏️ Edit Part';
-    
+
     // Get suppliers for dropdown
     const activeSuppliers = window.allSuppliers.filter(s => !s.deleted);
-    
+
     modalContent.innerHTML = `
         <form onsubmit="submitEditInventoryItem(event, '${itemId}')" id="editInventoryForm">
             <div class="form-group">
@@ -5669,7 +5673,7 @@ function editInventoryItemModal(itemId) {
             </div>
         </form>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -5678,10 +5682,10 @@ function editInventoryItemModal(itemId) {
  */
 async function submitEditInventoryItem(e, itemId) {
     e.preventDefault();
-    
+
     const form = e.target;
     const formData = new FormData(form);
-    
+
     const updates = {
         partName: formData.get('partName'),
         partNumber: formData.get('partNumber'),
@@ -5695,7 +5699,7 @@ async function submitEditInventoryItem(e, itemId) {
         location: formData.get('location'),
         notes: formData.get('notes')
     };
-    
+
     try {
         await updateInventoryItem(itemId, updates);
         closeUserModal();
@@ -5709,18 +5713,18 @@ async function submitEditInventoryItem(e, itemId) {
  */
 function adjustStockModal(itemId) {
     const item = window.allInventoryItems.find(i => i.id === itemId);
-    
+
     if (!item) {
         alert('Item not found');
         return;
     }
-    
+
     const modal = document.getElementById('userModal');
     const modalContent = document.getElementById('userModalContent');
     const modalTitle = document.getElementById('userModalTitle');
-    
+
     modalTitle.textContent = '📊 Adjust Stock';
-    
+
     modalContent.innerHTML = `
         <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px;">
             <h3 style="margin:0 0 5px;">${item.partName}</h3>
@@ -5798,7 +5802,7 @@ function adjustStockModal(itemId) {
             }
         </script>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -5807,16 +5811,16 @@ function adjustStockModal(itemId) {
  */
 async function submitStockAdjustment(e, itemId) {
     e.preventDefault();
-    
+
     const form = e.target;
     const formData = new FormData(form);
-    
+
     const type = formData.get('adjustmentType');
     const quantity = parseInt(formData.get('quantity'));
     const reason = formData.get('reason');
-    
+
     const adjustment = type === 'add' ? quantity : -quantity;
-    
+
     try {
         await adjustStock(itemId, adjustment, reason);
         closeUserModal();
@@ -5832,11 +5836,11 @@ function openAddSupplierModal() {
     const modal = document.getElementById('userModal');
     const modalContent = document.getElementById('userModalContent');
     const modalTitle = document.getElementById('userModalTitle');
-    
+
     modalTitle.textContent = '📊 Manage Suppliers';
-    
+
     const activeSuppliers = window.allSuppliers.filter(s => !s.deleted);
-    
+
     modalContent.innerHTML = `
         <div style="margin-bottom:20px;">
             <button onclick="showAddSupplierForm()" class="btn-primary">➕ Add New Supplier</button>
@@ -5866,7 +5870,7 @@ function openAddSupplierModal() {
             <button type="button" onclick="closeUserModal()" class="btn-secondary" style="width:100%;">Close</button>
         </div>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -5875,7 +5879,7 @@ function openAddSupplierModal() {
  */
 function showAddSupplierForm() {
     const container = document.getElementById('supplierFormContainer');
-    
+
     container.innerHTML = `
         <form onsubmit="submitAddSupplier(event)" id="addSupplierForm" style="padding:15px;background:var(--bg-hover);border-radius:8px;margin-bottom:20px;">
             <h4 style="margin:0 0 15px;">New Supplier</h4>
@@ -5916,7 +5920,7 @@ function showAddSupplierForm() {
             </div>
         </form>
     `;
-    
+
     container.style.display = 'block';
 }
 
@@ -5933,10 +5937,10 @@ function hideSupplierForm() {
  */
 async function submitAddSupplier(e) {
     e.preventDefault();
-    
+
     const form = e.target;
     const formData = new FormData(form);
-    
+
     const supplierData = {
         supplierName: formData.get('supplierName'),
         contactPerson: formData.get('contactPerson'),
@@ -5945,7 +5949,7 @@ async function submitAddSupplier(e) {
         address: formData.get('address'),
         notes: formData.get('notes')
     };
-    
+
     try {
         await addSupplier(supplierData);
         // Refresh modal content
@@ -5960,14 +5964,14 @@ async function submitAddSupplier(e) {
  */
 function editSupplierForm(supplierId) {
     const supplier = window.allSuppliers.find(s => s.id === supplierId);
-    
+
     if (!supplier) {
         alert('Supplier not found');
         return;
     }
-    
+
     const container = document.getElementById('supplierFormContainer');
-    
+
     container.innerHTML = `
         <form onsubmit="submitEditSupplier(event, '${supplierId}')" id="editSupplierForm" style="padding:15px;background:var(--bg-hover);border-radius:8px;margin-bottom:20px;">
             <h4 style="margin:0 0 15px;">Edit Supplier</h4>
@@ -6008,7 +6012,7 @@ function editSupplierForm(supplierId) {
             </div>
         </form>
     `;
-    
+
     container.style.display = 'block';
 }
 
@@ -6017,10 +6021,10 @@ function editSupplierForm(supplierId) {
  */
 async function submitEditSupplier(e, supplierId) {
     e.preventDefault();
-    
+
     const form = e.target;
     const formData = new FormData(form);
-    
+
     const updates = {
         supplierName: formData.get('supplierName'),
         contactPerson: formData.get('contactPerson'),
@@ -6029,7 +6033,7 @@ async function submitEditSupplier(e, supplierId) {
         address: formData.get('address'),
         notes: formData.get('notes')
     };
-    
+
     try {
         await updateSupplier(supplierId, updates);
         // Refresh modal content
@@ -6044,26 +6048,26 @@ async function submitEditSupplier(e, supplierId) {
  */
 function openUsePartsModal(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     if (!repair) {
         alert('Repair not found');
         return;
     }
-    
+
     const modal = document.getElementById('userModal');
     const modalContent = document.getElementById('userModalContent');
     const modalTitle = document.getElementById('userModalTitle');
-    
+
     modalTitle.textContent = '🔧 Use Parts from Inventory';
-    
+
     // Get available inventory items (in stock only)
-    const availableItems = window.allInventoryItems.filter(item => 
+    const availableItems = window.allInventoryItems.filter(item =>
         !item.deleted && item.quantity > 0
     ).sort((a, b) => a.partName.localeCompare(b.partName));
-    
+
     // Get already used parts
     const usedParts = repair.partsUsed ? Object.values(repair.partsUsed) : [];
-    
+
     modalContent.innerHTML = `
         <div style="margin-bottom:20px;padding:15px;background:var(--bg-secondary);border-radius:8px;">
             <h4 style="margin:0 0 5px;">${repair.customerName} - ${repair.brand} ${repair.model}</h4>
@@ -6197,7 +6201,7 @@ function openUsePartsModal(repairId) {
             }
         </script>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -6206,18 +6210,18 @@ function openUsePartsModal(repairId) {
  */
 async function submitUseParts(e, repairId) {
     e.preventDefault();
-    
+
     const form = e.target;
     const formData = new FormData(form);
-    
+
     const partId = formData.get('partId');
     const quantity = parseInt(formData.get('quantity'));
     const notes = formData.get('notes');
-    
+
     try {
         // Use part in repair (this will handle stock deduction and recording)
         await usePartInRepair(partId, quantity, repairId);
-        
+
         closeUserModal();
         utils.showToast('success', 'Parts Used', `Parts have been recorded and stock updated`);
     } catch (error) {
@@ -6232,12 +6236,12 @@ function viewStockMovementsReport() {
     const modal = document.getElementById('userModal');
     const modalContent = document.getElementById('userModalContent');
     const modalTitle = document.getElementById('userModalTitle');
-    
+
     modalTitle.textContent = '📊 Stock Movements History';
-    
+
     // Get recent movements (last 100)
     const recentMovements = window.stockMovements.slice(0, 100);
-    
+
     modalContent.innerHTML = `
         <div style="margin-bottom:20px;">
             <p class="text-secondary">Showing last ${recentMovements.length} stock movements</p>
@@ -6251,11 +6255,11 @@ function viewStockMovementsReport() {
                 </div>
             ` : `
                 ${recentMovements.map(movement => {
-                    const isIncrease = movement.adjustment > 0;
-                    const color = isIncrease ? '#4caf50' : '#f44336';
-                    const icon = isIncrease ? '➕' : '➖';
-                    
-                    return `
+        const isIncrease = movement.adjustment > 0;
+        const color = isIncrease ? '#4caf50' : '#f44336';
+        const icon = isIncrease ? '➕' : '➖';
+
+        return `
                         <div style="padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:10px;border-left:4px solid ${color};">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                 <div style="flex:1;">
@@ -6285,7 +6289,7 @@ function viewStockMovementsReport() {
                             </div>
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             `}
         </div>
         
@@ -6293,7 +6297,7 @@ function viewStockMovementsReport() {
             <button onclick="closeUserModal()" class="btn-secondary" style="width:100%;">Close</button>
         </div>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -6325,11 +6329,11 @@ window.submitEditSupplier = submitEditSupplier;
 function buildAnalyticsTab(container) {
     console.log('📊 Building Analytics tab');
     window.currentTabRefresh = () => buildAnalyticsTab(document.getElementById('analyticsTab'));
-    
+
     // Get date range (default: last 30 days)
     const startDate = window.analyticsDateRange?.start || new Date(new Date().setDate(new Date().getDate() - 30));
     const endDate = window.analyticsDateRange?.end || new Date();
-    
+
     // Get all analytics data
     const revenue = getRevenueAnalytics(startDate, endDate);
     const performance = getTechnicianPerformance(startDate, endDate);
@@ -6337,7 +6341,7 @@ function buildAnalyticsTab(container) {
     const repairTypes = getRepairTypeAnalytics(startDate, endDate);
     const inventory = getInventoryAnalytics(startDate, endDate);
     const financial = getFinancialReport(startDate, endDate);
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>📊 Analytics & Reports</h2>
@@ -6406,8 +6410,8 @@ function buildAnalyticsTab(container) {
                     </thead>
                     <tbody>
                         ${Object.entries(revenue.revenueByType)
-                            .sort((a, b) => b[1] - a[1])
-                            .map(([type, amount]) => `
+            .sort((a, b) => b[1] - a[1])
+            .map(([type, amount]) => `
                                 <tr>
                                     <td><strong>${type}</strong></td>
                                     <td>₱${amount.toLocaleString()}</td>
@@ -6441,8 +6445,8 @@ function buildAnalyticsTab(container) {
                     </thead>
                     <tbody>
                         ${Object.entries(performance)
-                            .sort((a, b) => b[1].totalRepairs - a[1].totalRepairs)
-                            .map(([tech, stats]) => `
+            .sort((a, b) => b[1].totalRepairs - a[1].totalRepairs)
+            .map(([tech, stats]) => `
                                 <tr>
                                     <td><strong>${tech}</strong></td>
                                     <td>${stats.totalRepairs}</td>
@@ -6669,17 +6673,17 @@ function buildAnalyticsTab(container) {
 function updateAnalyticsDateRange() {
     const startDate = document.getElementById('analyticsStartDate').value;
     const endDate = document.getElementById('analyticsEndDate').value;
-    
+
     if (!startDate || !endDate) {
         alert('Please select both start and end dates');
         return;
     }
-    
+
     window.analyticsDateRange = {
         start: new Date(startDate),
         end: new Date(endDate)
     };
-    
+
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
     }
@@ -6691,7 +6695,7 @@ function updateAnalyticsDateRange() {
 function setQuickDateRange(range) {
     const end = new Date();
     let start = new Date();
-    
+
     switch (range) {
         case '7days':
             start.setDate(end.getDate() - 7);
@@ -6703,9 +6707,9 @@ function setQuickDateRange(range) {
             start = new Date(end.getFullYear(), end.getMonth(), 1);
             break;
     }
-    
+
     window.analyticsDateRange = { start, end };
-    
+
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
     }
@@ -6820,11 +6824,11 @@ window.buildDataIntegritySection = buildDataIntegritySection;
 function toggleAllDeviceCheckboxes() {
     const selectAll = document.getElementById('selectAllDevices');
     const checkboxes = document.querySelectorAll('.device-delete-checkbox');
-    
+
     checkboxes.forEach(checkbox => {
         checkbox.checked = selectAll.checked;
     });
-    
+
     updateBulkDeleteButton();
 }
 
@@ -6837,12 +6841,12 @@ function updateBulkDeleteButton() {
     const countSpan = document.getElementById('selectedDeviceCount');
     const bulkBtn = document.getElementById('bulkDeleteBtn');
     const selectAll = document.getElementById('selectAllDevices');
-    
+
     // Update count display
     if (countSpan) {
         countSpan.textContent = `(${count} selected)`;
     }
-    
+
     // Show/hide bulk delete button
     if (bulkBtn) {
         if (count > 0) {
@@ -6852,7 +6856,7 @@ function updateBulkDeleteButton() {
             bulkBtn.style.display = 'none';
         }
     }
-    
+
     // Update select all checkbox state
     if (selectAll) {
         const allCheckboxes = document.querySelectorAll('.device-delete-checkbox');
@@ -6867,12 +6871,12 @@ function updateBulkDeleteButton() {
 async function executeBulkDelete() {
     const checkboxes = document.querySelectorAll('.device-delete-checkbox:checked');
     const repairIds = Array.from(checkboxes).map(cb => cb.dataset.repairId);
-    
+
     if (repairIds.length === 0) {
         alert('⚠️ No devices selected');
         return;
     }
-    
+
     // Call the bulk delete function
     await window.adminBulkDeleteDevices(repairIds);
 }

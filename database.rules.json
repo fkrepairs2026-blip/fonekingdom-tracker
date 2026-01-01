@@ -1,0 +1,73 @@
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "repairs": {
+      ".indexOn": [
+        "status",
+        "technicianId",
+        "createdAt"
+      ],
+      "$repairId": {
+        ".read": "auth != null",
+        ".write": "auth != null",
+        "deleted": {
+          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        }
+      }
+    },
+    "users": {
+      ".read": "auth != null",
+      "$userId": {
+        ".write": "auth != null && (
+          auth.uid === $userId ||
+          root.child('users').child(auth.uid).child('role').val() === 'admin'
+        )"
+      }
+    },
+    "inventory": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "techExpenses": {
+      ".read": "auth != null",
+      "$expenseId": {
+        ".write": "auth != null"
+      }
+    },
+    "techRemittances": {
+      ".read": "auth != null",
+      "$remittanceId": {
+        ".write": "auth != null"
+      }
+    },
+    "modificationRequests": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "auditLogs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "auth != null"
+    },
+    "deletedRepairs": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    "activityLogs": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "loginEvents": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "auth != null"
+    },
+    "suppliers": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "dailyCashCounts": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

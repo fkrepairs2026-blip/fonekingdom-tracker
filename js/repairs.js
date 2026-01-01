@@ -29,21 +29,21 @@ window.techRemittances = [];
 async function loadRepairs() {
     return new Promise((resolve) => {
         console.log('📦 Setting up repairs listener...');
-        
+
         db.ref('repairs').on('value', (snapshot) => {
             const previousCount = window.allRepairs.length;
             window.allRepairs = [];
-            
+
             snapshot.forEach((child) => {
                 window.allRepairs.push({
                     id: child.key,
                     ...child.val()
                 });
             });
-            
+
             const newCount = window.allRepairs.length;
             console.log('✅ Repairs loaded from Firebase:', newCount, previousCount !== newCount ? '(changed)' : '');
-            
+
             // Always refresh current tab when data changes
             if (window.currentTabRefresh) {
                 console.log('🔄 Auto-refreshing current tab...');
@@ -52,14 +52,14 @@ async function loadRepairs() {
                     window.currentTabRefresh();
                 }, 400);
             }
-            
+
             // Always update stats
             if (window.buildStats) {
                 setTimeout(() => {
                     window.buildStats();
                 }, 400);
             }
-            
+
             resolve(window.allRepairs);
         });
     });
@@ -71,26 +71,26 @@ async function loadRepairs() {
 async function loadModificationRequests() {
     return new Promise((resolve) => {
         console.log('📦 Loading modification requests...');
-        
+
         db.ref('modificationRequests').on('value', (snapshot) => {
             window.allModificationRequests = [];
-            
+
             snapshot.forEach((child) => {
                 window.allModificationRequests.push({
                     id: child.key,
                     ...child.val()
                 });
             });
-            
+
             console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
-            
+
             // Refresh current tab if it's modification requests tab
             if (window.currentTabRefresh) {
                 setTimeout(() => {
                     window.currentTabRefresh();
                 }, 400);
             }
-            
+
             resolve(window.allModificationRequests);
         });
     });
@@ -104,29 +104,29 @@ window.loadModificationRequests = loadModificationRequests;
 async function loadActivityLogs() {
     return new Promise((resolve) => {
         console.log('📦 Loading activity logs...');
-        
+
         db.ref('activityLogs').orderByChild('timestamp').limitToLast(100).on('value', (snapshot) => {
             window.allActivityLogs = [];
-            
+
             snapshot.forEach((child) => {
                 window.allActivityLogs.push({
                     id: child.key,
                     ...child.val()
                 });
             });
-            
+
             // Sort by timestamp descending (newest first)
             window.allActivityLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            
+
             console.log('✅ Activity logs loaded:', window.allActivityLogs.length);
-            
+
             // Refresh current tab if it's activity logs tab
             if (window.currentTabRefresh && window.activeTab === 'admin-logs') {
                 setTimeout(() => {
                     window.currentTabRefresh();
                 }, 400);
             }
-            
+
             resolve(window.allActivityLogs);
         });
     });
@@ -140,37 +140,37 @@ window.loadActivityLogs = loadActivityLogs;
 async function loadTechRemittances() {
     return new Promise((resolve) => {
         console.log('📦 Loading tech remittances...');
-        
+
         // Use limitToLast to improve performance - last 100 remittances
         db.ref('techRemittances').orderByChild('submittedAt').limitToLast(100).on('value', (snapshot) => {
             window.techRemittances = [];
-            
+
             snapshot.forEach((child) => {
                 window.techRemittances.push({
                     id: child.key,
                     ...child.val()
                 });
             });
-            
+
             // Sort by submission date (newest first)
             window.techRemittances.sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt));
-            
+
             console.log('✅ Tech remittances loaded:', window.techRemittances.length);
-            
+
             // Update remittance badges
             if (window.currentUserData && window.currentUserData.role === 'technician') {
                 if (window.updateRemittanceBadge) {
                     window.updateRemittanceBadge();
                 }
             }
-            
+
             // Auto-refresh current tab if it's remittance-related
             if (window.currentTabRefresh) {
                 setTimeout(() => {
                     window.currentTabRefresh();
                 }, 400);
             }
-            
+
             resolve(window.techRemittances);
         });
     });
@@ -190,7 +190,7 @@ async function logActivity(type, details, summary) {
             console.warn('⚠️ Cannot log activity: user not logged in');
             return;
         }
-        
+
         const activityLog = {
             type: type,
             timestamp: new Date().toISOString(),
@@ -200,7 +200,7 @@ async function logActivity(type, details, summary) {
             details: details || {},
             summary: summary
         };
-        
+
         await db.ref('activityLogs').push(activityLog);
         console.log('✅ Activity logged:', type, summary);
     } catch (error) {
@@ -217,10 +217,10 @@ window.logActivity = logActivity;
 async function loadUsers() {
     return new Promise((resolve) => {
         console.log('📦 Loading users...');
-        
+
         db.ref('users').on('value', (snapshot) => {
             window.allUsers = {};
-            
+
             snapshot.forEach((child) => {
                 const userData = child.val();
                 window.allUsers[child.key] = {
@@ -229,16 +229,16 @@ async function loadUsers() {
                     ...userData
                 };
             });
-            
+
             console.log('✅ Users loaded:', Object.keys(window.allUsers).length);
-            
+
             // Refresh users tab if currently viewing
             if (window.currentTabRefresh && window.activeTab === 'users') {
                 setTimeout(() => {
                     window.currentTabRefresh();
                 }, 400);
             }
-            
+
             resolve(window.allUsers);
         });
     });
@@ -256,12 +256,12 @@ async function submitReceiveDevice(e) {
     e.preventDefault();
     const form = e.target;
     const data = new FormData(form);
-    
+
     console.log('📥 Receiving device...');
-    
+
     // Check if it's a back job
     const isBackJob = document.getElementById('isBackJob').checked;
-    
+
     const repair = {
         customerType: data.get('customerType'),
         customerName: data.get('customerName'),
@@ -269,16 +269,16 @@ async function submitReceiveDevice(e) {
         contactNumber: data.get('contactNumber'),
         brand: data.get('brand'),
         model: data.get('model'),
-        
+
         // NEW: Device Details (Phase 2)
         imei: data.get('imei') || '',
         deviceColor: data.get('deviceColor') || 'N/A',
         storageCapacity: data.get('storageCapacity') || 'N/A',
         devicePasscode: data.get('devicePasscode') || '',
-        
+
         // Pre-Repair Checklist - filled when technician accepts repair
         preRepairChecklist: null,
-        
+
         problemType: data.get('problemType') || 'Pending Diagnosis',
         problem: data.get('problem'),
         estimatedCost: parseFloat(data.get('estimatedCost')) || null,
@@ -306,37 +306,37 @@ async function submitReceiveDevice(e) {
         customerApproved: false,
         customerApprovedAt: null,
         customerApprovedBy: null
-        
+
     };
-    
+
     // Check if pricing was provided (auto-approve if pricing present)
     const repairType = document.getElementById('preApprovedRepairType').value;
     const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
     const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
     const total = partsCost + laborCost;
     const hasPricing = repairType && total > 0;
-    
+
     // Handle PRE-APPROVED devices (customer already agreed to pricing)
     if (hasPricing && !isBackJob) {
         // Get quoted supplier info
         const quotedSupplier = document.getElementById('receiveSupplier')?.value || null;
-        
+
         // Mark as pre-approved with pricing
         repair.repairType = repairType;
         repair.partsCost = partsCost;
         repair.laborCost = laborCost;
         repair.total = total;
-        
+
         // Quote information (for tracking vs actual)
         repair.quotedSupplier = quotedSupplier;
         repair.quotedPartsCost = partsCost;
         repair.quotedDate = new Date().toISOString();
-        
+
         // Actual costs (to be filled later when recording actual parts cost)
         repair.actualPartsCost = null;
         repair.actualSupplier = null;
         repair.costVariance = null;
-        
+
         // Mark diagnosis as created and customer approved
         repair.diagnosisCreated = true;
         repair.diagnosisCreatedAt = new Date().toISOString();
@@ -345,88 +345,88 @@ async function submitReceiveDevice(e) {
         repair.customerApproved = true;
         repair.customerApprovedAt = new Date().toISOString();
         repair.customerApprovedBy = window.currentUser.uid;
-        
-        console.log('✅ Device marked as pre-approved with pricing:', {repairType, partsCost, laborCost, total, quotedSupplier});
+
+        console.log('✅ Device marked as pre-approved with pricing:', { repairType, partsCost, laborCost, total, quotedSupplier });
     }
-    
+
     // NEW: Handle assignment options for Tech/Admin/Manager
     const userRole = window.currentUserData.role;
     let assignmentMethod = 'pool'; // Default for cashiers
     let assignedTo = null;
     let assignedToName = null;
-    
+
     if (userRole === 'technician' || userRole === 'admin' || userRole === 'manager') {
         const assignOption = data.get('assignOption');
-        
+
         if (assignOption === 'accept-myself') {
             // Immediate self-assignment
             assignmentMethod = 'immediate-accept';
             assignedTo = window.currentUser.uid;
             assignedToName = window.currentUserData.displayName;
-            
+
             repair.status = 'In Progress';
             repair.acceptedBy = assignedTo;
             repair.acceptedByName = assignedToName;
             repair.acceptedAt = new Date().toISOString();
-            
+
         } else if (assignOption === 'assign-other') {
             // Assign to specific tech
             const targetTechId = document.getElementById('assignToTech')?.value;
-            
+
             if (!targetTechId) {
                 alert('Please select a technician to assign this repair to');
                 return;
             }
-            
+
             const targetTech = window.allUsers[targetTechId];
             if (!targetTech) {
                 alert('Selected technician not found');
                 return;
             }
-            
+
             assignmentMethod = 'assigned-by-receiver';
             assignedTo = targetTechId;
             assignedToName = targetTech.displayName;
-            
+
             repair.status = 'In Progress';
             repair.acceptedBy = assignedTo;
             repair.acceptedByName = assignedToName;
             repair.acceptedAt = new Date().toISOString();
             repair.assignedBy = window.currentUserData.displayName;
-            
+
         } else {
             // Send to pool ('pool' option or default)
             assignmentMethod = 'pool';
         }
     }
-    
+
     repair.assignmentMethod = assignmentMethod;
-    
+
     // Add back job information if checked
     if (isBackJob) {
         const backJobTech = document.getElementById('backJobTech').value;
         const backJobReason = document.getElementById('backJobReason').value.trim();
-        
+
         if (!backJobTech) {
             alert('Please select the original technician for this back job');
             return;
         }
-        
+
         if (!backJobReason) {
             alert('Please provide a reason for the back job');
             return;
         }
-        
+
         // Get tech name from selection
         const techSelect = document.getElementById('backJobTech');
         const techName = techSelect.options[techSelect.selectedIndex].text;
-        
+
         repair.isBackJob = true;
         repair.backJobReason = backJobReason;
         repair.originalTechId = backJobTech;
         repair.originalTechName = techName;
         repair.suggestedTech = backJobTech; // Suggest but don't force
-        
+
         // Back jobs skip diagnosis workflow - auto-approved (warranty claim)
         repair.diagnosisCreated = true;
         repair.diagnosisCreatedAt = new Date().toISOString();
@@ -435,7 +435,7 @@ async function submitReceiveDevice(e) {
         repair.customerApproved = true; // Back jobs are pre-approved
         repair.customerApprovedAt = new Date().toISOString();
         repair.customerApprovedBy = window.currentUser.uid;
-        
+
         // If already assigned (via assignment options), keep that assignment
         // Otherwise, if original tech is receiving, they might auto-accept via assignOption
         // If going to pool, add note about suggested tech
@@ -443,11 +443,11 @@ async function submitReceiveDevice(e) {
             repair.notes = `🔄 Back Job - Previously handled by ${techName}`;
         }
     }
-    
+
     try {
         await db.ref('repairs').push(repair);
         console.log('✅ Device received successfully!');
-        
+
         // Log repair creation
         await logActivity('repair_created', {
             customerName: repair.customerName,
@@ -457,10 +457,10 @@ async function submitReceiveDevice(e) {
             isBackJob: isBackJob || false,
             customerPreApproved: hasPricing || false
         }, `${repair.customerName} - ${repair.brand} ${repair.model} received by ${window.currentUserData.displayName}`);
-        
+
         // Show appropriate success message based on assignment
         let successMsg = `✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n`;
-        
+
         if (assignmentMethod === 'immediate-accept') {
             successMsg += `🔧 Status: ACCEPTED by you!\n✅ Device is now in your "My Jobs" list.\n📍 Status: In Progress\n\n`;
             if (hasPricing) {
@@ -484,9 +484,9 @@ async function submitReceiveDevice(e) {
                 successMsg += `📋 Next: Create diagnosis & get customer approval\n`;
             }
         }
-        
+
         alert(successMsg);
-        
+
         // Reset form
         form.reset();
         photoData = [];
@@ -495,7 +495,7 @@ async function submitReceiveDevice(e) {
             preview.innerHTML = '';
             preview.style.display = 'none';
         }
-        
+
         // Reset back job fields
         if (document.getElementById('isBackJob')) {
             document.getElementById('isBackJob').checked = false;
@@ -503,7 +503,7 @@ async function submitReceiveDevice(e) {
         if (document.getElementById('backJobFields')) {
             document.getElementById('backJobFields').style.display = 'none';
         }
-        
+
         // Reset pricing fields (they stay visible but need to be cleared)
         if (document.getElementById('preApprovedRepairType')) {
             document.getElementById('preApprovedRepairType').value = '';
@@ -517,9 +517,9 @@ async function submitReceiveDevice(e) {
         if (document.getElementById('preApprovedTotal')) {
             document.getElementById('preApprovedTotal').value = '0.00';
         }
-        
+
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         console.error('❌ Error receiving device:', error);
         alert('Error: ' + error.message);
@@ -535,41 +535,41 @@ async function acceptRepair(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     if (repair.acceptedBy) {
         alert(`This repair has already been accepted by ${repair.acceptedByName}`);
         return;
     }
-    
+
     // Check if diagnosis has been created - allow but warn
     const hasDiagnosis = repair.diagnosisCreated && repair.total > 0 && repair.repairType !== 'Pending Diagnosis';
     const hasApproval = repair.customerApproved;
-    
+
     if (!hasDiagnosis || !hasApproval) {
         let warningMsg = '⚠️ Warning!\n\n';
-        
+
         if (!hasDiagnosis) {
             warningMsg += '❌ No diagnosis or pricing set yet\n';
         }
         if (!hasApproval) {
             warningMsg += '❌ Customer has not approved pricing\n';
         }
-        
+
         warningMsg += '\nYou can accept this repair now and set pricing later, but make sure to:\n';
         warningMsg += '• Create diagnosis & set pricing\n';
         warningMsg += '• Get customer approval\n';
         warningMsg += '• Before completing the repair\n\n';
         warningMsg += 'Accept anyway?';
-        
+
         if (!confirm(warningMsg)) {
             return;
         }
     }
-    
+
     const confirmMsg = `Accept this repair?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📋 ${repair.repairType}\n💰 Total: ₱${repair.total.toFixed(2)}\n\nThis will move to your job list.`;
-    
+
     if (!confirm(confirmMsg)) return;
-    
+
     try {
         await db.ref('repairs/' + repairId).update({
             acceptedBy: window.currentUser.uid,
@@ -579,7 +579,7 @@ async function acceptRepair(repairId) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log repair acceptance
         await logActivity('repair_accepted', 'repair', {
             repairId: repairId,
@@ -588,12 +588,12 @@ async function acceptRepair(repairId) {
             model: repair.model,
             total: repair.total
         });
-        
+
         alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n💰 Total: ₱${repair.total.toFixed(2)}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"`);
-        
+
         console.log('✅ Repair accepted successfully');
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         console.error('❌ Error accepting repair:', error);
         alert('Error: ' + error.message);
@@ -609,24 +609,24 @@ async function openTransferRepairModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     if (!repair.acceptedBy) {
         alert('This repair has not been accepted yet. Only accepted repairs can be transferred.');
         return;
     }
-    
+
     // Get available technicians (exclude current assignee)
-    const availableTechs = Object.values(window.allUsers).filter(u => 
-        u.role === 'technician' && 
+    const availableTechs = Object.values(window.allUsers).filter(u =>
+        u.role === 'technician' &&
         u.uid !== repair.acceptedBy &&
         u.status === 'active'
     );
-    
+
     if (availableTechs.length === 0) {
         alert('No other technicians available for transfer');
         return;
     }
-    
+
     const content = `
         <div class="alert-info">
             <h3>🔄 Transfer Repair</h3>
@@ -640,9 +640,9 @@ async function openTransferRepairModal(repairId) {
                 <label>Transfer to Technician: *</label>
                 <select id="transferToTech" required>
                     <option value="">Select technician...</option>
-                    ${availableTechs.map(tech => 
-                        `<option value="${tech.uid}">${tech.displayName}</option>`
-                    ).join('')}
+                    ${availableTechs.map(tech =>
+        `<option value="${tech.uid}">${tech.displayName}</option>`
+    ).join('')}
                 </select>
             </div>
             
@@ -667,7 +667,7 @@ async function openTransferRepairModal(repairId) {
             </div>
         </form>
     `;
-    
+
     document.getElementById('transferModalContent').innerHTML = content;
     document.getElementById('transferModal').style.display = 'block';
 }
@@ -677,27 +677,27 @@ async function openTransferRepairModal(repairId) {
  */
 async function submitTransferRepair(e, repairId) {
     e.preventDefault();
-    
+
     const targetTechId = document.getElementById('transferToTech').value;
     const reason = document.getElementById('transferReason').value.trim();
     const notes = document.getElementById('transferNotes').value.trim();
-    
+
     if (!targetTechId || !reason) {
         alert('Please select technician and provide transfer reason');
         return;
     }
-    
+
     const targetTech = window.allUsers[targetTechId];
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     if (!targetTech || !repair) {
         alert('Error: Technician or repair not found');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const transferRecord = {
             fromTech: repair.acceptedBy,
             fromTechName: repair.acceptedByName,
@@ -709,11 +709,11 @@ async function submitTransferRepair(e, repairId) {
             reason: reason,
             notes: notes
         };
-        
+
         // Get existing transfer history or create new array
         const existingHistory = repair.transferHistory || [];
         const updatedHistory = [...existingHistory, transferRecord];
-        
+
         // Update repair
         await db.ref(`repairs/${repairId}`).update({
             acceptedBy: targetTechId,
@@ -722,7 +722,7 @@ async function submitTransferRepair(e, repairId) {
             lastUpdatedBy: window.currentUserData.displayName,
             transferHistory: updatedHistory
         });
-        
+
         // Log activity
         await logActivity('repair_transferred', 'repair', {
             repairId: repairId,
@@ -733,14 +733,14 @@ async function submitTransferRepair(e, repairId) {
             toTech: targetTech.displayName,
             reason: reason
         });
-        
+
         utils.showLoading(false);
         closeTransferModal();
-        
+
         alert(`✅ Repair Transferred!\n\n📱 ${repair.brand} ${repair.model}\n\nFrom: ${repair.acceptedByName}\nTo: ${targetTech.displayName}\n\n${targetTech.displayName} will see this in their "My Jobs" list.`);
-        
+
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error transferring repair:', error);
@@ -761,17 +761,17 @@ function closeTransferModal() {
 async function handlePhotoUpload(input, previewId) {
     const file = input.files[0];
     if (!file) return;
-    
+
     try {
         const compressed = await utils.compressImage(file, 800);
         photoData.push(compressed);
-        
+
         const preview = document.getElementById(previewId);
         if (preview) {
             preview.innerHTML = '<img src="' + compressed + '" style="width:100%;border-radius:5px;">';
             preview.style.display = 'block';
         }
-        
+
         if (photoData.length === 1 && document.getElementById('photo2')) {
             document.getElementById('photo2').style.display = 'block';
         }
@@ -815,19 +815,34 @@ function openPaymentModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     // Calculate total paid (verified payments only)
     const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
-    
+
     // Calculate advance payments (when total is 0 or undefined)
     const isAdvancePayment = !repair.total || repair.total === 0;
     const totalAdvances = isAdvancePayment ? (repair.payments || []).filter(p => p.isAdvance && p.verified).reduce((sum, p) => sum + p.amount, 0) : 0;
     const pendingAdvances = (repair.payments || []).filter(p => p.isAdvance && p.advanceStatus === 'pending');
-    
+
     const content = document.getElementById('paymentModalContent');
     
+    const lang = getCurrentHelpLanguage();
+    const helpTitle = lang === 'tl' ? 'Paano Isulat ang Bayad' : 'How to Record Payment';
+    const helpText = lang === 'tl' ? 
+        'Pumili ng payment date, ilagay ang halaga, piliin ang payment method (Cash, GCash, atbp.), at i-save.' :
+        'Select payment date, enter amount, choose payment method (Cash, GCash, etc.), and save.';
+
     content.innerHTML = `
+        <details style="margin-bottom:15px;padding:10px;background:#e3f2fd;border-radius:6px;">
+            <summary style="cursor:pointer;font-weight:bold;color:#1976d2;font-size:14px;">
+                ❓ ${helpTitle}
+            </summary>
+            <p style="margin:10px 0 0;color:#555;font-size:13px;line-height:1.5;">
+                ${helpText}
+            </p>
+        </details>
+        
         <div class="alert-neutral">
             <h4 style="margin:0 0 10px 0;">Payment Summary</h4>
             <p><strong>Customer:</strong> ${repair.customerName}</p>
@@ -900,28 +915,28 @@ function openPaymentModal(repairId) {
                 <h4>Payment History</h4>
                 <div style="max-height:300px;overflow-y:auto;">
                     ${repair.payments.map((p, i) => {
-                        // Determine advance status display
-                        let advanceIcon = '';
-                        let advanceColor = '';
-                        let advanceLabel = '';
-                        
-                        if (p.isAdvance) {
-                            if (p.advanceStatus === 'pending') {
-                                advanceIcon = '💰';
-                                advanceColor = '#ff9800';
-                                advanceLabel = 'ADVANCE (Pending)';
-                            } else if (p.advanceStatus === 'applied') {
-                                advanceIcon = '✅';
-                                advanceColor = '#4caf50';
-                                advanceLabel = 'ADVANCE (Applied)';
-                            } else if (p.advanceStatus === 'refunded') {
-                                advanceIcon = '↩️';
-                                advanceColor = '#2196f3';
-                                advanceLabel = 'ADVANCE (Refunded)';
-                            }
-                        }
-                        
-                        return `
+        // Determine advance status display
+        let advanceIcon = '';
+        let advanceColor = '';
+        let advanceLabel = '';
+
+        if (p.isAdvance) {
+            if (p.advanceStatus === 'pending') {
+                advanceIcon = '💰';
+                advanceColor = '#ff9800';
+                advanceLabel = 'ADVANCE (Pending)';
+            } else if (p.advanceStatus === 'applied') {
+                advanceIcon = '✅';
+                advanceColor = '#4caf50';
+                advanceLabel = 'ADVANCE (Applied)';
+            } else if (p.advanceStatus === 'refunded') {
+                advanceIcon = '↩️';
+                advanceColor = '#2196f3';
+                advanceLabel = 'ADVANCE (Refunded)';
+            }
+        }
+
+        return `
                         <div class="${p.verified ? 'alert-success-compact' : 'alert-warning-compact'}">
                             <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
                                 <div>
@@ -970,7 +985,7 @@ function openPaymentModal(repairId) {
             </div>
         ` : ''}
     `;
-    
+
     document.getElementById('paymentModal').style.display = 'block';
 }
 
@@ -982,11 +997,11 @@ let paymentProofPhoto = null;
 async function previewPaymentProof(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     try {
         const compressed = await utils.compressImage(file, 800);
         paymentProofPhoto = compressed;
-        
+
         const preview = document.getElementById('paymentProofPreview');
         if (preview) {
             preview.innerHTML = '<img src="' + compressed + '" style="width:100%;max-height:200px;object-fit:contain;border-radius:5px;">';
@@ -1005,35 +1020,35 @@ async function savePayment(repairId) {
     const amount = parseFloat(document.getElementById('paymentAmount').value);
     const method = document.getElementById('paymentMethod').value;
     const notes = document.getElementById('paymentNotes').value;
-    
+
     if (!paymentDateInput || !paymentDateInput.value) {
         alert('Please select payment date');
         return;
     }
-    
+
     if (!amount || amount <= 0) {
         alert('Please enter a valid payment amount');
         return;
     }
-    
+
     if (!method) {
         alert('Please select payment method');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
-    
+
     // Check if this is an advance payment (total not set or 0)
     const isAdvancePayment = !repair.total || repair.total === 0;
-    
+
     // Validate payment amount
     if (!isAdvancePayment && amount > balance) {
         alert(`Payment amount cannot exceed balance of ₱${balance.toFixed(2)}`);
         return;
     }
-    
+
     // For advance payments, check against estimated cost if provided
     if (isAdvancePayment && repair.estimatedCost && amount > repair.estimatedCost) {
         const confirm = window.confirm(
@@ -1042,21 +1057,21 @@ async function savePayment(repairId) {
         );
         if (!confirm) return;
     }
-    
+
     const selectedDate = new Date(paymentDateInput.value + 'T00:00:00');
     const paymentDate = selectedDate.toISOString();
-    
+
     // Check if date is locked (prevent backdating)
     const dateString = paymentDateInput.value;  // Already in YYYY-MM-DD format
     if (!preventBackdating(dateString)) {
         alert('⚠️ Cannot record payment on locked date!\n\nThis date has been locked and finalized. Please contact admin if you need to make corrections.');
         return;
     }
-    
+
     // Check if payment is collected by technician
     const isTechnician = window.currentUserData.role === 'technician';
     const isAdminOrManager = window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager';
-    
+
     const payment = {
         amount: amount,
         method: method,
@@ -1078,15 +1093,15 @@ async function savePayment(repairId) {
         verifiedBy: isAdminOrManager ? window.currentUserData.displayName : null,
         verifiedAt: isAdminOrManager ? new Date().toISOString() : null
     };
-    
+
     const existingPayments = repair.payments || [];
-    
+
     await db.ref('repairs/' + repairId).update({
         payments: [...existingPayments, payment],
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     });
-    
+
     // Log payment activity
     await logActivity('payment_recorded', {
         repairId: repairId,
@@ -1096,11 +1111,11 @@ async function savePayment(repairId) {
         paymentDate: utils.formatDate(paymentDate),
         verified: payment.verified
     }, `₱${amount.toFixed(2)} payment recorded for ${repair.customerName} by ${window.currentUserData.displayName}`);
-    
+
     paymentProofPhoto = null;
-    
+
     const paymentDateStr = utils.formatDate(paymentDate);
-    
+
     if (isAdvancePayment) {
         alert(`✅ Advance Payment Recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n🔔 This advance will be applied when repair pricing is finalized.`);
     } else {
@@ -1111,9 +1126,9 @@ async function savePayment(repairId) {
             alert(`✅ Payment recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📅 Payment Date: ${paymentDateStr}\n✅ Status: ${payment.verified ? 'Verified' : 'Pending Verification'}\n\n📊 Remaining Balance: ₱${newBalance.toFixed(2)}`);
         }
     }
-    
+
     closePaymentModal();
-    
+
     // Firebase listener will auto-refresh the page
 }
 
@@ -1123,23 +1138,23 @@ async function savePayment(repairId) {
 async function refundAdvancePayment(repairId, paymentIndex) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payment = repair.payments[paymentIndex];
-    
+
     if (!payment.isAdvance || payment.advanceStatus !== 'pending') {
         alert('⚠️ This payment is not a pending advance payment');
         return;
     }
-    
+
     const refundNotes = prompt(
         `Mark this advance payment as refunded?\n\n` +
         `Amount: ₱${payment.amount.toFixed(2)}\n` +
         `Customer: ${repair.customerName}\n\n` +
         `Enter refund notes (e.g., "Customer declined repair", "Parts unavailable"):`
     );
-    
+
     if (!refundNotes || !refundNotes.trim()) {
         return;
     }
-    
+
     try {
         const payments = [...repair.payments];
         payments[paymentIndex] = {
@@ -1149,13 +1164,13 @@ async function refundAdvancePayment(repairId, paymentIndex) {
             refundedAt: new Date().toISOString(),
             refundNotes: refundNotes.trim()
         };
-        
+
         await db.ref('repairs/' + repairId).update({
             payments: payments,
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log refund activity
         await logActivity('advance_refunded', {
             repairId: repairId,
@@ -1163,9 +1178,9 @@ async function refundAdvancePayment(repairId, paymentIndex) {
             amount: payment.amount,
             reason: refundNotes.trim()
         }, `₱${payment.amount.toFixed(2)} advance refunded to ${repair.customerName} by ${window.currentUserData.displayName}`);
-        
+
         alert(`✅ Advance payment marked as refunded!\n\n₱${payment.amount.toFixed(2)} refunded to ${repair.customerName}`);
-        
+
         setTimeout(() => openPaymentModal(repairId), 100);
     } catch (error) {
         console.error('Error refunding advance:', error);
@@ -1179,9 +1194,9 @@ async function refundAdvancePayment(repairId, paymentIndex) {
 function editPaymentDate(repairId, paymentIndex) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payment = repair.payments[paymentIndex];
-    
+
     const currentDate = isoToDateInput(payment.paymentDate || payment.date);
-    
+
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
         <div class="alert-warning">
@@ -1215,7 +1230,7 @@ function editPaymentDate(repairId, paymentIndex) {
             <p style="margin:0;font-size:13px;"><strong>⚠️ Important:</strong> Change will be logged with your name and reason.</p>
         </div>
     `;
-    
+
     document.getElementById('paymentModal').style.display = 'block';
 }
 
@@ -1224,19 +1239,19 @@ function editPaymentDate(repairId, paymentIndex) {
  */
 function editRecordedDate(repairId, paymentIndex) {
     const role = window.currentUserData.role;
-    
+
     // ONLY admin can edit recorded date directly
     if (role !== 'admin') {
         // Others must request
         requestRecordedDateModification(repairId, paymentIndex);
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payment = repair.payments[paymentIndex];
-    
+
     const currentDate = isoToDateInput(payment.recordedDate || payment.date);
-    
+
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
         <div class="alert-warning">
@@ -1271,7 +1286,7 @@ function editRecordedDate(repairId, paymentIndex) {
             <p style="margin:0;font-size:13px;"><strong>⚠️ Admin Only:</strong> This changes when the payment was entered in the system. Be very careful!</p>
         </div>
     `;
-    
+
     document.getElementById('paymentModal').style.display = 'block';
 }
 
@@ -1294,32 +1309,32 @@ function isoToDateTimeLocal(isoString) {
  */
 async function saveRecordedDateEdit(repairId, paymentIndex) {
     const role = window.currentUserData.role;
-    
+
     if (role !== 'admin') {
         alert('Only admin can edit recorded dates directly!');
         return;
     }
-    
+
     const newDateInput = document.getElementById('newRecordedDate');
     const reason = document.getElementById('editRecordedReason').value.trim();
-    
+
     if (!newDateInput || !newDateInput.value) {
         alert('Please select a new recorded date');
         return;
     }
-    
+
     if (!reason) {
         alert('Please provide a reason for changing the date');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payments = [...repair.payments];
     const payment = payments[paymentIndex];
-    
+
     const oldDate = payment.recordedDate || payment.date;
     const newDate = new Date(newDateInput.value).toISOString();
-    
+
     payments[paymentIndex] = {
         ...payment,
         recordedDate: newDate,
@@ -1334,15 +1349,15 @@ async function saveRecordedDateEdit(repairId, paymentIndex) {
             }
         ]
     };
-    
+
     await db.ref('repairs/' + repairId).update({
         payments: payments,
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     });
-    
+
     alert(`✅ Recorded date updated!\n\nOld: ${utils.formatDateTime(oldDate)}\nNew: ${utils.formatDateTime(newDate)}\n\nReason: ${reason}`);
-    
+
     setTimeout(() => openPaymentModal(repairId), 100);
 }
 
@@ -1356,25 +1371,25 @@ window.saveRecordedDateEdit = saveRecordedDateEdit;
 async function savePaymentDateEdit(repairId, paymentIndex) {
     const newDateInput = document.getElementById('newPaymentDate');
     const reason = document.getElementById('editReason').value.trim();
-    
+
     if (!newDateInput || !newDateInput.value) {
         alert('Please select a new payment date');
         return;
     }
-    
+
     if (!reason) {
         alert('Please provide a reason for changing the date');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payments = [...repair.payments];
     const payment = payments[paymentIndex];
-    
+
     const oldDate = payment.paymentDate || payment.date;
     const selectedDate = new Date(newDateInput.value + 'T00:00:00');
     const newDate = selectedDate.toISOString();
-    
+
     payments[paymentIndex] = {
         ...payment,
         paymentDate: newDate,
@@ -1389,15 +1404,15 @@ async function savePaymentDateEdit(repairId, paymentIndex) {
             }
         ]
     };
-    
+
     await db.ref('repairs/' + repairId).update({
         payments: payments,
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     });
-    
+
     alert(`✅ Payment date updated!\n\nOld Date: ${utils.formatDate(oldDate)}\nNew Date: ${utils.formatDate(newDate)}\n\nReason: ${reason}`);
-    
+
     setTimeout(() => openPaymentModal(repairId), 100);
 }
 
@@ -1406,27 +1421,27 @@ async function savePaymentDateEdit(repairId, paymentIndex) {
  */
 async function verifyPayment(repairId, paymentIndex) {
     if (!confirm('Verify this payment?')) return;
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payments = [...repair.payments];
-    
+
     payments[paymentIndex] = {
         ...payments[paymentIndex],
         verified: true,
         verifiedBy: window.currentUserData.displayName,
         verifiedAt: new Date().toISOString()
     };
-    
+
     // Check if repair is now fully paid
     const totalPaid = payments.filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
-    
+
     const updateData = {
         payments: payments,
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     };
-    
+
     // If fully paid and has technician, mark commission eligible
     if (balance <= 0 && repair.acceptedBy) {
         const commission = calculateRepairCommission(repair, repair.acceptedBy);
@@ -1435,9 +1450,9 @@ async function verifyPayment(repairId, paymentIndex) {
             updateData.commissionAmount = commission.amount;
         }
     }
-    
+
     await db.ref('repairs/' + repairId).update(updateData);
-    
+
     // Log payment verification
     await logActivity('payment_verified', {
         repairId: repairId,
@@ -1445,7 +1460,7 @@ async function verifyPayment(repairId, paymentIndex) {
         amount: payments[paymentIndex].amount,
         method: payments[paymentIndex].method
     }, `₱${payments[paymentIndex].amount.toFixed(2)} payment verified for ${repair.customerName} by ${window.currentUserData.displayName}`);
-    
+
     alert('✅ Payment verified!');
     setTimeout(() => openPaymentModal(repairId), 100);
 }
@@ -1459,11 +1474,11 @@ async function updateRepairStatus(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     const isMicrosoldering = repair.isMicrosoldering || repair.repairType === 'Microsoldering';
-    
+
     const content = document.getElementById('statusModalContent');
-    
+
     content.innerHTML = `
         <div class="form-group">
             <label>Current Status: <strong>${repair.status}</strong></label>
@@ -1519,7 +1534,7 @@ async function updateRepairStatus(repairId) {
         
         <button onclick="saveStatus('${repairId}')" style="width:100%;">💾 Update Status</button>
     `;
-    
+
     document.getElementById('statusModal').style.display = 'block';
 }
 
@@ -1529,7 +1544,7 @@ async function updateRepairStatus(repairId) {
 function toggleRTOFields() {
     const newStatus = document.getElementById('newStatus').value;
     const rtoFields = document.getElementById('rtoFields');
-    
+
     if (rtoFields) {
         rtoFields.style.display = newStatus === 'RTO' ? 'block' : 'none';
     }
@@ -1541,29 +1556,29 @@ function toggleRTOFields() {
 async function saveStatus(repairId) {
     const newStatus = document.getElementById('newStatus').value;
     const notes = document.getElementById('statusNotes').value;
-    
+
     if (!newStatus) {
         alert('Please select a status');
         return;
     }
-    
+
     // Handle RTO status with additional validation and data
     if (newStatus === 'RTO') {
         const rtoReason = document.getElementById('rtoReason').value;
         const rtoNotes = document.getElementById('rtoNotes').value;
         const diagnosisFee = parseFloat(document.getElementById('diagnosisFee').value) || 0;
-        
+
         if (!rtoReason) {
             alert('⚠️ Please select an RTO reason');
             return;
         }
-        
+
         try {
             utils.showLoading(true);
-            
+
             const repair = window.allRepairs.find(r => r.id === repairId);
             const existingNotes = repair.notes || [];
-            
+
             const update = {
                 status: 'RTO',
                 rtoReason: rtoReason,
@@ -1576,7 +1591,7 @@ async function saveStatus(repairId) {
                 lastUpdated: new Date().toISOString(),
                 lastUpdatedBy: window.currentUserData.displayName
             };
-            
+
             if (notes) {
                 update.notes = [...existingNotes, {
                     text: notes,
@@ -1584,9 +1599,9 @@ async function saveStatus(repairId) {
                     date: new Date().toISOString()
                 }];
             }
-            
+
             await db.ref('repairs/' + repairId).update(update);
-            
+
             // Log the RTO action
             await logActivity('device_marked_rto', 'repair', {
                 repairId: repairId,
@@ -1594,13 +1609,13 @@ async function saveStatus(repairId) {
                 rtoReason: rtoReason,
                 diagnosisFee: diagnosisFee
             });
-            
+
             utils.showLoading(false);
             alert(`✅ Device set to RTO!\n\nReason: ${rtoReason}\n${diagnosisFee > 0 ? `Diagnosis Fee: ₱${diagnosisFee.toFixed(2)}` : 'No diagnosis fee'}\n\nDevice moved to RTO Devices tab.`);
             closeStatusModal();
-            
+
             // Firebase listener will auto-refresh the page
-            
+
             return;
         } catch (error) {
             utils.showLoading(false);
@@ -1609,12 +1624,12 @@ async function saveStatus(repairId) {
             return;
         }
     }
-    
+
     // Auto-transition: Completed → Ready for Pickup
     if (newStatus === 'Completed') {
         try {
             utils.showLoading(true);
-            
+
             const update = {
                 status: 'Ready for Pickup',
                 completedAt: new Date().toISOString(),
@@ -1622,7 +1637,7 @@ async function saveStatus(repairId) {
                 lastUpdated: new Date().toISOString(),
                 lastUpdatedBy: window.currentUserData.displayName
             };
-            
+
             if (notes) {
                 const repair = window.allRepairs.find(r => r.id === repairId);
                 const existingNotes = repair.notes || [];
@@ -1632,15 +1647,15 @@ async function saveStatus(repairId) {
                     date: new Date().toISOString()
                 }];
             }
-            
+
             await db.ref('repairs/' + repairId).update(update);
-            
+
             utils.showLoading(false);
             alert('✅ Repair completed!\n\nStatus automatically changed to "Ready for Pickup"\n\nDevice is now ready for customer pickup.');
             closeStatusModal();
-            
+
             // Firebase listener will auto-refresh the page
-            
+
             return;
         } catch (error) {
             utils.showLoading(false);
@@ -1649,14 +1664,14 @@ async function saveStatus(repairId) {
             return;
         }
     }
-    
+
     // Regular status update
     const update = {
         status: newStatus,
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     };
-    
+
     if (notes) {
         const repair = window.allRepairs.find(r => r.id === repairId);
         const existingNotes = repair.notes || [];
@@ -1666,11 +1681,11 @@ async function saveStatus(repairId) {
             date: new Date().toISOString()
         }];
     }
-    
+
     await db.ref('repairs/' + repairId).update(update);
-    
+
     closeStatusModal();
-    
+
     // Firebase listener will auto-refresh the page
     alert('✅ Status updated to: ' + newStatus);
 }
@@ -1683,12 +1698,12 @@ async function deleteRepair(repairId) {
         try {
             await db.ref(`repairs/${repairId}`).remove();
             alert('✅ Repair deleted');
-            
+
             // Force refresh immediately
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
-            
+
             // Also refresh stats
             if (window.buildStats) {
                 window.buildStats();
@@ -1712,24 +1727,24 @@ async function adminDeleteDevice(repairId) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     // Check if device has been released/claimed
     if (repair.claimedAt || repair.status === 'Completed') {
         alert('⚠️ Cannot delete released or completed devices!\n\nThis device has already been released to the customer.\nUse the "Un-Release" function instead if you need to make corrections.');
         return;
     }
-    
+
     // Show device details and get confirmation
     const statusInfo = `Status: ${repair.status}\nCustomer: ${repair.customerName}\nDevice: ${repair.brand} ${repair.model}\nProblem: ${repair.problem}`;
     const totalAmount = repair.total || 0;
     const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
-    
+
     const confirmed = confirm(
         `⚠️ DELETE DEVICE ⚠️\n\n` +
         `${statusInfo}\n\n` +
@@ -1737,35 +1752,35 @@ async function adminDeleteDevice(repairId) {
         `This will SOFT DELETE the device (mark as deleted but keep records).\n\n` +
         `Click OK to continue...`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Require reason
     const reason = prompt('Please enter reason for deleting this device:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required to delete a device');
         return;
     }
-    
+
     // Password confirmation
     const password = prompt('Enter your password to confirm deletion:');
     if (!password) {
         alert('❌ Deletion cancelled');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Verify password
         const credential = firebase.auth.EmailAuthProvider.credential(
             window.currentUser.email,
             password
         );
         await window.currentUser.reauthenticateWithCredential(credential);
-        
+
         const now = new Date().toISOString();
-        
+
         // Create backup
         const backup = {
             ...repair,
@@ -1775,9 +1790,9 @@ async function adminDeleteDevice(repairId) {
             deleteReason: reason,
             backupType: 'device_deletion'
         };
-        
+
         await db.ref('deletedRepairs').push(backup);
-        
+
         // Soft delete the repair
         await db.ref(`repairs/${repairId}`).update({
             deleted: true,
@@ -1788,7 +1803,7 @@ async function adminDeleteDevice(repairId) {
             lastUpdated: now,
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log activity
         await logActivity('device_deleted', {
             repairId: repairId,
@@ -1799,15 +1814,15 @@ async function adminDeleteDevice(repairId) {
             paymentAmount: totalPaid,
             reason: reason
         }, `Device deleted: ${repair.customerName} - ${repair.brand} ${repair.model} (${repair.status})`);
-        
+
         utils.showLoading(false);
         alert(`✅ Device Deleted!\n\n${repair.customerName} - ${repair.brand} ${repair.model}\n\nStatus: Marked as deleted\nBackup: Saved for audit\nReason: ${reason}`);
-        
+
         // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         if (error.code === 'auth/wrong-password') {
@@ -1827,43 +1842,43 @@ async function adminBulkDeleteDevices(repairIds) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     if (!repairIds || repairIds.length === 0) {
         alert('⚠️ No devices selected for deletion');
         return;
     }
-    
+
     // Get all repairs
     const repairs = repairIds.map(id => window.allRepairs.find(r => r.id === id)).filter(r => r);
-    
+
     if (repairs.length === 0) {
         alert('❌ No valid repairs found');
         return;
     }
-    
+
     // Check for released/claimed devices
     const releasedDevices = repairs.filter(r => r.claimedAt || r.status === 'Completed');
     if (releasedDevices.length > 0) {
         alert(`⚠️ Cannot delete released or completed devices!\n\n${releasedDevices.length} of ${repairs.length} selected device(s) have been released to customers.\n\nPlease deselect released devices and try again.`);
         return;
     }
-    
+
     // Calculate totals
     const totalWithPayments = repairs.filter(r => {
         const totalPaid = r.payments ? r.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
         return totalPaid > 0;
     }).length;
-    
+
     const totalPaymentAmount = repairs.reduce((sum, r) => {
         const totalPaid = r.payments ? r.payments.reduce((s, p) => s + (p.amount || 0), 0) : 0;
         return sum + totalPaid;
     }, 0);
-    
+
     // Show summary and get confirmation
-    const deviceList = repairs.slice(0, 5).map(r => 
+    const deviceList = repairs.slice(0, 5).map(r =>
         `• ${r.customerName} - ${r.brand} ${r.model} (${r.status})`
     ).join('\n');
-    
+
     const confirmed = confirm(
         `⚠️⚠️ BULK DELETE DEVICES ⚠️⚠️\n\n` +
         `You are about to delete ${repairs.length} device(s):\n\n` +
@@ -1873,38 +1888,38 @@ async function adminBulkDeleteDevices(repairIds) {
         `This will SOFT DELETE all selected devices (mark as deleted but keep records).\n\n` +
         `Click OK to continue...`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Require reason
     const reason = prompt(`Please enter reason for deleting these ${repairs.length} devices:`);
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required to delete devices');
         return;
     }
-    
+
     // Password confirmation
     const password = prompt('Enter your password to confirm bulk deletion:');
     if (!password) {
         alert('❌ Deletion cancelled');
         return;
     }
-    
+
     try {
         utils.showLoading(true, `Deleting ${repairs.length} devices...`);
-        
+
         // Verify password
         const credential = firebase.auth.EmailAuthProvider.credential(
             window.currentUser.email,
             password
         );
         await window.currentUser.reauthenticateWithCredential(credential);
-        
+
         const now = new Date().toISOString();
         let successCount = 0;
         let failCount = 0;
         const errors = [];
-        
+
         // Process each repair
         for (const repair of repairs) {
             try {
@@ -1917,9 +1932,9 @@ async function adminBulkDeleteDevices(repairIds) {
                     deleteReason: reason,
                     backupType: 'bulk_device_deletion'
                 };
-                
+
                 await db.ref('deletedRepairs').push(backup);
-                
+
                 // Soft delete the repair
                 await db.ref(`repairs/${repair.id}`).update({
                     deleted: true,
@@ -1930,16 +1945,16 @@ async function adminBulkDeleteDevices(repairIds) {
                     lastUpdated: now,
                     lastUpdatedBy: window.currentUserData.displayName
                 });
-                
+
                 successCount++;
-                
+
             } catch (err) {
                 failCount++;
                 errors.push(`${repair.customerName}: ${err.message}`);
                 console.error('Error deleting repair:', repair.id, err);
             }
         }
-        
+
         // Log bulk activity
         await logActivity('devices_bulk_deleted', {
             deviceCount: successCount,
@@ -1949,9 +1964,9 @@ async function adminBulkDeleteDevices(repairIds) {
             reason: reason,
             repairIds: repairs.map(r => r.id)
         }, `Bulk deleted ${successCount} device(s) - Reason: ${reason}`);
-        
+
         utils.showLoading(false);
-        
+
         // Show results
         if (failCount === 0) {
             alert(
@@ -1969,12 +1984,12 @@ async function adminBulkDeleteDevices(repairIds) {
                 `${errors.length > 3 ? `\n...and ${errors.length - 3} more errors` : ''}`
             );
         }
-        
+
         // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         if (error.code === 'auth/wrong-password') {
@@ -1993,12 +2008,12 @@ function adminGetPendingRemittances() {
     if (!window.allTechRemittances) {
         return [];
     }
-    
+
     const pending = window.allTechRemittances.filter(r => r.status === 'pending');
-    
+
     // Sort by date (oldest first) to prioritize overdue ones
     pending.sort((a, b) => new Date(a.submittedAt) - new Date(b.submittedAt));
-    
+
     // Add age in days
     const now = new Date();
     pending.forEach(r => {
@@ -2007,7 +2022,7 @@ function adminGetPendingRemittances() {
         r.ageInDays = ageInDays;
         r.isOverdue = ageInDays > 1; // Overdue if more than 1 day old
     });
-    
+
     return pending;
 }
 
@@ -2018,9 +2033,9 @@ function adminGetRemittanceStats() {
     if (!window.allTechRemittances) {
         return {};
     }
-    
+
     const stats = {};
-    
+
     window.allTechRemittances.forEach(r => {
         if (!stats[r.techId]) {
             stats[r.techId] = {
@@ -2035,9 +2050,9 @@ function adminGetRemittanceStats() {
                 discrepancies: []
             };
         }
-        
+
         const s = stats[r.techId];
-        
+
         if (r.status === 'pending') {
             s.pending++;
             s.totalPending += r.expectedAmount;
@@ -2048,19 +2063,19 @@ function adminGetRemittanceStats() {
             s.rejected++;
             s.totalRejected += r.expectedAmount;
         }
-        
+
         if (r.discrepancy !== 0) {
             s.discrepancies.push(r.discrepancy);
         }
     });
-    
+
     // Calculate average discrepancy
     Object.values(stats).forEach(s => {
         if (s.discrepancies.length > 0) {
             s.avgDiscrepancy = s.discrepancies.reduce((sum, d) => sum + Math.abs(d), 0) / s.discrepancies.length;
         }
     });
-    
+
     return stats;
 }
 
@@ -2079,15 +2094,15 @@ function adminFindOrphanedData() {
         stuckInProgress: [],
         rtoWithoutFee: []
     };
-    
+
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
     const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
-    
+
     window.allRepairs.forEach(repair => {
         // Skip deleted repairs
         if (repair.deleted) return;
-        
+
         // Missing customer info
         if (!repair.customerName || !repair.contactNumber) {
             issues.missingCustomerInfo.push({
@@ -2096,7 +2111,7 @@ function adminFindOrphanedData() {
                 repair: repair
             });
         }
-        
+
         // Missing device info
         if (!repair.brand || !repair.model) {
             issues.missingDeviceInfo.push({
@@ -2105,7 +2120,7 @@ function adminFindOrphanedData() {
                 repair: repair
             });
         }
-        
+
         // Released without warranty info
         if (repair.claimedAt && !repair.warrantyPeriodDays && repair.warrantyPeriodDays !== 0) {
             issues.releasedWithoutWarranty.push({
@@ -2114,7 +2129,7 @@ function adminFindOrphanedData() {
                 repair: repair
             });
         }
-        
+
         // Payments without verification (old)
         if (repair.payments) {
             repair.payments.forEach((payment, idx) => {
@@ -2130,7 +2145,7 @@ function adminFindOrphanedData() {
                     }
                 }
             });
-            
+
             // Old pending payments (not released/completed)
             const totalPaid = repair.payments.filter(p => p.verified).reduce((sum, p) => sum + (p.amount || 0), 0);
             if (totalPaid > 0 && !repair.claimedAt && repair.status !== 'Completed' && repair.status !== 'RTO') {
@@ -2144,7 +2159,7 @@ function adminFindOrphanedData() {
                     });
                 }
             }
-            
+
             // Negative balance (overpaid)
             const total = repair.total || 0;
             if (totalPaid > total && total > 0) {
@@ -2155,7 +2170,7 @@ function adminFindOrphanedData() {
                 });
             }
         }
-        
+
         // Missing technician assignment (not in Received status)
         if (!repair.acceptedBy && repair.status !== 'Received' && repair.status !== 'Pending Customer Approval' && repair.status !== 'RTO') {
             issues.missingTechnician.push({
@@ -2164,7 +2179,7 @@ function adminFindOrphanedData() {
                 repair: repair
             });
         }
-        
+
         // Stuck in progress for too long
         if ((repair.status === 'In Progress' || repair.status === 'Waiting for Parts') && repair.acceptedAt) {
             const acceptedDate = new Date(repair.acceptedAt);
@@ -2176,7 +2191,7 @@ function adminFindOrphanedData() {
                 });
             }
         }
-        
+
         // RTO without diagnosis fee
         if (repair.status === 'RTO' && (!repair.diagnosisFee || repair.diagnosisFee === 0)) {
             // Check if there are any payments
@@ -2190,13 +2205,13 @@ function adminFindOrphanedData() {
             }
         }
     });
-    
+
     // Count total issues
     let totalIssues = 0;
     Object.values(issues).forEach(arr => {
         totalIssues += arr.length;
     });
-    
+
     return {
         issues,
         totalIssues,
@@ -2222,18 +2237,18 @@ async function adminQuickFixWarranty(repairId, warrantyDays) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const repair = window.allRepairs.find(r => r.id === repairId);
         if (!repair || !repair.claimedAt) {
             throw new Error('Repair not found or not released');
         }
-        
+
         const warrantyStartDate = repair.claimedAt;
         const warrantyEndDate = new Date(new Date(warrantyStartDate).getTime() + (warrantyDays * 24 * 60 * 60 * 1000)).toISOString();
-        
+
         await db.ref(`repairs/${repairId}`).update({
             warrantyPeriodDays: warrantyDays,
             warrantyStartDate: warrantyStartDate,
@@ -2241,18 +2256,18 @@ async function adminQuickFixWarranty(repairId, warrantyDays) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         await logActivity('warranty_fixed', {
             repairId: repairId,
             customerName: repair.customerName,
             warrantyDays: warrantyDays
         }, `Admin fixed missing warranty: ${repair.customerName} - ${warrantyDays} days`);
-        
+
         utils.showLoading(false);
         alert(`✅ Warranty info added: ${warrantyDays} days`);
-        
+
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error fixing warranty:', error);
@@ -2274,63 +2289,63 @@ async function requestRepairDeletion(repairId) {
         alert('⚠️ This function is only available to technicians');
         return;
     }
-    
+
     // Find the repair
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     // Check if repair is assigned to current user
     if (repair.technicianId !== window.currentUser.uid) {
         alert('⚠️ You can only request deletion of repairs assigned to you');
         return;
     }
-    
+
     // Check if already deleted
     if (repair.deleted) {
         alert('⚠️ This repair is already deleted');
         return;
     }
-    
+
     // Check if there's already a pending deletion request for this repair
     const existingRequest = window.allModificationRequests.find(
-        r => r.repairId === repairId && 
-        r.requestType === 'deletion_request' && 
-        r.status === 'pending'
+        r => r.repairId === repairId &&
+            r.requestType === 'deletion_request' &&
+            r.status === 'pending'
     );
-    
+
     if (existingRequest) {
         alert('⚠️ There is already a pending deletion request for this repair');
         return;
     }
-    
+
     // Show repair details
     const repairInfo = `Customer: ${repair.customerName}\nDevice: ${repair.brand} ${repair.model}\nProblem: ${repair.problem}\nStatus: ${repair.status}`;
-    
+
     if (!confirm(`REQUEST DELETION\n\n${repairInfo}\n\nAre you sure you want to request deletion of this repair?\nAn admin must approve this request.`)) {
         return;
     }
-    
+
     // Get deletion reason
     const reason = prompt('Please enter the reason for deletion:\n(e.g., "Wrong customer", "Duplicate entry", "Customer cancelled")');
-    
+
     if (!reason || !reason.trim()) {
         alert('❌ Deletion reason is required');
         return;
     }
-    
+
     if (reason.trim().length < 10) {
         alert('❌ Please provide a more detailed reason (at least 10 characters)');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const now = new Date().toISOString();
-        
+
         // Create deletion request
         const requestData = {
             repairId: repairId,
@@ -2353,9 +2368,9 @@ async function requestRepairDeletion(repairId) {
             reviewedAt: null,
             reviewNotes: null
         };
-        
+
         await db.ref('modificationRequests').push(requestData);
-        
+
         // Log activity
         await logActivity('deletion_requested', {
             repairId: repairId,
@@ -2364,15 +2379,15 @@ async function requestRepairDeletion(repairId) {
             status: repair.status,
             reason: reason.trim()
         }, `Deletion requested: ${repair.customerName} - ${repair.brand} ${repair.model}`);
-        
+
         utils.showLoading(false);
         alert('✅ Deletion request submitted!\n\nAn admin will review your request.');
-        
+
         // Auto-refresh
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error requesting deletion:', error);
@@ -2389,26 +2404,26 @@ async function processDeletionRequest(requestId, action, notes) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     // Find the request
     const request = window.allModificationRequests.find(r => r.id === requestId);
     if (!request) {
         alert('❌ Request not found');
         return;
     }
-    
+
     if (request.status !== 'pending') {
         alert('⚠️ This request has already been processed');
         return;
     }
-    
+
     // Find the repair
     const repair = window.allRepairs.find(r => r.id === request.repairId);
     if (!repair) {
         alert('❌ Repair not found - it may have been deleted already');
         return;
     }
-    
+
     if (action === 'approve') {
         // Confirm approval
         const confirmMsg = `APPROVE DELETION REQUEST\n\n` +
@@ -2418,19 +2433,19 @@ async function processDeletionRequest(requestId, action, notes) {
             `Reason: ${request.reason}\n\n` +
             `This will SOFT DELETE the repair and create a backup.\n\n` +
             `Click OK to approve this deletion.`;
-        
+
         if (!confirm(confirmMsg)) {
             return;
         }
-        
+
         // Get optional admin notes
         const adminNotes = prompt('Admin notes (optional):') || '';
-        
+
         try {
             utils.showLoading(true, 'Processing deletion...');
-            
+
             const now = new Date().toISOString();
-            
+
             // Create backup in deletedRepairs
             const backup = {
                 ...repair,
@@ -2445,9 +2460,9 @@ async function processDeletionRequest(requestId, action, notes) {
                 adminNotes: adminNotes,
                 backupType: 'technician_deletion_request'
             };
-            
+
             await db.ref('deletedRepairs').push(backup);
-            
+
             // Soft delete the repair
             await db.ref(`repairs/${request.repairId}`).update({
                 deleted: true,
@@ -2459,7 +2474,7 @@ async function processDeletionRequest(requestId, action, notes) {
                 lastUpdated: now,
                 lastUpdatedBy: window.currentUserData.displayName
             });
-            
+
             // Update request status
             await db.ref(`modificationRequests/${requestId}`).update({
                 status: 'approved',
@@ -2468,7 +2483,7 @@ async function processDeletionRequest(requestId, action, notes) {
                 reviewedAt: now,
                 reviewNotes: adminNotes
             });
-            
+
             // Log activity
             await logActivity('deletion_approved', {
                 repairId: request.repairId,
@@ -2478,35 +2493,35 @@ async function processDeletionRequest(requestId, action, notes) {
                 reason: request.reason,
                 adminNotes: adminNotes
             }, `Deletion approved: ${request.repairDetails.customerName} - ${request.repairDetails.device}`);
-            
+
             utils.showLoading(false);
             alert('✅ Deletion Request Approved!\n\nThe repair has been deleted and backed up.');
-            
+
             // Auto-refresh
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
-            
+
         } catch (error) {
             utils.showLoading(false);
             console.error('Error approving deletion:', error);
             alert('Error: ' + error.message);
         }
-        
+
     } else if (action === 'reject') {
         // Get rejection reason
         const rejectionNotes = prompt('Please enter reason for rejecting this deletion request:');
-        
+
         if (!rejectionNotes || !rejectionNotes.trim()) {
             alert('❌ Rejection reason is required');
             return;
         }
-        
+
         try {
             utils.showLoading(true);
-            
+
             const now = new Date().toISOString();
-            
+
             // Update request status
             await db.ref(`modificationRequests/${requestId}`).update({
                 status: 'rejected',
@@ -2515,7 +2530,7 @@ async function processDeletionRequest(requestId, action, notes) {
                 reviewedAt: now,
                 reviewNotes: rejectionNotes.trim()
             });
-            
+
             // Log activity
             await logActivity('deletion_rejected', {
                 repairId: request.repairId,
@@ -2525,15 +2540,15 @@ async function processDeletionRequest(requestId, action, notes) {
                 reason: request.reason,
                 rejectionNotes: rejectionNotes.trim()
             }, `Deletion rejected: ${request.repairDetails.customerName} - ${request.repairDetails.device}`);
-            
+
             utils.showLoading(false);
             alert('✅ Deletion Request Rejected\n\nThe requester will see your notes.');
-            
+
             // Auto-refresh
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
-            
+
         } catch (error) {
             utils.showLoading(false);
             console.error('Error rejecting deletion:', error);
@@ -2550,7 +2565,7 @@ async function processDeletionRequest(requestId, action, notes) {
 function openAdditionalRepairModal(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) return;
-    
+
     const content = document.getElementById('additionalRepairModalContent');
     content.innerHTML = `
         <div class="form-group">
@@ -2571,7 +2586,7 @@ function openAdditionalRepairModal(repairId) {
         
         <button onclick="saveAdditionalRepair('${repairId}')" style="width:100%;">💾 Add Additional Repair</button>
     `;
-    
+
     document.getElementById('additionalRepairModal').style.display = 'block';
 }
 
@@ -2582,15 +2597,15 @@ async function saveAdditionalRepair(repairId) {
     const problem = document.getElementById('additionalProblem').value.trim();
     const partsCost = parseFloat(document.getElementById('additionalPartsCost').value) || 0;
     const laborCost = parseFloat(document.getElementById('additionalLaborCost').value) || 0;
-    
+
     if (!problem) {
         alert('Please describe the additional problem');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     const additionalTotal = partsCost + laborCost;
-    
+
     const additionalRepair = {
         problem: problem,
         partsCost: partsCost,
@@ -2599,9 +2614,9 @@ async function saveAdditionalRepair(repairId) {
         addedBy: window.currentUserData.displayName,
         addedAt: new Date().toISOString()
     };
-    
+
     const existingAdditional = repair.additionalRepairs || [];
-    
+
     await db.ref('repairs/' + repairId).update({
         additionalRepairs: [...existingAdditional, additionalRepair],
         total: repair.total + additionalTotal,
@@ -2610,10 +2625,10 @@ async function saveAdditionalRepair(repairId) {
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     });
-    
+
     closeAdditionalRepairModal();
     alert(`✅ Additional repair added! New total: ₱${(repair.total + additionalTotal).toFixed(2)}`);
-    
+
     // Firebase listener will auto-refresh the page
 }
 
@@ -2623,9 +2638,9 @@ async function saveAdditionalRepair(repairId) {
 function requestPaymentDateModification(repairId, paymentIndex) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payment = repair.payments[paymentIndex];
-    
+
     const currentDate = utils.formatDate(payment.paymentDate || payment.date);
-    
+
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
         <div class="alert-info">
@@ -2661,7 +2676,7 @@ function requestPaymentDateModification(repairId, paymentIndex) {
             <p style="margin:0;font-size:13px;">⏳ Your request will be sent to admin for approval</p>
         </div>
     `;
-    
+
     document.getElementById('paymentModal').style.display = 'block';
 }
 
@@ -2671,9 +2686,9 @@ function requestPaymentDateModification(repairId, paymentIndex) {
 function requestRecordedDateModification(repairId, paymentIndex) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payment = repair.payments[paymentIndex];
-    
+
     const currentDate = utils.formatDateTime(payment.recordedDate || payment.date);
-    
+
     const content = document.getElementById('paymentModalContent');
     content.innerHTML = `
         <div class="alert-info">
@@ -2705,7 +2720,7 @@ function requestRecordedDateModification(repairId, paymentIndex) {
             </button>
         </div>
     `;
-    
+
     document.getElementById('paymentModal').style.display = 'block';
 }
 
@@ -2716,15 +2731,15 @@ async function submitModificationRequest(repairId, paymentIndex, requestType) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payment = repair.payments[paymentIndex];
     const reason = document.getElementById('modificationReason').value.trim();
-    
+
     if (!reason) {
         alert('Please provide a reason for the modification');
         return;
     }
-    
+
     let newValue;
     let oldValue;
-    
+
     if (requestType === 'payment-date') {
         const newDateInput = document.getElementById('requestedPaymentDate');
         if (!newDateInput || !newDateInput.value) {
@@ -2743,7 +2758,7 @@ async function submitModificationRequest(repairId, paymentIndex, requestType) {
         newValue = new Date(newDateInput.value).toISOString();
         oldValue = payment.recordedDate || payment.date;
     }
-    
+
     const modRequest = {
         repairId: repairId,
         paymentIndex: paymentIndex,
@@ -2759,19 +2774,19 @@ async function submitModificationRequest(repairId, paymentIndex, requestType) {
         requestedAt: new Date().toISOString(),
         status: 'pending'
     };
-    
+
     try {
         await db.ref('modificationRequests').push(modRequest);
-        
+
         alert(`✅ Request Submitted!\n\nYour modification request has been sent to admin for approval.\n\nYou can check the status in "📝 My Requests" tab.`);
-        
+
         closePaymentModal();
-        
+
         // Switch to requests tab if available
         if (window.switchTab) {
             setTimeout(() => window.switchTab('requests'), 500);
         }
-        
+
     } catch (error) {
         console.error('Error submitting request:', error);
         alert('Error: ' + error.message);
@@ -2790,25 +2805,25 @@ async function processModificationRequest(requestId, action) {
         alert('Only admin can process modification requests!');
         return;
     }
-    
+
     const request = window.allModificationRequests.find(r => r.id === requestId);
     if (!request) {
         alert('Request not found');
         return;
     }
-    
+
     const actionText = action === 'approve' ? 'APPROVE' : 'REJECT';
     const adminNotes = prompt(`${actionText} this request?\n\nReason: ${request.reason}\n\nAdd admin notes (optional):`);
-    
+
     if (adminNotes === null) return; // Cancelled
-    
+
     try {
         if (action === 'approve') {
             // Apply the modification
             const repair = window.allRepairs.find(r => r.id === request.repairId);
             const payments = [...repair.payments];
             const payment = payments[request.paymentIndex];
-            
+
             if (request.requestType === 'payment-date') {
                 payments[request.paymentIndex] = {
                     ...payment,
@@ -2842,14 +2857,14 @@ async function processModificationRequest(requestId, action) {
                     ]
                 };
             }
-            
+
             await db.ref('repairs/' + request.repairId).update({
                 payments: payments,
                 lastUpdated: new Date().toISOString(),
                 lastUpdatedBy: window.currentUserData.displayName
             });
         }
-        
+
         // Update request status
         await db.ref('modificationRequests/' + requestId).update({
             status: action === 'approve' ? 'approved' : 'rejected',
@@ -2858,9 +2873,9 @@ async function processModificationRequest(requestId, action) {
             processedAt: new Date().toISOString(),
             adminNotes: adminNotes || null
         });
-        
+
         alert(`✅ Request ${action === 'approve' ? 'Approved' : 'Rejected'}!`);
-        
+
     } catch (error) {
         console.error('Error processing request:', error);
         alert('Error: ' + error.message);
@@ -2895,24 +2910,24 @@ function openAcceptRepairModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     if (repair.acceptedBy) {
         alert(`This repair has already been accepted by ${repair.acceptedByName}`);
         return;
     }
-    
+
     // Check if diagnosis has been created
     if (!repair.diagnosisCreated || repair.total === 0 || repair.repairType === 'Pending Diagnosis') {
         alert('⚠️ Diagnosis Required!\n\nPlease create a diagnosis and set pricing before accepting this repair.\n\nUse "📝 Create Diagnosis" button to set the repair details and price.');
         return;
     }
-    
+
     // Check if customer has approved the price
     if (!repair.customerApproved) {
         alert('⚠️ Customer Approval Required!\n\nCustomer must approve the diagnosis and pricing before you can accept this repair.\n\nCurrent Price: ₱' + repair.total.toFixed(2) + '\n\nPlease wait for customer approval or use "✅ Mark Customer Approved" button if customer has verbally approved.');
         return;
     }
-    
+
     const content = document.getElementById('acceptRepairModalContent');
     content.innerHTML = `
         <div class="alert-success" style="margin-bottom:20px;">
@@ -3054,7 +3069,7 @@ function openAcceptRepairModal(repairId) {
             </div>
         </form>
     `;
-    
+
     document.getElementById('acceptRepairModal').style.display = 'block';
 }
 
@@ -3065,10 +3080,10 @@ async function submitAcceptRepair(e, repairId) {
     e.preventDefault();
     const form = e.target;
     const data = new FormData(form);
-    
+
     try {
         utils.showLoading(true);
-        
+
         await db.ref('repairs/' + repairId).update({
             acceptedBy: window.currentUser.uid,
             acceptedByName: window.currentUserData.displayName,
@@ -3090,9 +3105,9 @@ async function submitAcceptRepair(e, repairId) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         const repair = window.allRepairs.find(r => r.id === repairId);
-        
+
         // Log repair acceptance
         await logActivity('repair_accepted', 'repair', {
             repairId: repairId,
@@ -3101,15 +3116,15 @@ async function submitAcceptRepair(e, repairId) {
             model: repair.model,
             total: repair.total
         });
-        
+
         utils.showLoading(false);
         closeAcceptRepairModal();
-        
+
         alert(`✅ Repair Accepted!\n\n📱 ${repair.brand} ${repair.model}\n💰 Total: ₱${repair.total.toFixed(2)}\n\n🔧 This repair is now in your job list.\n📍 Status changed to "In Progress"\n✅ Pre-repair inspection completed`);
-        
+
         console.log('✅ Repair accepted successfully with checklist');
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         console.error('❌ Error accepting repair:', error);
         utils.showLoading(false);
@@ -3126,20 +3141,20 @@ function openClaimModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
-    
+
     if (balance > 0) {
         alert(`Cannot release - Outstanding balance: ₱${balance.toFixed(2)}\n\nPlease collect payment first.`);
         return;
     }
-    
+
     if (repair.claimedAt) {
         alert('This device has already been claimed!');
         return;
     }
-    
+
     const content = document.getElementById('claimModalContent');
     content.innerHTML = `
         <div class="alert-success">
@@ -3210,7 +3225,7 @@ Tagalog OK: Warranty para sa parehong issue lang. Hindi kasali ang physical dama
             </button>
         </div>
     `;
-    
+
     document.getElementById('claimModal').style.display = 'block';
 }
 
@@ -3221,23 +3236,23 @@ function updateWarrantyInfo() {
     const warrantyDays = parseInt(document.getElementById('warrantyPeriod').value);
     const infoDisplay = document.getElementById('warrantyInfoDisplay');
     const datesDiv = document.getElementById('warrantyDates');
-    
+
     if (!warrantyDays || warrantyDays === 0) {
         infoDisplay.style.display = 'none';
         return;
     }
-    
+
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(endDate.getDate() + warrantyDays);
-    
+
     datesDiv.innerHTML = `
         <div><strong>Start Date:</strong> ${utils.formatDate(startDate.toISOString())} (Today)</div>
         <div><strong>End Date:</strong> ${utils.formatDate(endDate.toISOString())}</div>
         <div><strong>Duration:</strong> ${warrantyDays} days</div>
         <div style="color:#2e7d32;font-weight:bold;margin-top:5px;">✅ Warranty will be ACTIVE until ${utils.formatDate(endDate.toISOString())}</div>
     `;
-    
+
     infoDisplay.style.display = 'block';
 }
 
@@ -3250,31 +3265,31 @@ async function claimDevice(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     const warrantyPeriod = document.getElementById('warrantyPeriod').value;
     const warrantyNotes = document.getElementById('warrantyNotes').value.trim();
     const claimNotes = document.getElementById('claimNotes').value.trim();
     const customerSignature = document.getElementById('customerSignature').checked;
-    
+
     if (!warrantyPeriod) {
         alert('Please select a warranty period (or "No Warranty")');
         return;
     }
-    
+
     if (!confirm(`Release device to customer?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\nThis will activate warranty and mark as claimed.`)) {
         return;
     }
-    
+
     const claimedAt = new Date().toISOString();
     const warrantyDays = parseInt(warrantyPeriod);
     let warrantyEndDate = null;
-    
+
     if (warrantyDays > 0) {
         const endDate = new Date();
         endDate.setDate(endDate.getDate() + warrantyDays);
         warrantyEndDate = endDate.toISOString();
     }
-    
+
     const claimData = {
         claimedAt: claimedAt,
         releasedBy: window.currentUserData.displayName,
@@ -3289,24 +3304,24 @@ async function claimDevice(repairId) {
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     };
-    
+
     try {
         await db.ref('repairs/' + repairId).update(claimData);
-        
-        const warrantyMsg = warrantyDays > 0 ? 
+
+        const warrantyMsg = warrantyDays > 0 ?
             `\n\n🛡️ WARRANTY: ${warrantyDays} days\nExpires: ${utils.formatDate(warrantyEndDate)}` :
             '\n\n⚠️ NO WARRANTY PROVIDED';
-        
+
         alert(`✅ Device Released!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n\nReleased by: ${window.currentUserData.displayName}\nDate: ${utils.formatDateTime(claimedAt)}${warrantyMsg}\n\nDevice moved to "✅ Claimed Units"`);
-        
+
         closeClaimModal();
-        
+
         // Firebase listener will auto-refresh the page
         // Switch to claimed units tab if available
         if (window.switchTab) {
             window.switchTab('claimed');
         }
-        
+
     } catch (error) {
         console.error('Error claiming device:', error);
         alert('Error: ' + error.message);
@@ -3322,13 +3337,13 @@ function viewClaimDetails(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     const warrantyEndDate = repair.warrantyEndDate ? new Date(repair.warrantyEndDate) : null;
     const isWarrantyActive = warrantyEndDate && warrantyEndDate > new Date();
     const daysSinceClaimed = Math.floor((new Date() - new Date(repair.claimedAt)) / (1000 * 60 * 60 * 24));
-    
+
     const content = document.getElementById('claimModalContent');
-    
+
     content.innerHTML = `
         <div class="alert-info">
             <h3 style="margin:0 0 10px 0;">📄 Claim Details</h3>
@@ -3406,7 +3421,7 @@ function viewClaimDetails(repairId) {
             Close
         </button>
     `;
-    
+
     document.getElementById('claimModal').style.display = 'block';
 }
 
@@ -3419,17 +3434,17 @@ function openWarrantyClaimModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     const warrantyEndDate = repair.warrantyEndDate ? new Date(repair.warrantyEndDate) : null;
     const isWarrantyActive = warrantyEndDate && warrantyEndDate > new Date();
-    
+
     if (!isWarrantyActive) {
         alert('Warranty has expired for this device!');
         return;
     }
-    
+
     const content = document.getElementById('claimModalContent');
-    
+
     content.innerHTML = `
         <div class="alert-warning">
             <h3>🛡️ Warranty Claim</h3>
@@ -3482,7 +3497,7 @@ function openWarrantyClaimModal(repairId) {
             </button>
         </div>
     `;
-    
+
     document.getElementById('claimModal').style.display = 'block';
 }
 
@@ -3493,26 +3508,26 @@ async function processWarrantyClaim(repairId) {
     const claimType = document.getElementById('warrantyClaimType').value;
     const issue = document.getElementById('warrantyIssue').value.trim();
     const techNotes = document.getElementById('warrantyTechNotes').value.trim();
-    
+
     if (!claimType) {
         alert('Please select claim type');
         return;
     }
-    
+
     if (!issue) {
         alert('Please describe the issue');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     if (!confirm(`Accept warranty claim?\n\nThis will create a new repair entry under warranty.`)) {
         return;
     }
-    
+
     // Determine if free or paid
     const isCovered = claimType === 'same-issue' || claimType === 'related-issue';
-    
+
     // Create new repair as warranty claim
     const warrantyClaim = {
         customerType: repair.customerType,
@@ -3545,25 +3560,25 @@ async function processWarrantyClaim(repairId) {
         warrantyCovered: isCovered,
         warrantyTechNotes: techNotes || null
     };
-    
+
     try {
         const newRepairRef = await db.ref('repairs').push(warrantyClaim);
-        
+
         // Update original repair with warranty claim reference
         await db.ref('repairs/' + repairId).update({
             warrantyClaimId: newRepairRef.key,
             warrantyClaimDate: new Date().toISOString(),
             lastUpdated: new Date().toISOString()
         });
-        
-        const coverageMsg = isCovered ? 
+
+        const coverageMsg = isCovered ?
             '✅ Covered under warranty - NO CHARGE' :
             '⚠️ Not covered - Will require payment';
-        
+
         alert(`✅ Warranty Claim Accepted!\n\n📱 ${repair.brand} ${repair.model}\n\n${coverageMsg}\n\nNew repair created and assigned to ${repair.acceptedByName}\n\nCheck "📥 Received Devices" or technician's job list.`);
-        
+
         closeClaimModal();
-        
+
         // Refresh after a short delay to ensure Firebase has processed
         setTimeout(() => {
             if (window.currentTabRefresh) {
@@ -3573,7 +3588,7 @@ async function processWarrantyClaim(repairId) {
                 window.buildStats();
             }
         }, 300);
-        
+
     } catch (error) {
         console.error('Error processing warranty claim:', error);
         alert('Error: ' + error.message);
@@ -3597,10 +3612,10 @@ function openEditRepairModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     const content = document.getElementById('statusModalContent');
     const isNewDiagnosis = !repair.diagnosisCreated || repair.repairType === 'Pending Diagnosis';
-    
+
     content.innerHTML = `
         <div class="alert-info">
             <h3 style="margin:0;">${isNewDiagnosis ? '📋 Create Diagnosis' : '✏️ Update Diagnosis'}</h3>
@@ -3683,21 +3698,21 @@ function openEditRepairModal(repairId) {
             </div>
         </form>
     `;
-    
+
     // Add event listeners to update total
     const partsCostInput = content.querySelector('[name="partsCost"]');
     const laborCostInput = content.querySelector('[name="laborCost"]');
     const totalPreview = content.querySelector('#totalPreview');
-    
+
     const updateTotal = () => {
         const parts = parseFloat(partsCostInput.value) || 0;
         const labor = parseFloat(laborCostInput.value) || 0;
         totalPreview.textContent = (parts + labor).toFixed(2);
     };
-    
+
     partsCostInput.addEventListener('input', updateTotal);
     laborCostInput.addEventListener('input', updateTotal);
-    
+
     // Auto-suggest repair type based on reported problem (if not already set)
     if (isNewDiagnosis && utils && utils.suggestRepairType && repair.problemType) {
         const repairTypeSelect = content.querySelector('#editRepairType');
@@ -3708,7 +3723,7 @@ function openEditRepairModal(repairId) {
             }
         }
     }
-    
+
     document.getElementById('statusModal').style.display = 'block';
 }
 
@@ -3717,19 +3732,19 @@ function openEditRepairModal(repairId) {
  */
 async function submitPricingUpdate(e, repairId) {
     e.preventDefault();
-    
+
     const formData = new FormData(e.target);
     const partsCost = parseFloat(formData.get('partsCost')) || 0;
     const laborCost = parseFloat(formData.get('laborCost')) || 0;
     const total = partsCost + laborCost;
-    
+
     if (total <= 0) {
         alert('⚠️ Please set a valid price (greater than ₱0)');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     // Check for pending advance payments and auto-apply them
     const pendingAdvances = (repair.payments || []).filter(p => p.isAdvance && p.advanceStatus === 'pending');
     const updatedPayments = (repair.payments || []).map(p => {
@@ -3743,7 +3758,7 @@ async function submitPricingUpdate(e, repairId) {
         }
         return p;
     });
-    
+
     const updateData = {
         repairType: formData.get('repairType'),
         partType: formData.get('partType') || '',
@@ -3767,12 +3782,12 @@ async function submitPricingUpdate(e, repairId) {
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     };
-    
+
     try {
         await db.ref('repairs/' + repairId).update(updateData);
-        
+
         let successMsg = `✅ Diagnosis Created!\n\n📋 Repair Type: ${updateData.repairType}\n💰 Total: ₱${total.toFixed(2)}`;
-        
+
         if (pendingAdvances.length > 0) {
             const totalAdvances = pendingAdvances.reduce((sum, p) => sum + p.amount, 0);
             successMsg += `\n\n💰 ${pendingAdvances.length} advance payment(s) automatically applied: ₱${totalAdvances.toFixed(2)}`;
@@ -3783,12 +3798,12 @@ async function submitPricingUpdate(e, repairId) {
                 successMsg += `\n🎉 Fully paid with advances!`;
             }
         }
-        
+
         successMsg += `\n\n⏳ Status: Pending Customer Approval\n\nNext: Customer must approve this price before technician can accept the repair.`;
-        
+
         alert(successMsg);
         closeStatusModal();
-        
+
         // Refresh current tab after a short delay to ensure Firebase has processed
         setTimeout(() => {
             if (window.currentTabRefresh) {
@@ -3813,21 +3828,21 @@ async function approveDiagnosis(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     if (!repair.diagnosisCreated || repair.total === 0) {
         alert('⚠️ No diagnosis found!\n\nPlease create a diagnosis first before marking customer approval.');
         return;
     }
-    
+
     if (repair.customerApproved) {
         alert('✅ Customer has already approved this diagnosis.');
         return;
     }
-    
+
     const confirmMsg = `Mark customer approval?\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📋 ${repair.repairType}\n💰 Total: ₱${repair.total.toFixed(2)}\n\nThis will allow technicians to accept this repair.`;
-    
+
     if (!confirm(confirmMsg)) return;
-    
+
     try {
         await db.ref('repairs/' + repairId).update({
             customerApproved: true,
@@ -3838,9 +3853,9 @@ async function approveDiagnosis(repairId) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         alert(`✅ Customer Approval Recorded!\n\n📱 ${repair.brand} ${repair.model}\n💰 Approved Price: ₱${repair.total.toFixed(2)}\n\n✅ Technicians can now accept this repair.`);
-        
+
         // Refresh after a short delay to ensure Firebase has processed
         setTimeout(() => {
             if (window.currentTabRefresh) {
@@ -3850,7 +3865,7 @@ async function approveDiagnosis(repairId) {
                 window.buildStats();
             }
         }, 300);
-        
+
     } catch (error) {
         console.error('❌ Error approving diagnosis:', error);
         alert('Error: ' + error.message);
@@ -3927,7 +3942,7 @@ async function loadDailyCashCounts() {
  */
 function getDailyCashData(dateString) {
     const targetDate = new Date(dateString + 'T00:00:00').toDateString();
-    
+
     // Get payments for this date
     const payments = [];
     window.allRepairs.forEach(repair => {
@@ -3949,7 +3964,7 @@ function getDailyCashData(dateString) {
             });
         }
     });
-    
+
     // Get expenses for this date
     const expenses = [];
     (window.techExpenses || []).forEach(expense => {
@@ -3965,16 +3980,16 @@ function getDailyCashData(dateString) {
             });
         }
     });
-    
+
     // Calculate totals
     const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
     const netRevenue = totalPayments - totalExpenses;
-    
+
     // Check if locked
     const lockRecord = window.dailyCashCounts[dateString];
     const isLocked = lockRecord && lockRecord.locked;
-    
+
     return {
         payments,
         expenses,
@@ -3994,13 +4009,13 @@ function getDailyCashData(dateString) {
 function openLockDayModal(dateString) {
     const cashData = getDailyCashData(dateString);
     const displayDate = utils.formatDate(dateString);
-    
+
     // Check if already locked
     if (cashData.locked) {
         alert('This day is already locked');
         return;
     }
-    
+
     // Check if future date
     const selectedDate = new Date(dateString + 'T00:00:00');
     const today = new Date();
@@ -4009,20 +4024,20 @@ function openLockDayModal(dateString) {
         alert('Cannot lock future dates');
         return;
     }
-    
+
     // Warn if no transactions
     if (cashData.payments.length === 0 && cashData.expenses.length === 0) {
         if (!confirm('⚠️ No transactions recorded for this date.\n\nAre you sure you want to lock this day?')) {
             return;
         }
     }
-    
+
     // Warn if negative balance
     let warningMessage = '';
     if (cashData.totals.net < 0) {
         warningMessage = '\n\n⚠️ WARNING: Negative balance (Expenses exceed payments)';
     }
-    
+
     const notes = prompt(
         `🔒 Lock Daily Cash Count for ${displayDate}?\n\n` +
         `Summary:\n` +
@@ -4032,7 +4047,7 @@ function openLockDayModal(dateString) {
         `⚠️ Once locked, no transactions can be added or modified for this date.\n\n` +
         `Enter notes (optional):`
     );
-    
+
     if (notes !== null) {  // User didn't cancel
         lockDailyCashCount(dateString, cashData, notes);
     }
@@ -4044,24 +4059,24 @@ function openLockDayModal(dateString) {
 async function lockDailyCashCount(dateString, cashData, notes) {
     try {
         utils.showLoading(true);
-        
+
         const lockRecord = {
             date: dateString,
             dateISO: new Date(dateString + 'T00:00:00').toISOString(),
-            
+
             // Payments breakdown
             totalPayments: cashData.totals.payments,
             paymentsCount: cashData.payments.length,
             paymentsList: cashData.payments,
-            
+
             // Expenses breakdown
             totalExpenses: cashData.totals.expenses,
             expensesCount: cashData.expenses.length,
             expensesList: cashData.expenses,
-            
+
             // Calculation
             netRevenue: cashData.totals.net,
-            
+
             // Lock status
             locked: true,
             lockedAt: new Date().toISOString(),
@@ -4069,9 +4084,9 @@ async function lockDailyCashCount(dateString, cashData, notes) {
             lockedByName: window.currentUserData.displayName,
             notes: notes || ''
         };
-        
+
         await db.ref(`dailyCashCounts/${dateString}`).set(lockRecord);
-        
+
         // Log day lock activity
         await logActivity('day_locked', 'financial', {
             date: dateString,
@@ -4081,18 +4096,18 @@ async function lockDailyCashCount(dateString, cashData, notes) {
             paymentsCount: cashData.payments.length,
             expensesCount: cashData.expenses.length
         });
-        
+
         utils.showLoading(false);
-        
+
         alert(`✅ Day Locked Successfully!\n\n${utils.formatDate(dateString)} is now locked and cannot be modified.`);
-        
+
         // Reload cash counts and refresh
         await loadDailyCashCounts();
         // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error locking day:', error);
@@ -4109,20 +4124,20 @@ function openUnlockDayModal(dateString) {
         alert('⚠️ Only admins can unlock days');
         return;
     }
-    
+
     const cashData = getDailyCashData(dateString);
     if (!cashData.locked) {
         alert('This day is not locked');
         return;
     }
-    
+
     const displayDate = utils.formatDate(dateString);
     const reason = prompt(
         `⚠️ UNLOCK ${displayDate}?\n\n` +
         `This will allow modifications to historical data.\n\n` +
         `Please provide a reason for unlocking:`
     );
-    
+
     if (reason && reason.trim()) {
         unlockDailyCashCount(dateString, reason);
     } else if (reason !== null) {
@@ -4136,14 +4151,14 @@ function openUnlockDayModal(dateString) {
 async function unlockDailyCashCount(dateString, reason) {
     try {
         utils.showLoading(true);
-        
+
         const lockRecord = window.dailyCashCounts[dateString];
         if (!lockRecord) {
             alert('No lock record found');
             utils.showLoading(false);
             return;
         }
-        
+
         // Update lock record with unlock info
         const updatedRecord = {
             ...lockRecord,
@@ -4153,27 +4168,27 @@ async function unlockDailyCashCount(dateString, reason) {
             unlockedByName: window.currentUserData.displayName,
             unlockReason: reason
         };
-        
+
         await db.ref(`dailyCashCounts/${dateString}`).set(updatedRecord);
-        
+
         // Log day unlock activity
         await logActivity('day_unlocked', 'financial', {
             date: dateString,
             reason: reason,
             originallyLockedBy: lockRecord.lockedByName
         });
-        
+
         utils.showLoading(false);
-        
+
         alert(`✅ Day Unlocked\n\n${utils.formatDate(dateString)} has been unlocked.\n\nTransactions can now be modified for this date.`);
-        
+
         // Reload and refresh
         await loadDailyCashCounts();
         // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error unlocking day:', error);
@@ -4209,29 +4224,29 @@ async function logActivity(action, actionCategory, details = {}, success = true,
             console.warn('⚠️ Cannot log activity: No user logged in');
             return;
         }
-        
+
         const log = {
             // User Info
             userId: window.currentUser.uid,
             userName: window.currentUserData.displayName,
             userRole: window.currentUserData.role,
-            
+
             // Action Info
             action: action,
             actionCategory: actionCategory,
             timestamp: new Date().toISOString(),
-            
+
             // Device Info
             device: utils.getDeviceInfo(),
-            
+
             // Action Details
             details: details,
-            
+
             // Result
             success: success,
             errorMessage: errorMessage
         };
-        
+
         await db.ref('activityLogs').push(log);
         console.log('✅ Activity logged:', action);
     } catch (error) {
@@ -4249,7 +4264,7 @@ async function loadActivityLogs() {
             .orderByChild('timestamp')
             .limitToLast(1000)  // Load last 1000 logs
             .once('value');
-        
+
         const logs = [];
         snapshot.forEach(child => {
             logs.push({
@@ -4257,10 +4272,10 @@ async function loadActivityLogs() {
                 ...child.val()
             });
         });
-        
+
         // Sort by timestamp descending (newest first)
         logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
+
         window.activityLogs = logs;
         console.log('✅ Activity logs loaded:', logs.length);
     } catch (error) {
@@ -4282,10 +4297,10 @@ async function loadSuppliers() {
                     ...child.val()
                 });
             });
-            
+
             // Sort by name
             suppliers.sort((a, b) => a.name.localeCompare(b.name));
-            
+
             window.allSuppliers = suppliers;
             resolve(suppliers);
         });
@@ -4298,12 +4313,12 @@ async function loadSuppliers() {
 async function openAddSupplierFromReceive() {
     const name = prompt('Enter supplier name:');
     if (!name || !name.trim()) return;
-    
+
     const contact = prompt('Contact number (optional):');
-    
+
     try {
         utils.showLoading(true);
-        
+
         const newSupplierRef = db.ref('suppliers').push();
         await newSupplierRef.set({
             name: name.trim(),
@@ -4313,19 +4328,19 @@ async function openAddSupplierFromReceive() {
             createdBy: window.currentUser.uid,
             createdByName: window.currentUserData.displayName
         });
-        
+
         await loadSuppliers();
         utils.showLoading(false);
-        
+
         alert(`✅ Supplier "${name.trim()}" added!`);
-        
+
         // Refresh dropdown and select new supplier
         if (window.populateReceiveSupplierDropdown) {
             window.populateReceiveSupplierDropdown();
             const select = document.getElementById('receiveSupplier');
             if (select) select.value = name.trim();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error adding supplier:', error);
@@ -4339,12 +4354,12 @@ async function openAddSupplierFromReceive() {
 async function openAddSupplierQuick() {
     const name = prompt('Enter supplier name:');
     if (!name || !name.trim()) return;
-    
+
     const contact = prompt('Contact number (optional):');
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Add to Firebase suppliers
         const newSupplierRef = db.ref('suppliers').push();
         await newSupplierRef.set({
@@ -4355,13 +4370,13 @@ async function openAddSupplierQuick() {
             createdBy: window.currentUser.uid,
             createdByName: window.currentUserData.displayName
         });
-        
+
         // Reload suppliers
         await loadSuppliers();
-        
+
         utils.showLoading(false);
         alert(`✅ Supplier "${name.trim()}" added!`);
-        
+
         // Select the new supplier
         const supplierSelect = document.getElementById('partsCostSupplier');
         if (supplierSelect) {
@@ -4373,7 +4388,7 @@ async function openAddSupplierQuick() {
                 }
             }
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error adding supplier:', error);
@@ -4387,12 +4402,12 @@ async function openAddSupplierQuick() {
 async function openPartsCostModal(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) return;
-    
+
     // Load suppliers if not already loaded
     if (!window.allSuppliers) {
         await loadSuppliers();
     }
-    
+
     // Populate supplier dropdown
     const supplierSelect = document.getElementById('partsCostSupplier');
     if (supplierSelect) {
@@ -4400,19 +4415,19 @@ async function openPartsCostModal(repairId) {
         while (supplierSelect.options.length > 3) {
             supplierSelect.remove(3);
         }
-        
+
         // Add suppliers from Firebase
         window.allSuppliers.forEach(supplier => {
             const option = new Option(supplier.name, supplier.name);
             supplierSelect.add(option);
         });
-        
+
         // Pre-select if already recorded
         if (repair.partsCostSupplier) {
             supplierSelect.value = repair.partsCostSupplier;
         }
     }
-    
+
     document.getElementById('partsCostRepairId').value = repairId;
     document.getElementById('partsCostAmount').value = repair.partsCost || '';
     document.getElementById('partsCostNotes').value = repair.partsCostNotes || '';
@@ -4427,28 +4442,28 @@ async function savePartsCost() {
     const actualAmount = parseFloat(document.getElementById('partsCostAmount').value);
     const actualSupplier = document.getElementById('partsCostSupplier').value;
     const notes = document.getElementById('partsCostNotes').value.trim();
-    
+
     if (!actualAmount || actualAmount <= 0) {
         alert('Please enter a valid parts cost');
         return;
     }
-    
+
     if (!actualSupplier) {
         alert('Please select a supplier');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     // Calculate variance from quote
     let costVariance = null;
     if (repair && repair.quotedPartsCost) {
         costVariance = actualAmount - repair.quotedPartsCost;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         await db.ref(`repairs/${repairId}`).update({
             actualPartsCost: actualAmount,
             actualSupplier: actualSupplier,
@@ -4460,19 +4475,19 @@ async function savePartsCost() {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         utils.showLoading(false);
-        
+
         let message = `✅ Actual parts cost recorded!\n\n₱${actualAmount.toFixed(2)}\nSupplier: ${actualSupplier}`;
-        
+
         if (costVariance !== null && costVariance !== 0) {
             const varianceText = costVariance > 0 ? `+₱${costVariance.toFixed(2)} higher` : `₱${Math.abs(costVariance).toFixed(2)} lower`;
             message += `\n\nVariance from quote: ${varianceText}`;
         }
-        
+
         alert(message);
         closePartsCostModal();
-        
+
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
@@ -4494,14 +4509,14 @@ function closePartsCostModal() {
  */
 function openExpenseModal(repairId = null) {
     currentExpenseRepairId = repairId;
-    
+
     // Reset form
     document.getElementById('expenseType').value = repairId ? 'repair-specific' : 'general';
     document.getElementById('expenseCategory').value = 'delivery';
     document.getElementById('expenseAmount').value = '';
     document.getElementById('expenseDescription').value = '';
     document.getElementById('expenseNotes').value = '';
-    
+
     // Show/hide repair ID field
     const repairIdField = document.getElementById('expenseRepairIdDisplay');
     if (repairIdField) {
@@ -4511,7 +4526,7 @@ function openExpenseModal(repairId = null) {
             repairIdField.textContent = `Repair: ${repair?.customerName || repairId}`;
         }
     }
-    
+
     document.getElementById('expenseModal').style.display = 'block';
 }
 
@@ -4524,27 +4539,27 @@ async function saveExpense() {
     const amount = parseFloat(document.getElementById('expenseAmount').value);
     const description = document.getElementById('expenseDescription').value.trim();
     const notes = document.getElementById('expenseNotes').value.trim();
-    
+
     if (!amount || amount <= 0) {
         alert('Please enter a valid expense amount');
         return;
     }
-    
+
     if (!description) {
         alert('Please enter expense description');
         return;
     }
-    
+
     // Check if today's date is locked (prevent backdating)
     const todayString = new Date().toISOString().split('T')[0];
     if (!preventBackdating(todayString)) {
         alert('⚠️ Cannot record expense on locked date!\n\nToday has been locked and finalized. Please contact admin.');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const expense = {
             techId: window.currentUser.uid,
             techName: window.currentUserData.displayName,
@@ -4558,9 +4573,9 @@ async function saveExpense() {
             createdAt: new Date().toISOString(),
             remittanceId: null
         };
-        
+
         await db.ref('techExpenses').push(expense);
-        
+
         // Log expense activity
         await logActivity('expense_recorded', 'financial', {
             category: category,
@@ -4569,14 +4584,14 @@ async function saveExpense() {
             type: type,
             repairId: expense.repairId
         });
-        
+
         // Reload expenses
         await loadTechExpenses();
-        
+
         utils.showLoading(false);
         alert(`✅ Expense recorded!\n\n💰 Amount: ₱${amount.toFixed(2)}\n📝 ${description}`);
         closeExpenseModal();
-        
+
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
@@ -4599,24 +4614,24 @@ function closeExpenseModal() {
  */
 function getTechDailyPayments(techId, date) {
     // Convert date to local date string for comparison (no timezone issues)
-    const targetDateString = date instanceof Date 
-        ? getLocalDateString(date) 
+    const targetDateString = date instanceof Date
+        ? getLocalDateString(date)
         : date; // Already a string like "2025-12-31"
-    
+
     const payments = [];
     let total = 0;
-    
+
     window.allRepairs.forEach(repair => {
         if (repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                 const paymentDateString = getLocalDateString(paymentDate);
                 const paymentMethod = payment.method || 'Cash'; // Default to Cash for old payments
-                
+
                 // Only include CASH payments in remittance
                 // GCash goes directly to shop, no remittance needed
-                if (payment.collectedByTech && 
-                    payment.receivedById === techId && 
+                if (payment.collectedByTech &&
+                    payment.receivedById === techId &&
                     paymentDateString === targetDateString && // String comparison - no timezone issues
                     paymentMethod === 'Cash' &&
                     payment.remittanceStatus === 'pending') {
@@ -4634,7 +4649,7 @@ function getTechDailyPayments(techId, date) {
             });
         }
     });
-    
+
     return { payments, total };
 }
 
@@ -4644,21 +4659,21 @@ function getTechDailyPayments(techId, date) {
 function getAllPendingPayments(techId) {
     const payments = [];
     let total = 0;
-    
+
     window.allRepairs.forEach(repair => {
         if (repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentMethod = payment.method || 'Cash';
-                
+
                 // Include ALL pending cash payments regardless of date
-                if (payment.collectedByTech && 
-                    payment.receivedById === techId && 
+                if (payment.collectedByTech &&
+                    payment.receivedById === techId &&
                     paymentMethod === 'Cash' &&
                     payment.remittanceStatus === 'pending' &&
                     !payment.techRemittanceId) {
-                    
+
                     const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
-                    
+
                     payments.push({
                         repairId: repair.id,
                         paymentIndex: index,
@@ -4674,10 +4689,10 @@ function getAllPendingPayments(techId) {
             });
         }
     });
-    
+
     // Sort by date (oldest first)
     payments.sort((a, b) => new Date(a.recordedDate || a.paymentDate) - new Date(b.recordedDate || b.paymentDate));
-    
+
     return { payments, total };
 }
 
@@ -4687,22 +4702,22 @@ function getAllPendingPayments(techId) {
  */
 function getPendingRemittanceDates(techId) {
     const dateMap = {};
-    
+
     window.allRepairs.forEach(repair => {
         if (repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentMethod = payment.method || 'Cash';
-                
+
                 // Only Cash payments that are pending
-                if (payment.collectedByTech && 
-                    payment.receivedById === techId && 
+                if (payment.collectedByTech &&
+                    payment.receivedById === techId &&
                     paymentMethod === 'Cash' &&
                     payment.remittanceStatus === 'pending' &&
                     !payment.techRemittanceId) {
-                    
+
                     const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                     const dateString = getLocalDateString(paymentDate);
-                    
+
                     if (!dateMap[dateString]) {
                         dateMap[dateString] = {
                             dateString: dateString,
@@ -4714,7 +4729,7 @@ function getPendingRemittanceDates(techId) {
                             totalCommission: 0
                         };
                     }
-                    
+
                     dateMap[dateString].payments.push({
                         repairId: repair.id,
                         paymentIndex: index,
@@ -4729,14 +4744,14 @@ function getPendingRemittanceDates(techId) {
             });
         }
     });
-    
+
     // Add expenses for each date
     if (window.allExpenses) {
         window.allExpenses.forEach(expense => {
             if (expense.techId === techId) {
                 const expenseDate = new Date(expense.date);
                 const dateString = getLocalDateString(expenseDate);
-                
+
                 if (dateMap[dateString]) {
                     dateMap[dateString].expenses.push(expense);
                     dateMap[dateString].totalExpenses += expense.amount;
@@ -4744,7 +4759,7 @@ function getPendingRemittanceDates(techId) {
             }
         });
     }
-    
+
     // Calculate commission and unremitted balance per date (40% of net after expenses)
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
@@ -4753,10 +4768,10 @@ function getPendingRemittanceDates(techId) {
         // Unremitted balance = net after expenses - commission (which is 60% of net)
         dateData.unremittedBalance = netAfterExpenses - dateData.totalCommission;
     });
-    
+
     // Convert to array and sort by date (oldest first)
     const dates = Object.values(dateMap).sort((a, b) => a.date - b.date);
-    
+
     return dates;
 }
 
@@ -4765,18 +4780,18 @@ function getPendingRemittanceDates(techId) {
  */
 function getPendingGCashDates(techId) {
     const dateMap = {};
-    
+
     window.allRepairs.forEach(repair => {
         if (repair.payments) {
             repair.payments.forEach((payment, index) => {
                 // Only GCash payments that haven't been reported yet
-                if (payment.method === 'GCash' && 
+                if (payment.method === 'GCash' &&
                     payment.receivedById === techId &&
                     !payment.gcashRemittanceId) {
-                    
+
                     const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                     const dateString = getLocalDateString(paymentDate);
-                    
+
                     if (!dateMap[dateString]) {
                         dateMap[dateString] = {
                             dateString: dateString,
@@ -4786,7 +4801,7 @@ function getPendingGCashDates(techId) {
                             totalCommission: 0
                         };
                     }
-                    
+
                     dateMap[dateString].payments.push({
                         repairId: repair.id,
                         paymentIndex: index,
@@ -4802,7 +4817,7 @@ function getPendingGCashDates(techId) {
             });
         }
     });
-    
+
     // Calculate commission per date (40% of total GCash)
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
@@ -4810,7 +4825,7 @@ function getPendingGCashDates(techId) {
         // 60% is "remitted" (already in shop account)
         dateData.remittedAmount = dateData.totalPayments * 0.60;
     });
-    
+
     // Convert to array and sort by date (oldest first)
     return Object.values(dateMap).sort((a, b) => a.date - b.date);
 }
@@ -4822,13 +4837,13 @@ function getPendingGCashDates(techId) {
 function getUnremittedBalance(techId, dateString) {
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
-    
+
     // Commission is 40% of (payments - expenses)
     const netAfterExpenses = paymentsTotal - expensesTotal;
     const commissionDeduction = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
-    
+
     const unremittedBalance = netAfterExpenses - commissionDeduction;
-    
+
     return {
         paymentsTotal,
         expensesTotal,
@@ -4844,20 +4859,20 @@ function getUnremittedBalance(techId, dateString) {
  */
 function getTechDailyGCashPayments(techId, date) {
     // Convert date to local date string for comparison (no timezone issues)
-    const targetDateString = date instanceof Date 
-        ? getLocalDateString(date) 
+    const targetDateString = date instanceof Date
+        ? getLocalDateString(date)
         : date; // Already a string like "2025-12-31"
-    
+
     const payments = [];
     let total = 0;
-    
+
     window.allRepairs.forEach(repair => {
         // Only include repairs assigned to this technician
         if (repair.acceptedBy === techId && repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                 const paymentDateString = getLocalDateString(paymentDate);
-                
+
                 // Only GCash payments for this date
                 if (payment.method === 'GCash' && paymentDateString === targetDateString) {
                     payments.push({
@@ -4875,7 +4890,7 @@ function getTechDailyGCashPayments(techId, date) {
             });
         }
     });
-    
+
     return { payments, total };
 }
 
@@ -4884,20 +4899,20 @@ function getTechDailyGCashPayments(techId, date) {
  */
 function getTechDailyExpenses(techId, date) {
     // Convert date to local date string for comparison (no timezone issues)
-    const targetDateString = date instanceof Date 
-        ? getLocalDateString(date) 
+    const targetDateString = date instanceof Date
+        ? getLocalDateString(date)
         : date; // Already a string like "2025-12-31"
-    
+
     const expenses = window.techExpenses.filter(exp => {
         const expDate = new Date(exp.date);
         const expDateString = getLocalDateString(expDate);
-        return exp.techId === techId && 
-               expDateString === targetDateString && 
-               !exp.remittanceId;
+        return exp.techId === techId &&
+            expDateString === targetDateString &&
+            !exp.remittanceId;
     });
-    
+
     const total = expenses.reduce((sum, exp) => sum + exp.amount, 0);
-    
+
     return { expenses, total };
 }
 
@@ -4909,7 +4924,7 @@ function getTechDailyExpenses(techId, date) {
  */
 function getRepairPartsCost(repair) {
     let totalPartsCost = 0;
-    
+
     // Get cost from inventory system (Phase 3 partsUsed)
     if (repair.partsUsed) {
         const inventoryCost = Object.values(repair.partsUsed).reduce((sum, part) => {
@@ -4917,12 +4932,12 @@ function getRepairPartsCost(repair) {
         }, 0);
         totalPartsCost += inventoryCost;
     }
-    
+
     // Add manual parts cost if entered
     if (repair.partsCost) {
         totalPartsCost += parseFloat(repair.partsCost) || 0;
     }
-    
+
     return totalPartsCost;
 }
 
@@ -4931,12 +4946,12 @@ function getRepairPartsCost(repair) {
  */
 function getRepairDeliveryExpenses(repairId) {
     if (!window.techExpenses) return 0;
-    
-    const deliveryExpenses = window.techExpenses.filter(exp => 
-        exp.repairId === repairId && 
+
+    const deliveryExpenses = window.techExpenses.filter(exp =>
+        exp.repairId === repairId &&
         exp.category === 'Delivery'
     );
-    
+
     return deliveryExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 }
 
@@ -4956,45 +4971,45 @@ function calculateRepairCommission(repair, techId) {
             commissionRate: 0.40
         }
     };
-    
+
     // Check eligibility
     // 1. Must be assigned to this technician
     if (repair.acceptedBy !== techId) {
         return result;
     }
-    
+
     // 2. Must be fully paid
     const totalPaid = (repair.payments || [])
         .filter(p => p.verified)
         .reduce((sum, p) => sum + p.amount, 0);
-    
+
     const balance = repair.total - totalPaid;
-    
+
     if (balance > 0) {
         return result;
     }
-    
+
     // 3. Must be claimed (not RTO)
     if (repair.status === 'RTO') {
         return result;
     }
-    
+
     // Calculate commission
     result.eligible = true;
     result.breakdown.partsCost = getRepairPartsCost(repair);
     result.breakdown.deliveryExpenses = getRepairDeliveryExpenses(repair.id);
-    result.breakdown.netAmount = 
-        result.breakdown.repairTotal - 
-        result.breakdown.partsCost - 
+    result.breakdown.netAmount =
+        result.breakdown.repairTotal -
+        result.breakdown.partsCost -
         result.breakdown.deliveryExpenses;
-    
+
     result.amount = result.breakdown.netAmount * result.breakdown.commissionRate;
-    
+
     // Ensure non-negative
     if (result.amount < 0) {
         result.amount = 0;
     }
-    
+
     return result;
 }
 
@@ -5003,29 +5018,29 @@ function calculateRepairCommission(repair, techId) {
  */
 function getTechCommissionEligibleRepairs(techId, date) {
     // Convert date to local date string for comparison (no timezone issues)
-    const targetDateString = date instanceof Date 
-        ? getLocalDateString(date) 
+    const targetDateString = date instanceof Date
+        ? getLocalDateString(date)
         : date; // Already a string like "2025-12-31"
-    
+
     const eligibleRepairs = [];
-    
+
     window.allRepairs.forEach(repair => {
         // Check if commission already claimed
         if (repair.commissionClaimedBy) {
             return; // Skip - already claimed in a remittance
         }
-        
+
         // Find the LAST verified payment that made this repair fully paid
         let lastVerifiedPaymentDate = null;
         let runningTotal = 0;
         const repairTotal = repair.total || 0;
-        
+
         if (repair.payments) {
             // Sort payments by verification date
             const sortedPayments = [...repair.payments]
                 .filter(p => p.verified)
                 .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
-            
+
             for (const payment of sortedPayments) {
                 runningTotal += payment.amount;
                 if (runningTotal >= repairTotal) {
@@ -5036,11 +5051,11 @@ function getTechCommissionEligibleRepairs(techId, date) {
                 }
             }
         }
-        
+
         // Only include commission on the date it became fully paid
         if (lastVerifiedPaymentDate === targetDateString) {
             const commission = calculateRepairCommission(repair, techId);
-            
+
             if (commission.eligible && commission.amount > 0) {
                 eligibleRepairs.push({
                     repair: repair,
@@ -5049,7 +5064,7 @@ function getTechCommissionEligibleRepairs(techId, date) {
             }
         }
     });
-    
+
     return eligibleRepairs;
 }
 
@@ -5058,7 +5073,7 @@ function getTechCommissionEligibleRepairs(techId, date) {
  */
 function getTechDailyCommission(techId, date) {
     const eligibleRepairs = getTechCommissionEligibleRepairs(techId, date);
-    
+
     const breakdown = eligibleRepairs.map(item => ({
         repairId: item.repair.id,
         customerName: item.repair.customerName,
@@ -5070,9 +5085,9 @@ function getTechDailyCommission(techId, date) {
         netAmount: item.commission.breakdown.netAmount,
         commission: item.commission.amount
     }));
-    
+
     const total = breakdown.reduce((sum, item) => sum + item.commission, 0);
-    
+
     return { breakdown, total };
 }
 
@@ -5081,33 +5096,33 @@ function getTechDailyCommission(techId, date) {
  */
 function getAllPendingCommission(techId) {
     const breakdown = [];
-    
+
     window.allRepairs.forEach(repair => {
         // Check if commission NOT yet claimed
-        if (repair.acceptedBy === techId && 
-            repair.status === 'Claimed' && 
+        if (repair.acceptedBy === techId &&
+            repair.status === 'Claimed' &&
             !repair.commissionClaimedBy) {
-            
+
             // Check if repair is fully paid
             const totalPaid = (repair.payments || [])
                 .filter(p => p.verified)
                 .reduce((sum, p) => sum + p.amount, 0);
-            
+
             if (totalPaid >= (repair.total || 0)) {
                 // Calculate commission
                 const commission = calculateRepairCommission(repair, techId);
-                
+
                 if (commission.eligible && commission.amount > 0) {
                     // Find when it was fully paid (for date grouping)
                     let fullyPaidDate = null;
                     let runningTotal = 0;
                     const repairTotal = repair.total || 0;
-                    
+
                     if (repair.payments) {
                         const sortedPayments = [...repair.payments]
                             .filter(p => p.verified)
                             .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
-                        
+
                         for (const payment of sortedPayments) {
                             runningTotal += payment.amount;
                             if (runningTotal >= repairTotal) {
@@ -5116,7 +5131,7 @@ function getAllPendingCommission(techId) {
                             }
                         }
                     }
-                    
+
                     breakdown.push({
                         repairId: repair.id,
                         customerName: repair.customerName,
@@ -5133,16 +5148,16 @@ function getAllPendingCommission(techId) {
             }
         }
     });
-    
+
     // Sort by date (oldest first)
     breakdown.sort((a, b) => {
         const dateA = new Date(a.dateString + 'T00:00:00');
         const dateB = new Date(b.dateString + 'T00:00:00');
         return dateA - dateB;
     });
-    
+
     const total = breakdown.reduce((sum, item) => sum + item.commission, 0);
-    
+
     return { breakdown, total };
 }
 
@@ -5152,7 +5167,7 @@ function getAllPendingCommission(techId) {
 function toggleManualCommissionFields() {
     const checkbox = document.getElementById('hasManualCommission');
     const fields = document.getElementById('manualCommissionFields');
-    
+
     if (fields) {
         fields.style.display = checkbox.checked ? 'block' : 'none';
     }
@@ -5165,12 +5180,12 @@ function showCommissionBreakdown() {
     const techId = window.currentUser.uid;
     const today = new Date();
     const { breakdown } = getTechDailyCommission(techId, today);
-    
+
     if (breakdown.length === 0) {
         alert('No commission earned today');
         return;
     }
-    
+
     let html = `
         <div style="max-height:400px;overflow-y:auto;">
             <h3 style="margin:0 0 20px;">📊 Commission Breakdown</h3>
@@ -5209,11 +5224,11 @@ function showCommissionBreakdown() {
             <button onclick="closeUserModal()" class="btn-secondary" style="width:100%;">Close</button>
         </div>
     `;
-    
+
     const modal = document.getElementById('userModal');
     const modalTitle = document.getElementById('userModalTitle');
     const modalContent = document.getElementById('userModalContent');
-    
+
     modalTitle.textContent = 'Commission Details';
     modalContent.innerHTML = html;
     modal.style.display = 'block';
@@ -5228,36 +5243,36 @@ function openSingleDayRemittanceModal(dateString) {
     const today = new Date();
     const todayDateString = getLocalDateString(today);
     const isToday = dateString === todayDateString;
-    
+
     // IMPORTANT: Hide/remove any existing remittance modal from HTML
     const existingHtmlModal = document.querySelector('#remittanceModal.modal');
     if (existingHtmlModal) {
         existingHtmlModal.style.display = 'none';
     }
-    
+
     // Get data for this specific date
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
-    
+
     // Commission: 40% of (payments - expenses)
     const netAfterExpenses = paymentsTotal - expensesTotal;
     const commissionDeduction = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
     const expectedAmount = netAfterExpenses - commissionDeduction;
-    
+
     if (payments.length === 0 && expenses.length === 0) {
         alert('⚠️ No pending payments or expenses for this date.');
         return;
     }
-    
+
     // Check if user has any older pending dates
     const pendingDates = getPendingRemittanceDates(techId);
     const olderPendingDates = pendingDates.filter(d => d.dateString < dateString);
     const hasOlderPending = olderPendingDates.length > 0;
-    
+
     // Format date for display
     const displayDate = new Date(dateString + 'T00:00:00');
     const dateDisplay = isToday ? 'Today' : utils.formatDate(dateString);
-    
+
     // Get eligible recipients (admin, manager, cashier) - case insensitive
     const eligibleRecipients = Object.values(window.allUsers || {})
         .filter(u => {
@@ -5265,7 +5280,7 @@ function openSingleDayRemittanceModal(dateString) {
             const role = (u.role || '').toLowerCase().trim();
             return ['admin', 'manager', 'cashier'].includes(role);
         });
-    
+
     // Get or create modal (use unique ID for single-day remittance)
     let modal = document.getElementById('singleDayRemittanceModal');
     if (!modal) {
@@ -5274,7 +5289,7 @@ function openSingleDayRemittanceModal(dateString) {
         modal.style.cssText = 'display:none;position:fixed;z-index:1000;left:0;top:0;width:100%;height:100%;background-color:rgba(0,0,0,0.4);overflow-y:auto;';
         document.body.appendChild(modal);
     }
-    
+
     // Get or create modal content
     let modalContent = document.getElementById('singleDayRemittanceModalContent');
     if (!modalContent) {
@@ -5283,10 +5298,10 @@ function openSingleDayRemittanceModal(dateString) {
         modalContent.style.cssText = 'background-color:#fefefe;margin:2% auto;padding:0;border:1px solid #888;width:90%;max-width:800px;border-radius:10px;';
         modal.appendChild(modalContent);
     }
-    
+
     // Clear any previous content
     modalContent.innerHTML = '';
-    
+
     let html = `
         <div style="padding:20px;max-height:85vh;overflow-y:auto;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -5450,27 +5465,27 @@ function openSingleDayRemittanceModal(dateString) {
             </div>
         </div>
     `;
-    
+
     modalContent.innerHTML = html;
     modal.style.display = 'block';
-    
+
     // Populate recipient dropdown AFTER modal is visible (ensures DOM is ready)
     setTimeout(() => {
         console.log('🔍 Looking for remittanceRecipient dropdown in singleDayRemittanceModal...');
         console.log('🔍 Eligible recipients:', eligibleRecipients.length, eligibleRecipients);
-        
+
         // Search within the specific modal to avoid conflicts with other modals
         const recipientSelect = modal.querySelector('#remittanceRecipient');
         console.log('🔍 Found select element:', recipientSelect);
-        
+
         if (recipientSelect) {
             console.log('🔍 Current options count:', recipientSelect.options.length);
-            
+
             // Clear existing options (keeps the first "-- Select recipient --" option)
             while (recipientSelect.options.length > 1) {
                 recipientSelect.remove(1);
             }
-            
+
             // Add eligible recipients
             eligibleRecipients.forEach(user => {
                 console.log('➕ Adding option:', user.displayName, user.role, user.uid);
@@ -5479,7 +5494,7 @@ function openSingleDayRemittanceModal(dateString) {
                 option.textContent = `${user.displayName || user.name || 'Unknown'} (${user.role})`;
                 recipientSelect.appendChild(option);
             });
-            
+
             console.log('✅ Dropdown populated! Final options count:', recipientSelect.options.length);
         } else {
             console.error('❌ Could not find remittanceRecipient select element');
@@ -5494,7 +5509,7 @@ function closeRemittanceModal() {
     if (htmlModal) {
         htmlModal.style.display = 'none';
     }
-    
+
     const dynamicModal = document.getElementById('singleDayRemittanceModal');
     if (dynamicModal) {
         dynamicModal.style.display = 'none';
@@ -5507,37 +5522,37 @@ function closeRemittanceModal() {
 function openRemittanceModal() {
     const techId = window.currentUser.uid;
     const today = new Date();
-    
+
     // Check if already submitted for today
     const todayStr = today.toDateString();
     const existingRemittance = window.techRemittances.find(r => {
         const remDate = new Date(r.date).toDateString();
         return r.techId === techId && remDate === todayStr && r.status === 'pending';
     });
-    
+
     if (existingRemittance) {
         alert('⚠️ You have already submitted a remittance for today that is pending verification.');
         return;
     }
-    
+
     // Get ALL pending data (not just today - includes historical items)
     const todayDateString = getLocalDateString(today);
     const { payments, total: paymentsTotal } = getAllPendingPayments(techId);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString); // Expenses stay date-specific
     const { breakdown: commissionBreakdown, total: commissionTotal } = getAllPendingCommission(techId);
-    
+
     // Calculate commission breakdown by payment method (Cash vs GCash)
     let cashCommission = 0;
     let gcashCommission = 0;
     let cashRepairCount = 0;
     let gcashRepairCount = 0;
-    
+
     commissionBreakdown.forEach(c => {
         const repair = window.allRepairs.find(r => r.id === c.repairId);
         if (repair && repair.payments) {
             // Check if this repair has any GCash payment
             const hasGCashPayment = repair.payments.some(p => p.method === 'GCash');
-            
+
             if (hasGCashPayment) {
                 gcashCommission += c.commission;
                 gcashRepairCount++;
@@ -5547,19 +5562,19 @@ function openRemittanceModal() {
             }
         }
     });
-    
+
     const totalCommission = cashCommission + gcashCommission;
-    
+
     // Check if there are ANY items to remit (today or historical)
     const hasTodayItems = payments.length > 0 || expenses.length > 0 || commissionBreakdown.length > 0;
-    
+
     // Check for historical pending payments
     let hasHistoricalPending = false;
     window.allRepairs.forEach(repair => {
         if (repair.payments) {
             repair.payments.forEach(payment => {
-                if (payment.collectedByTech && 
-                    payment.receivedById === techId && 
+                if (payment.collectedByTech &&
+                    payment.receivedById === techId &&
                     payment.remittanceStatus === 'pending' &&
                     !payment.techRemittanceId) {
                     hasHistoricalPending = true;
@@ -5567,12 +5582,12 @@ function openRemittanceModal() {
             });
         }
     });
-    
+
     // Check for unclaimed commissions
     let hasUnclaimedCommission = false;
     window.allRepairs.forEach(repair => {
-        if (repair.acceptedBy === techId && 
-            repair.status === 'Claimed' && 
+        if (repair.acceptedBy === techId &&
+            repair.status === 'Claimed' &&
             !repair.commissionClaimedBy) {
             const totalPaid = (repair.payments || [])
                 .filter(p => p.verified)
@@ -5582,13 +5597,13 @@ function openRemittanceModal() {
             }
         }
     });
-    
+
     // Allow submission if ANY items exist
     if (!hasTodayItems && !hasHistoricalPending && !hasUnclaimedCommission) {
         alert('⚠️ No items to remit.\n\nYou have no pending payments, expenses, or commissions.');
         return;
     }
-    
+
     // Show detailed info message if including historical items
     const paymentsByDate = {};
     payments.forEach(p => {
@@ -5599,34 +5614,34 @@ function openRemittanceModal() {
         paymentsByDate[dateStr].count++;
         paymentsByDate[dateStr].total += p.amount;
     });
-    
+
     const dates = Object.keys(paymentsByDate).sort();
     const todayDateStr = getLocalDateString(today);
     const historicalDates = dates.filter(d => d !== todayDateStr);
-    
+
     if (historicalDates.length > 0) {
         let message = '💡 Including Historical Payments\n\n';
         message += 'Your remittance will include:\n\n';
-        
+
         dates.forEach(dateStr => {
             const isToday = dateStr === todayDateStr;
             const data = paymentsByDate[dateStr];
             message += `${isToday ? '📅 Today' : '⚠️ ' + utils.formatDate(dateStr)}: ${data.count} payment(s) = ₱${data.total.toFixed(2)}\n`;
         });
-        
+
         message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
         message += `TOTAL: ${payments.length} payment(s) = ₱${paymentsTotal.toFixed(2)}\n\n`;
         message += 'All pending items will be submitted together in one remittance.';
-        
+
         alert(message);
     }
-    
+
     // FIXED CALCULATION: Cash remittance applies 60/40 split
     // Commission (40%) is deducted from the remittance at submission time
     // Technician remits 60%, keeps 40% as commission
     const commissionDeduction = paymentsTotal * 0.40;  // 40% commission on gross cash
     const expectedAmount = (paymentsTotal - expensesTotal) - commissionDeduction;  // 60% of (collected - expenses)
-    
+
     // Build summary
     let summary = `
         ${totalCommission > 0 ? `
@@ -5703,27 +5718,27 @@ function openRemittanceModal() {
             <div class="card" style="margin:20px 0;">
                 <h3>📥 Cash Payments Breakdown (${payments.length} payment${payments.length > 1 ? 's' : ''})</h3>
                 ${(() => {
-                    // Group payments by date
-                    const paymentsByDate = {};
-                    payments.forEach(p => {
-                        const dateStr = p.dateString;
-                        if (!paymentsByDate[dateStr]) {
-                            paymentsByDate[dateStr] = [];
-                        }
-                        paymentsByDate[dateStr].push(p);
-                    });
-                    
-                    // Check if there are multiple dates
-                    const dates = Object.keys(paymentsByDate).sort();
-                    const hasMultipleDates = dates.length > 1;
-                    const todayStrModal = todayDateString; // Use the variable from parent scope
-                    
-                    // Show warning if historical items included
-                    let html = '';
-                    if (hasMultipleDates) {
-                        const historicalDates = dates.filter(d => d !== todayStrModal);
-                        if (historicalDates.length > 0) {
-                            html += `
+                // Group payments by date
+                const paymentsByDate = {};
+                payments.forEach(p => {
+                    const dateStr = p.dateString;
+                    if (!paymentsByDate[dateStr]) {
+                        paymentsByDate[dateStr] = [];
+                    }
+                    paymentsByDate[dateStr].push(p);
+                });
+
+                // Check if there are multiple dates
+                const dates = Object.keys(paymentsByDate).sort();
+                const hasMultipleDates = dates.length > 1;
+                const todayStrModal = todayDateString; // Use the variable from parent scope
+
+                // Show warning if historical items included
+                let html = '';
+                if (hasMultipleDates) {
+                    const historicalDates = dates.filter(d => d !== todayStrModal);
+                    if (historicalDates.length > 0) {
+                        html += `
                                 <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ff9800;">
                                     <strong>⚠️ Including Historical Items</strong><br>
                                     <small style="color:#666;">
@@ -5732,16 +5747,16 @@ function openRemittanceModal() {
                                     </small>
                                 </div>
                             `;
-                        }
                     }
-                    
-                    // Display grouped by date
-                    html += dates.map(dateStr => {
-                        const datePayments = paymentsByDate[dateStr];
-                        const dateTotal = datePayments.reduce((sum, p) => sum + p.amount, 0);
-                        const isToday = dateStr === todayStrModal;
-                        
-                        return `
+                }
+
+                // Display grouped by date
+                html += dates.map(dateStr => {
+                    const datePayments = paymentsByDate[dateStr];
+                    const dateTotal = datePayments.reduce((sum, p) => sum + p.amount, 0);
+                    const isToday = dateStr === todayStrModal;
+
+                    return `
                             <div style="margin:15px 0;padding:15px;background:${isToday ? '#e3f2fd' : '#fff3cd'};border-radius:8px;border-left:4px solid ${isToday ? '#2196f3' : '#ff9800'};">
                                 <h4 style="margin:0 0 10px 0;color:#333;">
                                     ${isToday ? '📅 Today' : '⚠️ Previous Date'}: ${utils.formatDate(dateStr)}
@@ -5759,10 +5774,10 @@ function openRemittanceModal() {
                                 </div>
                             </div>
                         `;
-                    }).join('');
-                    
-                    return html;
-                })()}
+                }).join('');
+
+                return html;
+            })()}
             </div>
         ` : ''}
         
@@ -5780,27 +5795,27 @@ function openRemittanceModal() {
             </div>
         ` : ''}
     `;
-    
+
     document.getElementById('remittanceSummary').innerHTML = summary;
     document.getElementById('actualRemittanceAmount').value = expectedAmount.toFixed(2);
     document.getElementById('remittanceNotes').value = '';
-    
+
     // Populate recipient dropdown
     const recipientSelect = document.getElementById('remittanceRecipient');
     recipientSelect.innerHTML = '<option value="">-- Select who will receive the cash --</option>';
-    
+
     // Get list of available cashiers, managers, and admins (excluding current user)
     const recipients = Object.values(window.allUsers || {})
         .filter(u => ['admin', 'manager', 'cashier'].includes(u.role) && u.uid !== window.currentUser.uid)
         .sort((a, b) => a.displayName.localeCompare(b.displayName));
-    
+
     recipients.forEach(user => {
         const option = document.createElement('option');
         option.value = user.uid;
         option.textContent = `${user.displayName} (${user.role})`;
         recipientSelect.appendChild(option);
     });
-    
+
     document.getElementById('remittanceModal').style.display = 'block';
 }
 
@@ -5811,65 +5826,65 @@ async function confirmRemittance() {
     const techId = window.currentUser.uid;
     const today = new Date();
     const todayDateString = getLocalDateString(today);
-    
+
     // Get the HTML modal to read values from the correct elements
     const modal = document.getElementById('remittanceModal');
     if (!modal) {
         alert('Modal not found');
         return;
     }
-    
+
     const actualAmount = parseFloat(modal.querySelector('#actualRemittanceAmount').value);
     const notes = modal.querySelector('#remittanceNotes').value.trim();
     const recipientId = modal.querySelector('#remittanceRecipient').value;
-    
+
     // Validate recipient selection
     if (!recipientId) {
         alert('⚠️ Please select who you are giving this money to');
         return;
     }
-    
+
     const recipient = window.allUsers[recipientId];
     if (!recipient) {
         alert('⚠️ Selected recipient not found');
         return;
     }
-    
+
     // Validate recipient role
     if (!['admin', 'manager', 'cashier'].includes(recipient.role)) {
         alert('⚠️ Invalid recipient role. Must be admin, manager, or cashier.');
         return;
     }
-    
+
     // Get commission payment preference
     const commissionPreferenceSelect = modal.querySelector('#commissionPaymentPreference');
     const commissionPaymentPreference = commissionPreferenceSelect ? commissionPreferenceSelect.value : '';
-    
+
     // Get manual override fields
     const hasManualOverride = modal.querySelector('#hasManualCommission').checked;
     const manualCommission = hasManualOverride ? parseFloat(modal.querySelector('#manualCommissionAmount').value) : null;
     const overrideReason = hasManualOverride ? modal.querySelector('#manualCommissionReason').value.trim() : '';
-    
+
     if (isNaN(actualAmount) || actualAmount < 0) {
         alert('Please enter a valid remittance amount');
         return;
     }
-    
+
     // Validate manual commission if entered
     if (hasManualOverride && (isNaN(manualCommission) || manualCommission < 0)) {
         alert('Please enter a valid manual commission amount');
         return;
     }
-    
+
     // Use the same functions as openRemittanceModal - get ALL pending items
     const { payments, total: paymentsTotal } = getAllPendingPayments(techId);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString); // Expenses stay date-specific
     const { breakdown: commissionBreakdown, total: commissionTotal } = getAllPendingCommission(techId);
-    
+
     // Calculate commission breakdown by payment method
     let cashCommission = 0;
     let gcashCommission = 0;
-    
+
     commissionBreakdown.forEach(c => {
         const repair = window.allRepairs.find(r => r.id === c.repairId);
         if (repair && repair.payments) {
@@ -5881,27 +5896,27 @@ async function confirmRemittance() {
             }
         }
     });
-    
+
     const totalCommission = cashCommission + gcashCommission;
-    
+
     // Validate commission payment preference if there's commission
     if (totalCommission > 0 && !commissionPaymentPreference) {
         alert('⚠️ Please select how you want to receive your commission');
         return;
     }
-    
+
     // FIXED CALCULATION: Cash remittance applies 60/40 split
     // Commission (40%) is deducted from the remittance at submission time
     const commissionDeduction = paymentsTotal * 0.40;  // 40% commission on gross cash
     const expectedAmount = (paymentsTotal - expensesTotal) - commissionDeduction;  // 60% of (collected - expenses)
     const discrepancy = actualAmount - expectedAmount;
-    
+
     // Require notes if there's a discrepancy
     if (Math.abs(discrepancy) > 0.01 && !notes) {
         alert('Please provide a note explaining the discrepancy');
         return;
     }
-    
+
     let confirmMessage = `Submit remittance of ₱${actualAmount.toFixed(2)}?`;
     if (commissionTotal > 0) {
         confirmMessage += `\n\nCommission: ₱${commissionTotal.toFixed(2)}`;
@@ -5914,17 +5929,17 @@ async function confirmRemittance() {
     if (discrepancy !== 0) {
         confirmMessage += `\n\nDiscrepancy: ₱${discrepancy.toFixed(2)}`;
     }
-    
+
     if (!confirm(confirmMessage)) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Create remittance record
         const remittanceStatus = hasManualOverride ? 'under_discussion' : 'pending';
-        
+
         const remittance = {
             techId: techId,
             techName: window.currentUserData.displayName,
@@ -5978,10 +5993,10 @@ async function confirmRemittance() {
             resolvedAt: null,
             resolutionNotes: ''
         };
-        
+
         const remittanceRef = await db.ref('techRemittances').push(remittance);
         const remittanceId = remittanceRef.key;
-        
+
         // Update payments with remittance ID
         const updatePromises = [];
         payments.forEach(p => {
@@ -5996,7 +6011,7 @@ async function confirmRemittance() {
                 db.ref(`repairs/${p.repairId}`).update({ payments: updatedPayments })
             );
         });
-        
+
         // Mark commission as claimed for repairs in commission breakdown
         commissionBreakdown.forEach(c => {
             updatePromises.push(
@@ -6007,16 +6022,16 @@ async function confirmRemittance() {
                 })
             );
         });
-        
+
         // Update expenses with remittance ID
         expenses.forEach(e => {
             updatePromises.push(
                 db.ref(`techExpenses/${e.id}`).update({ remittanceId: remittanceId })
             );
         });
-        
+
         await Promise.all(updatePromises);
-        
+
         // Log remittance submission
         await logActivity('remittance_submitted', {
             remittanceId: remittanceId,
@@ -6028,15 +6043,15 @@ async function confirmRemittance() {
             actualAmount: actualAmount,
             discrepancy: discrepancy
         }, `${window.currentUserData.displayName} submitted remittance of ₱${actualAmount.toFixed(2)} to ${recipient.displayName}${Math.abs(discrepancy) > 0.01 ? ` (discrepancy: ₱${discrepancy.toFixed(2)})` : ''}`);
-        
+
         // Reload data
         await loadTechRemittances();
         await loadTechExpenses();
-        
+
         utils.showLoading(false);
         alert(`✅ Remittance submitted!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n👤 Submitted to: ${recipient.displayName}\n\n⏳ Track verification status in Daily Remittance tab (check badge for updates).`);
         closeRemittanceModal();
-        
+
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
@@ -6056,14 +6071,14 @@ async function confirmSingleDayRemittance() {
     const techId = window.currentUser.uid;
     const today = new Date();
     const todayDateString = getLocalDateString(today);
-    
+
     // Get the modal to read values from the correct elements
     const modal = document.getElementById('singleDayRemittanceModal');
     if (!modal) {
         alert('Modal not found');
         return;
     }
-    
+
     // Get values from modal - use querySelector to get elements from THIS modal
     const dateString = modal.querySelector('#remittanceDateString').value;
     const actualAmount = parseFloat(modal.querySelector('#actualRemittanceAmount').value);
@@ -6075,59 +6090,59 @@ async function confirmSingleDayRemittance() {
     const commissionDeduction = parseFloat(modal.querySelector('#remittanceCommissionDeduction').value);
     const hasOlderPending = modal.querySelector('#hasOlderPending').value === 'true';
     const isToday = dateString === todayDateString;
-    
+
     // Get commission payment preference if commission exists
     const commissionPaymentPreferenceSelect = modal.querySelector('#commissionPaymentPreference');
     const commissionPaymentPreference = commissionPaymentPreferenceSelect ? commissionPaymentPreferenceSelect.value : '';
-    
+
     // Validate
     if (!recipientId) {
         alert('⚠️ Please select who you are giving this money to');
         return;
     }
-    
+
     // Validate commission payment preference if there's commission
     if (commissionDeduction > 0 && !commissionPaymentPreference) {
         alert('⚠️ Please select how you want to receive your commission');
         return;
     }
-    
+
     if (isNaN(actualAmount) || actualAmount < 0) {
         alert('Please enter a valid remittance amount');
         return;
     }
-    
+
     const discrepancy = actualAmount - expectedAmount;
     if (Math.abs(discrepancy) > 0.01 && !notes) {
         alert('Please provide a note explaining the discrepancy');
         return;
     }
-    
+
     const recipient = window.allUsers[recipientId];
     if (!recipient) {
         alert('⚠️ Selected recipient not found');
         return;
     }
-    
+
     // Check for multi-day prompt only if TODAY and there are older pending dates
     if (isToday && hasOlderPending) {
         const pendingDates = getPendingRemittanceDates(techId);
         const olderPendingDates = pendingDates.filter(d => d.dateString < dateString);
-        
+
         if (olderPendingDates.length > 0) {
             const olderDatesStr = olderPendingDates.map(d => utils.formatDate(d.dateString)).join(', ');
             const olderTotal = olderPendingDates.reduce((sum, d) => sum + d.unremittedBalance, 0);
             const combinedTotal = actualAmount + olderTotal;
-            
+
             const message = `You have pending remittance from: ${olderDatesStr}\n\n` +
                 `Today only: ₱${actualAmount.toFixed(2)}\n` +
                 `All pending + today: ₱${combinedTotal.toFixed(2)}\n\n` +
                 `Do you want to:\n` +
                 `1. Remit TODAY ONLY (₱${actualAmount.toFixed(2)})\n` +
                 `2. CATCH UP all pending + today (₱${combinedTotal.toFixed(2)})`;
-            
+
             const choice = confirm(message + '\n\n(OK = Catch up all, CANCEL = Today only)');
-            
+
             if (choice) {
                 // Catch up all pending dates
                 await submitMultipleDayRemittance(recipientId, recipient, notes);
@@ -6135,19 +6150,19 @@ async function confirmSingleDayRemittance() {
             }
         }
     }
-    
+
     // Proceed with single-day submission
     try {
         utils.showLoading(true);
-        
+
         // Get payments for this specific date
         const { payments, total: paymentsCheckTotal } = getTechDailyPayments(techId, dateString);
         const { expenses, total: expensesCheckTotal } = getTechDailyExpenses(techId, dateString);
-        
+
         // Create remittance record for this specific date
         const remittanceDate = new Date(dateString + 'T00:00:00');
         const remittanceId = `rem_${techId}_${dateString.replace(/-/g, '')}_${Date.now()}`;
-        
+
         const remittance = {
             id: remittanceId,
             techId: techId,
@@ -6189,10 +6204,10 @@ async function confirmSingleDayRemittance() {
             // For single-day tracking
             singleDaySubmission: true
         };
-        
+
         // Save to Firebase Realtime Database
         await db.ref(`techRemittances/${remittanceId}`).set(remittance);
-        
+
         // Update all payments to mark as remitted and link to this remittance
         const updates = {};
         payments.forEach(payment => {
@@ -6201,41 +6216,41 @@ async function confirmSingleDayRemittance() {
                 // Update payment status
                 repair.payments[payment.paymentIndex].remittanceStatus = 'remitted';
                 repair.payments[payment.paymentIndex].techRemittanceId = remittanceId;
-                
+
                 // Prepare Firebase update
                 updates[`repairs/${repair.id}/payments`] = repair.payments;
             }
         });
-        
+
         // Update expenses to link to this remittance
         expenses.forEach(expense => {
             updates[`techExpenses/${expense.id}/remittanceId`] = remittanceId;
         });
-        
+
         // Apply all updates
         await db.ref().update(updates);
-        
+
         // Reload data
         await loadRepairs();
         await loadTechRemittances();
         await loadTechExpenses();
-        
+
         utils.showLoading(false);
-        
+
         // Show success with visual confirmation
         alert(`✅ Remittance submitted for ${utils.formatDate(dateString)}!\n\n💰 Amount: ₱${actualAmount.toFixed(2)}\n👤 Submitted to: ${recipient.displayName}`);
         closeRemittanceModal();
-        
+
         // Remove this date from the pending list in real-time
         removeRemittedDateFromUI(dateString);
-        
+
         // Refresh current tab
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error submitting single-day remittance:', error);
@@ -6252,19 +6267,19 @@ async function markCommissionReceived(remittanceId) {
         alert('Remittance not found');
         return;
     }
-    
+
     // Verify it's the technician's own remittance
     if (remittance.techId !== window.currentUser.uid) {
         alert('⚠️ You can only mark your own commissions as received');
         return;
     }
-    
+
     // Check if already marked as paid
     if (remittance.commissionPaid) {
         alert('ℹ️ This commission is already marked as received');
         return;
     }
-    
+
     // Ask for optional notes and discrepancy report
     const reportDiscrepancy = confirm(
         `Mark commission as received?\n\n` +
@@ -6272,16 +6287,16 @@ async function markCommissionReceived(remittanceId) {
         `Payment Method: ${remittance.commissionPaymentPreference}\n\n` +
         `Click OK to confirm, or Cancel to report a discrepancy.`
     );
-    
+
     let notes = '';
     let hasDiscrepancy = !reportDiscrepancy;
-    
+
     if (hasDiscrepancy) {
         notes = prompt(
             '⚠️ Report Commission Discrepancy\n\n' +
             'Please describe the discrepancy (minimum 10 characters):'
         );
-        
+
         if (!notes || notes.trim().length < 10) {
             alert('Please provide a detailed explanation (at least 10 characters)');
             return;
@@ -6292,10 +6307,10 @@ async function markCommissionReceived(remittanceId) {
             'Optional: Add any notes about this commission payment:'
         ) || '';
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const updateData = {
             commissionPaid: true,
             commissionPaidAt: new Date().toISOString(),
@@ -6303,9 +6318,9 @@ async function markCommissionReceived(remittanceId) {
             commissionReceivedNotes: notes.trim(),
             hasCommissionDiscrepancy: hasDiscrepancy
         };
-        
+
         await db.ref(`techRemittances/${remittanceId}`).update(updateData);
-        
+
         // If there's a discrepancy, create a modification request
         if (hasDiscrepancy) {
             await db.ref('modificationRequests').push({
@@ -6319,14 +6334,14 @@ async function markCommissionReceived(remittanceId) {
                 commissionAmount: remittance.totalCommission,
                 verifiedBy: remittance.verifiedBy
             });
-            
+
             alert('✅ Commission discrepancy reported!\n\nAdmin will review your report.');
         } else {
             alert('✅ Commission marked as received!');
         }
-        
+
         utils.showLoading(false);
-        
+
         // Refresh tab
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
@@ -6349,26 +6364,26 @@ async function markRemittanceAsResolved(remittanceId) {
         alert('Remittance not found');
         return;
     }
-    
+
     // Check if user has permission (admin, cashier, or manager)
     const userRole = window.currentUserData.role;
     if (!['admin', 'cashier', 'manager'].includes(userRole)) {
         alert('⚠️ Only admin, cashier, or manager can mark remittances as resolved');
         return;
     }
-    
+
     // Check if already resolved
     if (remittance.manuallyResolved) {
         alert('ℹ️ This remittance is already marked as resolved');
         return;
     }
-    
+
     // Check if it's rejected
     if (remittance.status !== 'rejected') {
         alert('⚠️ Only rejected remittances can be marked as resolved');
         return;
     }
-    
+
     // Ask for resolution notes
     const notes = prompt(
         'Mark Remittance as Resolved\n\n' +
@@ -6377,15 +6392,15 @@ async function markRemittanceAsResolved(remittanceId) {
         `Amount: ₱${remittance.actualAmount.toFixed(2)}\n\n` +
         'Please explain how this was resolved (minimum 10 characters):'
     );
-    
+
     if (!notes || notes.trim().length < 10) {
         alert('Please provide a detailed explanation (at least 10 characters)');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const updateData = {
             manuallyResolved: true,
             resolvedBy: window.currentUserData.displayName,
@@ -6393,13 +6408,13 @@ async function markRemittanceAsResolved(remittanceId) {
             resolvedAt: new Date().toISOString(),
             resolutionNotes: notes.trim()
         };
-        
+
         await db.ref(`techRemittances/${remittanceId}`).update(updateData);
-        
+
         alert('✅ Remittance marked as resolved!');
-        
+
         utils.showLoading(false);
-        
+
         // Refresh tab
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
@@ -6422,26 +6437,26 @@ async function markRemittanceAsResolved(remittanceId) {
         alert('Remittance not found');
         return;
     }
-    
+
     // Check if user has permission (admin, cashier, or manager)
     const userRole = window.currentUserData.role;
     if (!['admin', 'cashier', 'manager'].includes(userRole)) {
         alert('⚠️ Only admin, cashier, or manager can mark remittances as resolved');
         return;
     }
-    
+
     // Check if already resolved
     if (remittance.manuallyResolved) {
         alert('ℹ️ This remittance is already marked as resolved');
         return;
     }
-    
+
     // Check if it's rejected
     if (remittance.status !== 'rejected') {
         alert('⚠️ Only rejected remittances can be marked as resolved');
         return;
     }
-    
+
     // Ask for resolution notes
     const notes = prompt(
         'Mark Remittance as Resolved\n\n' +
@@ -6450,15 +6465,15 @@ async function markRemittanceAsResolved(remittanceId) {
         `Amount: ₱${remittance.actualAmount.toFixed(2)}\n\n` +
         'Please explain how this was resolved (minimum 10 characters):'
     );
-    
+
     if (!notes || notes.trim().length < 10) {
         alert('Please provide a detailed explanation (at least 10 characters)');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const updateData = {
             manuallyResolved: true,
             resolvedBy: window.currentUserData.displayName,
@@ -6466,13 +6481,13 @@ async function markRemittanceAsResolved(remittanceId) {
             resolvedAt: new Date().toISOString(),
             resolutionNotes: notes.trim()
         };
-        
+
         await db.ref(`techRemittances/${remittanceId}`).update(updateData);
-        
+
         alert('✅ Remittance marked as resolved!');
-        
+
         utils.showLoading(false);
-        
+
         // Refresh tab
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
@@ -6491,17 +6506,17 @@ window.markRemittanceAsResolved = markRemittanceAsResolved;
  */
 async function submitMultipleDayRemittance(recipientId, recipient, notes) {
     const techId = window.currentUser.uid;
-    
+
     try {
         utils.showLoading(true);
-        
+
         const pendingDates = getPendingRemittanceDates(techId);
         if (pendingDates.length === 0) {
             alert('No pending remittances found');
             utils.showLoading(false);
             return;
         }
-        
+
         let totalPayments = 0;
         let totalExpenses = 0;
         let totalCommission = 0;
@@ -6509,13 +6524,13 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
         const allExpenseIds = [];
         const paymentsList = [];
         const expensesList = [];
-        
+
         // Aggregate all pending dates
         pendingDates.forEach(dateData => {
             totalPayments += dateData.totalPayments;
             totalExpenses += dateData.totalExpenses;
             totalCommission += dateData.totalCommission;
-            
+
             dateData.payments.forEach(p => {
                 allPaymentIds.push(`${p.repairId}_${p.paymentIndex}`);
                 paymentsList.push({
@@ -6526,7 +6541,7 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
                     date: dateData.dateString
                 });
             });
-            
+
             dateData.expenses.forEach(e => {
                 allExpenseIds.push(e.id);
                 expensesList.push({
@@ -6537,9 +6552,9 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
                 });
             });
         });
-        
+
         const expectedRemittance = totalPayments - totalExpenses - totalCommission;
-        
+
         // Confirm with user
         const confirmMsg = `Catch-up Remittance:\n\n` +
             `Dates: ${pendingDates.map(d => utils.formatDate(d.dateString)).join(', ')}\n` +
@@ -6547,16 +6562,16 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
             `Expenses: -₱${totalExpenses.toFixed(2)}\n` +
             `Commission (40%): -₱${totalCommission.toFixed(2)}\n` +
             `Amount to Remit: ₱${expectedRemittance.toFixed(2)}\n\nConfirm?`;
-        
+
         if (!confirm(confirmMsg)) {
             utils.showLoading(false);
             return;
         }
-        
+
         // Create remittance record
         const today = new Date();
         const remittanceId = `rem_${techId}_multi_${Date.now()}`;
-        
+
         const remittance = {
             id: remittanceId,
             techId: techId,
@@ -6589,10 +6604,10 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
             // Multi-day tracking
             multiDaySubmission: true
         };
-        
+
         // Save to Firebase Realtime Database
         await db.ref(`techRemittances/${remittanceId}`).set(remittance);
-        
+
         // Update all payments to mark as remitted
         const updates = {};
         pendingDates.forEach(dateData => {
@@ -6602,47 +6617,47 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
                     // Update payment status
                     repair.payments[payment.paymentIndex].remittanceStatus = 'remitted';
                     repair.payments[payment.paymentIndex].techRemittanceId = remittanceId;
-                    
+
                     // Prepare Firebase update
                     updates[`repairs/${repair.id}/payments`] = repair.payments;
                 }
             });
         });
-        
+
         // Update expenses to link to this remittance
         allExpenseIds.forEach(expenseId => {
             updates[`techExpenses/${expenseId}/remittanceId`] = remittanceId;
         });
-        
+
         // Apply all updates
         await db.ref().update(updates);
-        
+
         // Reload data
         await loadRepairs();
         await loadTechRemittances();
         await loadTechExpenses();
-        
+
         utils.showLoading(false);
-        
+
         alert(`✅ Multi-day remittance submitted!\n\n` +
             `Dates: ${pendingDates.map(d => utils.formatDate(d.dateString)).join(', ')}\n` +
             `💰 Amount: ₱${expectedRemittance.toFixed(2)}\n` +
             `👤 Submitted to: ${recipient.displayName}`);
-        
+
         closeRemittanceModal();
-        
+
         // Remove all remitted dates from UI
         pendingDates.forEach(dateData => {
             removeRemittedDateFromUI(dateData.dateString);
         });
-        
+
         // Refresh current tab
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error submitting multi-day remittance:', error);
@@ -6674,12 +6689,12 @@ function removeRemittedDateFromUI(dateString) {
             `;
             toast.innerHTML = `✓ Remitted ${utils.formatDate(dateString)}`;
             document.body.appendChild(toast);
-            
+
             // Remove element with animation
             el.style.opacity = '0';
             el.style.transform = 'translateX(100%)';
             el.style.transition = 'all 0.3s ease-in-out';
-            
+
             setTimeout(() => {
                 el.remove();
                 // Remove toast
@@ -6695,38 +6710,38 @@ function removeRemittedDateFromUI(dateString) {
 function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
     console.log('🔍 Opening verify modal for remittance:', remittanceId);
     console.log('📋 Available remittances:', window.techRemittances.map(r => r.id));
-    
+
     const remittance = window.techRemittances.find(r => r.id === remittanceId);
     if (!remittance) {
         console.error('❌ Remittance not found:', remittanceId);
         alert('⚠️ Remittance not found. Please refresh the page and try again.');
         return;
     }
-    
+
     console.log('✅ Found remittance:', remittance);
-    
+
     const currentUserId = window.currentUser.uid;
     const isAdmin = window.currentUserData.role === 'admin';
-    
+
     console.log('👤 Current user:', currentUserId, 'Role:', window.currentUserData.role);
     console.log('📮 Remittance submitted to:', remittance.submittedTo, remittance.submittedToName);
-    
+
     // Check if current user is the intended recipient
     const isIntendedRecipient = remittance.submittedTo === currentUserId;
-    
+
     console.log('✓ Is intended recipient?', isIntendedRecipient, '| Is admin?', isAdmin);
-    
+
     if (!isIntendedRecipient && !isAdmin) {
         alert('⚠️ This remittance was submitted to ' + remittance.submittedToName + ', not you.\n\nOnly they (or an admin) can verify it.');
         return;
     }
-    
+
     console.log('✅ Authorization passed, building modal...');
-    
+
     const showOverrideWarning = isAdminOverride && !isIntendedRecipient;
     const discrepancy = remittance.discrepancy;
     const hasDiscrepancy = Math.abs(discrepancy) > 0.01;
-    
+
     let details = `
         ${showOverrideWarning ? `
             <div style="background:#ffebee;padding:15px;border-radius:8px;border-left:3px solid #f44336;margin-bottom:15px;">
@@ -6790,11 +6805,11 @@ function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
                 
                 <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-top:10px;">
                     <strong>Payment Method:</strong> 
-                    ${remittance.commissionPaymentPreference === 'cash' 
-                        ? '💵 Cash - Give cash to technician' 
-                        : remittance.commissionPaymentPreference === 'gcash'
-                        ? '📱 GCash - Send to technician\'s GCash'
-                        : '⚠️ Not specified (legacy remittance)'}
+                    ${remittance.commissionPaymentPreference === 'cash'
+                ? '💵 Cash - Give cash to technician'
+                : remittance.commissionPaymentPreference === 'gcash'
+                    ? '📱 GCash - Send to technician\'s GCash'
+                    : '⚠️ Not specified (legacy remittance)'}
                 </div>
                 
                 ${remittance.commissionPaid ? `
@@ -6861,7 +6876,7 @@ function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
             </div>
         ` : ''}
     `;
-    
+
     document.getElementById('remittanceDetails').innerHTML = details;
     document.getElementById('verificationNotes').value = '';
     document.getElementById('verifyRemittanceModal').dataset.remittanceId = remittanceId;
@@ -6875,21 +6890,21 @@ async function approveRemittance() {
     const remittanceId = document.getElementById('verifyRemittanceModal').dataset.remittanceId;
     const notes = document.getElementById('verificationNotes').value.trim();
     const remittance = window.techRemittances.find(r => r.id === remittanceId);
-    
+
     if (!remittance) return;
-    
+
     const hasDiscrepancy = Math.abs(remittance.discrepancy) > 0.01;
-    
+
     if (hasDiscrepancy && !notes) {
         alert('Please provide verification notes explaining why you are approving despite the discrepancy');
         return;
     }
-    
+
     if (!confirm('Approve this remittance?')) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Update remittance status
         await db.ref(`techRemittances/${remittanceId}`).update({
             status: 'approved',
@@ -6897,7 +6912,7 @@ async function approveRemittance() {
             verifiedAt: new Date().toISOString(),
             verificationNotes: notes
         });
-        
+
         // Update all linked payments to verified
         const updatePromises = [];
         (remittance.paymentIds || []).forEach(paymentId => {
@@ -6917,17 +6932,17 @@ async function approveRemittance() {
                 );
             }
         });
-        
+
         await Promise.all(updatePromises);
-        
+
         // Reload data to reflect changes
         await loadTechRemittances();
         await loadRepairs(); // IMPORTANT: Reload repairs to get updated payment statuses
-        
+
         utils.showLoading(false);
         alert('✅ Remittance approved and all payments verified!');
         closeVerifyRemittanceModal();
-        
+
         // Auto-close and refresh page
         setTimeout(() => {
             location.reload();
@@ -6945,17 +6960,17 @@ async function approveRemittance() {
 async function rejectRemittance() {
     const remittanceId = document.getElementById('verifyRemittanceModal').dataset.remittanceId;
     const notes = document.getElementById('verificationNotes').value.trim();
-    
+
     if (!notes) {
         alert('Please provide a reason for rejecting this remittance');
         return;
     }
-    
+
     if (!confirm('Reject this remittance? The technician will need to resubmit.')) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Update remittance status
         await db.ref(`techRemittances/${remittanceId}`).update({
             status: 'rejected',
@@ -6963,32 +6978,32 @@ async function rejectRemittance() {
             verifiedAt: new Date().toISOString(),
             verificationNotes: notes
         });
-        
+
         // Reset payment remittance status back to pending
         const remittance = window.techRemittances.find(r => r.id === remittanceId);
         const updatePromises = [];
-        
+
         console.log('🔄 Rejecting remittance:', remittanceId);
         console.log('📋 Remittance has paymentIds:', remittance.paymentIds);
-        
+
         // ALWAYS scan ALL repairs to find any payment linked to this remittance
         // This ensures we don't miss any payments due to data inconsistencies
         let paymentsReset = 0;
-        
+
         window.allRepairs.forEach(repair => {
             if (repair.payments) {
                 const updatedPayments = [...repair.payments];
                 let hasChanges = false;
-                
+
                 repair.payments.forEach((payment, index) => {
                     // Reset if payment is linked to this remittance by ID OR status
-                    if (payment.techRemittanceId === remittanceId || 
-                        (payment.remittanceStatus === 'remitted' && 
-                         remittance.paymentIds && 
-                         remittance.paymentIds.includes(`${repair.id}_${index}`))) {
-                        
+                    if (payment.techRemittanceId === remittanceId ||
+                        (payment.remittanceStatus === 'remitted' &&
+                            remittance.paymentIds &&
+                            remittance.paymentIds.includes(`${repair.id}_${index}`))) {
+
                         console.log(`✅ Resetting payment: ${repair.customerName} - ₱${payment.amount}`);
-                        
+
                         updatedPayments[index] = {
                             ...payment,
                             techRemittanceId: null,
@@ -6998,7 +7013,7 @@ async function rejectRemittance() {
                         paymentsReset++;
                     }
                 });
-                
+
                 if (hasChanges) {
                     updatePromises.push(
                         db.ref(`repairs/${repair.id}`).update({ payments: updatedPayments })
@@ -7006,9 +7021,9 @@ async function rejectRemittance() {
                 }
             }
         });
-        
+
         console.log(`📊 Total payments reset: ${paymentsReset}`);
-        
+
         // Reset expense remittance IDs
         if (remittance.expenseIds && remittance.expenseIds.length > 0) {
             remittance.expenseIds.forEach(expenseId => {
@@ -7026,7 +7041,7 @@ async function rejectRemittance() {
                 }
             });
         }
-        
+
         // Reset commission flags for repairs included in this remittance
         if (remittance.commissionBreakdown && remittance.commissionBreakdown.length > 0) {
             // New format - use commission breakdown
@@ -7054,18 +7069,18 @@ async function rejectRemittance() {
                 }
             });
         }
-        
+
         await Promise.all(updatePromises);
-        
+
         // Reload data to reflect changes
         await loadTechRemittances();
         await loadTechExpenses();
         await loadRepairs(); // IMPORTANT: Reload repairs to get updated payment statuses
-        
+
         utils.showLoading(false);
         alert('❌ Remittance rejected. Technician can resubmit with corrections.');
         closeVerifyRemittanceModal();
-        
+
         // Auto-close and refresh page
         setTimeout(() => {
             location.reload();
@@ -7092,30 +7107,30 @@ function closeVerifyRemittanceModal() {
  */
 function openGCashRemittanceModal(dateString) {
     const techId = window.currentUser.uid;
-    
+
     // Get GCash payments for this date
     const dateData = getPendingGCashDates(techId).find(d => d.dateString === dateString);
     if (!dateData) {
         alert('⚠️ No pending GCash payments for this date');
         return;
     }
-    
+
     const payments = dateData.payments;
     const paymentsTotal = dateData.totalPayments;
     const commissionAmount = dateData.totalCommission; // 40%
     const remittedAmount = dateData.remittedAmount; // 60%
-    
+
     // Get list of users who can receive GCash (admin, manager, cashier)
-    const gcashReceivers = Object.values(window.allUsers).filter(u => 
+    const gcashReceivers = Object.values(window.allUsers).filter(u =>
         ['admin', 'manager', 'cashier'].includes(u.role)
     );
-    
+
     const modal = document.getElementById('remittanceModal');
     if (!modal) {
         console.error('Remittance modal not found');
         return;
     }
-    
+
     modal.innerHTML = `
         <div class="modal-content" style="max-width:700px;max-height:90vh;overflow-y:auto;">
             <span class="close" onclick="closeRemittanceModal()">&times;</span>
@@ -7222,7 +7237,7 @@ function openGCashRemittanceModal(dateString) {
             </div>
         </div>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -7231,14 +7246,14 @@ function openGCashRemittanceModal(dateString) {
  */
 async function confirmGCashRemittance() {
     const techId = window.currentUser.uid;
-    
+
     // Get values from modal
     const modal = document.getElementById('remittanceModal');
     if (!modal) {
         alert('Modal not found');
         return;
     }
-    
+
     const dateString = modal.querySelector('#gcashDateString').value;
     const totalAmount = parseFloat(modal.querySelector('#gcashTotalAmount').value);
     const remittedAmount = parseFloat(modal.querySelector('#gcashRemittedAmount').value);
@@ -7247,33 +7262,33 @@ async function confirmGCashRemittance() {
     const receiverUid = receiverSelect.value;
     const commissionPreference = modal.querySelector('#gcashCommissionPreference').value;
     const notes = modal.querySelector('#gcashRemittanceNotes').value.trim();
-    
+
     // Validation
     if (!receiverUid) {
         alert('⚠️ Please select who received the GCash payments');
         return;
     }
-    
+
     if (!commissionPreference) {
         alert('⚠️ Please select how you want to receive your commission');
         return;
     }
-    
+
     const receiver = window.allUsers[receiverUid];
     if (!receiver) {
         alert('⚠️ Selected receiver not found');
         return;
     }
-    
+
     // Get GCash payments for this date
     const dateData = getPendingGCashDates(techId).find(d => d.dateString === dateString);
     if (!dateData) {
         alert('⚠️ No pending GCash payments for this date');
         return;
     }
-    
+
     const payments = dateData.payments;
-    
+
     // Confirm
     if (!confirm(
         `Submit GCash Remittance Report?\n\n` +
@@ -7286,10 +7301,10 @@ async function confirmGCashRemittance() {
     )) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Create GCash remittance record
         const remittance = {
             remittanceType: 'gcash',  // KEY: Distinguish from cash
@@ -7342,10 +7357,10 @@ async function confirmGCashRemittance() {
             commissionPaidAt: null,
             commissionPaidConfirmedBy: null
         };
-        
+
         const remittanceRef = await db.ref('techRemittances').push(remittance);
         const remittanceId = remittanceRef.key;
-        
+
         // Update all GCash payments with remittance ID
         const updatePromises = [];
         payments.forEach(p => {
@@ -7362,9 +7377,9 @@ async function confirmGCashRemittance() {
                 );
             }
         });
-        
+
         await Promise.all(updatePromises);
-        
+
         // Log activity
         await logActivity('gcash_remittance_submitted', {
             remittanceId: remittanceId,
@@ -7374,11 +7389,11 @@ async function confirmGCashRemittance() {
             remittedAmount: remittedAmount,
             commission: commissionAmount
         }, `${window.currentUserData.displayName} submitted GCash remittance report of ₱${totalAmount.toFixed(2)} to ${receiver.displayName}`);
-        
+
         utils.showLoading(false);
         alert(`✅ GCash remittance reported!\n\n💰 Total: ₱${totalAmount.toFixed(2)}\n🏦 Remitted (60%): ₱${remittedAmount.toFixed(2)}\n👤 Commission (40%): ₱${commissionAmount.toFixed(2)}\n\n⏳ Waiting for ${receiver.displayName} to verify receipt.`);
         closeRemittanceModal();
-        
+
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
@@ -7400,17 +7415,17 @@ async function verifyGCashRemittance(remittanceId, approved) {
         alert('Remittance not found');
         return;
     }
-    
+
     // Check if user is the receiver or admin
     const currentUserId = window.currentUser.uid;
     const isReceiver = remittance.gcashReceiverUid === currentUserId;
     const isAdmin = window.currentUserData.role === 'admin';
-    
+
     if (!isReceiver && !isAdmin) {
         alert('⚠️ Only the GCash receiver or admin can verify this remittance');
         return;
     }
-    
+
     // Ask for notes
     let notes = '';
     if (approved) {
@@ -7427,16 +7442,16 @@ async function verifyGCashRemittance(remittanceId, approved) {
             `From: ${remittance.techName}\n\n` +
             'Please explain why GCash was not found (minimum 10 characters):'
         );
-        
+
         if (!notes || notes.trim().length < 10) {
             alert('Please provide a detailed explanation (at least 10 characters)');
             return;
         }
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const updateData = {
             status: approved ? 'approved' : 'rejected',
             verifiedBy: window.currentUserData.displayName,
@@ -7444,9 +7459,9 @@ async function verifyGCashRemittance(remittanceId, approved) {
             verifiedAt: new Date().toISOString(),
             verificationNotes: notes.trim()
         };
-        
+
         await db.ref(`techRemittances/${remittanceId}`).update(updateData);
-        
+
         // If rejected, reset payment statuses
         if (!approved) {
             const updatePromises = [];
@@ -7454,7 +7469,7 @@ async function verifyGCashRemittance(remittanceId, approved) {
                 const paymentId = remittance.paymentIds[idx];
                 const [repairId, paymentIndex] = paymentId.split('_');
                 const repair = window.allRepairs.find(r => r.id === repairId);
-                
+
                 if (repair && repair.payments) {
                     const updatedPayments = [...repair.payments];
                     updatedPayments[parseInt(paymentIndex)] = {
@@ -7467,10 +7482,10 @@ async function verifyGCashRemittance(remittanceId, approved) {
                     );
                 }
             });
-            
+
             await Promise.all(updatePromises);
         }
-        
+
         // Log activity
         await logActivity(approved ? 'gcash_remittance_approved' : 'gcash_remittance_rejected', {
             remittanceId: remittanceId,
@@ -7478,10 +7493,10 @@ async function verifyGCashRemittance(remittanceId, approved) {
             verifiedBy: window.currentUserData.displayName,
             amount: remittance.totalPaymentsCollected
         }, `${window.currentUserData.displayName} ${approved ? 'approved' : 'rejected'} GCash remittance from ${remittance.techName}`);
-        
+
         utils.showLoading(false);
         alert(approved ? '✅ GCash remittance approved!' : '❌ GCash remittance rejected. Technician can resubmit.');
-        
+
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
         }
@@ -7507,19 +7522,19 @@ async function markCommissionAsPaid(remittanceId) {
         alert('⚠️ Remittance not found');
         return;
     }
-    
+
     // Check if already paid
     if (remittance.commissionPaid) {
         alert('ℹ️ Commission has already been marked as paid.');
         return;
     }
-    
+
     const totalCommission = remittance.totalCommission || remittance.commissionEarned || 0;
     if (totalCommission === 0) {
         alert('ℹ️ No commission to pay for this remittance.');
         return;
     }
-    
+
     // Confirm payment
     const paymentMethod = remittance.commissionPaymentPreference || 'Not specified';
     const confirmed = confirm(
@@ -7532,24 +7547,24 @@ async function markCommissionAsPaid(remittanceId) {
         `Are you sure you have paid this commission to the technician?\n\n` +
         `Click OK to mark as paid...`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Require notes
     const notes = prompt('Enter notes (optional - e.g., GCash reference number, cash count notes):');
-    
+
     try {
         utils.showLoading(true);
-        
+
         const now = new Date().toISOString();
-        
+
         await db.ref(`techRemittances/${remittanceId}`).update({
             commissionPaid: true,
             commissionPaidBy: window.currentUserData.displayName,
             commissionPaidAt: now,
             commissionPaymentNotes: notes || ''
         });
-        
+
         // Log activity
         await logActivity('commission_paid', {
             remittanceId: remittanceId,
@@ -7559,20 +7574,20 @@ async function markCommissionAsPaid(remittanceId) {
             paymentMethod: paymentMethod,
             notes: notes
         }, `Commission paid: ₱${totalCommission.toFixed(2)} to ${remittance.techName} via ${paymentMethod}`);
-        
+
         // Reload remittances
         await loadTechRemittances();
-        
+
         utils.showLoading(false);
         alert(`✅ Commission Marked as Paid!\n\n₱${totalCommission.toFixed(2)} to ${remittance.techName}\nMethod: ${paymentMethod}\n\nThis will now show as paid in both technician and admin views.`);
-        
+
         // Refresh
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error marking commission as paid:', error);
@@ -7594,27 +7609,27 @@ function toggleReleasePaymentSection() {
     const section = document.getElementById('releasePaymentSection');
     const amountField = document.getElementById('releasePaymentAmount');
     const methodField = document.getElementById('releasePaymentMethod');
-    
+
     if (checkbox.checked) {
         section.style.display = 'block';
-        
+
         // Auto-populate remaining balance
         const repairId = window.currentReleaseRepairId;
         const repair = window.allRepairs.find(r => r.id === repairId);
         if (repair) {
             const totalPaid = (repair.payments || []).reduce((sum, p) => sum + p.amount, 0);
             const balance = repair.total - totalPaid;
-            
+
             if (balance > 0) {
                 amountField.value = balance.toFixed(2);
-                document.getElementById('releaseBalanceInfo').innerHTML = 
+                document.getElementById('releaseBalanceInfo').innerHTML =
                     `<strong style="color:#2196f3;">Remaining balance: ₱${balance.toFixed(2)}</strong>`;
             } else {
-                document.getElementById('releaseBalanceInfo').innerHTML = 
+                document.getElementById('releaseBalanceInfo').innerHTML =
                     `<span style="color:#4caf50;">✓ Fully paid</span>`;
             }
         }
-        
+
         amountField.required = true;
         methodField.required = true;
     } else {
@@ -7633,7 +7648,7 @@ function toggleGCashReferenceField() {
     const paymentMethod = document.getElementById('releasePaymentMethod').value;
     const gcashField = document.getElementById('gcashReferenceField');
     const gcashInput = document.getElementById('releaseGCashReference');
-    
+
     if (paymentMethod === 'GCash') {
         gcashField.style.display = 'block';
         gcashInput.required = true;
@@ -7650,22 +7665,48 @@ function toggleGCashReferenceField() {
 function openReleaseDeviceModal(repairId) {
     // Store repairId globally for payment section
     window.currentReleaseRepairId = repairId;
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) return;
-    
+
     // Reset photo
     serviceSlipPhoto = null;
-    
+
     // Calculate payment status
     const totalPaid = (repair.payments || []).filter(p => p.verified)
         .reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
     const isFullyPaid = balance <= 0;
-    
+
     // Set repair ID
     document.getElementById('releaseRepairId').value = repairId;
     
+    // Add help text at the top of the modal
+    const lang = getCurrentHelpLanguage();
+    const helpTitle = lang === 'tl' ? 'Paano I-release ang Device' : 'How to Release Device';
+    const helpText = lang === 'tl' ? 
+        'Piliin ang verification method (With/Without Slip), kumpirmahin ang customer name at contact, at i-click ang Release Device. Pwede ring maningil ng bayad habang nire-release.' :
+        'Choose verification method (With/Without Slip), confirm customer name and contact, then click Release Device. You can also collect payment during release.';
+    
+    const helpSection = document.createElement('div');
+    helpSection.innerHTML = `
+        <details style="margin-bottom:15px;padding:10px;background:#e3f2fd;border-radius:6px;">
+            <summary style="cursor:pointer;font-weight:bold;color:#1976d2;font-size:14px;">
+                ❓ ${helpTitle}
+            </summary>
+            <p style="margin:10px 0 0;color:#555;font-size:13px;line-height:1.5;">
+                ${helpText}
+            </p>
+        </details>
+    `;
+    
+    // Insert help at the beginning of modal content
+    const modalContent = document.getElementById('releaseDeviceModalContent');
+    if (modalContent) {
+        const firstChild = modalContent.firstChild;
+        modalContent.insertBefore(helpSection.firstChild, firstChild);
+    }
+
     // Display device info
     document.getElementById('releaseDeviceInfo').innerHTML = `
         <div class="release-info-card">
@@ -7677,7 +7718,7 @@ function openReleaseDeviceModal(repairId) {
             ${repair.isBackJob ? '<p style="color:#d32f2f;font-weight:bold;">🔄 BACK JOB (Warranty)</p>' : ''}
         </div>
     `;
-    
+
     // Display payment status
     const paymentHTML = isFullyPaid ? `
         <div class="payment-status-card paid">
@@ -7697,25 +7738,25 @@ function openReleaseDeviceModal(repairId) {
             </p>
         </div>
     `;
-    
+
     document.getElementById('releasePaymentStatus').innerHTML = paymentHTML;
-    
+
     // Pre-fill customer info
     document.getElementById('releaseCustomerName').value = repair.customerName;
     document.getElementById('releaseContactNumber').value = repair.contactNumber;
     document.getElementById('releaseCustomerAddress').value = '';
-    
+
     // Reset verification method
     document.getElementById('verificationMethod').value = 'with-slip';
     toggleVerificationMethod();
-    
+
     // Reset photo preview
     const photoPreview = document.getElementById('serviceSlipPhotoPreview');
     if (photoPreview) {
         photoPreview.src = '';
         photoPreview.style.display = 'none';
     }
-    
+
     // Reset payment checkbox and section
     const paymentCheckbox = document.getElementById('customerPaidCheckbox');
     const paymentSection = document.getElementById('releasePaymentSection');
@@ -7725,7 +7766,7 @@ function openReleaseDeviceModal(repairId) {
     if (paymentSection) {
         paymentSection.style.display = 'none';
     }
-    
+
     // Show modal
     document.getElementById('releaseDeviceModal').style.display = 'block';
 }
@@ -7737,7 +7778,7 @@ function toggleVerificationMethod() {
     const method = document.getElementById('verificationMethod').value;
     const withSlipSection = document.getElementById('withSlipSection');
     const withoutSlipSection = document.getElementById('withoutSlipSection');
-    
+
     if (method === 'with-slip') {
         withSlipSection.style.display = 'block';
         withoutSlipSection.style.display = 'none';
@@ -7755,17 +7796,17 @@ function toggleVerificationMethod() {
 async function uploadServiceSlipPhoto(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     try {
         // Compress image
         const compressed = await utils.compressImage(file, 1024, 768);
         serviceSlipPhoto = compressed;
-        
+
         // Show preview
         const preview = document.getElementById('serviceSlipPhotoPreview');
         preview.src = compressed;
         preview.style.display = 'block';
-        
+
         console.log('✅ Service slip photo uploaded');
     } catch (error) {
         console.error('Error uploading photo:', error);
@@ -7782,45 +7823,45 @@ async function confirmReleaseDevice() {
     const customerName = document.getElementById('releaseCustomerName').value.trim();
     const contactNumber = document.getElementById('releaseContactNumber').value.trim();
     const releaseNotes = document.getElementById('releaseNotes').value.trim();
-    
+
     // Basic validation
     if (!customerName || !contactNumber) {
         alert('Please confirm customer name and contact number');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     // Verify customer info
     if (customerName.toLowerCase() !== repair.customerName.toLowerCase()) {
         if (!confirm('⚠️ Customer name does not match!\n\nRecorded: ' + repair.customerName + '\nEntered: ' + customerName + '\n\nContinue anyway?')) {
             return;
         }
     }
-    
+
     if (contactNumber !== repair.contactNumber) {
         if (!confirm('⚠️ Contact number does not match!\n\nRecorded: ' + repair.contactNumber + '\nEntered: ' + contactNumber + '\n\nContinue anyway?')) {
             return;
         }
     }
-    
+
     // Check if payment is being recorded via checkbox
     const customerPaid = document.getElementById('customerPaidCheckbox').checked;
     let paymentCollected = null;
     let paymentAmount = 0;
-    
+
     if (customerPaid) {
         paymentAmount = parseFloat(document.getElementById('releasePaymentAmount').value);
         const paymentMethod = document.getElementById('releasePaymentMethod').value;
         const paymentNotes = document.getElementById('releasePaymentNotes').value.trim();
         const gcashReference = document.getElementById('releaseGCashReference').value.trim();
-        
+
         // Validate payment amount
         if (!paymentAmount || paymentAmount <= 0) {
             alert('⚠️ Please enter a valid payment amount');
             return;
         }
-        
+
         // Validate GCash reference if GCash is selected
         if (paymentMethod === 'GCash') {
             if (!gcashReference) {
@@ -7832,7 +7873,7 @@ async function confirmReleaseDevice() {
                 return;
             }
         }
-        
+
         // Create payment collected object
         paymentCollected = {
             amount: paymentAmount,
@@ -7846,12 +7887,12 @@ async function confirmReleaseDevice() {
             gcashReferenceNumber: paymentMethod === 'GCash' ? gcashReference : null
         };
     }
-    
+
     // Calculate balance for tracking
     const totalPaidBefore = (repair.payments || []).filter(p => p.verified)
         .reduce((sum, p) => sum + p.amount, 0);
     const balanceBefore = repair.total - totalPaidBefore;
-    
+
     // Build release data
     const releaseData = {
         status: 'Released',
@@ -7868,7 +7909,7 @@ async function confirmReleaseDevice() {
         lastUpdated: new Date().toISOString(),
         lastUpdatedBy: window.currentUserData.displayName
     };
-    
+
     // Add verification-specific data
     if (verificationMethod === 'with-slip') {
         releaseData.serviceSlipPhoto = serviceSlipPhoto;
@@ -7880,7 +7921,7 @@ async function confirmReleaseDevice() {
             alert('Please enter customer address for verification');
             return;
         }
-        
+
         releaseData.enhancedVerification = {
             address: address,
             claimantPhoto: serviceSlipPhoto, // Reusing same photo field
@@ -7889,44 +7930,44 @@ async function confirmReleaseDevice() {
             method: 'without-slip'
         };
     }
-    
+
     // Add balance tracking if still unpaid after optional payment collection
     const finalBalance = paymentCollected ? (balanceBefore - paymentCollected.amount) : balanceBefore;
     if (finalBalance > 0) {
         releaseData.releasedWithBalance = finalBalance;
         releaseData.balanceNotes = 'Released with unpaid balance of ₱' + finalBalance.toFixed(2) + ' - approved by ' + window.currentUserData.displayName;
     }
-    
+
     // Confirm release
     const confirmMsg = verificationMethod === 'with-slip'
         ? `✅ Release device with service slip photo?\n\nCustomer: ${customerName}`
         : `⚠️ Release device WITHOUT service slip?\n\nCustomer: ${customerName}\n\nEnhanced verification will be recorded.`;
-    
+
     if (!confirm(confirmMsg)) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Update device release status
         await db.ref(`repairs/${repairId}`).update(releaseData);
-        
+
         // If payment was collected during release, save it
         if (paymentCollected) {
             // FIX: Payment should be credited to the technician who worked on the repair,
             // not the person who releases the device (could be cashier/admin)
             const technicianId = repair.acceptedBy; // Who worked on the repair
             const technicianName = repair.acceptedByName || 'Unknown';
-            
+
             // Check if the technician has a technician role (for remittance tracking)
             const technicianUser = technicianId ? window.allUsers[technicianId] : null;
             const isTechRole = technicianUser && technicianUser.role === 'technician';
-            
+
             // Create payment object
             // NOTE: Payments are ALWAYS auto-verified when recorded
             // Verification happens at the REMITTANCE level (when tech hands cash to cashier/admin)
             // GCash payments go to shop account, not collected by tech
             const isGCash = paymentCollected.method === 'GCash';
-            
+
             const payment = {
                 amount: paymentCollected.amount,
                 method: paymentCollected.method,
@@ -7952,12 +7993,12 @@ async function confirmReleaseDevice() {
                 // GCash specific fields
                 gcashReferenceNumber: paymentCollected.gcashReferenceNumber || null
             };
-            
+
             const existingPayments = repair.payments || [];
             await db.ref(`repairs/${repairId}`).update({
                 payments: [...existingPayments, payment]
             });
-            
+
             // Log payment collection
             await logActivity('payment_recorded', {
                 repairId: repairId,
@@ -7969,7 +8010,7 @@ async function confirmReleaseDevice() {
                 customerName: repair.customerName
             }, `Payment of ₱${payment.amount.toFixed(2)} collected at release by ${paymentCollected.collectedBy}`);
         }
-        
+
         // Log device release activity
         await logActivity('device_released', {
             repairId: repairId,
@@ -7983,13 +8024,13 @@ async function confirmReleaseDevice() {
             paymentCollected: paymentCollected ? paymentCollected.amount : 0,
             hadBalance: balanceBefore > 0
         }, `Device released to ${repair.customerName} by ${window.currentUserData.displayName} (${window.currentUserData.role})${paymentCollected ? ` - Collected ₱${paymentCollected.amount.toFixed(2)}` : ''}`);
-        
+
         utils.showLoading(false);
-        
+
         let successMsg = verificationMethod === 'with-slip'
             ? '✅ Device released successfully!\n\n📸 Service slip photo recorded.'
             : '✅ Device released successfully!\n\n⚠️ Released without slip - Enhanced verification recorded.';
-        
+
         if (paymentCollected) {
             const newBalance = balanceBefore - paymentCollected.amount;
             successMsg += `\n\n💰 Payment Collected: ₱${paymentCollected.amount.toFixed(2)}`;
@@ -7998,20 +8039,20 @@ async function confirmReleaseDevice() {
             } else {
                 successMsg += `\n✅ Fully Paid!`;
             }
-            
+
             if (window.currentUserData.role === 'technician') {
                 successMsg += `\n\n📋 Payment will be included in your daily remittance.`;
             }
         }
-        
+
         alert(successMsg);
         closeReleaseDeviceModal();
-        
+
         setTimeout(() => {
             if (window.currentTabRefresh) window.currentTabRefresh();
             if (window.buildStats) window.buildStats();
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error releasing device:', error);
@@ -8035,18 +8076,18 @@ async function finalizeClaimDevice(repairId, isAutomatic = false) {
             alert('Repair not found');
             return;
         }
-        
+
         if (repair.status !== 'Released') {
             alert('⚠️ This device is not in Released status');
             return;
         }
-        
+
         // If manual finalization, show modal for warranty info
         if (!isAutomatic) {
             openFinalizeModal(repairId);
             return;
         }
-        
+
         // Automatic finalization at 6pm
         const finalizeData = {
             status: 'Claimed',
@@ -8058,9 +8099,9 @@ async function finalizeClaimDevice(repairId, isAutomatic = false) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: isAutomatic ? 'System' : window.currentUserData.displayName
         };
-        
+
         await db.ref(`repairs/${repairId}`).update(finalizeData);
-        
+
         // Log activity
         await logActivity('device_finalized', {
             repairId: repairId,
@@ -8068,14 +8109,14 @@ async function finalizeClaimDevice(repairId, isAutomatic = false) {
             autoFinalized: isAutomatic,
             finalizedBy: finalizeData.finalizedBy
         }, `Device finalized: ${repair.customerName} - ${isAutomatic ? 'Auto at 6pm' : 'Manual'}`);
-        
+
         if (!isAutomatic) {
             alert('✅ Device finalized successfully!');
             closeFinalizeModal();
             if (window.currentTabRefresh) window.currentTabRefresh();
             if (window.buildStats) window.buildStats();
         }
-        
+
     } catch (error) {
         console.error('Error finalizing device:', error);
         if (!isAutomatic) {
@@ -8095,28 +8136,28 @@ async function confirmFinalizeDevice() {
     const repairId = document.getElementById('finalizeRepairId').value;
     const warrantyDays = parseInt(document.getElementById('finalizeWarrantyDays').value) || 0;
     const finalNotes = document.getElementById('finalizeFinalNotes').value.trim();
-    
+
     if (!repairId) {
         alert('Invalid repair ID');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('Repair not found');
         return;
     }
-    
+
     if (!confirm(`✅ Finalize and mark as Claimed?\n\nWarranty: ${warrantyDays} days`)) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const warrantyEndDate = new Date();
         warrantyEndDate.setDate(warrantyEndDate.getDate() + warrantyDays);
-        
+
         const finalizeData = {
             status: 'Claimed',
             claimedAt: new Date().toISOString(),
@@ -8130,9 +8171,9 @@ async function confirmFinalizeDevice() {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         };
-        
+
         await db.ref(`repairs/${repairId}`).update(finalizeData);
-        
+
         // Log activity
         await logActivity('device_finalized', {
             repairId: repairId,
@@ -8141,16 +8182,16 @@ async function confirmFinalizeDevice() {
             warrantyDays: warrantyDays,
             finalizedBy: window.currentUserData.displayName
         }, `Device manually finalized: ${repair.customerName} - ${warrantyDays} days warranty`);
-        
+
         utils.showLoading(false);
         alert('✅ Device finalized successfully!');
         closeFinalizeModal();
-        
+
         setTimeout(() => {
             if (window.currentTabRefresh) window.currentTabRefresh();
             if (window.buildStats) window.buildStats();
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error finalizing device:', error);
@@ -8171,7 +8212,7 @@ function openEditDeviceModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     // Populate form fields
     document.getElementById('editDeviceRepairId').value = repairId;
     document.getElementById('editCustomerName').value = repair.customerName || '';
@@ -8184,7 +8225,7 @@ function openEditDeviceModal(repairId) {
     document.getElementById('editPasscode').value = repair.devicePasscode || '';
     document.getElementById('editProblem').value = repair.problem || '';
     document.getElementById('editReason').value = '';
-    
+
     document.getElementById('editDeviceModal').style.display = 'block';
 }
 
@@ -8203,24 +8244,24 @@ async function saveDeviceInfo() {
     const passcode = document.getElementById('editPasscode').value.trim();
     const problem = document.getElementById('editProblem').value.trim();
     const editReason = document.getElementById('editReason').value.trim();
-    
+
     // Validation
     if (!customerName || !contactNumber || !brand || !model) {
         alert('⚠️ Please fill in all required fields (Customer Name, Contact, Brand, Model)');
         return;
     }
-    
+
     if (!editReason) {
         alert('⚠️ Please provide a reason for editing');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('Repair not found');
         return;
     }
-    
+
     // Build change log
     const changes = [];
     if (repair.customerName !== customerName) changes.push(`Customer Name: "${repair.customerName}" → "${customerName}"`);
@@ -8232,18 +8273,18 @@ async function saveDeviceInfo() {
     if ((repair.storageCapacity || '') !== storage) changes.push(`Storage: "${repair.storageCapacity || 'N/A'}" → "${storage || 'N/A'}"`);
     if ((repair.devicePasscode || '') !== passcode) changes.push(`Passcode: "${repair.devicePasscode || 'N/A'}" → "${passcode || 'N/A'}"`);
     if ((repair.problem || '') !== problem) changes.push(`Problem: "${repair.problem || 'N/A'}" → "${problem || 'N/A'}"`);
-    
+
     if (changes.length === 0) {
         alert('ℹ️ No changes detected');
         return;
     }
-    
+
     const confirmMsg = `Save these changes?\n\n${changes.join('\n')}\n\nReason: ${editReason}`;
     if (!confirm(confirmMsg)) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Update device info
         await db.ref(`repairs/${repairId}`).update({
             customerName: customerName,
@@ -8260,7 +8301,7 @@ async function saveDeviceInfo() {
             lastEditedByName: window.currentUserData.displayName,
             lastEditReason: editReason
         });
-        
+
         // Log the edit
         await logActivity('device_info_edited', {
             repairId: repairId,
@@ -8268,21 +8309,21 @@ async function saveDeviceInfo() {
             reason: editReason,
             editedBy: window.currentUserData.displayName
         }, `${window.currentUserData.displayName} edited device info for ${customerName} - ${brand} ${model}`);
-        
+
         utils.showLoading(false);
         alert('✅ Device information updated successfully!');
         closeEditDeviceModal();
-        
+
         // Reload repairs
         await loadRepairs();
-        
+
         // Refresh current view
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error updating device info:', error);
@@ -8306,7 +8347,7 @@ let currentFilters = {
 function filterByStatus(status) {
     console.log('Filtering by status:', status);
     currentFilters.status = status;
-    
+
     // Refresh current tab with filter
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
@@ -8388,22 +8429,22 @@ async function adminDeletePayment(repairId, paymentIndex) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair || !repair.payments || !repair.payments[paymentIndex]) {
         alert('❌ Payment not found');
         return;
     }
-    
+
     const payment = repair.payments[paymentIndex];
     const paymentDate = new Date(payment.recordedDate || payment.paymentDate).toISOString().split('T')[0];
-    
+
     // Check if payment date is locked
     if (!preventBackdating(paymentDate)) {
         alert('⚠️ Cannot delete payment from locked date!\n\nThis payment date has been locked. Please unlock it first if you need to make changes.');
         return;
     }
-    
+
     // Show payment details and confirm
     const confirmed = confirm(
         `⚠️ DELETE PAYMENT ⚠️\n\n` +
@@ -8416,35 +8457,35 @@ async function adminDeletePayment(repairId, paymentIndex) {
         `This will DELETE this payment transaction.\n\n` +
         `Click OK to continue...`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Require reason
     const reason = prompt('Please enter reason for deleting this payment:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required to delete a payment');
         return;
     }
-    
+
     // Password confirmation
     const password = prompt('Enter your password to confirm deletion:');
     if (!password) {
         alert('❌ Deletion cancelled');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Verify password
         const credential = firebase.auth.EmailAuthProvider.credential(
             window.currentUser.email,
             password
         );
         await window.currentUser.reauthenticateWithCredential(credential);
-        
+
         const now = new Date().toISOString();
-        
+
         // Create backup
         const backup = {
             type: 'payment_deletion',
@@ -8457,18 +8498,18 @@ async function adminDeletePayment(repairId, paymentIndex) {
             deletedById: window.currentUser.uid,
             deleteReason: reason
         };
-        
+
         await db.ref('deletedTransactions').push(backup);
-        
+
         // Remove payment from array
         const updatedPayments = repair.payments.filter((p, idx) => idx !== paymentIndex);
-        
+
         await db.ref(`repairs/${repairId}`).update({
             payments: updatedPayments,
             lastUpdated: now,
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log activity
         await logActivity('payment_deleted', {
             repairId: repairId,
@@ -8479,10 +8520,10 @@ async function adminDeletePayment(repairId, paymentIndex) {
             verified: payment.verified,
             reason: reason
         }, `Payment deleted: ₱${payment.amount.toFixed(2)} from ${repair.customerName} - Reason: ${reason}`);
-        
+
         utils.showLoading(false);
         alert(`✅ Payment Deleted!\n\n₱${payment.amount.toFixed(2)} payment from ${repair.customerName}\n\nBackup: Saved for audit\nReason: ${reason}`);
-        
+
         // Refresh
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
@@ -8490,7 +8531,7 @@ async function adminDeletePayment(repairId, paymentIndex) {
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         if (error.code === 'auth/wrong-password') {
@@ -8510,21 +8551,21 @@ async function adminUnremitPayment(repairId, paymentIndex) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair || !repair.payments || !repair.payments[paymentIndex]) {
         alert('❌ Payment not found');
         return;
     }
-    
+
     const payment = repair.payments[paymentIndex];
-    
+
     // Check current status
     if (payment.remittanceStatus !== 'remitted') {
         alert(`ℹ️ This payment is already in "${payment.remittanceStatus || 'pending'}" status.\n\nNo action needed.`);
         return;
     }
-    
+
     // Show payment details and confirm
     const confirmed = confirm(
         `⚠️ UN-REMIT PAYMENT ⚠️\n\n` +
@@ -8540,22 +8581,22 @@ async function adminUnremitPayment(repairId, paymentIndex) {
         `or when you need to fix a rejected remittance.\n\n` +
         `Click OK to continue...`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Require reason
     const reason = prompt('Please enter reason for un-remitting this payment:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const now = new Date().toISOString();
         const updatedPayments = [...repair.payments];
-        
+
         // Reset payment to pending status
         updatedPayments[paymentIndex] = {
             ...payment,
@@ -8565,13 +8606,13 @@ async function adminUnremitPayment(repairId, paymentIndex) {
             unremittedAt: now,
             unremitReason: reason
         };
-        
+
         await db.ref(`repairs/${repairId}`).update({
             payments: updatedPayments,
             lastUpdated: now,
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log activity
         await logActivity('payment_unremitted', {
             repairId: repairId,
@@ -8581,13 +8622,13 @@ async function adminUnremitPayment(repairId, paymentIndex) {
             paymentDate: payment.paymentDate,
             reason: reason
         }, `Payment un-remitted: ₱${payment.amount.toFixed(2)} from ${repair.customerName} - Reason: ${reason}`);
-        
+
         // Reload repairs to get fresh data
         await loadRepairs();
-        
+
         utils.showLoading(false);
         alert(`✅ Payment Un-Remitted!\n\n₱${payment.amount.toFixed(2)} from ${repair.customerName}\n\nStatus: REMITTED → PENDING\n\nThis payment will now appear in the technician's daily remittance.`);
-        
+
         // Refresh current tab and stats
         setTimeout(() => {
             if (window.currentTabRefresh) {
@@ -8597,7 +8638,7 @@ async function adminUnremitPayment(repairId, paymentIndex) {
                 window.buildStats();
             }
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error un-remitting payment:', error);
@@ -8613,21 +8654,21 @@ async function adminDeleteExpense(expenseId) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const expense = window.allExpenses ? window.allExpenses.find(e => e.id === expenseId) : null;
     if (!expense) {
         alert('❌ Expense not found');
         return;
     }
-    
+
     const expenseDate = new Date(expense.date).toISOString().split('T')[0];
-    
+
     // Check if expense date is locked
     if (!preventBackdating(expenseDate)) {
         alert('⚠️ Cannot delete expense from locked date!\n\nThis expense date has been locked. Please unlock it first if you need to make changes.');
         return;
     }
-    
+
     // Show expense details and confirm
     const confirmed = confirm(
         `⚠️ DELETE EXPENSE ⚠️\n\n` +
@@ -8639,35 +8680,35 @@ async function adminDeleteExpense(expenseId) {
         `This will DELETE this expense transaction.\n\n` +
         `Click OK to continue...`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Require reason
     const reason = prompt('Please enter reason for deleting this expense:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required to delete an expense');
         return;
     }
-    
+
     // Password confirmation
     const password = prompt('Enter your password to confirm deletion:');
     if (!password) {
         alert('❌ Deletion cancelled');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Verify password
         const credential = firebase.auth.EmailAuthProvider.credential(
             window.currentUser.email,
             password
         );
         await window.currentUser.reauthenticateWithCredential(credential);
-        
+
         const now = new Date().toISOString();
-        
+
         // Create backup
         const backup = {
             type: 'expense_deletion',
@@ -8677,12 +8718,12 @@ async function adminDeleteExpense(expenseId) {
             deletedById: window.currentUser.uid,
             deleteReason: reason
         };
-        
+
         await db.ref('deletedTransactions').push(backup);
-        
+
         // Delete expense
         await db.ref(`expenses/${expenseId}`).remove();
-        
+
         // Log activity
         await logActivity('expense_deleted', {
             expenseId: expenseId,
@@ -8692,10 +8733,10 @@ async function adminDeleteExpense(expenseId) {
             date: expense.date,
             reason: reason
         }, `Expense deleted: ₱${expense.amount.toFixed(2)} (${expense.category}) - Reason: ${reason}`);
-        
+
         utils.showLoading(false);
         alert(`✅ Expense Deleted!\n\n₱${expense.amount.toFixed(2)} (${expense.category})\n\nBackup: Saved for audit\nReason: ${reason}`);
-        
+
         // Refresh
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
@@ -8703,7 +8744,7 @@ async function adminDeleteExpense(expenseId) {
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         if (error.code === 'auth/wrong-password') {
@@ -8723,22 +8764,22 @@ async function resetTodayPayments() {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const todayString = new Date().toISOString().split('T')[0];
-    
+
     // Check if today is locked
     if (!preventBackdating(todayString)) {
         alert('⚠️ Cannot reset locked date!\n\nToday has been locked. Please unlock it first if you need to make changes.');
         return;
     }
-    
+
     const cashData = getDailyCashData(todayString);
-    
+
     if (cashData.payments.length === 0) {
         alert('ℹ️ No payments to reset today');
         return;
     }
-    
+
     // Confirmation with password
     const password = prompt(
         `⚠️ RESET TODAY'S PAYMENTS?\n\n` +
@@ -8747,23 +8788,23 @@ async function resetTodayPayments() {
         `⚠️ THIS CANNOT BE UNDONE!\n\n` +
         `Enter your password to confirm:`
     );
-    
+
     if (!password) return;
-    
+
     const reason = prompt('Please provide a reason for this reset:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Verify password
         const user = firebase.auth().currentUser;
         const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
         await user.reauthenticateWithCredential(credential);
-        
+
         // Create backup
         const backup = {
             type: 'payments_reset',
@@ -8774,18 +8815,18 @@ async function resetTodayPayments() {
             data: cashData.payments
         };
         await db.ref('resetBackups').push(backup);
-        
+
         // Reset payments for all repairs with today's payments
         const updates = {};
         const today = new Date().toDateString();
-        
+
         window.allRepairs.forEach(repair => {
             if (repair.payments && repair.payments.length > 0) {
                 const filteredPayments = repair.payments.filter(p => {
                     const paymentDate = new Date(p.paymentDate || p.recordedDate).toDateString();
                     return paymentDate !== today;
                 });
-                
+
                 if (filteredPayments.length !== repair.payments.length) {
                     updates[`repairs/${repair.id}/payments`] = filteredPayments;
                     updates[`repairs/${repair.id}/lastUpdated`] = new Date().toISOString();
@@ -8793,9 +8834,9 @@ async function resetTodayPayments() {
                 }
             }
         });
-        
+
         await db.ref().update(updates);
-        
+
         // Log the reset
         await logActivity('data_reset', 'admin', {
             resetType: 'payments',
@@ -8804,17 +8845,17 @@ async function resetTodayPayments() {
             totalAmount: cashData.totals.payments,
             reason: reason
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Payments Reset Complete!\n\n${cashData.payments.length} payment(s) deleted\n\nBackup saved for recovery if needed.`);
-        
+
         // Reload and refresh
         await loadRepairs();
         // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         if (error.code === 'auth/wrong-password') {
@@ -8834,22 +8875,22 @@ async function resetTodayExpenses() {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const todayString = new Date().toISOString().split('T')[0];
-    
+
     // Check if today is locked
     if (!preventBackdating(todayString)) {
         alert('⚠️ Cannot reset locked date!\n\nToday has been locked. Please unlock it first if you need to make changes.');
         return;
     }
-    
+
     const cashData = getDailyCashData(todayString);
-    
+
     if (cashData.expenses.length === 0) {
         alert('ℹ️ No expenses to reset today');
         return;
     }
-    
+
     // Confirmation with password
     const password = prompt(
         `⚠️ RESET TODAY'S EXPENSES?\n\n` +
@@ -8858,23 +8899,23 @@ async function resetTodayExpenses() {
         `⚠️ THIS CANNOT BE UNDONE!\n\n` +
         `Enter your password to confirm:`
     );
-    
+
     if (!password) return;
-    
+
     const reason = prompt('Please provide a reason for this reset:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Verify password
         const user = firebase.auth().currentUser;
         const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
         await user.reauthenticateWithCredential(credential);
-        
+
         // Create backup
         const backup = {
             type: 'expenses_reset',
@@ -8885,12 +8926,12 @@ async function resetTodayExpenses() {
             data: cashData.expenses
         };
         await db.ref('resetBackups').push(backup);
-        
+
         // Delete today's expenses from Firebase
         const today = new Date().toDateString();
         const allExpenses = await db.ref('techExpenses').once('value');
         const updates = {};
-        
+
         allExpenses.forEach(child => {
             const expense = child.val();
             const expenseDate = new Date(expense.date).toDateString();
@@ -8898,9 +8939,9 @@ async function resetTodayExpenses() {
                 updates[`techExpenses/${child.key}`] = null;
             }
         });
-        
+
         await db.ref().update(updates);
-        
+
         // Log the reset
         await logActivity('data_reset', 'admin', {
             resetType: 'expenses',
@@ -8909,17 +8950,17 @@ async function resetTodayExpenses() {
             totalAmount: cashData.totals.expenses,
             reason: reason
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Expenses Reset Complete!\n\n${cashData.expenses.length} expense(s) deleted\n\nBackup saved for recovery if needed.`);
-        
+
         // Reload and refresh
         await loadTechExpenses();
         // Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         if (error.code === 'auth/wrong-password') {
@@ -8939,22 +8980,22 @@ async function fullResetToday() {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const todayString = new Date().toISOString().split('T')[0];
-    
+
     // Check if today is locked
     if (!preventBackdating(todayString)) {
         alert('⚠️ Cannot reset locked date!\n\nToday has been locked. Please unlock it first if you need to make changes.');
         return;
     }
-    
+
     const cashData = getDailyCashData(todayString);
-    
+
     if (cashData.payments.length === 0 && cashData.expenses.length === 0) {
         alert('ℹ️ No transactions to reset today');
         return;
     }
-    
+
     // Final confirmation
     const confirmed = confirm(
         `⚠️⚠️ FULL RESET - TODAY'S DATA ⚠️⚠️\n\n` +
@@ -8964,27 +9005,27 @@ async function fullResetToday() {
         `⚠️⚠️ THIS CANNOT BE UNDONE! ⚠️⚠️\n\n` +
         `Click OK to continue...`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Password confirmation
     const password = prompt('Enter your password to confirm FULL RESET:');
     if (!password) return;
-    
+
     const reason = prompt('Please provide a reason for this FULL RESET:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Verify password
         const user = firebase.auth().currentUser;
         const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
         await user.reauthenticateWithCredential(credential);
-        
+
         // Create backup
         const backup = {
             type: 'full_reset',
@@ -8998,18 +9039,18 @@ async function fullResetToday() {
             }
         };
         await db.ref('resetBackups').push(backup);
-        
+
         // Reset payments
         const updates = {};
         const today = new Date().toDateString();
-        
+
         window.allRepairs.forEach(repair => {
             if (repair.payments && repair.payments.length > 0) {
                 const filteredPayments = repair.payments.filter(p => {
                     const paymentDate = new Date(p.paymentDate || p.recordedDate).toDateString();
                     return paymentDate !== today;
                 });
-                
+
                 if (filteredPayments.length !== repair.payments.length) {
                     updates[`repairs/${repair.id}/payments`] = filteredPayments;
                     updates[`repairs/${repair.id}/lastUpdated`] = new Date().toISOString();
@@ -9017,7 +9058,7 @@ async function fullResetToday() {
                 }
             }
         });
-        
+
         // Reset expenses
         const allExpenses = await db.ref('techExpenses').once('value');
         allExpenses.forEach(child => {
@@ -9027,9 +9068,9 @@ async function fullResetToday() {
                 updates[`techExpenses/${child.key}`] = null;
             }
         });
-        
+
         await db.ref().update(updates);
-        
+
         // Log the full reset
         await logActivity('data_reset', 'admin', {
             resetType: 'full',
@@ -9040,13 +9081,13 @@ async function fullResetToday() {
             totalExpenses: cashData.totals.expenses,
             reason: reason
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Full Reset Complete!\n\n` +
-              `${cashData.payments.length} payment(s) deleted\n` +
-              `${cashData.expenses.length} expense(s) deleted\n\n` +
-              `Backup saved for recovery if needed.`);
-        
+            `${cashData.payments.length} payment(s) deleted\n` +
+            `${cashData.expenses.length} expense(s) deleted\n\n` +
+            `Backup saved for recovery if needed.`);
+
         // Reload and refresh
         await loadRepairs();
         await loadTechExpenses();
@@ -9054,7 +9095,7 @@ async function fullResetToday() {
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         if (error.code === 'auth/wrong-password') {
@@ -9085,18 +9126,18 @@ async function adminAddPaymentToReleased(repairId) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     // Show repair details
     const totalAmount = repair.total || 0;
     const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
     const balance = totalAmount - totalPaid;
-    
+
     const amount = prompt(
         `💰 Add Payment to Released Device\n\n` +
         `Customer: ${repair.customerName}\n` +
@@ -9107,15 +9148,15 @@ async function adminAddPaymentToReleased(repairId) {
         `Balance: ₱${balance.toFixed(2)}\n\n` +
         `Enter payment amount:`
     );
-    
+
     if (!amount) return;
-    
+
     const paymentAmount = parseFloat(amount);
     if (isNaN(paymentAmount) || paymentAmount <= 0) {
         alert('⚠️ Invalid payment amount');
         return;
     }
-    
+
     if (paymentAmount > balance) {
         const confirmOverpay = confirm(
             `⚠️ Payment amount (₱${paymentAmount.toFixed(2)}) exceeds balance (₱${balance.toFixed(2)})\n\n` +
@@ -9123,20 +9164,20 @@ async function adminAddPaymentToReleased(repairId) {
         );
         if (!confirmOverpay) return;
     }
-    
+
     const paymentMethod = prompt('Payment method:\n1 = Cash\n2 = GCash\n3 = Bank Transfer\n4 = Card\n\nEnter 1-4:');
     const methodMap = { '1': 'Cash', '2': 'GCash', '3': 'Bank Transfer', '4': 'Card' };
     const method = methodMap[paymentMethod] || 'Cash';
-    
+
     const reason = prompt('Reason for adding payment to released device:');
     if (!reason || !reason.trim()) {
         alert('⚠️ Reason is required');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const payment = {
             amount: paymentAmount,
             paymentMethod: method,
@@ -9150,16 +9191,16 @@ async function adminAddPaymentToReleased(repairId) {
             verifiedByName: window.currentUserData.displayName,
             verifiedAt: new Date().toISOString()
         };
-        
+
         const payments = repair.payments || [];
         payments.push(payment);
-        
+
         await db.ref(`repairs/${repairId}`).update({
             payments: payments,
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log the action
         await logActivity('admin_payment_correction', 'admin', {
             repairId: repairId,
@@ -9169,17 +9210,17 @@ async function adminAddPaymentToReleased(repairId) {
             reason: reason,
             deviceStatus: 'released'
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Payment Added!\n\n₱${paymentAmount.toFixed(2)} recorded for ${repair.customerName}\n\nNew balance: ₱${(balance - paymentAmount).toFixed(2)}`);
-        
+
         // Reload and refresh
         await loadRepairs();
         // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error adding payment:', error);
@@ -9195,22 +9236,22 @@ async function adminUnreleaseDevice(repairId) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     if (!repair.claimedAt) {
         alert('⚠️ This device has not been released yet');
         return;
     }
-    
+
     const totalAmount = repair.total || 0;
     const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
     const balance = totalAmount - totalPaid;
-    
+
     const reason = prompt(
         `↩️ UN-RELEASE DEVICE\n\n` +
         `Customer: ${repair.customerName}\n` +
@@ -9220,11 +9261,11 @@ async function adminUnreleaseDevice(repairId) {
         `⚠️ This will change device status back to "Ready for Release"\n\n` +
         `Reason for un-releasing:`
     );
-    
+
     if (!reason || !reason.trim()) {
         return; // User cancelled or no reason
     }
-    
+
     const confirmed = confirm(
         `⚠️ Confirm Un-Release?\n\n` +
         `This will:\n` +
@@ -9234,12 +9275,12 @@ async function adminUnreleaseDevice(repairId) {
         `• Log this action for audit\n\n` +
         `Continue?`
     );
-    
+
     if (!confirmed) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Store the original claim info for backup
         const claimBackup = {
             claimedAt: repair.claimedAt,
@@ -9254,14 +9295,14 @@ async function adminUnreleaseDevice(repairId) {
             unreleasedBy: window.currentUserData.displayName,
             unreleasedAt: new Date().toISOString()
         };
-        
+
         // Save backup
         await db.ref('unreleasedBackups').push({
             repairId: repairId,
             customerName: repair.customerName,
             backup: claimBackup
         });
-        
+
         // Update repair status
         await db.ref(`repairs/${repairId}`).update({
             claimedAt: null,
@@ -9276,7 +9317,7 @@ async function adminUnreleaseDevice(repairId) {
             lastUpdatedBy: window.currentUserData.displayName,
             adminNote: `[ADMIN] Un-released on ${utils.formatDateTime(new Date().toISOString())}. Reason: ${reason}`
         });
-        
+
         // Log the action
         await logActivity('admin_unreleased_device', 'admin', {
             repairId: repairId,
@@ -9284,17 +9325,17 @@ async function adminUnreleaseDevice(repairId) {
             originalReleaseDate: repair.claimedAt,
             reason: reason
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Device Un-Released!\n\n${repair.customerName} - ${repair.brand} ${repair.model}\n\nStatus changed back to "Ready for Release"\nPayment records preserved\nBackup saved for audit`);
-        
+
         // Reload and refresh
         await loadRepairs();
         // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error un-releasing device:', error);
@@ -9321,21 +9362,21 @@ async function releaseRTODevice(repairId) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     if (repair.status !== 'RTO') {
         alert('⚠️ This device is not marked as RTO');
         return;
     }
-    
+
     // Check diagnosis fee status
     const diagnosisFee = repair.diagnosisFee || 0;
     const rtoPaymentStatus = repair.rtoPaymentStatus || 'waived';
-    
+
     if (diagnosisFee > 0 && rtoPaymentStatus !== 'paid') {
         alert('⚠️ Please collect diagnosis fee before releasing device\n\nFee: ₱' + diagnosisFee.toFixed(2));
         return;
     }
-    
+
     // Confirm customer details
     const customerName = prompt(
         `↩️ RETURN RTO DEVICE TO CUSTOMER\n\n` +
@@ -9344,9 +9385,9 @@ async function releaseRTODevice(repairId) {
         `${diagnosisFee > 0 ? `Diagnosis Fee: ₱${diagnosisFee.toFixed(2)} (Paid)\n` : 'No diagnosis fee'}\n\n` +
         `Confirm customer name:`
     );
-    
+
     if (!customerName) return;
-    
+
     if (customerName.toLowerCase().trim() !== repair.customerName.toLowerCase().trim()) {
         const proceed = confirm(
             `⚠️ Name Mismatch!\n\n` +
@@ -9356,10 +9397,10 @@ async function releaseRTODevice(repairId) {
         );
         if (!proceed) return;
     }
-    
+
     // Optional release notes
     const releaseNotes = prompt('Optional release notes:') || '';
-    
+
     // Final confirmation
     const confirmed = confirm(
         `✅ Confirm Release?\n\n` +
@@ -9367,12 +9408,12 @@ async function releaseRTODevice(repairId) {
         `Device: ${repair.brand} ${repair.model}\n\n` +
         `This will mark the device as returned and move it to Claimed Units.`
     );
-    
+
     if (!confirmed) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         const releaseData = {
             claimedAt: new Date().toISOString(),
             claimedBy: window.currentUser.uid,
@@ -9385,9 +9426,9 @@ async function releaseRTODevice(repairId) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         };
-        
+
         await db.ref(`repairs/${repairId}`).update(releaseData);
-        
+
         // Log the release
         await logActivity('rto_device_released', 'repair', {
             repairId: repairId,
@@ -9395,17 +9436,17 @@ async function releaseRTODevice(repairId) {
             rtoReason: repair.rtoReason,
             diagnosisFee: diagnosisFee
         });
-        
+
         utils.showLoading(false);
         alert(`✅ RTO Device Returned!\n\nDevice returned to: ${repair.customerName}\n\nMoved to Claimed Units.`);
-        
+
         // Reload and refresh
         await loadRepairs();
         // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error releasing RTO device:', error);
@@ -9422,17 +9463,17 @@ async function addRTODiagnosisFee(repairId) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     if (repair.status !== 'RTO') {
         alert('⚠️ This device is not marked as RTO');
         return;
     }
-    
+
     if (repair.diagnosisFee && repair.diagnosisFee > 0) {
         alert('⚠️ Diagnosis fee already set\n\nUse "Collect Fee" button to record payment');
         return;
     }
-    
+
     const amount = prompt(
         `💵 SET DIAGNOSIS FEE\n\n` +
         `Customer: ${repair.customerName}\n` +
@@ -9440,32 +9481,32 @@ async function addRTODiagnosisFee(repairId) {
         `RTO Reason: ${repair.rtoReason}\n\n` +
         `Enter diagnosis fee amount (₱):`
     );
-    
+
     if (!amount) return;
-    
+
     const feeAmount = parseFloat(amount);
     if (isNaN(feeAmount) || feeAmount <= 0) {
         alert('⚠️ Invalid amount');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         await db.ref(`repairs/${repairId}`).update({
             diagnosisFee: feeAmount,
             rtoPaymentStatus: 'pending',
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Diagnosis Fee Set!\n\n₱${feeAmount.toFixed(2)}\n\nStatus: Pending payment`);
-        
+
         // Reload and refresh
         await loadRepairs();
         // loadRepairs() Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error setting diagnosis fee:', error);
@@ -9482,23 +9523,23 @@ async function collectRTODiagnosisFee(repairId) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     if (repair.status !== 'RTO') {
         alert('⚠️ This device is not marked as RTO');
         return;
     }
-    
+
     const diagnosisFee = repair.diagnosisFee || 0;
     if (diagnosisFee <= 0) {
         alert('⚠️ No diagnosis fee set for this device');
         return;
     }
-    
+
     if (repair.rtoPaymentStatus === 'paid') {
         alert('✅ Diagnosis fee already paid');
         return;
     }
-    
+
     const paymentMethod = prompt(
         `💰 COLLECT DIAGNOSIS FEE\n\n` +
         `Customer: ${repair.customerName}\n` +
@@ -9510,15 +9551,15 @@ async function collectRTODiagnosisFee(repairId) {
         `4 = Card\n\n` +
         `Enter 1-4:`
     );
-    
+
     if (!paymentMethod) return;
-    
+
     const methodMap = { '1': 'Cash', '2': 'GCash', '3': 'Bank Transfer', '4': 'Card' };
     const method = methodMap[paymentMethod] || 'Cash';
-    
+
     try {
         utils.showLoading(true);
-        
+
         await db.ref(`repairs/${repairId}`).update({
             rtoPaymentStatus: 'paid',
             rtoPaymentMethod: method,
@@ -9527,7 +9568,7 @@ async function collectRTODiagnosisFee(repairId) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log the fee collection
         await logActivity('rto_diagnosis_fee_recorded', 'financial', {
             repairId: repairId,
@@ -9535,17 +9576,17 @@ async function collectRTODiagnosisFee(repairId) {
             amount: diagnosisFee,
             paymentMethod: method
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Diagnosis Fee Collected!\n\n₱${diagnosisFee.toFixed(2)} (${method})\n\nDevice ready to be returned to customer.`);
-        
+
         // Reload and refresh
         await loadRepairs();
         // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error collecting diagnosis fee:', error);
@@ -9561,18 +9602,18 @@ async function revertRTOStatus(repairId) {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('❌ Repair not found');
         return;
     }
-    
+
     if (repair.status !== 'RTO') {
         alert('⚠️ This device is not marked as RTO');
         return;
     }
-    
+
     const reason = prompt(
         `🔄 REVERT RTO STATUS\n\n` +
         `Device: ${repair.brand} ${repair.model}\n` +
@@ -9581,14 +9622,14 @@ async function revertRTOStatus(repairId) {
         `This will change status back to "In Progress"\n\n` +
         `Reason for reverting:`
     );
-    
+
     if (!reason || !reason.trim()) {
         return; // User cancelled
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Keep RTO history but change status
         await db.ref(`repairs/${repairId}`).update({
             status: 'In Progress',
@@ -9600,17 +9641,17 @@ async function revertRTOStatus(repairId) {
             lastUpdatedBy: window.currentUserData.displayName,
             adminNote: `[ADMIN] Reverted from RTO on ${utils.formatDateTime(new Date().toISOString())}. Reason: ${reason}`
         });
-        
+
         utils.showLoading(false);
         alert(`✅ Status Reverted!\n\nDevice moved back to "In Progress"\n\nRTO history preserved for records.`);
-        
+
         // Reload and refresh
         await loadRepairs();
         // loadRepairs() Firebase listener will auto-refresh the page
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error reverting RTO status:', error);
@@ -9660,7 +9701,7 @@ function handleRoleChange() {
     const role = document.getElementById('newUserRole').value;
     const techField = document.getElementById('technicianNameField');
     techField.style.display = role === 'technician' ? 'block' : 'none';
-    
+
     if (role === 'technician') {
         document.getElementById('newUserTechnicianName').required = true;
     } else {
@@ -9682,12 +9723,12 @@ function togglePasswordVisibility(inputId) {
 async function handleNewUserProfilePicture(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     try {
         // Compress and convert to base64
         const compressed = await utils.compressImage(file, 300, 300);
         newUserProfilePicture = compressed;
-        
+
         // Show preview
         const preview = document.getElementById('newUserProfilePreview');
         preview.src = compressed;
@@ -9703,46 +9744,46 @@ async function handleNewUserProfilePicture(event) {
  */
 async function createUser(event) {
     event.preventDefault();
-    
+
     const email = document.getElementById('newUserEmail').value.trim();
     const password = document.getElementById('newUserPassword').value;
     const passwordConfirm = document.getElementById('newUserPasswordConfirm').value;
     const displayName = document.getElementById('newUserDisplayName').value.trim();
     const role = document.getElementById('newUserRole').value;
     const technicianName = document.getElementById('newUserTechnicianName').value.trim();
-    
+
     // Validation
     if (!email || !password || !displayName || !role) {
         alert('Please fill in all required fields');
         return;
     }
-    
+
     if (password !== passwordConfirm) {
         alert('⚠️ Passwords do not match!');
         return;
     }
-    
+
     if (password.length < 6) {
         alert('⚠️ Password must be at least 6 characters');
         return;
     }
-    
+
     if (role === 'technician' && !technicianName) {
         alert('⚠️ Please enter technician name');
         return;
     }
-    
+
     if (!confirm(`Create new ${role} account for ${displayName}?`)) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Create Firebase Auth account
         const userCredential = await auth.createUserWithEmailAndPassword(email, password);
         const uid = userCredential.user.uid;
-        
+
         // Create user record in database
         const userData = {
             displayName: displayName,
@@ -9757,9 +9798,9 @@ async function createUser(event) {
             lastLogin: null,
             loginHistory: {}
         };
-        
+
         await db.ref(`users/${uid}`).set(userData);
-        
+
         // Log activity
         await logActivity('user_created', {
             userId: uid,
@@ -9767,21 +9808,21 @@ async function createUser(event) {
             role: role,
             displayName: displayName
         }, `${window.currentUserData.displayName} created new ${role} account: ${displayName}`);
-        
+
         utils.showLoading(false);
         alert(`✅ User created successfully!\n\nEmail: ${email}\nName: ${displayName}\nRole: ${role}\n\nThe user can now log in with their credentials.`);
-        
+
         closeCreateUserModal();
-        
+
         // Auto-close and refresh page
         setTimeout(() => {
             location.reload();
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error creating user:', error);
-        
+
         let errorMessage = 'Error creating user: ';
         if (error.code === 'auth/email-already-in-use') {
             errorMessage += 'This email is already registered';
@@ -9792,7 +9833,7 @@ async function createUser(event) {
         } else {
             errorMessage += error.message;
         }
-        
+
         alert(errorMessage);
     }
 }
@@ -9806,13 +9847,13 @@ function openEditUserModal(userId) {
         alert('User not found');
         return;
     }
-    
+
     document.getElementById('editUserId').value = userId;
     document.getElementById('editUserEmail').value = user.email;
     document.getElementById('editUserDisplayName').value = user.displayName;
     document.getElementById('editUserRole').value = user.role;
     document.getElementById('editUserStatus').value = user.status || 'active';
-    
+
     // Handle technician name field
     const techField = document.getElementById('editTechnicianNameField');
     if (user.role === 'technician') {
@@ -9821,7 +9862,7 @@ function openEditUserModal(userId) {
     } else {
         techField.style.display = 'none';
     }
-    
+
     // Show profile picture if exists
     editUserProfilePicture = null;
     const preview = document.getElementById('editUserProfilePreview');
@@ -9831,7 +9872,7 @@ function openEditUserModal(userId) {
     } else {
         preview.style.display = 'none';
     }
-    
+
     document.getElementById('editUserModal').style.display = 'block';
 }
 
@@ -9857,11 +9898,11 @@ function handleEditRoleChange() {
 async function handleEditUserProfilePicture(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     try {
         const compressed = await utils.compressImage(file, 300, 300);
         editUserProfilePicture = compressed;
-        
+
         const preview = document.getElementById('editUserProfilePreview');
         preview.src = compressed;
         preview.style.display = 'block';
@@ -9876,44 +9917,44 @@ async function handleEditUserProfilePicture(event) {
  */
 async function updateUser(event) {
     event.preventDefault();
-    
+
     const userId = document.getElementById('editUserId').value;
     const displayName = document.getElementById('editUserDisplayName').value.trim();
     const role = document.getElementById('editUserRole').value;
     const status = document.getElementById('editUserStatus').value;
     const technicianName = document.getElementById('editUserTechnicianName').value.trim();
-    
+
     const user = window.allUsers[userId];
     if (!user) {
         alert('User not found');
         return;
     }
-    
+
     if (!displayName || !role) {
         alert('Please fill in all required fields');
         return;
     }
-    
+
     if (role === 'technician' && !technicianName) {
         alert('⚠️ Please enter technician name');
         return;
     }
-    
+
     // Check if role is changing
     const roleChanged = user.role !== role;
     if (roleChanged && !confirm(`⚠️ Change user role from ${user.role} to ${role}?\n\nThis will change their access permissions.`)) {
         return;
     }
-    
+
     // Check if status is changing
     const statusChanged = user.status !== status;
     if (statusChanged && status === 'inactive' && !confirm(`⚠️ Deactivate ${user.displayName}?\n\nThey will not be able to log in.`)) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const updates = {
             displayName: displayName,
             role: role,
@@ -9922,35 +9963,35 @@ async function updateUser(event) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         };
-        
+
         // Update profile picture if changed
         if (editUserProfilePicture) {
             updates.profilePicture = editUserProfilePicture;
         }
-        
+
         await db.ref(`users/${userId}`).update(updates);
-        
+
         // Log activity
         const changes = [];
         if (user.displayName !== displayName) changes.push(`name: ${user.displayName} → ${displayName}`);
         if (roleChanged) changes.push(`role: ${user.role} → ${role}`);
         if (statusChanged) changes.push(`status: ${user.status} → ${status}`);
-        
+
         await logActivity('user_updated', {
             userId: userId,
             changes: changes
         }, `${window.currentUserData.displayName} updated user ${displayName}${changes.length > 0 ? ': ' + changes.join(', ') : ''}`);
-        
+
         utils.showLoading(false);
         alert(`✅ User updated successfully!`);
-        
+
         closeEditUserModal();
-        
+
         // Auto-close and refresh page
         setTimeout(() => {
             location.reload();
         }, 300);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error updating user:', error);
@@ -9967,37 +10008,37 @@ async function toggleUserStatus(userId) {
         alert('User not found');
         return;
     }
-    
+
     const newStatus = user.status === 'active' ? 'inactive' : 'active';
     const action = newStatus === 'active' ? 'activate' : 'deactivate';
-    
-    const confirmMsg = newStatus === 'inactive' 
+
+    const confirmMsg = newStatus === 'inactive'
         ? `⚠️ Deactivate ${user.displayName}?\n\nThey will not be able to log in until reactivated.`
         : `✅ Reactivate ${user.displayName}?\n\nThey will be able to log in again.`;
-    
+
     if (!confirm(confirmMsg)) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         await db.ref(`users/${userId}`).update({
             status: newStatus,
             statusChangedAt: new Date().toISOString(),
             statusChangedBy: window.currentUserData.displayName
         });
-        
+
         // Log activity
         await logActivity('user_status_changed', {
             userId: userId,
             oldStatus: user.status,
             newStatus: newStatus
         }, `${window.currentUserData.displayName} ${action}d ${user.displayName}`);
-        
+
         utils.showLoading(false);
         alert(`✅ User ${action}d successfully!`);
-        
+
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error(`❌ Error ${action}ing user:`, error);
@@ -10014,7 +10055,7 @@ function viewUserProfile(userId) {
         alert('User not found');
         return;
     }
-    
+
     // Use existing showUserProfile function if available
     if (window.showUserProfile) {
         window.showUserProfile(userId);
@@ -10081,7 +10122,7 @@ function debugPaymentStatus(repairId) {
         console.error('Repair not found:', repairId);
         return;
     }
-    
+
     console.log('=== PAYMENT DEBUG ===');
     console.log('Repair ID:', repairId);
     console.log('Customer:', repair.customerName);
@@ -10090,12 +10131,12 @@ function debugPaymentStatus(repairId) {
     console.log('Assigned Technician:', repair.acceptedByName, `(${repair.acceptedBy})`);
     console.log('Status:', repair.status);
     console.log('\nPAYMENTS:');
-    
+
     if (!repair.payments || repair.payments.length === 0) {
         console.log('  No payments recorded');
         return;
     }
-    
+
     let totalPaid = 0;
     repair.payments.forEach((p, i) => {
         console.log(`\n  Payment #${i}:`);
@@ -10111,17 +10152,17 @@ function debugPaymentStatus(repairId) {
             totalPaid += p.amount;
         }
     });
-    
+
     console.log('\n  TOTAL VERIFIED:', totalPaid);
     console.log('  BALANCE:', repair.total - totalPaid);
     console.log('  FULLY PAID:', totalPaid >= repair.total);
-    
+
     // Commission info
     console.log('\nCOMMISSION INFO:');
     console.log('  Claimed By:', repair.commissionClaimedBy || 'Not claimed');
     console.log('  Claimed At:', repair.commissionClaimedAt || 'N/A');
     console.log('  Remittance ID:', repair.commissionRemittanceId || 'N/A');
-    
+
     return {
         repair: repair,
         summary: {
@@ -10143,7 +10184,7 @@ function debugAllTechPayments() {
     console.log('=== ALL TECH PAYMENTS DEBUG ===');
     console.log('Technician:', window.currentUserData.displayName, `(${techId})`);
     console.log('\n');
-    
+
     const allPayments = [];
     window.allRepairs.forEach(repair => {
         if (repair.payments) {
@@ -10165,23 +10206,23 @@ function debugAllTechPayments() {
             });
         }
     });
-    
+
     console.log('Total payments by this tech:', allPayments.length);
     console.log('\nPending (not yet remitted):');
     allPayments.filter(p => p.remittanceStatus === 'pending').forEach(p => {
         console.log(`  ${p.customerName}: ₱${p.amount} - Date: ${p.dateString} - Recorded: ${p.recordedDate}`);
     });
-    
+
     console.log('\nRemitted:');
     allPayments.filter(p => p.remittanceStatus === 'remitted').forEach(p => {
         console.log(`  ${p.customerName}: ₱${p.amount} - Date: ${p.dateString} - RemittanceID: ${p.techRemittanceId}`);
     });
-    
+
     console.log('\nVerified:');
     allPayments.filter(p => p.remittanceStatus === 'verified').forEach(p => {
         console.log(`  ${p.customerName}: ₱${p.amount} - Date: ${p.dateString}`);
     });
-    
+
     return allPayments;
 }
 
@@ -10193,11 +10234,11 @@ function debugDailyRemittance(dateString = null) {
     const techId = window.currentUser.uid;
     const date = dateString ? new Date(dateString) : new Date();
     const dateStr = date.toDateString();
-    
+
     console.log('=== DAILY REMITTANCE DEBUG ===');
     console.log('Date:', dateStr);
     console.log('Technician:', window.currentUserData.displayName, `(${techId})`);
-    
+
     // Payments
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, date);
     console.log('\nPAYMENTS COLLECTED:');
@@ -10206,7 +10247,7 @@ function debugDailyRemittance(dateString = null) {
     payments.forEach(p => {
         console.log(`  - ${p.customerName}: ₱${p.amount} (${p.method}) [${p.recordedDate}]`);
     });
-    
+
     // Commission
     const { breakdown, total: commissionTotal } = getTechDailyCommission(techId, date);
     console.log('\nCOMMISSION:');
@@ -10215,7 +10256,7 @@ function debugDailyRemittance(dateString = null) {
     breakdown.forEach(c => {
         console.log(`  - ${c.customerName}: ₱${c.commission} (Repair: ₱${c.repairTotal}, Parts: ₱${c.partsCost})`);
     });
-    
+
     // Expenses
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, date);
     console.log('\nEXPENSES:');
@@ -10224,7 +10265,7 @@ function debugDailyRemittance(dateString = null) {
     expenses.forEach(e => {
         console.log(`  - ${e.description}: ₱${e.amount} (${e.category})`);
     });
-    
+
     // Summary
     const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
     console.log('\nSUMMARY:');
@@ -10232,13 +10273,13 @@ function debugDailyRemittance(dateString = null) {
     console.log('  Commission:', commissionTotal);
     console.log('  Expenses:', expensesTotal);
     console.log('  AMOUNT TO REMIT:', expectedAmount);
-    
+
     // Check for submitted remittance
     const remittance = window.techRemittances.find(r => {
         const remDate = new Date(r.date).toDateString();
         return r.techId === techId && remDate === dateStr;
     });
-    
+
     if (remittance) {
         console.log('\nREMITTANCE SUBMITTED:');
         console.log('  Submitted At:', remittance.submittedAt);
@@ -10249,7 +10290,7 @@ function debugDailyRemittance(dateString = null) {
     } else {
         console.log('\nNo remittance submitted for this date');
     }
-    
+
     return {
         date: dateStr,
         payments: { items: payments, total: paymentsTotal },
@@ -10266,24 +10307,24 @@ function debugDailyRemittance(dateString = null) {
 function debugCommissionIssues() {
     console.log('=== COMMISSION ISSUES DEBUG ===');
     const issues = [];
-    
+
     window.allRepairs.forEach(repair => {
         // Check for fully paid repairs without commission marked
         if (repair.payments && repair.payments.length > 0) {
             const totalPaid = repair.payments.filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
             const fullyPaid = totalPaid >= (repair.total || 0);
-            
+
             if (fullyPaid && repair.acceptedBy && repair.status === 'Claimed') {
                 const hasClaimed = !!repair.commissionClaimedBy;
                 const hasEligibleFlag = repair.commissionEligible;
-                
+
                 // Find what date it became fully paid
                 let lastPaymentDate = null;
                 let runningTotal = 0;
                 const sortedPayments = [...repair.payments]
                     .filter(p => p.verified)
                     .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
-                
+
                 for (const p of sortedPayments) {
                     runningTotal += p.amount;
                     if (runningTotal >= repair.total) {
@@ -10291,7 +10332,7 @@ function debugCommissionIssues() {
                         break;
                     }
                 }
-                
+
                 issues.push({
                     repairId: repair.id,
                     customer: repair.customerName,
@@ -10307,10 +10348,10 @@ function debugCommissionIssues() {
             }
         }
     });
-    
+
     console.log(`Found ${issues.length} fully paid repairs with commission status:`);
     console.table(issues);
-    
+
     return issues;
 }
 
@@ -10328,22 +10369,22 @@ async function adminRecalculateCommissions() {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     if (!confirm('Analyze commission tracking for all repairs?\n\nThis will scan all claimed repairs and check if commission tracking is correct.')) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
         const issues = [];
         const warnings = [];
-        
+
         // Analyze all claimed repairs
         window.allRepairs.forEach(repair => {
             if (repair.status === 'Claimed' && repair.payments && repair.acceptedBy) {
                 const totalPaid = repair.payments.filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
                 const fullyPaid = totalPaid >= repair.total;
-                
+
                 if (fullyPaid) {
                     // Should have commission claimed
                     if (!repair.commissionClaimedBy) {
@@ -10353,7 +10394,7 @@ async function adminRecalculateCommissions() {
                         const sortedPayments = [...repair.payments]
                             .filter(p => p.verified)
                             .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
-                        
+
                         for (const p of sortedPayments) {
                             runningTotal += p.amount;
                             if (runningTotal >= repair.total) {
@@ -10361,7 +10402,7 @@ async function adminRecalculateCommissions() {
                                 break;
                             }
                         }
-                        
+
                         issues.push({
                             id: repair.id,
                             customer: repair.customerName,
@@ -10384,9 +10425,9 @@ async function adminRecalculateCommissions() {
                 }
             }
         });
-        
+
         utils.showLoading(false);
-        
+
         console.log('=== COMMISSION AUDIT RESULTS ===');
         console.log(`\nISSUES (${issues.length}):`);
         if (issues.length > 0) {
@@ -10394,18 +10435,18 @@ async function adminRecalculateCommissions() {
         } else {
             console.log('✅ No issues found');
         }
-        
+
         console.log(`\nCOMMISSIONS CLAIMED (${warnings.length}):`);
         if (warnings.length > 0) {
             console.table(warnings);
         }
-        
+
         if (issues.length === 0) {
             alert(`✅ Commission Audit Complete!\n\nNo tracking issues found.\n\n${warnings.length} commissions properly tracked.\n\nSee console for details.`);
         } else {
             alert(`⚠️ Commission Audit Complete!\n\nFound ${issues.length} potential tracking issue(s):\n• Fully paid repairs without claimed commission\n\nSee console for detailed report.`);
         }
-        
+
         return { issues, tracked: warnings };
     } catch (error) {
         utils.showLoading(false);
@@ -10431,7 +10472,7 @@ function openMasterResetModal() {
         alert('⚠️ This function is only available to administrators');
         return;
     }
-    
+
     const content = document.getElementById('masterResetModalContent');
     content.innerHTML = `
         <div style="background:#ffebee;padding:15px;border-radius:8px;border-left:4px solid #f44336;margin-bottom:20px;">
@@ -10521,7 +10562,7 @@ function openMasterResetModal() {
             <button onclick="closeMasterResetModal()" class="btn-secondary">Cancel</button>
         </div>
     `;
-    
+
     document.getElementById('masterResetModal').style.display = 'block';
 }
 
@@ -10534,15 +10575,15 @@ function updateResetSummary() {
     const expenses = document.getElementById('reset_expenses').checked;
     const cashcounts = document.getElementById('reset_cashcounts').checked;
     const logs = document.getElementById('reset_activitylogs').checked;
-    
+
     const summary = document.getElementById('resetSummary');
     const content = document.getElementById('resetSummaryContent');
-    
+
     if (!repairs && !remittances && !expenses && !cashcounts && !logs) {
         summary.style.display = 'none';
         return;
     }
-    
+
     summary.style.display = 'block';
     let items = [];
     if (repairs) items.push('✓ All Repairs & Jobs');
@@ -10550,7 +10591,7 @@ function updateResetSummary() {
     if (expenses) items.push('✓ Technician Expenses');
     if (cashcounts) items.push('✓ Daily Cash Counts');
     if (logs) items.push('✓ Activity Logs');
-    
+
     content.innerHTML = items.join('<br>');
 }
 
@@ -10560,28 +10601,28 @@ function updateResetSummary() {
 async function executeMasterReset() {
     const confirmation = document.getElementById('resetConfirmation').value;
     const reason = document.getElementById('resetReason').value.trim();
-    
+
     if (confirmation !== 'DELETE') {
         alert('⚠️ Please type DELETE (in CAPS) to confirm');
         return;
     }
-    
+
     if (!reason) {
         alert('⚠️ Please provide a reason for this reset');
         return;
     }
-    
+
     const repairs = document.getElementById('reset_repairs').checked;
     const remittances = document.getElementById('reset_remittances').checked;
     const expenses = document.getElementById('reset_expenses').checked;
     const cashcounts = document.getElementById('reset_cashcounts').checked;
     const logs = document.getElementById('reset_activitylogs').checked;
-    
+
     if (!repairs && !remittances && !expenses && !cashcounts && !logs) {
         alert('⚠️ Please select at least one item to reset');
         return;
     }
-    
+
     let confirmMsg = '⚠️ FINAL CONFIRMATION\n\nYou are about to PERMANENTLY DELETE:\n\n';
     if (repairs) confirmMsg += `• ${window.allRepairs.length} Repairs\n`;
     if (remittances) confirmMsg += `• ${window.techRemittances.length} Remittances\n`;
@@ -10589,16 +10630,16 @@ async function executeMasterReset() {
     if (cashcounts) confirmMsg += '• All Daily Cash Counts\n';
     if (logs) confirmMsg += `• ${(window.activityLogs || []).length} Activity Logs\n`;
     confirmMsg += '\nThis CANNOT be undone!\n\nProceed?';
-    
+
     if (!confirm(confirmMsg)) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const deletePromises = [];
-        
+
         // Delete selected data
         if (repairs) {
             deletePromises.push(db.ref('repairs').remove());
@@ -10615,9 +10656,9 @@ async function executeMasterReset() {
         if (logs) {
             deletePromises.push(db.ref('activityLogs').remove());
         }
-        
+
         await Promise.all(deletePromises);
-        
+
         // Log the reset action (if logs weren't deleted)
         if (!logs) {
             await logActivity('master_reset', 'admin', {
@@ -10629,18 +10670,18 @@ async function executeMasterReset() {
                 reason: reason
             });
         }
-        
+
         utils.showLoading(false);
-        
+
         alert('✅ Master Reset Complete!\n\nSelected data has been permanently deleted.\n\nPage will reload in 2 seconds...');
-        
+
         closeMasterResetModal();
-        
+
         // Reload page to refresh data
         setTimeout(() => {
             window.location.reload();
         }, 2000);
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('Error during master reset:', error);
@@ -10673,10 +10714,10 @@ function openEditReceivedDetails(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     const modal = document.getElementById('editDetailsModal');
     const content = document.getElementById('editDetailsModalContent');
-    
+
     content.innerHTML = `
         <form onsubmit="submitEditReceivedDetails(event, '${repairId}')">
             <div class="form-row">
@@ -10778,7 +10819,7 @@ function openEditReceivedDetails(repairId) {
             </div>
         </form>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -10789,10 +10830,10 @@ async function submitEditReceivedDetails(e, repairId) {
     e.preventDefault();
     const form = e.target;
     const data = new FormData(form);
-    
+
     try {
         utils.showLoading(true);
-        
+
         const updates = {
             customerType: data.get('customerType'),
             customerName: data.get('customerName'),
@@ -10808,9 +10849,9 @@ async function submitEditReceivedDetails(e, repairId) {
             lastEditedByName: window.currentUserData.displayName,
             lastEditedAt: new Date().toISOString()
         };
-        
+
         await db.ref(`repairs/${repairId}`).update(updates);
-        
+
         // Log activity
         await logActivity('repair_details_edited', {
             repairId: repairId,
@@ -10818,14 +10859,14 @@ async function submitEditReceivedDetails(e, repairId) {
             brand: updates.brand,
             model: updates.model
         }, `Device details updated for ${updates.customerName} - ${updates.brand} ${updates.model}`);
-        
+
         utils.showLoading(false);
         closeEditDetailsModal();
-        
+
         alert('✅ Device details updated successfully!');
-        
+
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         console.error('Error updating details:', error);
         utils.showLoading(false);
@@ -10855,15 +10896,15 @@ function openUpdateDiagnosisModal(repairId) {
         alert('Repair not found');
         return;
     }
-    
+
     if (!repair.acceptedBy) {
         alert('This repair has not been accepted yet. Use "Create Diagnosis" for received devices.');
         return;
     }
-    
+
     const modal = document.getElementById('updateDiagnosisModal');
     const content = document.getElementById('updateDiagnosisModalContent');
-    
+
     content.innerHTML = `
         <div class="alert-info-compact">
             <strong>📱 ${repair.brand} ${repair.model}</strong><br>
@@ -10894,7 +10935,7 @@ function openUpdateDiagnosisModal(repairId) {
             </div>
         </form>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -10905,15 +10946,15 @@ async function submitDiagnosisUpdate(e, repairId) {
     e.preventDefault();
     const form = e.target;
     const data = new FormData(form);
-    
+
     try {
         utils.showLoading(true);
-        
+
         const repair = window.allRepairs.find(r => r.id === repairId);
         if (!repair) {
             throw new Error('Repair not found');
         }
-        
+
         const update = {
             problemFound: data.get('problemFound'),
             notes: data.get('notes') || '',
@@ -10921,31 +10962,31 @@ async function submitDiagnosisUpdate(e, repairId) {
             updatedByName: window.currentUserData.displayName,
             updatedAt: new Date().toISOString()
         };
-        
+
         // Get existing updates or create new array
         const existingUpdates = repair.diagnosisUpdates || [];
         existingUpdates.push(update);
-        
+
         await db.ref(`repairs/${repairId}`).update({
             diagnosisUpdates: existingUpdates,
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Log activity
         await logActivity('diagnosis_updated', {
             repairId: repairId,
             customerName: repair.customerName,
             problemFound: update.problemFound
         }, `Diagnosis updated for ${repair.customerName}: ${update.problemFound}`);
-        
+
         utils.showLoading(false);
         closeUpdateDiagnosisModal();
-        
+
         alert('✅ Diagnosis update added successfully!');
-        
+
         // Firebase listener will auto-refresh the page
-        
+
     } catch (error) {
         console.error('Error updating diagnosis:', error);
         utils.showLoading(false);
@@ -10998,7 +11039,7 @@ window.requestRepairDeletion = requestRepairDeletion;
 async function checkAndAutoFinalizeReleased() {
     try {
         if (!window.allRepairs || !window.currentUser) return;
-        
+
         // Get current date and time in Manila timezone
         const manilaTimeStr = new Date().toLocaleString('en-US', {
             timeZone: 'Asia/Manila',
@@ -11007,47 +11048,47 @@ async function checkAndAutoFinalizeReleased() {
         const manilaDate = new Date(manilaTimeStr);
         const currentHour = manilaDate.getHours();
         const currentMinute = manilaDate.getMinutes();
-        
+
         // Only run at 6pm Manila time (18:00) - with 10-minute window
         if (currentHour !== 18 || currentMinute >= 10) {
             return;
         }
-        
+
         console.log('🕒 Checking for Released devices to auto-finalize...');
-        
+
         // Get today's date in Manila timezone (YYYY-MM-DD)
         const todayManilaStr = manilaDate.toISOString().split('T')[0];
-        
+
         // Find all Released devices from today or earlier
         const releasedDevices = window.allRepairs.filter(repair => {
             if (repair.status !== 'Released') return false;
             if (!repair.releasedAt) return false;
-            
+
             // Get release date in Manila timezone
             const releasedDate = new Date(repair.releasedAt);
             const releasedManilaStr = new Date(releasedDate.toLocaleString('en-US', {
                 timeZone: 'Asia/Manila'
             })).toISOString().split('T')[0];
-            
+
             // Finalize if released today or before
             return releasedManilaStr <= todayManilaStr;
         });
-        
+
         if (releasedDevices.length === 0) {
             console.log('✅ No Released devices to auto-finalize');
             return;
         }
-        
+
         console.log(`📋 Auto-finalizing ${releasedDevices.length} Released device(s)...`);
-        
+
         // Auto-finalize each device
         for (const repair of releasedDevices) {
             await finalizeClaimDevice(repair.id, true);
             console.log(`✅ Auto-finalized: ${repair.customerName} (${repair.id})`);
         }
-        
+
         console.log('✅ Auto-finalization complete');
-        
+
         // Refresh UI if needed
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
@@ -11055,7 +11096,7 @@ async function checkAndAutoFinalizeReleased() {
         if (window.buildStats) {
             window.buildStats();
         }
-        
+
     } catch (error) {
         console.error('❌ Error in auto-finalization:', error);
     }
@@ -11067,34 +11108,34 @@ async function checkAndAutoFinalizeReleased() {
 function getCountdownTo6PM(releasedAt) {
     try {
         const releasedDate = new Date(releasedAt);
-        
+
         // Get release date in Manila timezone
         const releasedManilaStr = new Date(releasedDate.toLocaleString('en-US', {
             timeZone: 'Asia/Manila'
         })).toISOString().split('T')[0];
-        
+
         // Create 6pm Manila time for the release date
         const finalizeTime = new Date(`${releasedManilaStr}T18:00:00+08:00`);
-        
+
         // Get current time in Manila
         const nowManilaStr = new Date().toLocaleString('en-US', {
             timeZone: 'Asia/Manila',
             hour12: false
         });
         const nowManila = new Date(nowManilaStr);
-        
+
         // Calculate difference
         const diff = finalizeTime - nowManila;
-        
+
         if (diff <= 0) {
             return 'Finalizing...';
         }
-        
+
         const hours = Math.floor(diff / (1000 * 60 * 60));
         const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        
+
         return `${hours}h ${minutes}m until auto-finalize`;
-        
+
     } catch (error) {
         console.error('Error calculating countdown:', error);
         return 'Pending finalization';
@@ -11109,13 +11150,13 @@ function startAutoFinalizeChecker() {
     if (autoFinalizeInterval) {
         clearInterval(autoFinalizeInterval);
     }
-    
+
     // Run check every 5 minutes (300000 ms)
     autoFinalizeInterval = setInterval(checkAndAutoFinalizeReleased, 300000);
-    
+
     // Also run once immediately
     setTimeout(checkAndAutoFinalizeReleased, 5000); // Wait 5 seconds after load
-    
+
     console.log('✅ Auto-finalization checker started (every 5 minutes)');
 }
 

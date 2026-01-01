@@ -7,34 +7,238 @@ window.currentUserData = null;
 // Flag to prevent multiple initializations
 let appInitialized = false;
 
+// ===== RATE LIMITING =====
+class RateLimiter {
+    constructor() {
+        this.attempts = new Map();
+    }
+
+    isRateLimited(key, maxAttempts = 5, windowMs = 15 * 60 * 1000) {
+        const now = Date.now();
+        const attempt = this.attempts.get(key);
+
+        // First attempt
+        if (!attempt) {
+            this.attempts.set(key, {
+                count: 1,
+                resetAt: now + windowMs
+            });
+            return false;
+        }
+
+        // Reset window has passed
+        if (now > attempt.resetAt) {
+            this.attempts.set(key, {
+                count: 1,
+                resetAt: now + windowMs
+            });
+            return false;
+        }
+
+        // Increment attempt count
+        attempt.count++;
+
+        // Check if rate limited
+        if (attempt.count > maxAttempts) {
+            const waitTime = Math.ceil((attempt.resetAt - now) / 1000 / 60);
+            throw new Error(`Too many login attempts. Please try again in ${waitTime} minute${waitTime > 1 ? 's' : ''}.`);
+        }
+
+        return false;
+    }
+
+    reset(key) {
+        this.attempts.delete(key);
+    }
+
+    cleanup() {
+        const now = Date.now();
+        for (const [key, attempt] of this.attempts.entries()) {
+            if (now > attempt.resetAt) {
+                this.attempts.delete(key);
+            }
+        }
+    }
+}
+
+const rateLimiter = new RateLimiter();
+
+// Cleanup rate limiter every 5 minutes
+setInterval(() => rateLimiter.cleanup(), 5 * 60 * 1000);
+
+// ===== SESSION SECURITY =====
+class SessionManager {
+    constructor() {
+        this.timeoutMinutes = 30; // Auto-logout after 30 minutes of inactivity
+        this.warningMinutes = 5; // Warn 5 minutes before timeout
+        this.timeoutId = null;
+        this.warningTimeoutId = null;
+        this.warningModal = null;
+        this.countdownInterval = null;
+    }
+
+    init() {
+        // Listen for user activity
+        const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+        events.forEach(event => {
+            document.addEventListener(event, () => this.resetTimeout(), { passive: true });
+        });
+
+        // Start timeout
+        this.resetTimeout();
+    }
+
+    resetTimeout() {
+        // Don't reset if not logged in
+        if (!window.currentUser) return;
+
+        // Clear existing timeouts
+        if (this.timeoutId) clearTimeout(this.timeoutId);
+        if (this.warningTimeoutId) clearTimeout(this.warningTimeoutId);
+        if (this.countdownInterval) clearInterval(this.countdownInterval);
+
+        // Hide warning modal if showing
+        if (this.warningModal) {
+            this.hideWarning();
+        }
+
+        // Set warning timeout (25 minutes)
+        this.warningTimeoutId = setTimeout(() => {
+            this.showWarning();
+        }, (this.timeoutMinutes - this.warningMinutes) * 60 * 1000);
+
+        // Set logout timeout (30 minutes)
+        this.timeoutId = setTimeout(() => {
+            this.logout();
+        }, this.timeoutMinutes * 60 * 1000);
+    }
+
+    showWarning() {
+        // Create modal
+        this.warningModal = document.createElement('div');
+        this.warningModal.className = 'session-warning-modal';
+        this.warningModal.innerHTML = `
+            <div class="session-warning-content">
+                <h3>⚠️ Session Timeout Warning</h3>
+                <p>Your session will expire in <strong id="sessionCountdown">${this.warningMinutes}:00</strong> due to inactivity.</p>
+                <p>Click "Continue" to stay logged in.</p>
+                <div class="btn-group">
+                    <button onclick="sessionManager.continueSession()" class="btn btn-primary">
+                        Continue Session
+                    </button>
+                    <button onclick="sessionManager.logout()" class="btn btn-secondary">
+                        Logout Now
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(this.warningModal);
+
+        // Start countdown
+        let timeLeft = this.warningMinutes * 60;
+        const countdownEl = document.getElementById('sessionCountdown');
+
+        this.countdownInterval = setInterval(() => {
+            timeLeft--;
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            countdownEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+            if (timeLeft <= 0) {
+                clearInterval(this.countdownInterval);
+            }
+        }, 1000);
+    }
+
+    hideWarning() {
+        if (this.warningModal) {
+            this.warningModal.remove();
+            this.warningModal = null;
+        }
+        if (this.countdownInterval) {
+            clearInterval(this.countdownInterval);
+            this.countdownInterval = null;
+        }
+    }
+
+    continueSession() {
+        this.hideWarning();
+        this.resetTimeout();
+        if (utils.showSuccess) {
+            utils.showSuccess('Session extended successfully');
+        }
+    }
+
+    async logout() {
+        try {
+            this.hideWarning();
+            await auth.signOut();
+            window.currentUser = null;
+            window.currentUserData = null;
+
+            if (utils.showError) {
+                utils.showError('You have been logged out due to inactivity.');
+            } else {
+                alert('You have been logged out due to inactivity.');
+            }
+
+            window.location.reload();
+        } catch (error) {
+            console.error('Auto-logout error:', error);
+        }
+    }
+}
+
+const sessionManager = new SessionManager();
+
+// Export to global
+window.sessionManager = sessionManager;
+
 /**
  * Handle login
  */
 async function handleLogin(e) {
     if (e) e.preventDefault();
-    
+
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const errorEl = document.getElementById('loginError');
-    
+
     try {
         console.log('🔐 Logging in...');
-        
+
+        // Check rate limit
+        try {
+            rateLimiter.isRateLimited(`login:${email}`, 5, 15 * 60 * 1000);
+        } catch (rateLimitError) {
+            errorEl.textContent = rateLimitError.message;
+            errorEl.style.display = 'block';
+            errorEl.style.backgroundColor = '#fff3cd';
+            errorEl.style.color = '#856404';
+            errorEl.style.borderLeft = '4px solid #f6ad55';
+            errorEl.style.padding = '1rem';
+            return;
+        }
+
         const userCredential = await auth.signInWithEmailAndPassword(email, password);
         window.currentUser = userCredential.user;
-        
+
         console.log('✅ Auth successful, loading user data...');
-        
+
+        // Success - reset rate limit
+        rateLimiter.reset(`login:${email}`);
+
         // Load user data and WAIT for it
         const snapshot = await db.ref(`users/${window.currentUser.uid}`).once('value');
         window.currentUserData = snapshot.val();
-        
+
         console.log('📊 User data loaded:', window.currentUserData);
-        
+
         if (!window.currentUserData) {
             throw new Error('User data not found in database');
         }
-        
+
         // Check if user is active
         if (window.currentUserData.status !== 'active') {
             await auth.signOut();
@@ -42,30 +246,43 @@ async function handleLogin(e) {
             errorEl.style.display = 'block';
             return;
         }
-        
+
         // Record login event
         await recordLoginEvent('login');
-        
+
         // Update last login
         await db.ref(`users/${window.currentUser.uid}`).update({
             lastLogin: new Date().toISOString()
         });
-        
+
         // Show app
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('app').style.display = 'block';
-        
+
+        // Initialize session manager
+        sessionManager.init();
+
         // Initialize app ONLY if not already initialized
         if (!appInitialized && window.initializeApp) {
             appInitialized = true;
             console.log('🚀 Initializing app...');
             await window.initializeApp();
         }
-        
+
     } catch (error) {
         console.error('❌ Login error:', error);
-        errorEl.textContent = error.message;
+
+        // Handle error with user-friendly message
+        const friendlyError = utils.handleFirebaseError ?
+            utils.handleFirebaseError(error) :
+            { message: error.message };
+
+        errorEl.textContent = friendlyError.message;
         errorEl.style.display = 'block';
+        errorEl.style.backgroundColor = '#ffebee';
+        errorEl.style.color = '#c0392b';
+        errorEl.style.borderLeft = '4px solid #fc8181';
+        errorEl.style.padding = '1rem';
     }
 }
 
@@ -76,15 +293,15 @@ async function handleLogout() {
     try {
         // Record logout event
         await recordLoginEvent('logout');
-        
+
         await auth.signOut();
         window.currentUser = null;
         window.currentUserData = null;
         appInitialized = false;
-        
+
         // Reload page to show login
         window.location.reload();
-        
+
     } catch (error) {
         console.error('Logout error:', error);
         alert('Error logging out: ' + error.message);
@@ -96,7 +313,7 @@ async function handleLogout() {
  */
 async function recordLoginEvent(type) {
     if (!window.currentUser || !window.currentUserData) return;
-    
+
     try {
         const event = {
             type: type,
@@ -105,13 +322,13 @@ async function recordLoginEvent(type) {
             userName: window.currentUserData.displayName,
             userEmail: window.currentUserData.email
         };
-        
+
         // Add to user's login history
         await db.ref(`users/${window.currentUser.uid}/loginHistory`).push(event);
-        
+
         // Also add to global login history (for admin tracking)
         await db.ref(`loginHistory`).push(event);
-        
+
         // Log to activity logs
         if (window.logActivity) {
             await window.logActivity(
@@ -134,28 +351,28 @@ async function recordLoginEvent(type) {
  */
 async function updateProfilePicture(file) {
     if (!file) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Compress image
         const compressedImage = await utils.compressImage(file, 300);
-        
+
         // Save to Firebase
         await db.ref(`users/${window.currentUser.uid}`).update({
             profilePicture: compressedImage,
             profilePictureUpdated: new Date().toISOString()
         });
-        
+
         // Update current user data
         window.currentUserData.profilePicture = compressedImage;
-        
+
         // Update UI
         updateUserAvatar(compressedImage);
-        
+
         utils.showLoading(false);
         alert('✅ Profile picture updated!');
-        
+
     } catch (error) {
         utils.showLoading(false);
         alert('Error updating profile picture: ' + error.message);
@@ -180,22 +397,22 @@ async function openProfileModal() {
         alert('User data not loaded');
         return;
     }
-    
+
     const content = document.getElementById('profileModalContent');
-    
+
     // Get login history
     const historySnapshot = await db.ref(`users/${window.currentUser.uid}/loginHistory`)
         .orderByChild('timestamp')
         .limitToLast(20)
         .once('value');
-    
+
     const loginHistory = [];
     historySnapshot.forEach(child => {
         loginHistory.unshift(child.val());
     });
-    
+
     const currentAvatar = window.currentUserData.profilePicture || utils.getDefaultAvatar(window.currentUserData.displayName);
-    
+
     content.innerHTML = `
         <div class="profile-section">
             <div class="profile-avatar-upload">
@@ -244,7 +461,7 @@ async function openProfileModal() {
         
         <button onclick="closeProfileModal()" style="width:100%;background:#667eea;color:white;">Close</button>
     `;
-    
+
     document.getElementById('profileModal').style.display = 'block';
 }
 
@@ -254,14 +471,14 @@ async function openProfileModal() {
 async function handleAvatarUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
-    
+
     // Preview immediately
     const reader = new FileReader();
     reader.onload = (e) => {
         document.getElementById('profileAvatarPreview').src = e.target.result;
     };
     reader.readAsDataURL(file);
-    
+
     // Upload to Firebase
     await updateProfilePicture(file);
 }
@@ -280,18 +497,21 @@ function closeProfileModal() {
  */
 auth.onAuthStateChanged(async (user) => {
     console.log('🔄 Auth state changed:', user ? 'logged in' : 'logged out');
-    
+
     if (user && !appInitialized) {
         window.currentUser = user;
         const snapshot = await db.ref(`users/${user.uid}`).once('value');
         window.currentUserData = snapshot.val();
-        
+
         console.log('📊 User data from state change:', window.currentUserData);
-        
+
         if (window.currentUserData && window.currentUserData.status === 'active') {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('app').style.display = 'block';
-            
+
+            // Initialize session manager
+            sessionManager.init();
+
             // Initialize app only if not already initialized
             if (!appInitialized && window.initializeApp) {
                 appInitialized = true;
@@ -313,9 +533,165 @@ auth.onAuthStateChanged(async (user) => {
 // Attach login handler
 document.getElementById('loginForm').addEventListener('submit', handleLogin);
 
+// ===== AUTHENTICATION GUARDS & SECURITY =====
+
+/**
+ * Check if user is authenticated
+ */
+function requireAuth() {
+    if (!window.currentUser || !window.currentUserData) {
+        console.warn('⚠️ Authentication required');
+        utils.showError('Please login to continue');
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('app').style.display = 'none';
+        return false;
+    }
+
+    if (window.currentUserData.status !== 'active') {
+        console.warn('⚠️ Account is not active');
+        utils.showError('Your account has been deactivated. Contact administrator.');
+        handleLogout();
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Check if current user is admin
+ */
+function isAdmin() {
+    return window.currentUserData && window.currentUserData.role === 'admin';
+}
+
+/**
+ * Check if current user is manager or higher
+ */
+function isManagerOrHigher() {
+    const role = window.currentUserData?.role;
+    return role === 'admin' || role === 'manager';
+}
+
+/**
+ * Check if current user is cashier or higher
+ */
+function isCashierOrHigher() {
+    const role = window.currentUserData?.role;
+    return role === 'admin' || role === 'manager' || role === 'cashier';
+}
+
+/**
+ * Require specific role
+ */
+function requireRole(role) {
+    if (!requireAuth()) return false;
+
+    if (window.currentUserData.role !== role) {
+        utils.showError(`Access denied. ${role.charAt(0).toUpperCase() + role.slice(1)} role required.`);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Require admin role
+ */
+function requireAdmin() {
+    if (!requireAuth()) return false;
+
+    if (!isAdmin()) {
+        utils.showError('Access denied. Administrator privileges required.');
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Check permission for action
+ */
+function hasPermission(action) {
+    if (!requireAuth()) return false;
+
+    const role = window.currentUserData.role;
+
+    // Define permissions matrix
+    const permissions = {
+        'delete_repair': ['admin'],
+        'manage_users': ['admin'],
+        'approve_modifications': ['admin'],
+        'view_logs': ['admin'],
+        'create_repair': ['admin', 'manager', 'cashier', 'technician'],
+        'accept_repair': ['admin', 'manager', 'technician'],
+        'set_pricing': ['admin', 'manager', 'technician'],
+        'record_payment': ['admin', 'manager', 'cashier', 'technician'],
+        'verify_payment': ['admin', 'cashier'],
+        'release_device': ['admin', 'manager', 'cashier'],
+        'manage_inventory': ['admin', 'manager'],
+        'view_analytics': ['admin', 'manager']
+    };
+
+    const allowedRoles = permissions[action] || [];
+    return allowedRoles.includes(role);
+}
+
+/**
+ * Initialize role-based UI (hide/disable elements based on permissions)
+ */
+function initRoleBasedUI() {
+    if (!window.currentUserData) return;
+
+    const role = window.currentUserData.role;
+
+    // Hide admin-only elements for non-admins
+    document.querySelectorAll('[data-admin-only]').forEach(element => {
+        element.style.display = isAdmin() ? '' : 'none';
+    });
+
+    // Hide manager-only elements for non-managers
+    document.querySelectorAll('[data-manager-only]').forEach(element => {
+        element.style.display = isManagerOrHigher() ? '' : 'none';
+    });
+
+    // Disable elements that require specific permissions
+    document.querySelectorAll('[data-requires-permission]').forEach(element => {
+        const requiredPermission = element.getAttribute('data-requires-permission');
+        if (!hasPermission(requiredPermission)) {
+            element.disabled = true;
+            element.style.opacity = '0.5';
+            element.style.cursor = 'not-allowed';
+            element.title = 'Insufficient permissions';
+        }
+    });
+}
+
+/**
+ * Force HTTPS in production
+ */
+function enforceHTTPS() {
+    if (location.protocol !== 'https:' &&
+        location.hostname !== 'localhost' &&
+        location.hostname !== '127.0.0.1') {
+        console.log('🔒 Redirecting to HTTPS...');
+        location.replace(`https:${location.href.substring(location.protocol.length)}`);
+    }
+}
+
+// Enforce HTTPS on page load
+enforceHTTPS();
+
 // Export to global scope
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
 window.openProfileModal = openProfileModal;
 window.closeProfileModal = closeProfileModal;
 window.handleAvatarUpload = handleAvatarUpload;
+window.requireAuth = requireAuth;
+window.requireAdmin = requireAdmin;
+window.requireRole = requireRole;
+window.isAdmin = isAdmin;
+window.isManagerOrHigher = isManagerOrHigher;
+window.isCashierOrHigher = isCashierOrHigher;
+window.hasPermission = hasPermission;
+window.initRoleBasedUI = initRoleBasedUI;
