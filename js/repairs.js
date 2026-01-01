@@ -8278,7 +8278,7 @@ async function confirmReleaseDevice() {
                 method: payment.method,
                 collectedAt: 'device_release',
                 collectedBy: paymentCollected.collectedBy,
-                collectedByRole: role,
+                collectedByRole: window.currentUserData.role,
                 customerName: repair.customerName
             }, `Payment of ₱${payment.amount.toFixed(2)} collected at release by ${paymentCollected.collectedBy}`);
         }
