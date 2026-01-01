@@ -28,7 +28,7 @@ function buildTechnicianDashboard(userName, stats) {
         stats.myCompletedToday,
         'Finished repairs',
         'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-        'my',
+        'myclaimed',
         '✅'
     )}
                 ${utils.createStatCard(

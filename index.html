@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
@@ -8,40 +9,41 @@
     <title>Fonekingdom Repair Tracker v2.0</title>
     <link rel="stylesheet" href="css/styles.css">
 </head>
+
 <body>
-<script>
-// 🚨 EMERGENCY CLEANUP - Runs every 100ms for 3 seconds
-(function() {
-    console.log('🚨 Emergency cleanup script starting...');
-    
-    let attempts = 0;
-    const maxAttempts = 30; // 30 x 100ms = 3 seconds
-    
-    const forceCleanup = setInterval(function() {
-        attempts++;
-        
-        // Force hide loading
-        const loading = document.getElementById('loading');
-        if (loading) {
-            loading.style.display = 'none';
-            loading.style.visibility = 'hidden';
-            loading.style.opacity = '0';
-        }
-        
-        // Hide all modals
-        document.querySelectorAll('.modal').forEach(function(modal) {
-            modal.style.display = 'none';
-        });
-        
-        if (attempts >= maxAttempts) {
-            clearInterval(forceCleanup);
-            console.log('✅ Emergency cleanup complete after ' + attempts + ' attempts');
-        }
-    }, 100);
-    
-    console.log('✅ Emergency cleanup script loaded');
-})();
-</script>
+    <script>
+        // 🚨 EMERGENCY CLEANUP - Runs every 100ms for 3 seconds
+        (function () {
+            console.log('🚨 Emergency cleanup script starting...');
+
+            let attempts = 0;
+            const maxAttempts = 30; // 30 x 100ms = 3 seconds
+
+            const forceCleanup = setInterval(function () {
+                attempts++;
+
+                // Force hide loading
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                    loading.style.visibility = 'hidden';
+                    loading.style.opacity = '0';
+                }
+
+                // Hide all modals
+                document.querySelectorAll('.modal').forEach(function (modal) {
+                    modal.style.display = 'none';
+                });
+
+                if (attempts >= maxAttempts) {
+                    clearInterval(forceCleanup);
+                    console.log('✅ Emergency cleanup complete after ' + attempts + ' attempts');
+                }
+            }, 100);
+
+            console.log('✅ Emergency cleanup script loaded');
+        })();
+    </script>
 
     <!-- Login Screen -->
     <div id="loginScreen">
@@ -63,7 +65,7 @@
         <div class="header">
             <div class="header-left">
                 <button onclick="toggleMobileSidebar()" class="hamburger-btn">☰</button>
-                <h2>🔧 FK</h2>
+                <h2></h2>
             </div>
             <div class="header-right">
                 <div class="user-profile" id="userProfile">
@@ -78,20 +80,25 @@
                     <span class="btn-text">Help</span>
                 </button>
                 <div class="language-toggle" style="position:relative;">
-                    <button onclick="toggleLanguageDropdown()" class="btn-small" title="Change Language / Baguhin ang Wika" id="langToggleBtn">
+                    <button onclick="toggleLanguageDropdown()" class="btn-small"
+                        title="Change Language / Baguhin ang Wika" id="langToggleBtn">
                         <span>🌐</span>
                         <span class="btn-text" id="currentLangText">EN</span>
                     </button>
-                    <div id="languageDropdown" class="dropdown-menu" style="display:none;position:absolute;right:0;top:100%;background:white;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:1000;min-width:120px;margin-top:5px;">
-                        <button onclick="setHelpLanguage('en')" style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
+                    <div id="languageDropdown" class="dropdown-menu"
+                        style="display:none;position:absolute;right:0;top:100%;background:white;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:1000;min-width:120px;margin-top:5px;">
+                        <button onclick="setHelpLanguage('en')"
+                            style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
                             🇺🇸 English
                         </button>
-                        <button onclick="setHelpLanguage('tl')" style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
+                        <button onclick="setHelpLanguage('tl')"
+                            style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
                             🇵🇭 Tagalog
                         </button>
                     </div>
                 </div>
-                <button onclick="toggleTheme()" class="btn-small theme-toggle" id="themeToggle" title="Toggle Dark Mode">
+                <button onclick="toggleTheme()" class="btn-small theme-toggle" id="themeToggle"
+                    title="Toggle Dark Mode">
                     <span class="theme-icon">🌙</span>
                 </button>
                 <button onclick="openProfileModal()" class="btn-small" title="Profile">
@@ -232,62 +239,62 @@
 
     <!-- Theme Initialization Script -->
     <script>
-    // Initialize theme as soon as utils is loaded
-    if (window.utils && window.utils.initTheme) {
-        window.utils.initTheme();
-        console.log('✅ Theme initialized on page load');
-    }
+        // Initialize theme as soon as utils is loaded
+        if (window.utils && window.utils.initTheme) {
+            window.utils.initTheme();
+            console.log('✅ Theme initialized on page load');
+        }
     </script>
 
     <!-- Cleanup Script (FIX DIMMING) -->
     <script>
-    (function() {
-        console.log('🧹 Page cleanup script running...');
-        function cleanup() {
-            const loading = document.getElementById('loading');
-            if (loading) {
-                loading.style.display = 'none';
-                console.log('✅ Loading overlay hidden on page load');
+        (function () {
+            console.log('🧹 Page cleanup script running...');
+            function cleanup() {
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                    console.log('✅ Loading overlay hidden on page load');
+                }
+                document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
             }
-            document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
-        }
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', cleanup);
-        } else {
-            cleanup();
-        }
-    })();
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', cleanup);
+            } else {
+                cleanup();
+            }
+        })();
     </script>
 
     <!-- Emergency Cleanup Shortcut -->
     <script>
-    // Press ESC to force cleanup if screen gets stuck
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') {
-            console.log('🚨 ESC pressed - forcing emergency cleanup');
-            
-            const loading = document.getElementById('loading');
-            if (loading) {
-                loading.style.display = 'none';
-                loading.style.visibility = 'hidden';
-                loading.style.opacity = '0';
+        // Press ESC to force cleanup if screen gets stuck
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') {
+                console.log('🚨 ESC pressed - forcing emergency cleanup');
+
+                const loading = document.getElementById('loading');
+                if (loading) {
+                    loading.style.display = 'none';
+                    loading.style.visibility = 'hidden';
+                    loading.style.opacity = '0';
+                }
+
+                document.querySelectorAll('.modal').forEach(function (m) {
+                    m.style.display = 'none';
+                });
+
+                console.log('✅ Emergency cleanup via ESC complete');
+
+                // Visual feedback
+                const wasStuck = loading && loading.style.display !== 'none';
+                if (wasStuck) {
+                    alert('✅ Screen cleared!\n\nIf this happens again, tell the developer.');
+                }
             }
-            
-            document.querySelectorAll('.modal').forEach(function(m) {
-                m.style.display = 'none';
-            });
-            
-            console.log('✅ Emergency cleanup via ESC complete');
-            
-            // Visual feedback
-            const wasStuck = loading && loading.style.display !== 'none';
-            if (wasStuck) {
-                alert('✅ Screen cleared!\n\nIf this happens again, tell the developer.');
-            }
-        }
-    });
-    
-    console.log('✅ ESC cleanup shortcut ready');
+        });
+
+        console.log('✅ ESC cleanup shortcut ready');
     </script>
 
     <!-- Parts Cost Modal -->
@@ -307,7 +314,8 @@
                         <option value="Stock">From Stock (Already Owned)</option>
                         <option value="Customer Provided">Customer Provided</option>
                     </select>
-                    <button type="button" onclick="openAddSupplierQuick()" class="btn-secondary" style="white-space:nowrap;">
+                    <button type="button" onclick="openAddSupplierQuick()" class="btn-secondary"
+                        style="white-space:nowrap;">
                         ➕ New
                     </button>
                 </div>
@@ -328,7 +336,9 @@
     <div id="expenseModal" class="modal">
         <div class="modal-content">
             <h3>💸 Record Expense</h3>
-            <div id="expenseRepairIdDisplay" style="display:none;margin-bottom:10px;padding:8px;background:#e3f2fd;border-radius:5px;font-size:13px;"></div>
+            <div id="expenseRepairIdDisplay"
+                style="display:none;margin-bottom:10px;padding:8px;background:#e3f2fd;border-radius:5px;font-size:13px;">
+            </div>
             <div class="form-group">
                 <label>Expense Type *</label>
                 <select id="expenseType" required>
@@ -353,7 +363,8 @@
             </div>
             <div class="form-group">
                 <label>Description *</label>
-                <textarea id="expenseDescription" rows="2" placeholder="Brief description of expense..." required></textarea>
+                <textarea id="expenseDescription" rows="2" placeholder="Brief description of expense..."
+                    required></textarea>
             </div>
             <div class="form-group">
                 <label>Additional Notes</label>
@@ -371,11 +382,13 @@
         <div class="modal-content" style="max-width:700px;">
             <h3>💵 Submit Daily Remittance</h3>
             <div id="remittanceSummary" style="margin:20px 0;"></div>
-            
+
             <!-- Recipient Selection -->
-            <div class="form-group" style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+            <div class="form-group"
+                style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
                 <label style="font-weight:bold;color:#f57c00;">👤 Who are you giving this money to? *</label>
-                <select id="remittanceRecipient" required style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;margin-top:8px;font-size:15px;">
+                <select id="remittanceRecipient" required
+                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;margin-top:8px;font-size:15px;">
                     <option value="">-- Select who will receive the cash --</option>
                 </select>
                 <small style="display:block;margin-top:8px;color:#666;">
@@ -383,16 +396,19 @@
                     Only they can verify receipt of this remittance.
                 </small>
             </div>
-            
+
             <!-- Manual Override Section -->
-            <div style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+            <div
+                style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
                     <input type="checkbox" id="hasManualCommission" onchange="toggleManualCommissionFields()">
                     <span style="font-weight:600;">⚠️ I believe the commission calculation is incorrect</span>
                 </label>
-                <small style="color:#666;display:block;margin-top:5px;">Check this if you think the auto-calculated commission amount is wrong</small>
-                
-                <div id="manualCommissionFields" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid #e0e0e0;">
+                <small style="color:#666;display:block;margin-top:5px;">Check this if you think the auto-calculated
+                    commission amount is wrong</small>
+
+                <div id="manualCommissionFields"
+                    style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid #e0e0e0;">
                     <div class="form-group">
                         <label>My Calculated Commission (₱) *</label>
                         <input type="number" id="manualCommissionAmount" step="0.01" min="0" placeholder="0.00">
@@ -400,22 +416,26 @@
                     </div>
                     <div class="form-group">
                         <label>Brief Explanation (Optional)</label>
-                        <textarea id="manualCommissionReason" rows="2" placeholder="e.g., Parts cost seems high, delivery expense missing, etc."></textarea>
+                        <textarea id="manualCommissionReason" rows="2"
+                            placeholder="e.g., Parts cost seems high, delivery expense missing, etc."></textarea>
                     </div>
                     <div style="background:#e8f5e9;padding:10px;border-radius:5px;">
-                        <small style="color:#2e7d32;">✓ This will be sent to admin/cashier for review and discussion</small>
+                        <small style="color:#2e7d32;">✓ This will be sent to admin/cashier for review and
+                            discussion</small>
                     </div>
                 </div>
             </div>
-            
+
             <div class="form-group">
                 <label>Actual Amount Remitting (₱) *</label>
                 <input type="number" id="actualRemittanceAmount" step="0.01" min="0" placeholder="0.00" required>
-                <small style="color:#666;display:block;margin-top:5px;">Enter the actual cash amount you are remitting</small>
+                <small style="color:#666;display:block;margin-top:5px;">Enter the actual cash amount you are
+                    remitting</small>
             </div>
             <div class="form-group">
                 <label>Additional Notes (Optional)</label>
-                <textarea id="remittanceNotes" rows="3" placeholder="Any additional notes about this remittance..."></textarea>
+                <textarea id="remittanceNotes" rows="3"
+                    placeholder="Any additional notes about this remittance..."></textarea>
             </div>
             <div class="form-actions">
                 <button onclick="confirmRemittance()" class="btn-primary">Submit Remittance</button>
@@ -431,7 +451,8 @@
             <div id="remittanceDetails" style="margin:20px 0;"></div>
             <div class="form-group">
                 <label>Verification Notes (Required if discrepancy)</label>
-                <textarea id="verificationNotes" rows="3" placeholder="Enter notes about this verification..."></textarea>
+                <textarea id="verificationNotes" rows="3"
+                    placeholder="Enter notes about this verification..."></textarea>
             </div>
             <div class="form-actions">
                 <button onclick="approveRemittance()" class="btn-success">✅ Approve</button>
@@ -445,15 +466,15 @@
     <div id="releaseDeviceModal" class="modal">
         <div class="modal-content" style="max-width:650px;">
             <h3>📦 Release Device to Customer</h3>
-            
+
             <input type="hidden" id="releaseRepairId">
-            
+
             <!-- Device & Customer Info -->
             <div id="releaseDeviceInfo"></div>
-            
+
             <!-- Payment Status -->
             <div id="releasePaymentStatus"></div>
-            
+
             <!-- Verification Method -->
             <div class="form-group">
                 <label style="font-weight:600;">Verification Method *</label>
@@ -462,71 +483,65 @@
                     <option value="without-slip">⚠️ Without Service Slip (Enhanced Verification)</option>
                 </select>
             </div>
-            
+
             <!-- WITH SERVICE SLIP Section -->
             <div id="withSlipSection">
-                <div style="background:#e8f5e9;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #4caf50;">
+                <div
+                    style="background:#e8f5e9;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #4caf50;">
                     <strong>✅ Service Slip Verification</strong>
                     <p style="margin:10px 0 0 0;font-size:14px;">
                         Customer has physical service slip. Take photo for records.
                     </p>
                 </div>
-                
+
                 <div class="form-group">
                     <label>📸 Photo of Service Slip (Recommended)</label>
-                    <input type="file" 
-                           accept="image/*" 
-                           capture="environment"
-                           onchange="uploadServiceSlipPhoto(event)"
-                           style="display:block;margin:10px 0;padding:10px;border:2px dashed #4caf50;border-radius:8px;width:100%;">
-                    <img id="serviceSlipPhotoPreview" 
-                         style="display:none;max-width:100%;margin-top:10px;border-radius:8px;border:2px solid #4caf50;">
+                    <input type="file" accept="image/*" capture="environment" onchange="uploadServiceSlipPhoto(event)"
+                        style="display:block;margin:10px 0;padding:10px;border:2px dashed #4caf50;border-radius:8px;width:100%;">
+                    <img id="serviceSlipPhotoPreview"
+                        style="display:none;max-width:100%;margin-top:10px;border-radius:8px;border:2px solid #4caf50;">
                     <small style="color:#666;">Take photo of customer's service slip for audit trail</small>
                 </div>
             </div>
-            
+
             <!-- WITHOUT SERVICE SLIP Section -->
             <div id="withoutSlipSection" style="display:none;">
                 <div class="discrepancy-danger" style="margin:15px 0;">
                     <strong>⚠️ Enhanced Verification Required</strong>
-                    <p style="margin:5px 0 0 0;">Customer does not have service slip. Additional verification needed for security.</p>
+                    <p style="margin:5px 0 0 0;">Customer does not have service slip. Additional verification needed for
+                        security.</p>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Customer Address *</label>
-                    <textarea id="releaseCustomerAddress" 
-                              rows="2" 
-                              placeholder="Enter customer's full address for verification"
-                              style="font-size:14px;"></textarea>
+                    <textarea id="releaseCustomerAddress" rows="2"
+                        placeholder="Enter customer's full address for verification" style="font-size:14px;"></textarea>
                     <small style="color:#d32f2f;">Required for audit trail when releasing without slip</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label>📸 Photo of Claimant (Optional)</label>
-                    <input type="file" 
-                           accept="image/*" 
-                           capture="user"
-                           onchange="uploadServiceSlipPhoto(event)"
-                           style="display:block;margin:10px 0;padding:10px;border:2px dashed #ff9800;border-radius:8px;width:100%;">
+                    <input type="file" accept="image/*" capture="user" onchange="uploadServiceSlipPhoto(event)"
+                        style="display:block;margin:10px 0;padding:10px;border:2px dashed #ff9800;border-radius:8px;width:100%;">
                     <small style="color:#666;">Optional: Photo of person claiming device</small>
                 </div>
             </div>
-            
+
             <!-- Customer Confirmation (Always shown) -->
             <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
                 <h4 style="margin:0 0 15px 0;">Customer Confirmation</h4>
-                
+
                 <div class="form-group">
                     <label>Confirm Customer Name *</label>
                     <input type="text" id="releaseCustomerName" placeholder="Verify customer name" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Confirm Contact Number *</label>
                     <input type="text" id="releaseContactNumber" placeholder="Verify contact number" required>
                 </div>
             </div>
-            
+
             <!-- Payment Recording (New Section) -->
             <div class="form-group" style="border-top:1px solid #ddd;padding-top:15px;margin-top:15px;">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
@@ -539,13 +554,14 @@
             </div>
 
             <!-- Payment Entry Fields (Initially Hidden) -->
-            <div id="releasePaymentSection" style="display:none;background:#f0f9ff;padding:15px;border-radius:8px;margin-top:10px;">
+            <div id="releasePaymentSection"
+                style="display:none;background:#f0f9ff;padding:15px;border-radius:8px;margin-top:10px;">
                 <div class="form-group">
                     <label>Payment Amount *</label>
                     <input type="number" id="releasePaymentAmount" step="0.01" min="0.01" placeholder="Enter amount">
                     <small id="releaseBalanceInfo" style="color:#666;display:block;margin-top:5px;"></small>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Payment Method *</label>
                     <select id="releasePaymentMethod" onchange="toggleGCashReferenceField()">
@@ -556,33 +572,29 @@
                         <option value="Credit Card">💳 Credit Card</option>
                     </select>
                 </div>
-                
+
                 <!-- GCash Reference Number (Shown only for GCash) -->
                 <div id="gcashReferenceField" class="form-group" style="display:none;">
                     <label>GCash Reference Number * <span style="color:#ff9800;">(Required for GCash)</span></label>
-                    <input type="text" 
-                           id="releaseGCashReference" 
-                           placeholder="Enter 13-digit GCash reference number"
-                           maxlength="13"
-                           pattern="[0-9]{13}"
-                           style="font-family:monospace;font-size:16px;">
+                    <input type="text" id="releaseGCashReference" placeholder="Enter 13-digit GCash reference number"
+                        maxlength="13" pattern="[0-9]{13}" style="font-family:monospace;font-size:16px;">
                     <small style="display:block;margin-top:5px;color:#666;">
                         📱 Find reference number in GCash transaction history
                     </small>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Payment Notes</label>
                     <textarea id="releasePaymentNotes" rows="2" placeholder="Optional: Additional notes..."></textarea>
                 </div>
             </div>
-            
+
             <!-- Release Notes -->
             <div class="form-group">
                 <label>Release Notes (Optional)</label>
                 <textarea id="releaseNotes" rows="2" placeholder="Any notes about the release..."></textarea>
             </div>
-            
+
             <!-- Actions -->
             <div class="form-actions">
                 <button onclick="confirmReleaseDevice()" class="btn-success" style="font-size:16px;">
@@ -599,39 +611,33 @@
     <div id="finalizeClaimModal" class="modal">
         <div class="modal-content" style="max-width:550px;">
             <h3>✅ Finalize Device Claim</h3>
-            
+
             <input type="hidden" id="finalizeRepairId">
-            
-            <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #2196f3;">
+
+            <div
+                style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #2196f3;">
                 <p style="margin:0;font-size:14px;">
                     📋 Device is currently in <strong style="color:#ff9800;">Released</strong> status.
                     Finalize to mark as <strong style="color:#4caf50;">Claimed</strong> and activate warranty.
                 </p>
             </div>
-            
+
             <!-- Warranty Period -->
             <div class="form-group">
                 <label>Warranty Period (Days) *</label>
-                <input type="number" 
-                       id="finalizeWarrantyDays" 
-                       class="input"
-                       min="0" 
-                       max="365" 
-                       value="30" 
-                       required
-                       placeholder="Enter warranty days (0-365)">
+                <input type="number" id="finalizeWarrantyDays" class="input" min="0" max="365" value="30" required
+                    placeholder="Enter warranty days (0-365)">
                 <small style="color:var(--text-secondary);display:block;margin-top:5px;">
                     Default: 30 days. Enter 0 for no warranty.
                 </small>
             </div>
-            
+
             <!-- Payment Collection Section -->
             <div style="background:#f0f9ff;padding:15px;border-radius:8px;border:2px dashed #0ea5e9;margin:20px 0;">
                 <div class="form-group" style="margin-bottom:15px;">
                     <label style="display:flex;align-items:center;cursor:pointer;">
-                        <input type="checkbox" id="finalizePaymentCheckbox" 
-                               onchange="toggleFinalizePaymentFields()" 
-                               style="margin-right:10px;width:18px;height:18px;cursor:pointer;">
+                        <input type="checkbox" id="finalizePaymentCheckbox" onchange="toggleFinalizePaymentFields()"
+                            style="margin-right:10px;width:18px;height:18px;cursor:pointer;">
                         <strong>💰 Customer Paid at Claim?</strong>
                     </label>
                     <small style="color:var(--text-secondary);margin-left:28px;display:block;margin-top:5px;">
@@ -639,12 +645,13 @@
                     </small>
                 </div>
 
-                <div id="finalizePaymentFields" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid #cbd5e1;">
+                <div id="finalizePaymentFields"
+                    style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid #cbd5e1;">
                     <!-- Payment Amount -->
                     <div class="form-group">
                         <label for="finalizePaymentAmount">Payment Amount (₱) *</label>
-                        <input type="number" id="finalizePaymentAmount" class="input" 
-                               step="0.01" min="0" placeholder="0.00">
+                        <input type="number" id="finalizePaymentAmount" class="input" step="0.01" min="0"
+                            placeholder="0.00">
                         <small id="finalizeBalanceNote" style="color:var(--text-secondary);"></small>
                     </div>
 
@@ -664,35 +671,33 @@
                     <!-- GCash Reference (conditional) -->
                     <div id="finalizeGCashReferenceGroup" class="form-group" style="display:none;">
                         <label for="finalizeGCashReference">GCash Reference Number *</label>
-                        <input type="text" id="finalizeGCashReference" class="input" 
-                               maxlength="13" placeholder="13-digit reference number">
+                        <input type="text" id="finalizeGCashReference" class="input" maxlength="13"
+                            placeholder="13-digit reference number">
                         <small style="color:var(--text-secondary);">Must be exactly 13 digits</small>
                     </div>
 
                     <!-- Payment Notes -->
                     <div class="form-group">
                         <label for="finalizePaymentNotes">Payment Notes (Optional)</label>
-                        <textarea id="finalizePaymentNotes" class="input" rows="2" 
-                                  placeholder="Any notes about this payment..."></textarea>
+                        <textarea id="finalizePaymentNotes" class="input" rows="2"
+                            placeholder="Any notes about this payment..."></textarea>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Final Notes -->
             <div class="form-group">
                 <label>Final Notes (Optional)</label>
-                <textarea id="finalizeFinalNotes" 
-                          class="input"
-                          rows="3" 
-                          placeholder="Any final notes or warranty conditions..."></textarea>
+                <textarea id="finalizeFinalNotes" class="input" rows="3"
+                    placeholder="Any final notes or warranty conditions..."></textarea>
             </div>
-            
+
             <div style="background:#fff3cd;padding:12px;border-radius:6px;margin:15px 0;border-left:3px solid #ffc107;">
                 <small style="color:#856404;">
                     ⚠️ This will mark the device as Claimed and activate the warranty period.
                 </small>
             </div>
-            
+
             <div class="form-actions">
                 <button onclick="confirmFinalizeDevice()" class="btn-success" style="font-size:16px;">
                     ✅ Finalize & Activate Warranty
@@ -708,60 +713,61 @@
     <div id="editDeviceModal" class="modal">
         <div class="modal-content" style="max-width:600px;">
             <h3>✏️ Edit Device Information</h3>
-            
+
             <input type="hidden" id="editDeviceRepairId">
-            
+
             <div class="form-group">
                 <label>Customer Name *</label>
                 <input type="text" id="editCustomerName" required>
             </div>
-            
+
             <div class="form-group">
                 <label>Contact Number *</label>
                 <input type="text" id="editContactNumber" required>
             </div>
-            
+
             <div class="form-group">
                 <label>Device Brand *</label>
                 <input type="text" id="editBrand" required>
             </div>
-            
+
             <div class="form-group">
                 <label>Device Model *</label>
                 <input type="text" id="editModel" required>
             </div>
-            
+
             <div class="form-group">
                 <label>IMEI / Serial Number</label>
                 <input type="text" id="editImei">
             </div>
-            
+
             <div class="form-group">
                 <label>Device Color</label>
                 <input type="text" id="editColor">
             </div>
-            
+
             <div class="form-group">
                 <label>Storage Capacity</label>
                 <input type="text" id="editStorage" placeholder="e.g., 64GB, 128GB">
             </div>
-            
+
             <div class="form-group">
                 <label>Device Passcode</label>
                 <input type="text" id="editPasscode">
             </div>
-            
+
             <div class="form-group">
                 <label>Problem Description</label>
                 <textarea id="editProblem" rows="3"></textarea>
             </div>
-            
+
             <div class="form-group">
                 <label>Edit Reason (Required)</label>
-                <textarea id="editReason" rows="2" placeholder="Why are you editing this information?" required></textarea>
+                <textarea id="editReason" rows="2" placeholder="Why are you editing this information?"
+                    required></textarea>
                 <small style="color:#666;">This will be logged for audit purposes</small>
             </div>
-            
+
             <div class="form-actions">
                 <button onclick="saveDeviceInfo()" class="btn-success">✅ Save Changes</button>
                 <button onclick="closeEditDeviceModal()" class="btn-secondary">Cancel</button>
@@ -774,35 +780,37 @@
         <div class="modal-content" style="max-width:600px;">
             <span class="close" onclick="closeCreateUserModal()">&times;</span>
             <h3>➕ Create New User</h3>
-            
+
             <form id="createUserForm" onsubmit="createUser(event)">
                 <div class="form-group">
                     <label>Email Address *</label>
                     <input type="email" id="newUserEmail" required placeholder="user@example.com">
                 </div>
-                
+
                 <div class="form-group">
                     <label>Password *</label>
                     <div style="position:relative;">
-                        <input type="password" id="newUserPassword" required minlength="6" placeholder="Minimum 6 characters">
-                        <button type="button" onclick="togglePasswordVisibility('newUserPassword')" 
-                                style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;">
+                        <input type="password" id="newUserPassword" required minlength="6"
+                            placeholder="Minimum 6 characters">
+                        <button type="button" onclick="togglePasswordVisibility('newUserPassword')"
+                            style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;">
                             👁️
                         </button>
                     </div>
                     <small style="color:#666;">Minimum 6 characters</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Confirm Password *</label>
-                    <input type="password" id="newUserPasswordConfirm" required minlength="6" placeholder="Re-enter password">
+                    <input type="password" id="newUserPasswordConfirm" required minlength="6"
+                        placeholder="Re-enter password">
                 </div>
-                
+
                 <div class="form-group">
                     <label>Display Name *</label>
                     <input type="text" id="newUserDisplayName" required placeholder="Full name">
                 </div>
-                
+
                 <div class="form-group">
                     <label>Role *</label>
                     <select id="newUserRole" onchange="handleRoleChange()" required>
@@ -813,19 +821,20 @@
                         <option value="technician">Technician (Repair Work)</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group" id="technicianNameField" style="display:none;">
                     <label>Technician Name *</label>
                     <input type="text" id="newUserTechnicianName" placeholder="e.g., Tech1, Tech2">
                     <small style="color:#666;">Short name used in system (e.g., Tech1, Tech2)</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Profile Picture (Optional)</label>
                     <input type="file" accept="image/*" onchange="handleNewUserProfilePicture(event)">
-                    <img id="newUserProfilePreview" style="display:none;max-width:150px;margin-top:10px;border-radius:50%;">
+                    <img id="newUserProfilePreview"
+                        style="display:none;max-width:150px;margin-top:10px;border-radius:50%;">
                 </div>
-                
+
                 <div style="display:flex;gap:10px;margin-top:20px;">
                     <button type="submit" class="btn-primary" style="flex:1;">
                         ✅ Create User
@@ -843,21 +852,21 @@
         <div class="modal-content" style="max-width:600px;">
             <span class="close" onclick="closeEditUserModal()">&times;</span>
             <h3>✏️ Edit User</h3>
-            
+
             <input type="hidden" id="editUserId">
-            
+
             <form id="editUserForm" onsubmit="updateUser(event)">
                 <div class="form-group">
                     <label>Email Address</label>
                     <input type="email" id="editUserEmail" disabled style="background:#f5f5f5;cursor:not-allowed;">
                     <small style="color:#999;">Email cannot be changed (Firebase limitation)</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Display Name *</label>
                     <input type="text" id="editUserDisplayName" required>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Role *</label>
                     <select id="editUserRole" onchange="handleEditRoleChange()" required>
@@ -867,12 +876,12 @@
                         <option value="technician">Technician (Repair Work)</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group" id="editTechnicianNameField" style="display:none;">
                     <label>Technician Name *</label>
                     <input type="text" id="editUserTechnicianName">
                 </div>
-                
+
                 <div class="form-group">
                     <label>Status *</label>
                     <select id="editUserStatus" required>
@@ -880,13 +889,14 @@
                         <option value="inactive">❌ Inactive (Cannot Login)</option>
                     </select>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Profile Picture</label>
                     <input type="file" accept="image/*" onchange="handleEditUserProfilePicture(event)">
-                    <img id="editUserProfilePreview" style="display:none;max-width:150px;margin-top:10px;border-radius:50%;">
+                    <img id="editUserProfilePreview"
+                        style="display:none;max-width:150px;margin-top:10px;border-radius:50%;">
                 </div>
-                
+
                 <div style="display:flex;gap:10px;margin-top:20px;">
                     <button type="submit" class="btn-primary" style="flex:1;">
                         ✅ Save Changes
@@ -914,7 +924,7 @@
             <span class="close" onclick="closeHelpGuide()">&times;</span>
             <h3 id="helpGuideTitle">❓ Help Guide / Gabay sa Paggamit</h3>
             <div style="margin:15px 0;">
-                <input type="text" id="helpSearchInput" placeholder="Search help topics... / Maghanap..." 
+                <input type="text" id="helpSearchInput" placeholder="Search help topics... / Maghanap..."
                     style="width:100%;padding:10px;border:1px solid #ccc;border-radius:4px;font-size:14px;"
                     onkeyup="filterHelpTopics()">
             </div>
@@ -930,7 +940,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
-    
+
     <script src="js/firebase-config.js"></script>
     <script src="js/debug-logger.js"></script>
     <script src="js/auth.js"></script>
@@ -944,4 +954,5 @@
     <script src="js/ui.js"></script>
     <script src="js/app.js"></script>
 </body>
+
 </html>
