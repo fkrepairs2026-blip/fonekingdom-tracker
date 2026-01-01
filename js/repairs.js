@@ -5085,9 +5085,23 @@ function calculateRepairCommission(repair, techId) {
         }
     };
 
+    DebugLogger.log('REMITTANCE', 'Commission Calculation Started', {
+        repairId: repair.id,
+        customerName: repair.customerName,
+        techId: techId,
+        repairTotal: repair.total,
+        status: repair.status,
+        acceptedBy: repair.acceptedBy
+    });
+
     // Check eligibility
     // 1. Must be assigned to this technician
     if (repair.acceptedBy !== techId) {
+        DebugLogger.log('REMITTANCE', 'Commission Not Eligible - Wrong Technician', {
+            repairId: repair.id,
+            expectedTech: techId,
+            actualTech: repair.acceptedBy
+        });
         return result;
     }
 
@@ -5099,11 +5113,21 @@ function calculateRepairCommission(repair, techId) {
     const balance = repair.total - totalPaid;
 
     if (balance > 0) {
+        DebugLogger.log('REMITTANCE', 'Commission Not Eligible - Not Fully Paid', {
+            repairId: repair.id,
+            repairTotal: repair.total,
+            totalPaid: totalPaid,
+            balance: balance
+        });
         return result;
     }
 
     // 3. Must be claimed (not RTO)
     if (repair.status === 'RTO') {
+        DebugLogger.log('REMITTANCE', 'Commission Not Eligible - RTO Status', {
+            repairId: repair.id,
+            status: repair.status
+        });
         return result;
     }
 
@@ -5122,6 +5146,18 @@ function calculateRepairCommission(repair, techId) {
     if (result.amount < 0) {
         result.amount = 0;
     }
+
+    DebugLogger.log('REMITTANCE', 'Commission Calculated', {
+        repairId: repair.id,
+        customerName: repair.customerName,
+        eligible: result.eligible,
+        repairTotal: result.breakdown.repairTotal,
+        partsCost: result.breakdown.partsCost,
+        deliveryExpenses: result.breakdown.deliveryExpenses,
+        netAmount: result.breakdown.netAmount,
+        commissionRate: result.breakdown.commissionRate,
+        commissionAmount: result.amount
+    });
 
     return result;
 }
@@ -5208,6 +5244,8 @@ function getTechDailyCommission(techId, date) {
  * Get ALL pending commission for a technician (any date) - for remittance submission
  */
 function getAllPendingCommission(techId) {
+    DebugLogger.log('REMITTANCE', 'Getting All Pending Commission', { techId: techId });
+
     const breakdown = [];
 
     window.allRepairs.forEach(repair => {
@@ -5270,6 +5308,17 @@ function getAllPendingCommission(techId) {
     });
 
     const total = breakdown.reduce((sum, item) => sum + item.commission, 0);
+
+    DebugLogger.log('REMITTANCE', 'Pending Commission Calculated', {
+        techId: techId,
+        repairsWithCommission: breakdown.length,
+        totalCommission: total,
+        breakdown: breakdown.map(b => ({
+            repairId: b.repairId,
+            customerName: b.customerName,
+            commission: b.commission
+        }))
+    });
 
     return { breakdown, total };
 }
@@ -5940,9 +5989,16 @@ async function confirmRemittance() {
     const today = new Date();
     const todayDateString = getLocalDateString(today);
 
+    DebugLogger.log('REMITTANCE', 'Remittance Submission Initiated', {
+        techId: techId,
+        techName: window.currentUserData.displayName,
+        date: todayDateString
+    });
+
     // Get the HTML modal to read values from the correct elements
     const modal = document.getElementById('remittanceModal');
     if (!modal) {
+        DebugLogger.log('ERROR', 'Remittance Modal Not Found', {});
         alert('Modal not found');
         return;
     }
@@ -5950,6 +6006,12 @@ async function confirmRemittance() {
     const actualAmount = parseFloat(modal.querySelector('#actualRemittanceAmount').value);
     const notes = modal.querySelector('#remittanceNotes').value.trim();
     const recipientId = modal.querySelector('#remittanceRecipient').value;
+
+    DebugLogger.log('REMITTANCE', 'Remittance Form Data Captured', {
+        actualAmount: actualAmount,
+        recipientId: recipientId,
+        hasNotes: notes.length > 0
+    });
 
     // Validate recipient selection
     if (!recipientId) {
@@ -5994,6 +6056,15 @@ async function confirmRemittance() {
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString); // Expenses stay date-specific
     const { breakdown: commissionBreakdown, total: commissionTotal } = getAllPendingCommission(techId);
 
+    DebugLogger.log('REMITTANCE', 'Remittance Calculations', {
+        paymentsCount: payments.length,
+        paymentsTotal: paymentsTotal,
+        expensesCount: expenses.length,
+        expensesTotal: expensesTotal,
+        commissionBreakdownCount: commissionBreakdown.length,
+        commissionTotal: commissionTotal
+    });
+
     // Calculate commission breakdown by payment method
     let cashCommission = 0;
     let gcashCommission = 0;
@@ -6023,6 +6094,16 @@ async function confirmRemittance() {
     const commissionDeduction = paymentsTotal * 0.40;  // 40% commission on gross cash
     const expectedAmount = (paymentsTotal - expensesTotal) - commissionDeduction;  // 60% of (collected - expenses)
     const discrepancy = actualAmount - expectedAmount;
+
+    DebugLogger.log('REMITTANCE', 'Remittance Amount Calculation', {
+        paymentsTotal: paymentsTotal,
+        expensesTotal: expensesTotal,
+        commissionDeduction: commissionDeduction,
+        expectedAmount: expectedAmount,
+        actualAmount: actualAmount,
+        discrepancy: discrepancy,
+        discrepancyPercent: expectedAmount > 0 ? ((discrepancy / expectedAmount) * 100).toFixed(2) + '%' : '0%'
+    });
 
     // Require notes if there's a discrepancy
     if (Math.abs(discrepancy) > 0.01 && !notes) {
@@ -6109,6 +6190,17 @@ async function confirmRemittance() {
 
         const remittanceRef = await db.ref('techRemittances').push(remittance);
         const remittanceId = remittanceRef.key;
+
+        DebugLogger.log('FIREBASE', 'Remittance Saved to Firebase', {
+            remittanceId: remittanceId,
+            status: remittanceStatus,
+            actualAmount: actualAmount,
+            expectedAmount: expectedAmount,
+            discrepancy: discrepancy,
+            paymentsCount: payments.length,
+            expensesCount: expenses.length,
+            submittedToName: recipient.displayName
+        });
 
         // Update payments with remittance ID
         const updatePromises = [];
@@ -7004,9 +7096,28 @@ async function approveRemittance() {
     const notes = document.getElementById('verificationNotes').value.trim();
     const remittance = window.techRemittances.find(r => r.id === remittanceId);
 
-    if (!remittance) return;
+    DebugLogger.log('REMITTANCE', 'Remittance Approval Initiated', {
+        remittanceId: remittanceId,
+        approvedBy: window.currentUserData.displayName,
+        approvedByRole: window.currentUserData.role
+    });
+
+    if (!remittance) {
+        DebugLogger.log('ERROR', 'Approve Failed - Remittance Not Found', { remittanceId: remittanceId });
+        return;
+    }
 
     const hasDiscrepancy = Math.abs(remittance.discrepancy) > 0.01;
+
+    DebugLogger.log('REMITTANCE', 'Remittance Data for Approval', {
+        remittanceId: remittanceId,
+        techName: remittance.techName,
+        actualAmount: remittance.actualAmount,
+        expectedAmount: remittance.expectedRemittance,
+        discrepancy: remittance.discrepancy,
+        hasDiscrepancy: hasDiscrepancy,
+        paymentsCount: remittance.paymentIds ? remittance.paymentIds.length : 0
+    });
 
     if (hasDiscrepancy && !notes) {
         alert('Please provide verification notes explaining why you are approving despite the discrepancy');
@@ -7023,6 +7134,12 @@ async function approveRemittance() {
             status: 'approved',
             verifiedBy: window.currentUserData.displayName,
             verifiedAt: new Date().toISOString(),
+            verificationNotes: notes
+        });
+        DebugLogger.log('FIREBASE', 'Remittance Approved - Firebase Update Success', {
+            remittanceId: remittanceId,
+            status: 'approved',
+            verifiedBy: window.currentUserData.displayName,
             verificationNotes: notes
         });
 
@@ -7047,10 +7164,15 @@ async function approveRemittance() {
         });
 
         await Promise.all(updatePromises);
+        DebugLogger.log('REMITTANCE', 'All Payments Verified', {
+            remittanceId: remittanceId,
+            paymentsVerified: remittance.paymentIds ? remittance.paymentIds.length : 0
+        });
 
         // Reload data to reflect changes
         await loadTechRemittances();
         await loadRepairs(); // IMPORTANT: Reload repairs to get updated payment statuses
+        DebugLogger.log('REFRESH', 'Data Reloaded After Approval', { remittanceId: remittanceId });
 
         utils.showLoading(false);
         alert('✅ Remittance approved and all payments verified!');
@@ -7937,8 +8059,19 @@ async function confirmReleaseDevice() {
     const contactNumber = document.getElementById('releaseContactNumber').value.trim();
     const releaseNotes = document.getElementById('releaseNotes').value.trim();
 
+    DebugLogger.log('RELEASE', 'Device Release Initiated', {
+        repairId: repairId,
+        verificationMethod: verificationMethod,
+        customerName: customerName,
+        contactNumber: contactNumber,
+        releaseNotes: releaseNotes,
+        releasedBy: window.currentUserData.displayName,
+        releasedByRole: window.currentUserData.role
+    });
+
     // Basic validation
     if (!customerName || !contactNumber) {
+        DebugLogger.log('ERROR', 'Release Validation Failed', { reason: 'Missing customer name or contact' });
         alert('Please confirm customer name and contact number');
         return;
     }
@@ -7969,8 +8102,17 @@ async function confirmReleaseDevice() {
         const paymentNotes = document.getElementById('releasePaymentNotes').value.trim();
         const gcashReference = document.getElementById('releaseGCashReference').value.trim();
 
+        DebugLogger.log('PAYMENT', 'Payment Collection at Release', {
+            repairId: repairId,
+            paymentAmount: paymentAmount,
+            paymentMethod: paymentMethod,
+            gcashReference: gcashReference,
+            paymentNotes: paymentNotes
+        });
+
         // Validate payment amount
         if (!paymentAmount || paymentAmount <= 0) {
+            DebugLogger.log('ERROR', 'Payment Validation Failed', { reason: 'Invalid amount', amount: paymentAmount });
             alert('⚠️ Please enter a valid payment amount');
             return;
         }
@@ -8063,6 +8205,14 @@ async function confirmReleaseDevice() {
 
         // Update device release status
         await db.ref(`repairs/${repairId}`).update(releaseData);
+        DebugLogger.log('FIREBASE', 'Device Released - Firebase Update Success', {
+            repairId: repairId,
+            status: 'Released',
+            releasedBy: window.currentUserData.displayName,
+            verificationMethod: verificationMethod,
+            hadBalance: balanceBefore > 0,
+            releaseData: releaseData
+        });
 
         // If payment was collected during release, save it
         if (paymentCollected) {
@@ -8110,6 +8260,15 @@ async function confirmReleaseDevice() {
             const existingPayments = repair.payments || [];
             await db.ref(`repairs/${repairId}`).update({
                 payments: [...existingPayments, payment]
+            });
+            DebugLogger.log('PAYMENT', 'Payment Saved to Firebase', {
+                repairId: repairId,
+                amount: payment.amount,
+                method: payment.method,
+                receivedBy: payment.receivedBy,
+                collectedByTech: payment.collectedByTech,
+                remittanceStatus: payment.remittanceStatus,
+                verified: payment.verified
             });
 
             // Log payment collection
@@ -8183,14 +8342,26 @@ function closeReleaseDeviceModal() {
  * Convert Released status to Claimed
  */
 async function finalizeClaimDevice(repairId, isAutomatic = false) {
+    DebugLogger.log('CLAIM', 'Device Claim/Finalize Initiated', {
+        repairId: repairId,
+        isAutomatic: isAutomatic,
+        initiatedBy: isAutomatic ? 'System Auto-Finalize' : window.currentUserData.displayName
+    });
+
     try {
         const repair = window.allRepairs.find(r => r.id === repairId);
         if (!repair) {
+            DebugLogger.log('ERROR', 'Claim Failed - Repair Not Found', { repairId: repairId });
             alert('Repair not found');
             return;
         }
 
         if (repair.status !== 'Released') {
+            DebugLogger.log('ERROR', 'Claim Failed - Invalid Status', {
+                repairId: repairId,
+                currentStatus: repair.status,
+                expectedStatus: 'Released'
+            });
             alert('⚠️ This device is not in Released status');
             return;
         }
