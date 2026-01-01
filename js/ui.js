@@ -356,6 +356,13 @@ function renderTabs() {
 function switchTab(tabId) {
     console.log('🔄 Switching to tab:', tabId);
 
+    if (window.DebugLogger) {
+        DebugLogger.log('UI', 'Tab Switch', {
+            from: activeTab,
+            to: tabId
+        });
+    }
+
     // Remove active class from all navigation items
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -2802,6 +2809,41 @@ function buildAdminToolsTab(container) {
             
             <!-- DATA INTEGRITY CHECK -->
             ${buildDataIntegritySection()}
+            
+            <!-- DEBUG PANEL -->
+            <div class="form-group" style="background:#e1f5fe;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #2196f3;">
+                <h4 style="margin:0 0 10px;">🐛 Debug System</h4>
+                
+                <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                        <div>
+                            <small style="color:#666;">Debug Logs</small>
+                            <div style="font-size:20px;font-weight:bold;color:#2196f3;">
+                                ${window.debugLogs ? window.debugLogs.length : 0}
+                            </div>
+                        </div>
+                        <div>
+                            <small style="color:#666;">Status</small>
+                            <div style="font-size:14px;font-weight:bold;color:${window.debugEnabled ? '#4caf50' : '#f44336'};">
+                                ${window.debugEnabled ? '✅ Enabled' : '⏸️ Paused'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                    <button onclick="DebugLogger.showLogsModal()" class="btn btn-primary" style="font-size:13px;">
+                        📋 View Logs
+                    </button>
+                    <button onclick="DebugLogger.copyToClipboard('text')" class="btn btn-success" style="font-size:13px;">
+                        📄 Copy Text
+                    </button>
+                </div>
+                
+                <div style="padding:10px;background:#fff9c4;border-radius:5px;font-size:12px;">
+                    <strong>💡 Tip:</strong> Press <kbd>Ctrl+Shift+D</kbd> to open logs anytime
+                </div>
+            </div>
             
             <!-- QUICK ACTIONS -->
             <div class="form-group" style="margin-top:20px;">

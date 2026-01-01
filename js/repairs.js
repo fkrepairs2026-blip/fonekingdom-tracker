@@ -44,9 +44,24 @@ async function loadRepairs() {
             const newCount = window.allRepairs.length;
             console.log('✅ Repairs loaded from Firebase:', newCount, previousCount !== newCount ? '(changed)' : '');
 
+            if (window.DebugLogger) {
+                DebugLogger.log('FIREBASE', 'Repairs Data Updated', {
+                    previousCount,
+                    newCount,
+                    changed: previousCount !== newCount,
+                    repairIds: window.allRepairs.map(r => r.id).slice(0, 10) // First 10 IDs
+                });
+            }
+
             // Always refresh current tab when data changes
             if (window.currentTabRefresh) {
                 console.log('🔄 Auto-refreshing current tab...');
+                if (window.DebugLogger) {
+                    DebugLogger.log('REFRESH', 'Triggering Tab Auto-Refresh', {
+                        tabFunction: window.currentTabRefresh.name || 'anonymous',
+                        repairCount: newCount
+                    });
+                }
                 // Use setTimeout to ensure Firebase has fully synced
                 setTimeout(() => {
                     window.currentTabRefresh();
@@ -585,12 +600,34 @@ async function acceptRepair(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('Repair not found');
+        if (window.DebugLogger) {
+            DebugLogger.log('ERROR', 'Accept Repair - Repair Not Found', { repairId });
+        }
         return;
     }
 
     if (repair.acceptedBy) {
         alert(`This repair has already been accepted by ${repair.acceptedByName}`);
+        if (window.DebugLogger) {
+            DebugLogger.log('ERROR', 'Accept Repair - Already Accepted', {
+                repairId,
+                acceptedBy: repair.acceptedByName
+            });
+        }
         return;
+    }
+
+    if (window.DebugLogger) {
+        DebugLogger.log('REPAIR', 'Accept Repair Initiated', {
+            repairId,
+            customer: repair.customerName,
+            device: `${repair.brand} ${repair.model}`,
+            status: repair.status,
+            repairType: repair.repairType,
+            total: repair.total,
+            hasDiagnosis: repair.diagnosisCreated,
+            hasApproval: repair.customerApproved
+        });
     }
 
     // Check if diagnosis has been created - allow but warn
@@ -623,6 +660,14 @@ async function acceptRepair(repairId) {
     if (!confirm(confirmMsg)) return;
 
     try {
+        if (window.DebugLogger) {
+            DebugLogger.log('REPAIR', 'Accepting Repair - Updating Firebase', {
+                repairId,
+                newStatus: 'In Progress',
+                acceptedBy: window.currentUserData.displayName
+            });
+        }
+
         await db.ref('repairs/' + repairId).update({
             acceptedBy: window.currentUser.uid,
             acceptedByName: window.currentUserData.displayName,
@@ -631,6 +676,15 @@ async function acceptRepair(repairId) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
+
+        if (window.DebugLogger) {
+            DebugLogger.log('REPAIR', 'Repair Accepted Successfully', {
+                repairId,
+                customer: repair.customerName,
+                device: `${repair.brand} ${repair.model}`,
+                status: 'In Progress'
+            });
+        }
 
         // Log repair acceptance
         await logActivity('repair_accepted', 'repair', {
@@ -648,6 +702,13 @@ async function acceptRepair(repairId) {
 
     } catch (error) {
         console.error('❌ Error accepting repair:', error);
+        if (window.DebugLogger) {
+            DebugLogger.log('ERROR', 'Accept Repair Failed', {
+                repairId,
+                error: error.message,
+                stack: error.stack
+            });
+        }
         alert('Error: ' + error.message);
     }
 }
