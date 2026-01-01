@@ -9281,20 +9281,22 @@ async function adminUnreleaseDevice(repairId) {
     try {
         utils.showLoading(true);
 
-        // Store the original claim info for backup
+        // Store the original claim info for backup (filter out undefined values)
         const claimBackup = {
-            claimedAt: repair.claimedAt,
-            claimedBy: repair.claimedBy,
-            claimedByName: repair.claimedByName,
-            claimVerified: repair.claimVerified,
-            claimVerifiedBy: repair.claimVerifiedBy,
-            claimVerifiedByName: repair.claimVerifiedByName,
-            claimVerifiedAt: repair.claimVerifiedAt,
-            pickupSignature: repair.pickupSignature,
             unreleaseReason: reason,
             unreleasedBy: window.currentUserData.displayName,
             unreleasedAt: new Date().toISOString()
         };
+
+        // Only add properties that exist (not undefined/null)
+        if (repair.claimedAt) claimBackup.claimedAt = repair.claimedAt;
+        if (repair.claimedBy) claimBackup.claimedBy = repair.claimedBy;
+        if (repair.claimedByName) claimBackup.claimedByName = repair.claimedByName;
+        if (repair.claimVerified) claimBackup.claimVerified = repair.claimVerified;
+        if (repair.claimVerifiedBy) claimBackup.claimVerifiedBy = repair.claimVerifiedBy;
+        if (repair.claimVerifiedByName) claimBackup.claimVerifiedByName = repair.claimVerifiedByName;
+        if (repair.claimVerifiedAt) claimBackup.claimVerifiedAt = repair.claimVerifiedAt;
+        if (repair.pickupSignature) claimBackup.pickupSignature = repair.pickupSignature;
 
         // Save backup
         await db.ref('unreleasedBackups').push({
