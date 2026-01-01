@@ -40,6 +40,14 @@ function buildTechnicianDashboard(userName, stats) {
                     '📦'
                 )}
                 ${utils.createStatCard(
+                    'My Claimed Devices',
+                    stats.myClaimedCount || 0,
+                    'Successfully completed',
+                    'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+                    'myclaimed',
+                    '✅'
+                )}
+                ${utils.createStatCard(
                     'Commission This Month',
                     '₱' + stats.myCommissionThisMonth.toLocaleString('en-PH', {minimumFractionDigits: 2}),
                     'Earned commission',

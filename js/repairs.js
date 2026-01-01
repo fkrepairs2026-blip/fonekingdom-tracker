@@ -8413,6 +8413,16 @@ function openFinalizeModal(repairId) {
     document.getElementById('finalizeRepairId').value = repairId;
     document.getElementById('finalizeWarrantyDays').value = '30';
     document.getElementById('finalizeFinalNotes').value = '';
+    
+    // Reset payment fields
+    document.getElementById('finalizePaymentCheckbox').checked = false;
+    document.getElementById('finalizePaymentFields').style.display = 'none';
+    document.getElementById('finalizePaymentAmount').value = '';
+    document.getElementById('finalizePaymentMethod').value = '';
+    document.getElementById('finalizePaymentNotes').value = '';
+    document.getElementById('finalizeGCashReference').value = '';
+    document.getElementById('finalizeGCashReferenceGroup').style.display = 'none';
+    
     document.getElementById('finalizeClaimModal').style.display = 'block';
 }
 
@@ -8420,6 +8430,57 @@ async function confirmFinalizeDevice() {
     const repairId = document.getElementById('finalizeRepairId').value;
     const warrantyDays = parseInt(document.getElementById('finalizeWarrantyDays').value) || 0;
     const finalNotes = document.getElementById('finalizeFinalNotes').value.trim();
+
+    // Check if payment is being collected
+    const collectingPayment = document.getElementById('finalizePaymentCheckbox').checked;
+    let paymentCollected = null;
+
+    if (collectingPayment) {
+        const paymentAmount = parseFloat(document.getElementById('finalizePaymentAmount').value);
+        const paymentMethod = document.getElementById('finalizePaymentMethod').value;
+        const paymentNotes = document.getElementById('finalizePaymentNotes').value.trim();
+        const gcashReference = document.getElementById('finalizeGCashReference').value.trim();
+
+        DebugLogger.log('CLAIM', 'Payment Collection at Finalization', {
+            repairId: repairId,
+            paymentAmount: paymentAmount,
+            paymentMethod: paymentMethod,
+            gcashReference: gcashReference
+        });
+
+        // Validate payment amount
+        if (!paymentAmount || paymentAmount <= 0) {
+            DebugLogger.log('ERROR', 'Finalize Payment Validation Failed', { reason: 'Invalid amount' });
+            alert('⚠️ Please enter a valid payment amount');
+            return;
+        }
+
+        // Validate payment method
+        if (!paymentMethod) {
+            alert('⚠️ Please select a payment method');
+            return;
+        }
+
+        // Validate GCash reference if GCash is selected
+        if (paymentMethod === 'GCash') {
+            if (!gcashReference) {
+                alert('⚠️ GCash reference number is required for GCash payments');
+                return;
+            }
+            if (!/^\d{13}$/.test(gcashReference)) {
+                alert('⚠️ GCash reference number must be exactly 13 digits');
+                return;
+            }
+        }
+
+        paymentCollected = {
+            amount: paymentAmount,
+            method: paymentMethod,
+            notes: paymentNotes,
+            gcashReferenceNumber: paymentMethod === 'GCash' ? gcashReference : null,
+            collectedAt: new Date().toISOString()
+        };
+    }
 
     if (!repairId) {
         alert('Invalid repair ID');
@@ -8432,7 +8493,11 @@ async function confirmFinalizeDevice() {
         return;
     }
 
-    if (!confirm(`✅ Finalize and mark as Claimed?\n\nWarranty: ${warrantyDays} days`)) {
+    const confirmMsg = paymentCollected
+        ? `✅ Finalize and mark as Claimed?\n\nWarranty: ${warrantyDays} days\n💰 Payment: ₱${paymentCollected.amount.toFixed(2)} (${paymentCollected.method})`
+        : `✅ Finalize and mark as Claimed?\n\nWarranty: ${warrantyDays} days`;
+
+    if (!confirm(confirmMsg)) {
         return;
     }
 
@@ -8457,18 +8522,110 @@ async function confirmFinalizeDevice() {
         };
 
         await db.ref(`repairs/${repairId}`).update(finalizeData);
+        DebugLogger.log('FIREBASE', 'Device Claimed (Manual) - Firebase Update Success', {
+            repairId: repairId,
+            status: 'Claimed',
+            warrantyDays: warrantyDays,
+            paymentCollected: paymentCollected ? paymentCollected.amount : 0
+        });
 
-        // Log activity
+        // If payment was collected, save it
+        if (paymentCollected) {
+            // Credit payment to technician who did the repair (repairedBy)
+            const technicianId = repair.acceptedBy || repair.technicianId;
+            const technicianName = repair.acceptedByName || repair.repairedBy || 'Unknown';
+            
+            // Check if technician has technician role
+            const technicianUser = technicianId ? window.allUsers[technicianId] : null;
+            const isTechRole = technicianUser && technicianUser.role === 'technician';
+            const isGCash = paymentCollected.method === 'GCash';
+
+            const payment = {
+                amount: paymentCollected.amount,
+                method: paymentCollected.method,
+                notes: paymentCollected.notes || ('Payment collected at claim finalization by ' + window.currentUserData.displayName),
+                paymentDate: paymentCollected.collectedAt,
+                recordedDate: paymentCollected.collectedAt,
+                recordedBy: window.currentUserData.displayName,
+                recordedById: window.currentUser.uid,
+                // Credit to technician who did the repair
+                receivedBy: technicianName,
+                receivedById: technicianId || window.currentUser.uid,
+                // Track who finalized the claim
+                finalizedBy: window.currentUserData.displayName,
+                finalizedById: window.currentUser.uid,
+                finalizedByRole: window.currentUserData.role,
+                // Payment collection flags
+                collectedAtFinalization: true,  // NEW flag
+                collectedByTech: !isGCash && isTechRole,
+                remittanceStatus: (!isGCash && isTechRole) ? 'pending' : 'n/a',
+                verified: true,  // Auto-verified
+                verifiedAt: paymentCollected.collectedAt,
+                verifiedBy: window.currentUserData.displayName,
+                verifiedById: window.currentUser.uid,
+                // GCash specific
+                gcashReferenceNumber: paymentCollected.gcashReferenceNumber || null
+            };
+
+            const existingPayments = repair.payments || [];
+            await db.ref(`repairs/${repairId}`).update({
+                payments: [...existingPayments, payment]
+            });
+
+            DebugLogger.log('PAYMENT', 'Payment Saved at Finalization', {
+                repairId: repairId,
+                amount: payment.amount,
+                method: payment.method,
+                receivedBy: payment.receivedBy,
+                collectedByTech: payment.collectedByTech,
+                remittanceStatus: payment.remittanceStatus
+            });
+
+            // Log payment collection
+            await logActivity('payment_recorded', {
+                repairId: repairId,
+                amount: payment.amount,
+                method: payment.method,
+                collectedAt: 'claim_finalization',
+                collectedBy: window.currentUserData.displayName,
+                collectedByRole: window.currentUserData.role,
+                creditedTo: technicianName,
+                customerName: repair.customerName
+            }, `Payment of ₱${payment.amount.toFixed(2)} collected at claim finalization - credited to ${technicianName}`);
+        }
+
+        // Log finalization activity
         await logActivity('device_finalized', {
             repairId: repairId,
             customerName: repair.customerName,
             autoFinalized: false,
             warrantyDays: warrantyDays,
-            finalizedBy: window.currentUserData.displayName
-        }, `Device manually finalized: ${repair.customerName} - ${warrantyDays} days warranty`);
+            finalizedBy: window.currentUserData.displayName,
+            paymentCollected: paymentCollected ? paymentCollected.amount : 0
+        }, `Device manually finalized: ${repair.customerName} - ${warrantyDays} days warranty${paymentCollected ? ` - Collected ₱${paymentCollected.amount.toFixed(2)}` : ''}`);
 
         utils.showLoading(false);
-        alert('✅ Device finalized successfully!');
+        
+        let successMsg = '✅ Device finalized successfully!';
+        if (paymentCollected) {
+            const totalPaid = (repair.payments || [])
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + p.amount, 0) + paymentCollected.amount;
+            const newBalance = repair.total - totalPaid;
+            
+            successMsg += `\n\n💰 Payment Recorded: ₱${paymentCollected.amount.toFixed(2)}`;
+            if (newBalance > 0) {
+                successMsg += `\n⚠️ Remaining Balance: ₱${newBalance.toFixed(2)}`;
+            } else {
+                successMsg += `\n✅ Fully Paid!`;
+            }
+
+            if (isTechRole) {
+                successMsg += `\n\n📋 Payment credited to ${technicianName} for remittance.`;
+            }
+        }
+
+        alert(successMsg);
         closeFinalizeModal();
 
         setTimeout(() => {
@@ -8479,12 +8636,56 @@ async function confirmFinalizeDevice() {
     } catch (error) {
         utils.showLoading(false);
         console.error('Error finalizing device:', error);
+        DebugLogger.log('ERROR', 'Finalize Device Failed', { repairId: repairId, error: error.message });
         alert('Error: ' + error.message);
     }
 }
 
 function closeFinalizeModal() {
     document.getElementById('finalizeClaimModal').style.display = 'none';
+}
+
+/**
+ * Toggle finalize payment fields visibility
+ */
+function toggleFinalizePaymentFields() {
+    const checkbox = document.getElementById('finalizePaymentCheckbox');
+    const fields = document.getElementById('finalizePaymentFields');
+    const repairId = document.getElementById('finalizeRepairId').value;
+    
+    if (checkbox.checked) {
+        fields.style.display = 'block';
+        
+        // Pre-fill payment amount with remaining balance
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        if (repair) {
+            const totalPaid = (repair.payments || [])
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + p.amount, 0);
+            const balance = repair.total - totalPaid;
+            
+            document.getElementById('finalizePaymentAmount').value = balance > 0 ? balance.toFixed(2) : '';
+            document.getElementById('finalizeBalanceNote').textContent = 
+                `Remaining balance: ₱${balance.toFixed(2)}`;
+        }
+    } else {
+        fields.style.display = 'none';
+    }
+}
+
+/**
+ * Toggle GCash reference field
+ */
+function toggleFinalizeGCashField() {
+    const method = document.getElementById('finalizePaymentMethod').value;
+    const gcashGroup = document.getElementById('finalizeGCashReferenceGroup');
+    
+    if (method === 'GCash') {
+        gcashGroup.style.display = 'block';
+    } else {
+        gcashGroup.style.display = 'none';
+        document.getElementById('finalizeGCashReference').value = '';
+    }
 }
 
 /**
@@ -8677,6 +8878,8 @@ window.finalizeClaimDevice = finalizeClaimDevice;
 window.openFinalizeModal = openFinalizeModal;
 window.confirmFinalizeDevice = confirmFinalizeDevice;
 window.closeFinalizeModal = closeFinalizeModal;
+window.toggleFinalizePaymentFields = toggleFinalizePaymentFields;
+window.toggleFinalizeGCashField = toggleFinalizeGCashField;
 window.viewClaimDetails = viewClaimDetails;
 window.openWarrantyClaimModal = openWarrantyClaimModal;
 window.processWarrantyClaim = processWarrantyClaim;
@@ -11355,10 +11558,28 @@ async function checkAndAutoFinalizeReleased() {
         // Get today's date in Manila timezone (YYYY-MM-DD)
         const todayManilaStr = manilaDate.toISOString().split('T')[0];
 
-        // Find all Released devices from today or earlier
+        // Find all Released devices from today or earlier that are fully paid
         const releasedDevices = window.allRepairs.filter(repair => {
             if (repair.status !== 'Released') return false;
             if (!repair.releasedAt) return false;
+
+            // Check if device has unpaid balance
+            const totalPaid = (repair.payments || [])
+                .filter(p => p.verified)
+                .reduce((sum, p) => sum + p.amount, 0);
+            const balance = repair.total - totalPaid;
+
+            if (balance > 0) {
+                DebugLogger.log('CLAIM', 'Auto-Finalize Skipped - Has Balance', {
+                    repairId: repair.id,
+                    customerName: repair.customerName,
+                    total: repair.total,
+                    totalPaid: totalPaid,
+                    balance: balance
+                });
+                console.log(`⚠️ Skipping auto-finalize for ${repair.customerName} - has balance of ₱${balance.toFixed(2)}`);
+                return false;
+            }
 
             // Get release date in Manila timezone
             const releasedDate = new Date(repair.releasedAt);

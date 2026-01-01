@@ -121,11 +121,12 @@ function buildTabs() {
         sections.operations.tabs.push(
             { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
             { id: 'my', label: 'My Jobs', icon: '🔧', build: buildMyRepairsTab },
+            { id: 'myclaimed', label: 'My Claimed', icon: '✅', build: buildMyClaimedDevicesTab },
             { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
             { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
             { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
             { id: 'rto', label: 'RTO Devices', icon: '↩️', build: buildRTODevicesTab },
-            { id: 'claimed', label: 'Claimed Units', icon: '✅', build: buildClaimedUnitsPage }
+            { id: 'claimed', label: 'Claimed Units', icon: '📋', build: buildClaimedUnitsPage }
         );
         // Payments
         sections.payments.tabs.push(
@@ -2292,6 +2293,95 @@ function buildMyRepairsTab(container) {
     }, 0);
 }
 
+/**
+ * Build My Claimed Devices Tab (Technician Only)
+ * Shows Released + Claimed devices repaired by this technician
+ */
+function buildMyClaimedDevicesTab(container) {
+    console.log('✅ Building My Claimed Devices tab');
+    window.currentTabRefresh = () => buildMyClaimedDevicesTab(document.getElementById('myclaimedTab'));
+
+    const techId = window.currentUser.uid;
+    
+    // Filter: Devices where this tech did the repair
+    const myReleasedDevices = window.allRepairs.filter(r =>
+        r.acceptedBy === techId &&
+        r.status === 'Released' &&
+        !r.deleted
+    );
+
+    const myClaimedDevices = window.allRepairs.filter(r =>
+        r.acceptedBy === techId &&
+        r.status === 'Claimed' &&
+        !r.deleted
+    );
+
+    // Sort by most recent first
+    myReleasedDevices.sort((a, b) => new Date(b.releasedAt || b.releaseDate) - new Date(a.releasedAt || a.releaseDate));
+    myClaimedDevices.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
+
+    container.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h2 style="margin:0;">✅ My Claimed Devices</h2>
+                <p style="margin:5px 0 0;color:var(--text-secondary);">
+                    Devices I successfully repaired - Released and Claimed
+                </p>
+            </div>
+
+            <!-- Released - Awaiting Finalization Section -->
+            ${myReleasedDevices.length > 0 ? `
+                <div style="margin-bottom:30px;">
+                    <h3 style="margin:20px 0 15px;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
+                        <span>📦 Released - Awaiting Finalization</span>
+                        <span style="background:#ff9800;color:white;padding:4px 12px;border-radius:12px;font-size:14px;font-weight:bold;">
+                            ${myReleasedDevices.length}
+                        </span>
+                    </h3>
+                    <div style="background:#fff3e0;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                        <strong>⏰ Auto-Finalize:</strong> These devices will automatically move to "Claimed" at 6:00 PM Manila time.
+                        <br><strong>💡 Tip:</strong> You can finalize now and optionally collect payment.
+                    </div>
+                    <div id="myReleasedDevicesList"></div>
+                </div>
+            ` : ''}
+
+            <!-- Claimed Devices Section -->
+            <div>
+                <h3 style="margin:20px 0 15px;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
+                    <span>✅ Claimed - Completed Repairs</span>
+                    <span style="background:#4caf50;color:white;padding:4px 12px;border-radius:12px;font-size:14px;font-weight:bold;">
+                        ${myClaimedDevices.length}
+                    </span>
+                </h3>
+                ${myClaimedDevices.length === 0 ? `
+                    <div class="empty-state">
+                        <div style="font-size:48px;margin-bottom:10px;">✅</div>
+                        <p>No claimed devices yet</p>
+                        <p style="color:var(--text-secondary);font-size:14px;">
+                            Devices appear here after they are released and finalized
+                        </p>
+                    </div>
+                ` : `
+                    <div id="myClaimedDevicesList"></div>
+                `}
+            </div>
+        </div>
+    `;
+
+    // Render lists after DOM update
+    setTimeout(() => {
+        if (myReleasedDevices.length > 0) {
+            const releasedListContainer = document.getElementById('myReleasedDevicesList');
+            displayCompactRepairsList(myReleasedDevices, releasedListContainer, 'released');
+        }
+        if (myClaimedDevices.length > 0) {
+            const claimedListContainer = document.getElementById('myClaimedDevicesList');
+            displayCompactRepairsList(myClaimedDevices, claimedListContainer, 'claimed');
+        }
+    }, 0);
+}
+
 function buildPendingTab(container) {
     console.log('⏳ Building Pending tab');
     window.currentTabRefresh = () => buildPendingTab(document.getElementById('pendingTab'));
@@ -3727,18 +3817,33 @@ function buildClaimedUnitsPage(container) {
     console.log('✅ Building Claimed Units page');
     window.currentTabRefresh = () => buildClaimedUnitsPage(document.getElementById('claimedTab'));
 
-    const claimedUnits = window.allRepairs.filter(r => r.claimedAt);
+    const role = window.currentUserData.role;
+    const techId = window.currentUser.uid;
+    
+    // Filter claimed devices
+    let claimedUnits = window.allRepairs.filter(r => r.claimedAt);
+    
+    // For technicians, exclude their own devices (they use "My Claimed" tab)
+    if (role === 'technician') {
+        claimedUnits = claimedUnits.filter(r => r.acceptedBy !== techId);
+    }
+    
+    // Sort by most recent first
     claimedUnits.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
 
     container.innerHTML = `
         <div class="card">
             <h3>✅ Claimed Units - Released to Customers (${claimedUnits.length})</h3>
-            <p style="color:#666;margin-bottom:15px;">Devices that have been picked up by customers with warranty tracking</p>
+            <p style="color:#666;margin-bottom:15px;">
+                ${role === 'technician' 
+                    ? 'Other technicians\' claimed devices (use "My Claimed" for your own)'
+                    : 'Devices that have been picked up by customers with warranty tracking'}
+            </p>
             
             ${claimedUnits.length === 0 ? `
                 <div style="text-align:center;padding:40px;color:#999;">
                     <h2 style="font-size:48px;margin:0;">📭</h2>
-                    <p>No claimed units yet</p>
+                    <p>No claimed units${role === 'technician' ? ' from other technicians' : ''}</p>
                 </div>
             ` : `
                 <div id="claimedUnitsList"></div>
@@ -3821,6 +3926,7 @@ window.renderClaimedButtons = renderClaimedButtons;
 window.toggleRepairDetails = toggleRepairDetails;
 window.buildAllRepairsTab = buildAllRepairsTab;
 window.buildMyRepairsTab = buildMyRepairsTab;
+window.buildMyClaimedDevicesTab = buildMyClaimedDevicesTab;
 window.buildPendingTab = buildPendingTab;
 window.buildCashCountTab = buildCashCountTab;
 window.updateCashCountDate = updateCashCountDate;

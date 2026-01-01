@@ -609,23 +609,80 @@
                 </p>
             </div>
             
+            <!-- Warranty Period -->
             <div class="form-group">
                 <label>Warranty Period (Days) *</label>
                 <input type="number" 
                        id="finalizeWarrantyDays" 
+                       class="input"
                        min="0" 
                        max="365" 
                        value="30" 
                        required
-                       style="font-size:16px;">
-                <small style="color:#666;display:block;margin-top:5px;">
-                    Standard warranty: 30 days. Enter 0 for no warranty.
+                       placeholder="Enter warranty days (0-365)">
+                <small style="color:var(--text-secondary);display:block;margin-top:5px;">
+                    Default: 30 days. Enter 0 for no warranty.
                 </small>
             </div>
             
+            <!-- Payment Collection Section -->
+            <div style="background:#f0f9ff;padding:15px;border-radius:8px;border:2px dashed #0ea5e9;margin:20px 0;">
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label style="display:flex;align-items:center;cursor:pointer;">
+                        <input type="checkbox" id="finalizePaymentCheckbox" 
+                               onchange="toggleFinalizePaymentFields()" 
+                               style="margin-right:10px;width:18px;height:18px;cursor:pointer;">
+                        <strong>💰 Customer Paid at Claim?</strong>
+                    </label>
+                    <small style="color:var(--text-secondary);margin-left:28px;display:block;margin-top:5px;">
+                        Check if customer is paying now during claim finalization
+                    </small>
+                </div>
+
+                <div id="finalizePaymentFields" style="display:none;margin-top:15px;padding-top:15px;border-top:1px solid #cbd5e1;">
+                    <!-- Payment Amount -->
+                    <div class="form-group">
+                        <label for="finalizePaymentAmount">Payment Amount (₱) *</label>
+                        <input type="number" id="finalizePaymentAmount" class="input" 
+                               step="0.01" min="0" placeholder="0.00">
+                        <small id="finalizeBalanceNote" style="color:var(--text-secondary);"></small>
+                    </div>
+
+                    <!-- Payment Method -->
+                    <div class="form-group">
+                        <label for="finalizePaymentMethod">Payment Method *</label>
+                        <select id="finalizePaymentMethod" class="input" onchange="toggleFinalizeGCashField()">
+                            <option value="">-- Select Method --</option>
+                            <option value="Cash">Cash</option>
+                            <option value="GCash">GCash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Check">Check</option>
+                            <option value="Credit Card">Credit Card</option>
+                        </select>
+                    </div>
+
+                    <!-- GCash Reference (conditional) -->
+                    <div id="finalizeGCashReferenceGroup" class="form-group" style="display:none;">
+                        <label for="finalizeGCashReference">GCash Reference Number *</label>
+                        <input type="text" id="finalizeGCashReference" class="input" 
+                               maxlength="13" placeholder="13-digit reference number">
+                        <small style="color:var(--text-secondary);">Must be exactly 13 digits</small>
+                    </div>
+
+                    <!-- Payment Notes -->
+                    <div class="form-group">
+                        <label for="finalizePaymentNotes">Payment Notes (Optional)</label>
+                        <textarea id="finalizePaymentNotes" class="input" rows="2" 
+                                  placeholder="Any notes about this payment..."></textarea>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Final Notes -->
             <div class="form-group">
                 <label>Final Notes (Optional)</label>
                 <textarea id="finalizeFinalNotes" 
+                          class="input"
                           rows="3" 
                           placeholder="Any final notes or warranty conditions..."></textarea>
             </div>
