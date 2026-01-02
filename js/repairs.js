@@ -5240,17 +5240,40 @@ function getTechCommissionEligibleRepairs(techId, date) {
 function getTechDailyCommission(techId, date) {
     const eligibleRepairs = getTechCommissionEligibleRepairs(techId, date);
 
-    const breakdown = eligibleRepairs.map(item => ({
-        repairId: item.repair.id,
-        customerName: item.repair.customerName,
-        deviceInfo: `${item.repair.brand} ${item.repair.model}`,
-        repairType: item.repair.repairType || 'General Repair',
-        repairTotal: item.commission.breakdown.repairTotal,
-        partsCost: item.commission.breakdown.partsCost,
-        deliveryExpenses: item.commission.breakdown.deliveryExpenses,
-        netAmount: item.commission.breakdown.netAmount,
-        commission: item.commission.amount
-    }));
+    const breakdown = eligibleRepairs.map(item => {
+        // Find when it was fully paid
+        let fullyPaidDate = null;
+        let runningTotal = 0;
+        const repairTotal = item.repair.total || 0;
+
+        if (item.repair.payments) {
+            const sortedPayments = [...item.repair.payments]
+                .filter(p => p.verified)
+                .sort((a, b) => new Date(a.verifiedAt || a.recordedDate) - new Date(b.verifiedAt || b.recordedDate));
+
+            for (const payment of sortedPayments) {
+                runningTotal += payment.amount;
+                if (runningTotal >= repairTotal) {
+                    fullyPaidDate = new Date(payment.verifiedAt || payment.recordedDate);
+                    break;
+                }
+            }
+        }
+
+        return {
+            repairId: item.repair.id,
+            customerName: item.repair.customerName,
+            deviceInfo: `${item.repair.brand} ${item.repair.model}`,
+            repairType: item.repair.repairType || 'General Repair',
+            repairTotal: item.commission.breakdown.repairTotal,
+            partsCost: item.commission.breakdown.partsCost,
+            deliveryExpenses: item.commission.breakdown.deliveryExpenses,
+            netAmount: item.commission.breakdown.netAmount,
+            commissionRate: item.commission.breakdown.commissionRate,
+            commission: item.commission.amount,
+            fullyPaidDate: fullyPaidDate ? fullyPaidDate.toISOString() : null
+        };
+    });
 
     const total = breakdown.reduce((sum, item) => sum + item.commission, 0);
 
