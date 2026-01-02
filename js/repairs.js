@@ -11944,30 +11944,46 @@ async function performCleanup(category, affectedRecords) {
 
             switch (category) {
                 case 'missingPartsCost':
-                    // Prompt user for actual parts cost
-                    const actualPartsCost = prompt(
-                        `Enter parts cost for repair #${repair.id}\nCustomer: ${repair.customerName}\nTotal: ₱${repair.total}\n\nEnter 0 if no parts were used:`,
-                        '0'
-                    );
+                    // Check if it's a software repair
+                    const isSoftwareRepair = repair.repairType === 'Software Issue' ||
+                                           repair.repairType === 'FRP Unlock' ||
+                                           repair.repairType === 'Password Unlock' ||
+                                           repair.repairType === 'Data Recovery';
+                    
+                    let partsCostValue = 0;
+                    let partsCostNote = '';
+                    
+                    if (isSoftwareRepair) {
+                        // Auto-set to 0 for software repairs
+                        partsCostValue = 0;
+                        partsCostNote = `Software repair - no parts cost. Auto-set by data cleanup on ${utils.formatDate(now)}`;
+                    } else {
+                        // Prompt user for actual parts cost for hardware repairs
+                        const actualPartsCost = prompt(
+                            `Enter parts cost for repair #${repair.id}\nCustomer: ${repair.customerName}\nTotal: ₱${repair.total}\n\nEnter 0 if no parts were used:`,
+                            '0'
+                        );
 
-                    // Skip if user cancels
-                    if (actualPartsCost === null) {
-                        console.log(`Skipped parts cost for repair ${repair.id}`);
-                        continue;
+                        // Skip if user cancels
+                        if (actualPartsCost === null) {
+                            console.log(`Skipped parts cost for repair ${repair.id}`);
+                            continue;
+                        }
+
+                        partsCostValue = parseFloat(actualPartsCost) || 0;
+                        partsCostNote = `Set to ₱${partsCostValue} by data cleanup on ${utils.formatDate(now)}`;
                     }
-
-                    const partsCostValue = parseFloat(actualPartsCost) || 0;
 
                     snapshot.oldValues.partsCost = repair.partsCost || null;
                     snapshot.oldValues.partsCostNotes = repair.partsCostNotes || null;
 
                     snapshot.newValues.partsCost = partsCostValue;
-                    snapshot.newValues.partsCostNotes = `Set to ₱${partsCostValue} by data cleanup on ${utils.formatDate(now)}`;
+                    snapshot.newValues.partsCostNotes = partsCostNote;
                     snapshot.newValues.partsCostRecordedBy = window.currentUserData.displayName;
                     snapshot.newValues.partsCostRecordedAt = now;
 
                     updates[`${repairRef}/partsCost`] = partsCostValue;
-                    updates[`${repairRef}/partsCostNotes`] = snapshot.newValues.partsCostNotes;
+                    updates[`${repairRef}/partsCostNotes`] = partsCostNote;
                     updates[`${repairRef}/partsCostRecordedBy`] = snapshot.newValues.partsCostRecordedBy;
                     updates[`${repairRef}/partsCostRecordedAt`] = snapshot.newValues.partsCostRecordedAt;
                     break;
