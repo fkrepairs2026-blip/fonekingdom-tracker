@@ -1592,7 +1592,21 @@ function buildAllRepairsTab(container) {
 
     container.innerHTML = `
         <div class="card">
-            <h3>All Repairs (${repairs.length})</h3>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:15px;">
+                <h3 style="margin:0;">All Repairs (${repairs.length})</h3>
+                <div style="flex:1;max-width:500px;">
+                    <input type="text" 
+                           id="allRepairsSearchInput" 
+                           placeholder="🔍 Search by name, phone, model, problem, or ID..." 
+                           style="width:100%;padding:12px 15px;border:2px solid #e0e0e0;border-radius:8px;font-size:14px;transition:border-color 0.3s,box-shadow 0.3s;"
+                           oninput="filterAllRepairs(this.value)"
+                           onfocus="this.style.borderColor='#667eea';this.style.boxShadow='0 0 0 3px rgba(102,126,234,0.1)'"
+                           onblur="this.style.borderColor='#e0e0e0';this.style.boxShadow='none'">
+                </div>
+            </div>
+            <div id="allRepairsStats" style="margin-bottom:15px;padding:10px;background:#f5f5f5;border-radius:8px;display:none;">
+                <span id="allRepairsSearchStats"></span>
+            </div>
             <div id="allRepairsList"></div>
         </div>
     `;
@@ -1600,7 +1614,7 @@ function buildAllRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
-            displayGroupedRepairsList(repairs, listContainer, 'all', 'recordedDate');
+            displaySearchableRepairsList(repairs, listContainer);
         }
     }, 0);
 }
@@ -1839,6 +1853,179 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
             </div>
         `;
     }).join('');
+}
+
+/**
+ * Display repairs in searchable format with date grouping (for All Repairs tab)
+ * Uses modal instead of expand/collapse
+ */
+function displaySearchableRepairsList(repairs, container) {
+    if (!container) {
+        console.warn('⚠️ Container not found');
+        return;
+    }
+
+    if (!repairs || repairs.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No repairs found</p>';
+        return;
+    }
+
+    // Group repairs by date
+    const groupedByDate = {};
+    
+    repairs.forEach(r => {
+        const dateValue = r.recordedDate || r.createdAt;
+        if (!dateValue) return;
+        
+        const dateKey = utils.formatDate(dateValue);
+        
+        if (!groupedByDate[dateKey]) {
+            groupedByDate[dateKey] = [];
+        }
+        groupedByDate[dateKey].push(r);
+    });
+
+    // Sort date groups (most recent first)
+    const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+        const dateA = new Date(groupedByDate[a][0].recordedDate || groupedByDate[a][0].createdAt);
+        const dateB = new Date(groupedByDate[b][0].recordedDate || groupedByDate[b][0].createdAt);
+        return dateB - dateA;
+    });
+
+    const todayDateString = utils.formatDate(new Date());
+    
+    container.innerHTML = sortedDates.map((dateKey, index) => {
+        const repairsInDate = groupedByDate[dateKey];
+        
+        repairsInDate.sort((a, b) => {
+            const dateA = new Date(a.recordedDate || a.createdAt);
+            const dateB = new Date(b.recordedDate || b.createdAt);
+            return dateB - dateA;
+        });
+        
+        const count = repairsInDate.length;
+        const daysAgoText = utils.daysAgo(repairsInDate[0].recordedDate || repairsInDate[0].createdAt);
+        const isToday = dateKey === todayDateString;
+        const groupId = `date-group-${index}`;
+        
+        return `
+            <div class="date-group" style="margin-bottom:30px;">
+                <div class="date-group-header" 
+                     onclick="toggleDateGroup('${groupId}')"
+                     style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:15px 20px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 12px rgba(102,126,234,0.2);cursor:pointer;user-select:none;">
+                    <div>
+                        <h4 style="margin:0;font-size:18px;font-weight:600;">${dateKey}${isToday ? ' <span style="background:rgba(255,255,255,0.3);padding:2px 8px;border-radius:4px;font-size:13px;">Today</span>' : ''}</h4>
+                        <span style="font-size:13px;opacity:0.9;">${daysAgoText}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="background:rgba(255,255,255,0.25);padding:6px 14px;border-radius:15px;font-size:14px;font-weight:600;">
+                            ${count} device${count !== 1 ? 's' : ''}
+                        </span>
+                        <span class="date-group-toggle-icon" style="font-size:20px;transition:transform 0.3s;">
+                            ${isToday ? '▼' : '▶'}
+                        </span>
+                    </div>
+                </div>
+                <div class="date-group-items" id="${groupId}" style="padding-left:10px;display:${isToday ? 'block' : 'none'};">
+                    ${repairsInDate.map(r => {
+                        const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
+                        const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
+                        const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+                        const balance = r.total - totalPaid;
+                        
+                        return `
+                            <div class="repair-list-item-compact searchable-repair-item" 
+                                 data-repair-id="${r.id}"
+                                 data-customer="${r.customerName.toLowerCase()}"
+                                 data-phone="${r.contactNumber}"
+                                 data-model="${(r.brand + ' ' + r.model).toLowerCase()}"
+                                 data-problem="${r.problem.toLowerCase()}"
+                                 onclick="showRepairDetailsModal('${r.id}')"
+                                 style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;">
+                                <div class="repair-compact-header">
+                                    <div class="repair-compact-main">
+                                        <div class="repair-compact-title">
+                                            <strong>${r.brand} ${r.model}</strong>
+                                            <span class="repair-compact-customer">| ${r.customerName}${r.shopName ? ` (${r.shopName})` : ''}</span>
+                                            <span style="color:#666;font-size:13px;"> • ${r.contactNumber}</span>
+                                        </div>
+                                        <div class="repair-compact-badges">
+                                            <span class="status-badge status-${statusClass}">${r.status}</span>
+                                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
+                                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
+                                            ${balance > 0 ? `<span class="status-badge" style="background:#fff3e0;color:#e65100;">₱${balance.toFixed(0)} balance</span>` : '<span class="status-badge" style="background:#e8f5e9;color:#2e7d32;">✓ Paid</span>'}
+                                        </div>
+                                        <div class="repair-compact-problem">
+                                            <strong>Problem:</strong> ${problemPreview}
+                                        </div>
+                                        ${r.repairType ? `<div style="font-size:13px;color:#666;margin-top:5px;"><strong>Repair:</strong> ${r.repairType}</div>` : ''}
+                                    </div>
+                                    <div style="color:#667eea;font-size:18px;">›</div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Filter repairs in All Repairs tab based on search query
+ */
+function filterAllRepairs(query) {
+    const searchLower = query.toLowerCase().trim();
+    const allItems = document.querySelectorAll('.searchable-repair-item');
+    const statsDiv = document.getElementById('allRepairsStats');
+    const statsSpan = document.getElementById('allRepairsSearchStats');
+    
+    if (!searchLower) {
+        // Show all items
+        allItems.forEach(item => item.style.display = 'block');
+        if (statsDiv) statsDiv.style.display = 'none';
+        
+        // Show/hide empty date groups
+        document.querySelectorAll('.date-group').forEach(group => {
+            const visibleItems = group.querySelectorAll('.searchable-repair-item[style*="display: block"], .searchable-repair-item:not([style*="display"])');
+            group.style.display = visibleItems.length > 0 ? 'block' : 'none';
+        });
+        return;
+    }
+    
+    let matchCount = 0;
+    
+    allItems.forEach(item => {
+        const customer = item.dataset.customer || '';
+        const phone = item.dataset.phone || '';
+        const model = item.dataset.model || '';
+        const problem = item.dataset.problem || '';
+        const repairId = item.dataset.repairId || '';
+        
+        const matches = customer.includes(searchLower) ||
+                       phone.includes(searchLower) ||
+                       model.includes(searchLower) ||
+                       problem.includes(searchLower) ||
+                       repairId.includes(searchLower);
+        
+        item.style.display = matches ? 'block' : 'none';
+        if (matches) matchCount++;
+    });
+    
+    // Update stats
+    if (statsDiv && statsSpan) {
+        statsDiv.style.display = 'block';
+        statsSpan.textContent = `Found ${matchCount} repair${matchCount !== 1 ? 's' : ''} matching "${query}"`;
+        if (matchCount === 0) {
+            statsSpan.innerHTML = `<span style="color:#d32f2f;">No repairs found matching "${query}"</span>`;
+        }
+    }
+    
+    // Show/hide empty date groups
+    document.querySelectorAll('.date-group').forEach(group => {
+        const visibleItems = group.querySelectorAll('.searchable-repair-item[style="display: block;"]');
+        group.style.display = visibleItems.length > 0 ? 'block' : 'none';
+    });
 }
 
 /**
@@ -4510,6 +4697,7 @@ window.renderReleasedButtons = renderReleasedButtons;
 window.renderClaimedButtons = renderClaimedButtons;
 window.toggleRepairDetails = toggleRepairDetails;
 window.buildAllRepairsTab = buildAllRepairsTab;
+window.filterAllRepairs = filterAllRepairs;
 window.buildMyRepairsTab = buildMyRepairsTab;
 window.buildMyClaimedDevicesTab = buildMyClaimedDevicesTab;
 window.buildPendingTab = buildPendingTab;

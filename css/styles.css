@@ -967,6 +967,16 @@ body.left-sidebar-collapsed .main-content {
     line-height: 1.4;
 }
 
+/* Searchable repair items hover effect */
+.searchable-repair-item:hover {
+    transform: translateX(5px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+.searchable-repair-item:active {
+    transform: translateX(3px);
+}
+
 .expand-indicator {
     font-size: 16px;
     color: var(--primary);
