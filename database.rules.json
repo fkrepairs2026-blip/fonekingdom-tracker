@@ -1,15 +1,13 @@
 {
   "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null",
     "repairs": {
       ".indexOn": [
         "status",
         "technicianId",
         "createdAt"
       ],
+      ".read": "auth != null",
       "$repairId": {
-        ".read": "auth != null",
         ".write": "auth != null",
         "deleted": {
           ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
