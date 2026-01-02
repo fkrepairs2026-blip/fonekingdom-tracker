@@ -1195,7 +1195,7 @@ document.addEventListener('click', function (event) {
  * @param {string} type - Type: 'success', 'error', 'warning', 'info'
  * @param {number} duration - Duration in ms (default 3000)
  */
-utils.showToast = function(message, type = 'info', duration = 3000) {
+utils.showToast = function (message, type = 'info', duration = 3000) {
     // Create toast container if it doesn't exist
     let container = document.getElementById('toast-container');
     if (!container) {
@@ -1204,40 +1204,40 @@ utils.showToast = function(message, type = 'info', duration = 3000) {
         container.className = 'toast-container';
         document.body.appendChild(container);
     }
-    
+
     // Create toast element
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    
+
     // Create message span
     const messageSpan = document.createElement('span');
     messageSpan.className = 'toast-message';
     messageSpan.textContent = message;
-    
+
     // Create close button
     const closeBtn = document.createElement('button');
     closeBtn.className = 'toast-close';
     closeBtn.innerHTML = '×';
     closeBtn.onclick = () => removeToast(toast);
-    
+
     toast.appendChild(messageSpan);
     toast.appendChild(closeBtn);
-    
+
     // Add to container
     container.appendChild(toast);
-    
+
     // Trigger animation
     setTimeout(() => {
         toast.classList.add('toast-show');
     }, 10);
-    
+
     // Auto-remove after duration
     if (duration > 0) {
         setTimeout(() => {
             removeToast(toast);
         }, duration);
     }
-    
+
     return toast;
 };
 
@@ -1247,7 +1247,7 @@ utils.showToast = function(message, type = 'info', duration = 3000) {
 function removeToast(toast) {
     toast.classList.remove('toast-show');
     toast.classList.add('toast-hide');
-    
+
     setTimeout(() => {
         if (toast.parentElement) {
             toast.parentElement.removeChild(toast);

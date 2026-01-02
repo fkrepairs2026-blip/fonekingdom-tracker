@@ -4551,8 +4551,8 @@ html {
     display: block;
     margin-bottom: 0.5rem;
 }
- 
- 
+
+   
 /* ===== HELP SYSTEM STYLING ===== */
 
 /* Language Dropdown */
@@ -4699,17 +4699,17 @@ html {
     .language-toggle .btn-text {
         display: none;
     }
-    
+
     #helpGuideModal .modal-content {
         max-width: 95%;
         margin: 5% auto;
     }
-    
+
     .help-box {
         padding: 12px;
         font-size: 14px;
     }
-    
+
     .help-box summary {
         font-size: 14px;
     }
@@ -4912,67 +4912,67 @@ html {
     .dashboard-container {
         padding: 10px;
     }
-    
+
     .dashboard-stats-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 10px;
     }
-    
+
     .dashboard-stat-card {
         padding: 15px;
     }
-    
-    .dashboard-stat-card > div:nth-child(1) {
+
+    .dashboard-stat-card>div:nth-child(1) {
         font-size: 11px !important;
     }
-    
-    .dashboard-stat-card > div:nth-child(2) {
+
+    .dashboard-stat-card>div:nth-child(2) {
         font-size: 24px !important;
     }
-    
-    .dashboard-stat-card > div:nth-child(3) {
+
+    .dashboard-stat-card>div:nth-child(3) {
         font-size: 10px !important;
     }
-    
+
     .dashboard-alerts-grid {
         grid-template-columns: 1fr;
         gap: 10px;
     }
-    
+
     .dashboard-alert-card {
         padding: 15px;
     }
-    
+
     .alert-count {
         font-size: 22px;
     }
-    
+
     .alert-title {
         font-size: 12px;
     }
-    
+
     .quick-stats {
         padding: 15px;
         gap: 15px;
     }
-    
+
     .quick-stat-item {
         min-width: 100px;
         padding: 8px 15px;
     }
-    
+
     .quick-stat-value {
         font-size: 20px;
     }
-    
+
     .activity-feed {
         padding: 15px;
     }
-    
+
     .activity-item {
         padding: 10px;
     }
-    
+
     .activity-icon {
         width: 35px;
         height: 35px;
@@ -5286,11 +5286,11 @@ html {
     border-radius: 50%;
 }
 
-input:checked + .toggle-slider {
+input:checked+.toggle-slider {
     background-color: #3b82f6;
 }
 
-input:checked + .toggle-slider:before {
+input:checked+.toggle-slider:before {
     transform: translateX(26px);
 }
 
@@ -5486,24 +5486,24 @@ input:checked + .toggle-slider:before {
         right: 10px;
         left: 10px;
     }
-    
+
     .toast {
         min-width: auto;
         max-width: 100%;
     }
-    
+
     .issue-cards-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .export-cards-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .overhead-form-grid {
         grid-template-columns: 1fr;
     }
-    
+
     .stat-value {
         font-size: 24px;
     }

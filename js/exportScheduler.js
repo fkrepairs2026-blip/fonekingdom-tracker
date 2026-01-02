@@ -10,25 +10,25 @@ let isExportRunning = false;
  */
 function initializeAutoExport() {
     console.log('🔄 Initializing auto-export scheduler...');
-    
+
     // Load export configuration from localStorage
     const config = getExportScheduleConfig();
-    
+
     // Clear existing interval if any
     if (exportSchedulerInterval) {
         clearInterval(exportSchedulerInterval);
     }
-    
+
     // Check every hour (3600000 ms)
     exportSchedulerInterval = setInterval(() => {
         checkAndRunScheduledExports();
     }, 3600000);
-    
+
     // Also run once after 10 seconds (after app fully loads)
     setTimeout(() => {
         checkAndRunScheduledExports();
     }, 10000);
-    
+
     console.log('✅ Export scheduler started (checking hourly)');
 }
 
@@ -40,13 +40,13 @@ function checkAndRunScheduledExports() {
     if (!window.currentUserData || window.currentUserData.role !== 'admin') {
         return;
     }
-    
+
     // Prevent concurrent exports
     if (isExportRunning) {
         console.log('⏸️ Export already running, skipping check');
         return;
     }
-    
+
     const config = getExportScheduleConfig();
     const now = new Date();
     const manilaTimeStr = now.toLocaleString('en-US', {
@@ -58,9 +58,9 @@ function checkAndRunScheduledExports() {
     const currentMinute = manilaDate.getMinutes();
     const currentDay = manilaDate.getDay(); // 0 = Sunday
     const currentDate = manilaDate.getDate();
-    
+
     console.log(`📅 Export scheduler check: ${manilaDate.toLocaleString()}`);
-    
+
     // Check Daily Export
     if (config.daily.enabled) {
         const dailyHour = parseInt(config.daily.time.split(':')[0]);
@@ -70,7 +70,7 @@ function checkAndRunScheduledExports() {
             }
         }
     }
-    
+
     // Check Weekly Export (default Sunday)
     if (config.weekly.enabled) {
         const weeklyDay = config.weekly.dayOfWeek || 0; // Sunday default
@@ -81,7 +81,7 @@ function checkAndRunScheduledExports() {
             }
         }
     }
-    
+
     // Check Monthly Export (default 1st day of month)
     if (config.monthly.enabled) {
         const monthlyDate = config.monthly.dayOfMonth || 1;
@@ -100,11 +100,11 @@ function checkAndRunScheduledExports() {
 function shouldRunExport(type) {
     const lastExportKey = `lastExport_${type}`;
     const lastExport = localStorage.getItem(lastExportKey);
-    
+
     if (!lastExport) {
         return true;
     }
-    
+
     const lastExportDate = new Date(lastExport);
     const now = new Date();
     const manilaTimeStr = now.toLocaleString('en-US', {
@@ -112,11 +112,11 @@ function shouldRunExport(type) {
         hour12: false
     });
     const manilaDate = new Date(manilaTimeStr);
-    
+
     // Check if already exported today (Manila timezone)
     const lastDateStr = lastExportDate.toISOString().split('T')[0];
     const todayStr = manilaDate.toISOString().split('T')[0];
-    
+
     return lastDateStr !== todayStr;
 }
 
@@ -126,7 +126,7 @@ function shouldRunExport(type) {
 async function runScheduledExport(type) {
     console.log(`🚀 Running scheduled ${type} export...`);
     isExportRunning = true;
-    
+
     try {
         const now = new Date();
         const manilaTimeStr = now.toLocaleString('en-US', {
@@ -134,10 +134,10 @@ async function runScheduledExport(type) {
             hour12: false
         });
         const manilaDate = new Date(manilaTimeStr);
-        
+
         let success = false;
         let recordCount = 0;
-        
+
         switch (type) {
             case 'daily':
                 // Export previous day's data
@@ -147,7 +147,7 @@ async function runScheduledExport(type) {
                 success = result.success;
                 recordCount = result.recordCount;
                 break;
-                
+
             case 'weekly':
                 // Export last 7 days
                 const weekAgo = new Date(manilaDate);
@@ -156,7 +156,7 @@ async function runScheduledExport(type) {
                 success = weekResult.success;
                 recordCount = weekResult.recordCount;
                 break;
-                
+
             case 'monthly':
                 // Export previous month
                 const prevMonth = new Date(manilaDate);
@@ -169,15 +169,15 @@ async function runScheduledExport(type) {
                 recordCount = monthResult.recordCount;
                 break;
         }
-        
+
         if (success) {
             // Mark as completed
             const lastExportKey = `lastExport_${type}`;
             localStorage.setItem(lastExportKey, manilaDate.toISOString());
-            
+
             // Save export stats
             saveExportStats(type, recordCount);
-            
+
             // Show success toast (only for admin)
             if (window.utils && window.utils.showToast) {
                 window.utils.showToast(
@@ -186,7 +186,7 @@ async function runScheduledExport(type) {
                     5000
                 );
             }
-            
+
             console.log(`✅ ${type} export completed: ${recordCount} records`);
         }
     } catch (error) {
@@ -209,7 +209,7 @@ async function runScheduledExport(type) {
 function saveExportStats(type, recordCount) {
     const statsKey = 'lastExportStats';
     let stats = {};
-    
+
     try {
         const existing = localStorage.getItem(statsKey);
         if (existing) {
@@ -218,12 +218,12 @@ function saveExportStats(type, recordCount) {
     } catch (e) {
         console.error('Error loading export stats:', e);
     }
-    
+
     stats[type] = {
         timestamp: new Date().toISOString(),
         recordCount: recordCount
     };
-    
+
     localStorage.setItem(statsKey, JSON.stringify(stats));
 }
 
@@ -261,7 +261,7 @@ function getExportScheduleConfig() {
             dayOfMonth: 1
         }
     };
-    
+
     try {
         const configStr = localStorage.getItem('exportScheduleConfig');
         if (configStr) {
@@ -270,7 +270,7 @@ function getExportScheduleConfig() {
     } catch (e) {
         console.error('Error loading export config:', e);
     }
-    
+
     return defaultConfig;
 }
 
@@ -302,7 +302,7 @@ function updateSchedule() {
  */
 async function triggerManualExport(type) {
     console.log(`🖱️ Manual ${type} export triggered`);
-    
+
     if (isExportRunning) {
         if (window.utils && window.utils.showToast) {
             window.utils.showToast(
@@ -313,13 +313,13 @@ async function triggerManualExport(type) {
         }
         return;
     }
-    
+
     // Temporarily bypass shouldRunExport check for manual triggers
     const originalShouldRun = shouldRunExport;
     window.shouldRunExportOverride = true;
-    
+
     await runScheduledExport(type);
-    
+
     window.shouldRunExportOverride = false;
 }
 

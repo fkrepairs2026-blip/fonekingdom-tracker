@@ -11800,17 +11800,17 @@ function calculateDataHealthIssues() {
         legacyPayments: [],
         total: 0
     };
-    
+
     if (!window.allRepairs) {
         return issues;
     }
-    
+
     window.allRepairs.forEach(repair => {
         if (repair.deleted) return;
-        
+
         // Check for missing parts cost on completed repairs
-        if ((repair.status === 'Claimed' || repair.status === 'Released') && 
-            repair.total > 0 && 
+        if ((repair.status === 'Claimed' || repair.status === 'Released') &&
+            repair.total > 0 &&
             (!repair.partsCost || repair.partsCost === 0)) {
             issues.missingPartsCost.push({
                 repairId: repair.id,
@@ -11820,15 +11820,15 @@ function calculateDataHealthIssues() {
                 claimedAt: repair.claimedAt
             });
         }
-        
+
         // Check payments for issues
         if (repair.payments && repair.payments.length > 0) {
             repair.payments.forEach((payment, index) => {
                 // Check for orphaned remittances
                 if (payment.techRemittanceId && payment.remittanceStatus === 'remitted') {
-                    const remittanceExists = window.techRemittances && 
+                    const remittanceExists = window.techRemittances &&
                         window.techRemittances.find(r => r.id === payment.techRemittanceId);
-                    
+
                     if (!remittanceExists) {
                         issues.orphanedRemittances.push({
                             repairId: repair.id,
@@ -11841,7 +11841,7 @@ function calculateDataHealthIssues() {
                         });
                     }
                 }
-                
+
                 // Check for legacy payments (missing remittanceStatus)
                 if (payment.collectedByTech && !payment.remittanceStatus) {
                     issues.legacyPayments.push({
@@ -11857,11 +11857,11 @@ function calculateDataHealthIssues() {
             });
         }
     });
-    
-    issues.total = issues.missingPartsCost.length + 
-                   issues.orphanedRemittances.length + 
-                   issues.legacyPayments.length;
-    
+
+    issues.total = issues.missingPartsCost.length +
+        issues.orphanedRemittances.length +
+        issues.legacyPayments.length;
+
     return issues;
 }
 
@@ -11875,20 +11875,20 @@ async function performCleanup(category, affectedRecords) {
         alert('⚠️ Only administrators can perform data cleanup');
         return { success: false };
     }
-    
+
     if (!affectedRecords || affectedRecords.length === 0) {
         alert('⚠️ No records to clean up');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Generate cleanup ID
         const cleanupId = `cleanup_${Date.now()}`;
         const now = new Date().toISOString();
         const expiresAt = new Date(Date.now() + (90 * 24 * 60 * 60 * 1000)).toISOString(); // 90 days
-        
+
         // Prepare cleanup snapshot
         const cleanupSnapshot = {
             cleanupId: cleanupId,
@@ -11900,82 +11900,82 @@ async function performCleanup(category, affectedRecords) {
             status: 'active',
             affectedRecords: []
         };
-        
+
         // Process each record
         const updates = {};
-        
+
         for (const record of affectedRecords) {
             const repairRef = `repairs/${record.repairId}`;
             const repair = window.allRepairs.find(r => r.id === record.repairId);
-            
+
             if (!repair) continue;
-            
+
             const snapshot = {
                 repairId: record.repairId,
                 oldValues: {},
                 newValues: {}
             };
-            
+
             switch (category) {
                 case 'missingPartsCost':
                     snapshot.oldValues.partsCost = repair.partsCost || null;
                     snapshot.oldValues.partsCostNotes = repair.partsCostNotes || null;
-                    
+
                     snapshot.newValues.partsCost = 0;
                     snapshot.newValues.partsCostNotes = `Auto-set to 0 by data cleanup on ${utils.formatDate(now)} (original value unknown)`;
                     snapshot.newValues.partsCostRecordedBy = window.currentUserData.displayName;
                     snapshot.newValues.partsCostRecordedAt = now;
-                    
+
                     updates[`${repairRef}/partsCost`] = 0;
                     updates[`${repairRef}/partsCostNotes`] = snapshot.newValues.partsCostNotes;
                     updates[`${repairRef}/partsCostRecordedBy`] = snapshot.newValues.partsCostRecordedBy;
                     updates[`${repairRef}/partsCostRecordedAt`] = snapshot.newValues.partsCostRecordedAt;
                     break;
-                    
+
                 case 'orphanedRemittances':
                     const payment = repair.payments[record.paymentIndex];
                     snapshot.oldValues.remittanceStatus = payment.remittanceStatus;
                     snapshot.oldValues.techRemittanceId = payment.techRemittanceId;
-                    
+
                     snapshot.newValues.remittanceStatus = 'pending';
                     snapshot.newValues.techRemittanceId = null;
                     snapshot.paymentIndex = record.paymentIndex;
-                    
+
                     updates[`${repairRef}/payments/${record.paymentIndex}/remittanceStatus`] = 'pending';
                     updates[`${repairRef}/payments/${record.paymentIndex}/techRemittanceId`] = null;
                     break;
-                    
+
                 case 'legacyPayments':
                     const legacyPayment = repair.payments[record.paymentIndex];
                     snapshot.oldValues.remittanceStatus = legacyPayment.remittanceStatus || null;
-                    
+
                     // Set based on verification status
                     const newStatus = legacyPayment.verified ? 'verified' : 'pending';
                     snapshot.newValues.remittanceStatus = newStatus;
                     snapshot.paymentIndex = record.paymentIndex;
-                    
+
                     updates[`${repairRef}/payments/${record.paymentIndex}/remittanceStatus`] = newStatus;
                     break;
             }
-            
+
             cleanupSnapshot.affectedRecords.push(snapshot);
         }
-        
+
         // Save cleanup snapshot to Firebase
         await db.ref(`dataCleanupHistory/${cleanupId}`).set(cleanupSnapshot);
-        
+
         // Apply updates
         await db.ref().update(updates);
-        
+
         // Log activity
         await logActivity('data_cleanup', {
             cleanupId: cleanupId,
             category: category,
             recordsAffected: affectedRecords.length
         });
-        
+
         utils.showLoading(false);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast(
                 `✅ Cleanup completed: ${affectedRecords.length} records fixed`,
@@ -11983,14 +11983,14 @@ async function performCleanup(category, affectedRecords) {
                 5000
             );
         }
-        
+
         // Refresh current tab
         if (window.currentTabRefresh) {
             setTimeout(() => window.currentTabRefresh(), 400);
         }
-        
+
         return { success: true, cleanupId: cleanupId };
-        
+
     } catch (error) {
         console.error('❌ Error performing cleanup:', error);
         utils.showLoading(false);
@@ -12008,25 +12008,25 @@ async function undoCleanup(cleanupId) {
         alert('⚠️ Only administrators can undo cleanup operations');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Retrieve cleanup snapshot
         const snapshot = await db.ref(`dataCleanupHistory/${cleanupId}`).once('value');
         const cleanupData = snapshot.val();
-        
+
         if (!cleanupData) {
             throw new Error('Cleanup snapshot not found');
         }
-        
+
         // Check if already undone
         if (cleanupData.status === 'undone') {
             alert('⚠️ This cleanup has already been undone');
             utils.showLoading(false);
             return { success: false };
         }
-        
+
         // Check if expired
         const expiresAt = new Date(cleanupData.expiresAt);
         const now = new Date();
@@ -12035,13 +12035,13 @@ async function undoCleanup(cleanupId) {
             utils.showLoading(false);
             return { success: false };
         }
-        
+
         // Prepare undo updates
         const updates = {};
-        
+
         for (const record of cleanupData.affectedRecords) {
             const repairRef = `repairs/${record.repairId}`;
-            
+
             // Restore old values
             for (const [key, value] of Object.entries(record.oldValues)) {
                 if (record.paymentIndex !== undefined) {
@@ -12053,10 +12053,10 @@ async function undoCleanup(cleanupId) {
                 }
             }
         }
-        
+
         // Apply undo updates
         await db.ref().update(updates);
-        
+
         // Mark cleanup as undone
         await db.ref(`dataCleanupHistory/${cleanupId}`).update({
             status: 'undone',
@@ -12064,16 +12064,16 @@ async function undoCleanup(cleanupId) {
             undoneById: window.currentUser.uid,
             undoneAt: new Date().toISOString()
         });
-        
+
         // Log activity
         await logActivity('cleanup_undone', {
             cleanupId: cleanupId,
             category: cleanupData.category,
             recordsReverted: cleanupData.affectedRecords.length
         });
-        
+
         utils.showLoading(false);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast(
                 `✅ Cleanup undone: ${cleanupData.affectedRecords.length} records reverted`,
@@ -12081,14 +12081,14 @@ async function undoCleanup(cleanupId) {
                 5000
             );
         }
-        
+
         // Refresh current tab
         if (window.currentTabRefresh) {
             setTimeout(() => window.currentTabRefresh(), 400);
         }
-        
+
         return { success: true };
-        
+
     } catch (error) {
         console.error('❌ Error undoing cleanup:', error);
         utils.showLoading(false);
@@ -12105,16 +12105,16 @@ async function archiveExpiredCleanups() {
     if (!window.currentUserData || window.currentUserData.role !== 'admin') {
         return;
     }
-    
+
     try {
         console.log('🗄️ Checking for expired cleanups to archive...');
-        
+
         const snapshot = await db.ref('dataCleanupHistory').once('value');
         const allCleanups = snapshot.val() || {};
-        
+
         const now = new Date();
         const expiredCleanups = [];
-        
+
         Object.entries(allCleanups).forEach(([id, cleanup]) => {
             const expiresAt = new Date(cleanup.expiresAt);
             if (now > expiresAt) {
@@ -12124,12 +12124,12 @@ async function archiveExpiredCleanups() {
                 });
             }
         });
-        
+
         if (expiredCleanups.length === 0) {
             console.log('✅ No expired cleanups to archive');
             return;
         }
-        
+
         // Export to CSV
         const csvData = expiredCleanups.map(c => ({
             'Cleanup ID': c.cleanupId,
@@ -12140,20 +12140,20 @@ async function archiveExpiredCleanups() {
             'Records Affected': c.affectedRecords.length,
             'Expires At': utils.formatDateTime(c.expiresAt)
         }));
-        
+
         const now_str = new Date().toISOString().split('T')[0];
         exportToCSV(csvData, `cleanup_archive_${now_str}`);
-        
+
         // Delete from Firebase
         const deleteUpdates = {};
         expiredCleanups.forEach(c => {
             deleteUpdates[`dataCleanupHistory/${c.cleanupId}`] = null;
         });
-        
+
         await db.ref().update(deleteUpdates);
-        
+
         console.log(`✅ Archived and deleted ${expiredCleanups.length} expired cleanups`);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast(
                 `📦 Archived ${expiredCleanups.length} expired cleanups`,
@@ -12161,7 +12161,7 @@ async function archiveExpiredCleanups() {
                 5000
             );
         }
-        
+
     } catch (error) {
         console.error('❌ Error archiving expired cleanups:', error);
     }
@@ -12176,7 +12176,7 @@ async function getCleanupHistory(limit = 20) {
             .orderByChild('timestamp')
             .limitToLast(limit)
             .once('value');
-        
+
         const cleanups = [];
         snapshot.forEach(child => {
             cleanups.push({
@@ -12184,12 +12184,12 @@ async function getCleanupHistory(limit = 20) {
                 ...child.val()
             });
         });
-        
+
         // Sort by timestamp descending (newest first)
         cleanups.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
+
         return cleanups;
-        
+
     } catch (error) {
         console.error('Error loading cleanup history:', error);
         return [];
@@ -12207,7 +12207,7 @@ window.overheadExpenses = [];
 async function loadOverheadExpenses() {
     try {
         console.log('📦 Loading overhead expenses...');
-        
+
         db.ref('overheadExpenses').on('value', (snapshot) => {
             const expenses = [];
             snapshot.forEach(child => {
@@ -12216,16 +12216,16 @@ async function loadOverheadExpenses() {
                     ...child.val()
                 });
             });
-            
+
             window.overheadExpenses = expenses;
             console.log(`✅ Loaded ${expenses.length} overhead expenses`);
-            
+
             // Trigger refresh if on relevant tab
             if (window.currentTabRefresh) {
                 setTimeout(() => window.currentTabRefresh(), 400);
             }
         });
-        
+
     } catch (error) {
         console.error('❌ Error loading overhead expenses:', error);
     }
@@ -12240,10 +12240,10 @@ async function addOverheadExpense(expense) {
         alert('⚠️ Only administrators and managers can add overhead expenses');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const expenseData = {
             category: expense.category,
             description: expense.description,
@@ -12256,18 +12256,18 @@ async function addOverheadExpense(expense) {
             createdById: window.currentUser.uid,
             createdAt: new Date().toISOString()
         };
-        
+
         const newRef = await db.ref('overheadExpenses').push(expenseData);
-        
+
         // Log activity
         await logActivity('overhead_expense_added', {
             expenseId: newRef.key,
             category: expenseData.category,
             amount: expenseData.amount
         });
-        
+
         utils.showLoading(false);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast(
                 `✅ Overhead expense added: ₱${expenseData.amount.toLocaleString()}`,
@@ -12275,9 +12275,9 @@ async function addOverheadExpense(expense) {
                 3000
             );
         }
-        
+
         return { success: true, expenseId: newRef.key };
-        
+
     } catch (error) {
         console.error('❌ Error adding overhead expense:', error);
         utils.showLoading(false);
@@ -12294,28 +12294,28 @@ async function updateOverheadExpense(expenseId, updates) {
         alert('⚠️ Only administrators and managers can update overhead expenses');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         updates.lastUpdatedBy = window.currentUserData.displayName;
         updates.lastUpdatedAt = new Date().toISOString();
-        
+
         await db.ref(`overheadExpenses/${expenseId}`).update(updates);
-        
+
         await logActivity('overhead_expense_updated', {
             expenseId: expenseId,
             updates: updates
         });
-        
+
         utils.showLoading(false);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast('✅ Overhead expense updated', 'success', 3000);
         }
-        
+
         return { success: true };
-        
+
     } catch (error) {
         console.error('❌ Error updating overhead expense:', error);
         utils.showLoading(false);
@@ -12332,35 +12332,35 @@ async function deleteOverheadExpense(expenseId) {
         alert('⚠️ Only administrators can delete overhead expenses');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const expense = window.overheadExpenses.find(e => e.id === expenseId);
-        
+
         // Soft delete (backup to deletedOverheadExpenses)
         await db.ref(`deletedOverheadExpenses/${expenseId}`).set({
             ...expense,
             deletedBy: window.currentUserData.displayName,
             deletedAt: new Date().toISOString()
         });
-        
+
         await db.ref(`overheadExpenses/${expenseId}`).remove();
-        
+
         await logActivity('overhead_expense_deleted', {
             expenseId: expenseId,
             category: expense.category,
             amount: expense.amount
         });
-        
+
         utils.showLoading(false);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast('✅ Overhead expense deleted', 'success', 3000);
         }
-        
+
         return { success: true };
-        
+
     } catch (error) {
         console.error('❌ Error deleting overhead expense:', error);
         utils.showLoading(false);
@@ -12374,7 +12374,7 @@ async function deleteOverheadExpense(expenseId) {
  */
 function calculateOverheadForPeriod(startDate, endDate) {
     if (!window.overheadExpenses) return 0;
-    
+
     return window.overheadExpenses.reduce((total, expense) => {
         const expenseDate = new Date(expense.date);
         if (expenseDate >= startDate && expenseDate <= endDate) {
@@ -12395,7 +12395,7 @@ window.supplierPurchases = [];
 async function loadSupplierPurchases() {
     try {
         console.log('📦 Loading supplier purchases...');
-        
+
         db.ref('supplierPurchases').on('value', (snapshot) => {
             const purchases = [];
             snapshot.forEach(child => {
@@ -12404,16 +12404,16 @@ async function loadSupplierPurchases() {
                     ...child.val()
                 });
             });
-            
+
             window.supplierPurchases = purchases;
             console.log(`✅ Loaded ${purchases.length} supplier purchases`);
-            
+
             // Trigger refresh if on relevant tab
             if (window.currentTabRefresh) {
                 setTimeout(() => window.currentTabRefresh(), 400);
             }
         });
-        
+
     } catch (error) {
         console.error('❌ Error loading supplier purchases:', error);
     }
@@ -12427,10 +12427,10 @@ async function addSupplierPurchase(purchase) {
         alert('⚠️ You do not have permission to add supplier purchases');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const purchaseData = {
             supplierId: purchase.supplierId,
             supplierName: purchase.supplierName,
@@ -12440,8 +12440,8 @@ async function addSupplierPurchase(purchase) {
             amountDue: parseFloat(purchase.totalAmount) - parseFloat(purchase.amountPaid || 0),
             purchaseDate: purchase.purchaseDate || new Date().toISOString(),
             dueDate: purchase.dueDate || null,
-            paymentStatus: purchase.amountPaid >= purchase.totalAmount ? 'paid' : 
-                          purchase.amountPaid > 0 ? 'partial' : 'unpaid',
+            paymentStatus: purchase.amountPaid >= purchase.totalAmount ? 'paid' :
+                purchase.amountPaid > 0 ? 'partial' : 'unpaid',
             invoiceNumber: purchase.invoiceNumber || '',
             notes: purchase.notes || '',
             repairId: purchase.repairId || null, // Link to repair if applicable
@@ -12450,23 +12450,23 @@ async function addSupplierPurchase(purchase) {
             createdAt: new Date().toISOString(),
             payments: []
         };
-        
+
         const newRef = await db.ref('supplierPurchases').push(purchaseData);
-        
+
         // Update supplier outstanding balance
         if (purchaseData.amountDue > 0) {
             await updateSupplierOutstanding(purchaseData.supplierId, purchaseData.amountDue);
         }
-        
+
         // Log activity
         await logActivity('supplier_purchase_added', {
             purchaseId: newRef.key,
             supplierName: purchaseData.supplierName,
             amount: purchaseData.totalAmount
         });
-        
+
         utils.showLoading(false);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast(
                 `✅ Purchase added: ₱${purchaseData.totalAmount.toLocaleString()}`,
@@ -12474,9 +12474,9 @@ async function addSupplierPurchase(purchase) {
                 3000
             );
         }
-        
+
         return { success: true, purchaseId: newRef.key };
-        
+
     } catch (error) {
         console.error('❌ Error adding supplier purchase:', error);
         utils.showLoading(false);
@@ -12493,15 +12493,15 @@ async function recordSupplierPayment(purchaseId, payment) {
         alert('⚠️ You do not have permission to record payments');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const purchase = window.supplierPurchases.find(p => p.id === purchaseId);
         if (!purchase) {
             throw new Error('Purchase not found');
         }
-        
+
         const paymentData = {
             amount: parseFloat(payment.amount),
             method: payment.method || 'Cash',
@@ -12511,16 +12511,16 @@ async function recordSupplierPayment(purchaseId, payment) {
             recordedById: window.currentUser.uid,
             recordedAt: new Date().toISOString()
         };
-        
+
         // Add payment to purchase payments array
         const payments = purchase.payments || [];
         payments.push(paymentData);
-        
+
         const newAmountPaid = purchase.amountPaid + paymentData.amount;
         const newAmountDue = purchase.totalAmount - newAmountPaid;
-        const newStatus = newAmountDue <= 0 ? 'paid' : 
-                         newAmountPaid > 0 ? 'partial' : 'unpaid';
-        
+        const newStatus = newAmountDue <= 0 ? 'paid' :
+            newAmountPaid > 0 ? 'partial' : 'unpaid';
+
         await db.ref(`supplierPurchases/${purchaseId}`).update({
             payments: payments,
             amountPaid: newAmountPaid,
@@ -12530,19 +12530,19 @@ async function recordSupplierPayment(purchaseId, payment) {
             lastUpdatedBy: window.currentUserData.displayName,
             lastUpdatedAt: new Date().toISOString()
         });
-        
+
         // Update supplier outstanding balance
         await updateSupplierOutstanding(purchase.supplierId, -paymentData.amount);
-        
+
         // Log activity
         await logActivity('supplier_payment_recorded', {
             purchaseId: purchaseId,
             supplierName: purchase.supplierName,
             amount: paymentData.amount
         });
-        
+
         utils.showLoading(false);
-        
+
         if (window.utils && window.utils.showToast) {
             window.utils.showToast(
                 `✅ Payment recorded: ₱${paymentData.amount.toLocaleString()}`,
@@ -12550,9 +12550,9 @@ async function recordSupplierPayment(purchaseId, payment) {
                 3000
             );
         }
-        
+
         return { success: true };
-        
+
     } catch (error) {
         console.error('❌ Error recording supplier payment:', error);
         utils.showLoading(false);
@@ -12568,11 +12568,11 @@ async function updateSupplierOutstanding(supplierId, amountChange) {
     try {
         const supplierSnapshot = await db.ref(`suppliers/${supplierId}`).once('value');
         const supplier = supplierSnapshot.val();
-        
+
         if (supplier) {
             const currentOutstanding = supplier.outstandingBalance || 0;
             const newOutstanding = currentOutstanding + amountChange;
-            
+
             await db.ref(`suppliers/${supplierId}`).update({
                 outstandingBalance: newOutstanding,
                 lastUpdatedAt: new Date().toISOString()
@@ -12588,7 +12588,7 @@ async function updateSupplierOutstanding(supplierId, amountChange) {
  */
 function getSupplierOutstanding(supplierId) {
     if (!window.supplierPurchases) return 0;
-    
+
     return window.supplierPurchases
         .filter(p => p.supplierId === supplierId && p.paymentStatus !== 'paid')
         .reduce((total, p) => total + p.amountDue, 0);
@@ -12599,7 +12599,7 @@ function getSupplierOutstanding(supplierId) {
  */
 function getOverduePurchases() {
     if (!window.supplierPurchases) return [];
-    
+
     const now = new Date();
     return window.supplierPurchases.filter(p => {
         if (p.paymentStatus === 'paid' || !p.dueDate) return false;
@@ -12632,6 +12632,110 @@ window.addSupplierPurchase = addSupplierPurchase;
 window.recordSupplierPayment = recordSupplierPayment;
 window.getSupplierOutstanding = getSupplierOutstanding;
 window.getOverduePurchases = getOverduePurchases;
+
+// ===== BUDGET MANAGEMENT SYSTEM =====
+
+/**
+ * Set monthly overhead budget
+ * @param {number} year - Year (e.g., 2026)
+ * @param {number} month - Month (1-12)
+ * @param {number} amount - Budget amount
+ */
+async function setMonthlyBudget(year, month, amount) {
+    const budgetKey = `${year}-${String(month).padStart(2, '0')}`;
+    
+    try {
+        await db.ref(`overheadBudgets/${budgetKey}`).set({
+            year: year,
+            month: month,
+            amount: amount,
+            setBy: window.currentUser.uid,
+            setByName: window.currentUserData.displayName,
+            setAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ Budget set for ${budgetKey}: ₱${amount}`);
+        
+        // Log activity
+        if (window.logActivity) {
+            await window.logActivity('budget_set', null, {
+                period: budgetKey,
+                amount: amount
+            });
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('❌ Error setting budget:', error);
+        throw error;
+    }
+}
+
+/**
+ * Get monthly overhead budget
+ * @param {number} year - Year (e.g., 2026)
+ * @param {number} month - Month (1-12)
+ */
+async function getMonthlyBudget(year, month) {
+    const budgetKey = `${year}-${String(month).padStart(2, '0')}`;
+    
+    try {
+        const snapshot = await db.ref(`overheadBudgets/${budgetKey}`).once('value');
+        return snapshot.val();
+    } catch (error) {
+        console.error('❌ Error getting budget:', error);
+        return null;
+    }
+}
+
+/**
+ * Calculate budget variance for a period
+ * @param {Date} startDate - Period start
+ * @param {Date} endDate - Period end
+ * @param {number} budgetAmount - Budget amount
+ */
+function calculateBudgetVariance(startDate, endDate, budgetAmount) {
+    const actualSpent = calculateOverheadForPeriod(startDate, endDate);
+    const variance = budgetAmount - actualSpent;
+    const percentVariance = budgetAmount > 0 ? (variance / budgetAmount) * 100 : 0;
+    
+    return {
+        budget: budgetAmount,
+        actual: actualSpent,
+        variance: variance,
+        percentVariance: percentVariance,
+        isOverBudget: variance < 0,
+        utilizationPercent: budgetAmount > 0 ? (actualSpent / budgetAmount) * 100 : 0
+    };
+}
+
+/**
+ * Get all budgets
+ */
+async function getAllBudgets() {
+    try {
+        const snapshot = await db.ref('overheadBudgets').once('value');
+        const budgets = [];
+        
+        snapshot.forEach((child) => {
+            budgets.push({
+                period: child.key,
+                ...child.val()
+            });
+        });
+        
+        return budgets.sort((a, b) => b.period.localeCompare(a.period));
+    } catch (error) {
+        console.error('❌ Error getting all budgets:', error);
+        return [];
+    }
+}
+
+// Export budget management functions
+window.setMonthlyBudget = setMonthlyBudget;
+window.getMonthlyBudget = getMonthlyBudget;
+window.calculateBudgetVariance = calculateBudgetVariance;
+window.getAllBudgets = getAllBudgets;
 
 // Start checker when repairs are loaded
 if (window.allRepairs) {

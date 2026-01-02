@@ -99,6 +99,7 @@ function buildTabs() {
             { id: 'profit-dashboard', label: 'Profit Dashboard', icon: '💰', build: buildProfitDashboardTab },
             { id: 'overhead', label: 'Overhead Expenses', icon: '💼', build: buildOverheadExpensesTab },
             { id: 'supplier-payables', label: 'Supplier Payables', icon: '🧾', build: buildSupplierPayablesTab },
+            { id: 'financial-reports', label: 'Financial Reports', icon: '📑', build: buildFinancialReportsTab },
             { id: 'analytics', label: 'Analytics & Reports', icon: '📊', build: buildAnalyticsTab },
             { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
             { id: 'suppliers', label: 'Supplier Report', icon: '📊', build: buildSuppliersTab },
@@ -2962,13 +2963,13 @@ function buildAdminToolsTab(container) {
  * Build Data Health Section for Admin Tools
  */
 function buildDataHealthSection() {
-    const issues = window.calculateDataHealthIssues ? window.calculateDataHealthIssues() : { 
-        total: 0, 
-        missingPartsCost: [], 
-        orphanedRemittances: [], 
-        legacyPayments: [] 
+    const issues = window.calculateDataHealthIssues ? window.calculateDataHealthIssues() : {
+        total: 0,
+        missingPartsCost: [],
+        orphanedRemittances: [],
+        legacyPayments: []
     };
-    
+
     return `
         <div class="data-health-section" style="margin-bottom:30px;">
             <h4 style="margin:0 0 15px;">🔍 Data Health & Cleanup</h4>
@@ -3048,16 +3049,16 @@ function buildExportSettingsSection() {
         weekly: { enabled: false, time: '23:00' },
         monthly: { enabled: false, time: '00:00' }
     };
-    
+
     const stats = window.exportScheduler ? window.exportScheduler.getExportStats() : {};
-    
+
     // Generate time options
     const timeOptions = [];
     for (let h = 0; h < 24; h++) {
         const hour = h.toString().padStart(2, '0');
         timeOptions.push(`<option value="${hour}:00" ${config.daily.time === `${hour}:00` ? 'selected' : ''}>${hour}:00</option>`);
     }
-    
+
     return `
         <div class="export-settings-section" style="margin-bottom:30px;">
             <h4 style="margin:0 0 15px;">📤 Scheduled Exports</h4>
@@ -7209,29 +7210,29 @@ async function executeBulkDelete() {
  */
 async function fixDataIssues(category) {
     const issues = window.calculateDataHealthIssues();
-    
+
     if (!issues || !issues[category] || issues[category].length === 0) {
         alert('No issues to fix in this category');
         return;
     }
-    
+
     const categoryNames = {
         missingPartsCost: 'Missing Parts Cost',
         orphanedRemittances: 'Orphaned Remittances',
         legacyPayments: 'Legacy Payments'
     };
-    
+
     const confirmed = confirm(
         `Fix ${issues[category].length} ${categoryNames[category]} issue(s)?\n\n` +
         `This action is reversible for 90 days.\n\n` +
         `Click OK to proceed.`
     );
-    
+
     if (!confirmed) return;
-    
+
     // Perform cleanup
     const result = await window.performCleanup(category, issues[category]);
-    
+
     if (result && result.success) {
         // Refresh tab to show updated status
         if (window.currentTabRefresh) {
@@ -7245,19 +7246,19 @@ async function fixDataIssues(category) {
  */
 async function showCleanupHistory() {
     const history = await window.getCleanupHistory(20);
-    
+
     if (!history || history.length === 0) {
         alert('No cleanup history found');
         return;
     }
-    
+
     const now = new Date();
-    
+
     const historyHTML = history.map(cleanup => {
         const expiresAt = new Date(cleanup.expiresAt);
         const isExpired = now > expiresAt;
         const canUndo = !isExpired && cleanup.status === 'active';
-        
+
         return `
             <tr>
                 <td style="font-size:12px;">${utils.formatDateTime(cleanup.timestamp)}</td>
@@ -7279,7 +7280,7 @@ async function showCleanupHistory() {
             </tr>
         `;
     }).join('');
-    
+
     const modalHTML = `
         <div style="background:white;padding:20px;border-radius:8px;max-width:900px;max-height:80vh;overflow-y:auto;">
             <h3>📜 Cleanup History</h3>
@@ -7301,7 +7302,7 @@ async function showCleanupHistory() {
             <button onclick="closeModal()" class="btn" style="margin-top:20px;">Close</button>
         </div>
     `;
-    
+
     // Show in a modal (reuse existing modal system or create simple overlay)
     const overlay = document.createElement('div');
     overlay.id = 'cleanup-history-modal';
@@ -7323,18 +7324,18 @@ async function undoCleanupById(cleanupId) {
         'Undo this cleanup operation?\n\n' +
         'All changes will be reverted to their original state.'
     );
-    
+
     if (!confirmed) return;
-    
+
     const result = await window.undoCleanup(cleanupId);
-    
+
     if (result && result.success) {
         // Close modal and refresh
         const modal = document.getElementById('cleanup-history-modal');
         if (modal) {
             document.body.removeChild(modal);
         }
-        
+
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
         }
@@ -7349,7 +7350,7 @@ function updateExportSchedule() {
         console.error('Export scheduler not loaded');
         return;
     }
-    
+
     const config = {
         daily: {
             enabled: document.getElementById('exportDailyEnabled').checked,
@@ -7366,13 +7367,13 @@ function updateExportSchedule() {
             dayOfMonth: 1
         }
     };
-    
+
     const saved = window.exportScheduler.saveExportScheduleConfig(config);
-    
+
     if (saved) {
         // Update the scheduler
         window.exportScheduler.updateSchedule();
-        
+
         // Show success toast
         if (window.utils && window.utils.showToast) {
             window.utils.showToast('✅ Export schedule updated', 'success', 2000);
@@ -7386,15 +7387,15 @@ function updateExportSchedule() {
 function buildProfitDashboardTab(container) {
     console.log('💰 Building Profit Dashboard tab');
     window.currentTabRefresh = () => buildProfitDashboardTab(document.getElementById('profit-dashboardTab'));
-    
+
     // Get date range (default: last 30 days)
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 30);
-    
+
     const startStr = startDate.toISOString().split('T')[0];
     const endStr = endDate.toISOString().split('T')[0];
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>💰 Profit Dashboard</h3>
@@ -7434,23 +7435,23 @@ function buildProfitDashboardTab(container) {
 function refreshProfitDashboard() {
     const startInput = document.getElementById('profitStartDate');
     const endInput = document.getElementById('profitEndDate');
-    
+
     if (!startInput || !endInput) return;
-    
+
     const startDate = new Date(startInput.value + 'T00:00:00');
     const endDate = new Date(endInput.value + 'T23:59:59');
-    
+
     utils.showLoading(true);
-    
+
     setTimeout(() => {
         const dashboard = window.getProfitDashboard(startDate, endDate);
         const container = document.getElementById('profitDashboardContent');
-        
+
         if (!container) {
             utils.showLoading(false);
             return;
         }
-        
+
         container.innerHTML = `
             <!-- SUMMARY CARDS -->
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:25px;">
@@ -7600,7 +7601,7 @@ function refreshProfitDashboard() {
                 </div>
             </div>
         `;
-        
+
         utils.showLoading(false);
     }, 300);
 }
@@ -7608,14 +7609,14 @@ function refreshProfitDashboard() {
 function exportCurrentProfitReport() {
     const startInput = document.getElementById('profitStartDate');
     const endInput = document.getElementById('profitEndDate');
-    
+
     if (!startInput || !endInput) return;
-    
+
     const startDate = new Date(startInput.value + 'T00:00:00');
     const endDate = new Date(endInput.value + 'T23:59:59');
-    
+
     window.exportProfitReport(startDate, endDate);
-    
+
     if (window.utils && window.utils.showToast) {
         window.utils.showToast('✅ Profit report exported', 'success', 2000);
     }
@@ -7625,26 +7626,26 @@ function exportCurrentProfitReport() {
 function buildOverheadExpensesTab(container) {
     console.log('💼 Building Overhead Expenses tab');
     window.currentTabRefresh = () => buildOverheadExpensesTab(document.getElementById('overheadTab'));
-    
+
     // Get current month expenses
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-    
+
     const monthExpenses = (window.overheadExpenses || []).filter(exp => {
         const expDate = new Date(exp.date);
         return expDate >= monthStart && expDate <= monthEnd && !exp.deleted;
     });
-    
+
     const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
-    
+
     // Group by category
     const byCategory = {};
     monthExpenses.forEach(exp => {
         if (!byCategory[exp.category]) byCategory[exp.category] = 0;
         byCategory[exp.category] += exp.amount;
     });
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>💼 Overhead Expenses</h3>
@@ -7738,9 +7739,9 @@ function buildOverheadExpensesTab(container) {
                             </thead>
                             <tbody>
                                 ${(window.overheadExpenses || [])
-                                    .filter(e => !e.deleted)
-                                    .sort((a, b) => new Date(b.date) - new Date(a.date))
-                                    .map(exp => `
+            .filter(e => !e.deleted)
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+            .map(exp => `
                                         <tr>
                                             <td>${utils.formatDate(new Date(exp.date))}</td>
                                             <td><strong>${exp.category}</strong></td>
@@ -7769,12 +7770,12 @@ function saveOverheadExpense() {
     const date = document.getElementById('overheadDate').value;
     const recurring = document.getElementById('overheadRecurring').value;
     const description = document.getElementById('overheadDescription').value.trim();
-    
+
     if (!category || !amount || amount <= 0 || !date) {
         alert('Please fill in all required fields');
         return;
     }
-    
+
     const expense = {
         category: category,
         amount: amount,
@@ -7785,20 +7786,20 @@ function saveOverheadExpense() {
         createdByName: window.currentUserData.displayName,
         createdAt: new Date().toISOString()
     };
-    
+
     utils.showLoading(true);
-    
+
     window.addOverheadExpense(expense)
         .then(() => {
             utils.showLoading(false);
             if (window.utils && window.utils.showToast) {
                 window.utils.showToast('✅ Overhead expense added', 'success', 2000);
             }
-            
+
             // Clear form
             document.getElementById('overheadAmount').value = '';
             document.getElementById('overheadDescription').value = '';
-            
+
             // Refresh will happen automatically via Firebase listener
         })
         .catch(error => {
@@ -7809,9 +7810,9 @@ function saveOverheadExpense() {
 
 function deleteOverheadExpenseById(expenseId) {
     if (!confirm('Delete this overhead expense?')) return;
-    
+
     utils.showLoading(true);
-    
+
     window.deleteOverheadExpense(expenseId)
         .then(() => {
             utils.showLoading(false);
@@ -7829,14 +7830,14 @@ function deleteOverheadExpenseById(expenseId) {
 function buildSupplierPayablesTab(container) {
     console.log('🧾 Building Supplier Payables tab');
     window.currentTabRefresh = () => buildSupplierPayablesTab(document.getElementById('supplier-payablesTab'));
-    
+
     const purchases = window.supplierPurchases || [];
     const unpaid = purchases.filter(p => p.paymentStatus === 'unpaid' && !p.deleted);
     const partial = purchases.filter(p => p.paymentStatus === 'partial' && !p.deleted);
     const overdue = window.getOverduePurchases ? window.getOverduePurchases() : [];
-    
+
     const totalOutstanding = [...unpaid, ...partial].reduce((sum, p) => sum + p.outstandingBalance, 0);
-    
+
     // Group by supplier
     const bySupplier = {};
     purchases.filter(p => !p.deleted && p.paymentStatus !== 'paid').forEach(p => {
@@ -7853,7 +7854,7 @@ function buildSupplierPayablesTab(container) {
             bySupplier[p.supplierName].overdue++;
         }
     });
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>🧾 Supplier Payables</h3>
@@ -7937,8 +7938,8 @@ function buildSupplierPayablesTab(container) {
                             </thead>
                             <tbody>
                                 ${Object.entries(bySupplier)
-                                    .sort(([, a], [, b]) => b.total - a.total)
-                                    .map(([supplier, data]) => `
+                .sort(([, a], [, b]) => b.total - a.total)
+                .map(([supplier, data]) => `
                                         <tr>
                                             <td><strong>${supplier}</strong></td>
                                             <td>${data.count}</td>
@@ -7977,11 +7978,11 @@ function buildSupplierPayablesTab(container) {
                             </thead>
                             <tbody>
                                 ${purchases
-                                    .filter(p => !p.deleted)
-                                    .sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate))
-                                    .map(purchase => {
-                                        const isOverdue = overdue.some(o => o.id === purchase.id);
-                                        return `
+            .filter(p => !p.deleted)
+            .sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate))
+            .map(purchase => {
+                const isOverdue = overdue.some(o => o.id === purchase.id);
+                return `
                                             <tr style="${isOverdue ? 'background:#ffebee;' : ''}">
                                                 <td>${utils.formatDate(new Date(purchase.purchaseDate))}</td>
                                                 <td><strong>${purchase.supplierName}</strong></td>
@@ -8013,7 +8014,7 @@ function buildSupplierPayablesTab(container) {
                                                 </td>
                                             </tr>
                                         `;
-                                    }).join('')}
+            }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -8030,12 +8031,12 @@ function saveSupplierPurchase() {
     const purchaseDate = document.getElementById('purchaseDate').value;
     const dueDate = document.getElementById('purchaseDueDate').value;
     const description = document.getElementById('purchaseDescription').value.trim();
-    
+
     if (!supplier || !invoice || !amount || amount <= 0 || !purchaseDate) {
         alert('Please fill in all required fields');
         return;
     }
-    
+
     const purchase = {
         supplierName: supplier,
         invoiceNumber: invoice,
@@ -8051,16 +8052,16 @@ function saveSupplierPurchase() {
         createdByName: window.currentUserData.displayName,
         createdAt: new Date().toISOString()
     };
-    
+
     utils.showLoading(true);
-    
+
     window.addSupplierPurchase(purchase)
         .then(() => {
             utils.showLoading(false);
             if (window.utils && window.utils.showToast) {
                 window.utils.showToast('✅ Purchase recorded', 'success', 2000);
             }
-            
+
             // Clear form
             document.getElementById('purchaseSupplier').value = '';
             document.getElementById('purchaseInvoice').value = '';
@@ -8080,7 +8081,7 @@ function showRecordPaymentModal(purchaseId) {
         alert('Purchase not found');
         return;
     }
-    
+
     const modal = document.getElementById('supplierPaymentModal');
     if (!modal) {
         // Create modal if it doesn't exist
@@ -8096,7 +8097,7 @@ function showRecordPaymentModal(purchaseId) {
         `;
         document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
-    
+
     const contentDiv = document.getElementById('supplierPaymentModalContent');
     contentDiv.innerHTML = `
         <div style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:20px;">
@@ -8158,7 +8159,7 @@ function showRecordPaymentModal(purchaseId) {
             </button>
         </div>
     `;
-    
+
     document.getElementById('supplierPaymentModal').style.display = 'block';
 }
 
@@ -8168,28 +8169,28 @@ function confirmSupplierPayment(purchaseId) {
     const method = document.getElementById('paymentMethod').value;
     const reference = document.getElementById('paymentReference').value.trim();
     const notes = document.getElementById('paymentNotes').value.trim();
-    
+
     const purchase = (window.supplierPurchases || []).find(p => p.id === purchaseId);
     if (!purchase) {
         alert('Purchase not found');
         return;
     }
-    
+
     if (!amount || amount <= 0) {
         alert('Please enter a valid payment amount');
         return;
     }
-    
+
     if (amount > purchase.outstandingBalance) {
         alert('Payment amount cannot exceed outstanding balance');
         return;
     }
-    
+
     if (!date) {
         alert('Please select a payment date');
         return;
     }
-    
+
     const payment = {
         amount: amount,
         date: date + 'T00:00:00.000Z',
@@ -8200,10 +8201,10 @@ function confirmSupplierPayment(purchaseId) {
         recordedByName: window.currentUserData.displayName,
         recordedAt: new Date().toISOString()
     };
-    
+
     utils.showLoading(true);
     document.getElementById('supplierPaymentModal').style.display = 'none';
-    
+
     window.recordSupplierPayment(purchaseId, payment)
         .then(() => {
             utils.showLoading(false);
@@ -8223,7 +8224,7 @@ function viewPurchaseDetails(purchaseId) {
         alert('Purchase not found');
         return;
     }
-    
+
     const paymentsHTML = (purchase.payments || []).length > 0 ? `
         <h4 style="margin:20px 0 10px;">Payment History</h4>
         <table class="repairs-table">
@@ -8249,7 +8250,7 @@ function viewPurchaseDetails(purchaseId) {
             </tbody>
         </table>
     ` : '<p style="color:#999;text-align:center;padding:20px;">No payments recorded yet</p>';
-    
+
     const detailsHTML = `
         <h3>🧾 Purchase Details</h3>
         
@@ -8315,7 +8316,7 @@ function viewPurchaseDetails(purchaseId) {
         
         ${paymentsHTML}
     `;
-    
+
     showModal('Purchase Details', detailsHTML);
 }
 
@@ -8335,6 +8336,352 @@ window.saveSupplierPurchase = saveSupplierPurchase;
 window.showRecordPaymentModal = showRecordPaymentModal;
 window.confirmSupplierPayment = confirmSupplierPayment;
 window.viewPurchaseDetails = viewPurchaseDetails;
+
+// ===== FINANCIAL REPORTS TAB =====
+function buildFinancialReportsTab(container) {
+    console.log('📑 Building Financial Reports tab');
+    window.currentTabRefresh = () => buildFinancialReportsTab(document.getElementById('financial-reportsTab'));
+    
+    const currentYear = new Date().getFullYear();
+    const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>📑 Financial Reports</h3>
+            
+            <!-- PROFIT & LOSS STATEMENT -->
+            <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h4 style="margin:0 0 15px;">📊 Profit & Loss Statement</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:15px;">
+                    <div>
+                        <label>Start Date</label>
+                        <input type="date" id="plStartDate" class="form-control" value="${currentYear}-01-01">
+                    </div>
+                    <div>
+                        <label>End Date</label>
+                        <input type="date" id="plEndDate" class="form-control" value="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div style="display:flex;align-items:end;gap:10px;">
+                        <button onclick="generatePLStatement()" class="btn btn-primary">📊 Generate</button>
+                        <button onclick="exportPLStatementCSV()" class="btn btn-success">💾 Export CSV</button>
+                    </div>
+                </div>
+                <div id="plStatementContent"></div>
+            </div>
+            
+            <!-- QUARTERLY SUMMARY -->
+            <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h4 style="margin:0 0 15px;">📅 Quarterly Summary</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:15px;">
+                    <div>
+                        <label>Year</label>
+                        <select id="quarterYear" class="form-control">
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => 
+                                `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Quarter</label>
+                        <select id="quarter" class="form-control">
+                            ${[1, 2, 3, 4].map(q => 
+                                `<option value="${q}" ${q === currentQuarter ? 'selected' : ''}>Q${q}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:end;gap:10px;">
+                        <button onclick="generateQuarterlySummary()" class="btn btn-primary">📊 Generate</button>
+                        <button onclick="exportQuarterlySummaryCSV()" class="btn btn-success">💾 Export CSV</button>
+                    </div>
+                </div>
+                <div id="quarterlySummaryContent"></div>
+            </div>
+            
+            <!-- ANNUAL SUMMARY -->
+            <div style="background:#f8f9fa;padding:20px;border-radius:8px;">
+                <h4 style="margin:0 0 15px;">📆 Annual Summary</h4>
+                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;">
+                    <div>
+                        <label>Year</label>
+                        <select id="annualYear" class="form-control">
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => 
+                                `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`
+                            ).join('')}
+                        </select>
+                    </div>
+                    <div style="display:flex;align-items:end;gap:10px;">
+                        <button onclick="exportAnnualPLStatementCSV()" class="btn btn-success">💾 Export Annual P&L</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generatePLStatement() {
+    const startInput = document.getElementById('plStartDate');
+    const endInput = document.getElementById('plEndDate');
+    const container = document.getElementById('plStatementContent');
+    
+    if (!startInput || !endInput || !container) return;
+    
+    const startDate = new Date(startInput.value + 'T00:00:00');
+    const endDate = new Date(endInput.value + 'T23:59:59');
+    
+    utils.showLoading(true);
+    
+    setTimeout(() => {
+        const pl = window.generateProfitLossStatement(startDate, endDate);
+        
+        if (!pl) {
+            container.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No data available</p>';
+            utils.showLoading(false);
+            return;
+        }
+        
+        container.innerHTML = `
+            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-top:15px;">
+                <table style="width:100%;border-collapse:collapse;">
+                    <tr style="border-bottom:2px solid #333;">
+                        <td colspan="2" style="padding:10px;font-size:18px;font-weight:bold;">PROFIT & LOSS STATEMENT</td>
+                    </tr>
+                    <tr style="border-bottom:1px solid #ddd;">
+                        <td colspan="2" style="padding:8px;color:#666;">${utils.formatDate(startDate)} - ${utils.formatDate(endDate)}</td>
+                    </tr>
+                    
+                    <!-- REVENUE -->
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:10px;font-weight:bold;">REVENUE</td>
+                        <td style="padding:10px;text-align:right;"></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px 8px 30px;">Total Revenue (${pl.revenue.repairCount} repairs)</td>
+                        <td style="padding:8px 10px;text-align:right;font-weight:bold;">₱${pl.revenue.totalRevenue.toFixed(2)}</td>
+                    </tr>
+                    
+                    <!-- COGS -->
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:10px;font-weight:bold;">COST OF GOODS SOLD</td>
+                        <td style="padding:10px;text-align:right;"></td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px 8px 30px;">Parts Cost</td>
+                        <td style="padding:8px 10px;text-align:right;">₱${pl.cogs.partsCost.toFixed(2)}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:8px 10px 8px 30px;">Technician Commission</td>
+                        <td style="padding:8px 10px;text-align:right;">₱${pl.cogs.commission.toFixed(2)}</td>
+                    </tr>
+                    <tr style="border-top:1px solid #ddd;">
+                        <td style="padding:8px 10px 8px 30px;font-weight:bold;">Total COGS</td>
+                        <td style="padding:8px 10px;text-align:right;font-weight:bold;">₱${pl.cogs.total.toFixed(2)}</td>
+                    </tr>
+                    
+                    <!-- GROSS PROFIT -->
+                    <tr style="background:#e3f2fd;border-top:2px solid #333;">
+                        <td style="padding:10px;font-weight:bold;">GROSS PROFIT</td>
+                        <td style="padding:10px;text-align:right;font-weight:bold;color:#2196f3;">₱${pl.grossProfit.amount.toFixed(2)}</td>
+                    </tr>
+                    <tr style="background:#e3f2fd;">
+                        <td style="padding:8px 10px 8px 30px;">Gross Margin</td>
+                        <td style="padding:8px 10px;text-align:right;">${pl.grossProfit.margin.toFixed(2)}%</td>
+                    </tr>
+                    
+                    <!-- OPERATING EXPENSES -->
+                    <tr style="background:#f8f9fa;">
+                        <td style="padding:10px;font-weight:bold;">OPERATING EXPENSES</td>
+                        <td style="padding:10px;text-align:right;"></td>
+                    </tr>
+                    ${Object.entries(pl.operatingExpenses.byCategory).map(([cat, amt]) => `
+                        <tr>
+                            <td style="padding:8px 10px 8px 30px;">${cat}</td>
+                            <td style="padding:8px 10px;text-align:right;">₱${amt.toFixed(2)}</td>
+                        </tr>
+                    `).join('')}
+                    <tr style="border-top:1px solid #ddd;">
+                        <td style="padding:8px 10px 8px 30px;font-weight:bold;">Total Operating Expenses</td>
+                        <td style="padding:8px 10px;text-align:right;font-weight:bold;">₱${pl.operatingExpenses.total.toFixed(2)}</td>
+                    </tr>
+                    
+                    <!-- NET INCOME -->
+                    <tr style="background:${pl.netIncome.amount >= 0 ? '#e8f5e9' : '#ffebee'};border-top:2px solid #333;">
+                        <td style="padding:12px;font-weight:bold;font-size:16px;">NET INCOME</td>
+                        <td style="padding:12px;text-align:right;font-weight:bold;font-size:16px;color:${pl.netIncome.amount >= 0 ? '#4caf50' : '#f44336'};">
+                            ₱${pl.netIncome.amount.toFixed(2)}
+                        </td>
+                    </tr>
+                    <tr style="background:${pl.netIncome.amount >= 0 ? '#e8f5e9' : '#ffebee'};">
+                        <td style="padding:8px 10px 8px 30px;">Net Margin</td>
+                        <td style="padding:8px 10px;text-align:right;font-weight:bold;">${pl.netIncome.margin.toFixed(2)}%</td>
+                    </tr>
+                    <tr style="background:${pl.netIncome.amount >= 0 ? '#e8f5e9' : '#ffebee'};">
+                        <td style="padding:8px 10px 8px 30px;">Per Repair</td>
+                        <td style="padding:8px 10px;text-align:right;">₱${pl.netIncome.perRepair.toFixed(2)}</td>
+                    </tr>
+                </table>
+            </div>
+        `;
+        
+        utils.showLoading(false);
+    }, 300);
+}
+
+function exportPLStatementCSV() {
+    const startInput = document.getElementById('plStartDate');
+    const endInput = document.getElementById('plEndDate');
+    
+    if (!startInput || !endInput) return;
+    
+    const startDate = new Date(startInput.value + 'T00:00:00');
+    const endDate = new Date(endInput.value + 'T23:59:59');
+    
+    const pl = window.generateProfitLossStatement(startDate, endDate);
+    
+    if (!pl) {
+        alert('No data to export');
+        return;
+    }
+    
+    const exportData = [];
+    
+    exportData.push({ 'PROFIT & LOSS STATEMENT': '', 'Period': `${utils.formatDate(startDate)} - ${utils.formatDate(endDate)}` });
+    exportData.push({});
+    exportData.push({ 'REVENUE': '' });
+    exportData.push({ '  Total Revenue': '', 'Amount': pl.revenue.totalRevenue });
+    exportData.push({});
+    exportData.push({ 'COST OF GOODS SOLD': '' });
+    exportData.push({ '  Parts Cost': '', 'Amount': pl.cogs.partsCost });
+    exportData.push({ '  Commission': '', 'Amount': pl.cogs.commission });
+    exportData.push({ '  Total COGS': '', 'Amount': pl.cogs.total });
+    exportData.push({});
+    exportData.push({ 'GROSS PROFIT': '', 'Amount': pl.grossProfit.amount });
+    exportData.push({ '  Gross Margin': '', 'Amount': `${pl.grossProfit.margin.toFixed(2)}%` });
+    exportData.push({});
+    exportData.push({ 'OPERATING EXPENSES': '' });
+    Object.entries(pl.operatingExpenses.byCategory).forEach(([cat, amt]) => {
+        exportData.push({ [`  ${cat}`]: '', 'Amount': amt });
+    });
+    exportData.push({ '  Total Operating Expenses': '', 'Amount': pl.operatingExpenses.total });
+    exportData.push({});
+    exportData.push({ 'NET INCOME': '', 'Amount': pl.netIncome.amount });
+    exportData.push({ '  Net Margin': '', 'Amount': `${pl.netIncome.margin.toFixed(2)}%` });
+    
+    const filename = `PL_Statement_${startInput.value}_to_${endInput.value}`;
+    exportToCSV(exportData, filename);
+    
+    if (window.utils && window.utils.showToast) {
+        window.utils.showToast('✅ P&L statement exported', 'success', 2000);
+    }
+}
+
+function generateQuarterlySummary() {
+    const year = parseInt(document.getElementById('quarterYear').value);
+    const quarter = parseInt(document.getElementById('quarter').value);
+    const container = document.getElementById('quarterlySummaryContent');
+    
+    if (!container) return;
+    
+    utils.showLoading(true);
+    
+    setTimeout(() => {
+        const summary = window.getQuarterlySummary(year, quarter);
+        
+        if (!summary || !summary.summary) {
+            container.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No data available</p>';
+            utils.showLoading(false);
+            return;
+        }
+        
+        const pl = summary.summary;
+        
+        container.innerHTML = `
+            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-top:15px;">
+                <h4 style="margin:0 0 15px;">${summary.quarterName} Summary</h4>
+                
+                <!-- Summary Cards -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+                    <div style="background:#e3f2fd;padding:15px;border-radius:8px;">
+                        <div style="color:#666;font-size:12px;margin-bottom:5px;">Total Revenue</div>
+                        <div style="font-size:24px;font-weight:bold;color:#2196f3;">₱${pl.revenue.totalRevenue.toFixed(2)}</div>
+                        <div style="color:#999;font-size:11px;">${pl.revenue.repairCount} repairs</div>
+                    </div>
+                    <div style="background:#f3e5f5;padding:15px;border-radius:8px;">
+                        <div style="color:#666;font-size:12px;margin-bottom:5px;">Gross Profit</div>
+                        <div style="font-size:24px;font-weight:bold;color:#9c27b0;">₱${pl.grossProfit.amount.toFixed(2)}</div>
+                        <div style="color:#999;font-size:11px;">${pl.grossProfit.margin.toFixed(1)}% margin</div>
+                    </div>
+                    <div style="background:${pl.netIncome.amount >= 0 ? '#e8f5e9' : '#ffebee'};padding:15px;border-radius:8px;">
+                        <div style="color:#666;font-size:12px;margin-bottom:5px;">Net Income</div>
+                        <div style="font-size:24px;font-weight:bold;color:${pl.netIncome.amount >= 0 ? '#4caf50' : '#f44336'};">₱${pl.netIncome.amount.toFixed(2)}</div>
+                        <div style="color:#999;font-size:11px;">${pl.netIncome.margin.toFixed(1)}% margin</div>
+                    </div>
+                </div>
+                
+                <!-- Monthly Breakdown -->
+                <h5 style="margin:20px 0 10px;">Monthly Breakdown</h5>
+                <div style="overflow-x:auto;">
+                    <table class="repairs-table">
+                        <thead>
+                            <tr>
+                                <th>Month</th>
+                                <th>Revenue</th>
+                                <th>COGS</th>
+                                <th>Overhead</th>
+                                <th>Net Income</th>
+                                <th>Margin %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${summary.monthlyBreakdown.map(m => `
+                                <tr>
+                                    <td><strong>${m.month}</strong></td>
+                                    <td>₱${m.data.revenue.totalRevenue.toFixed(2)}</td>
+                                    <td>₱${m.data.cogs.total.toFixed(2)}</td>
+                                    <td>₱${m.data.operatingExpenses.total.toFixed(2)}</td>
+                                    <td style="color:${m.data.netIncome.amount >= 0 ? '#4caf50' : '#f44336'};font-weight:bold;">
+                                        ₱${m.data.netIncome.amount.toFixed(2)}
+                                    </td>
+                                    <td>${m.data.netIncome.margin.toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        utils.showLoading(false);
+    }, 300);
+}
+
+function exportQuarterlySummaryCSV() {
+    const year = parseInt(document.getElementById('quarterYear').value);
+    const quarter = parseInt(document.getElementById('quarter').value);
+    
+    window.exportQuarterlyReport(year, quarter);
+    
+    if (window.utils && window.utils.showToast) {
+        window.utils.showToast('✅ Quarterly summary exported', 'success', 2000);
+    }
+}
+
+function exportAnnualPLStatementCSV() {
+    const year = parseInt(document.getElementById('annualYear').value);
+    
+    window.exportAnnualPLStatement(year);
+    
+    if (window.utils && window.utils.showToast) {
+        window.utils.showToast('✅ Annual P&L statement exported', 'success', 2000);
+    }
+}
+
+// Export financial reports functions
+window.buildFinancialReportsTab = buildFinancialReportsTab;
+window.generatePLStatement = generatePLStatement;
+window.exportPLStatementCSV = exportPLStatementCSV;
+window.generateQuarterlySummary = generateQuarterlySummary;
+window.exportQuarterlySummaryCSV = exportQuarterlySummaryCSV;
+window.exportAnnualPLStatementCSV = exportAnnualPLStatementCSV;
 
 // Export checkbox functions
 window.toggleAllDeviceCheckboxes = toggleAllDeviceCheckboxes;

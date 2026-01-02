@@ -6,32 +6,32 @@
 async function initializeApp() {
     try {
         console.log('🚀 Starting app initialization...');
-        
+
         // Initialize theme FIRST (before any UI rendering)
         utils.initTheme();
         console.log('✅ Theme initialized');
-        
+
         // CRITICAL: Force hide any existing loading FIRST
         utils.showLoading(false);
-        
+
         // Small delay to ensure cleanup
         await new Promise(resolve => setTimeout(resolve, 150));
-        
+
         // NOW show loading for current init
         utils.showLoading(true);
-        
-        
+
+
         if (!window.currentUser) {
             throw new Error('No user logged in');
         }
-        
+
         if (!window.currentUserData) {
             throw new Error('User data not loaded');
         }
-        
+
         console.log('✅ User verified:', window.currentUserData.displayName);
         console.log('✅ User role:', window.currentUserData.role);
-        
+
         // Special handling for technician
         if (window.currentUserData.role === 'technician') {
             console.log('✅ Technician detected');
@@ -39,87 +39,87 @@ async function initializeApp() {
                 window.currentUserData.technicianName = window.currentUserData.displayName;
             }
         }
-        
+
         updateHeaderUserInfo();
-        
+
         console.log('📦 Loading repairs...');
         await loadRepairs();
         console.log('✅ Repairs loaded:', window.allRepairs.length);
-        
+
         console.log('📦 Loading inventory...');
         await loadInventory();
         console.log('✅ Inventory loaded:', window.allInventoryItems.length);
-        
+
         console.log('📦 Loading suppliers...');
         await loadSuppliers();
         console.log('✅ Suppliers loaded:', window.allSuppliers.length);
-        
+
         console.log('📦 Loading stock movements...');
         await loadStockMovements();
         console.log('✅ Stock movements loaded:', window.stockMovements.length);
-        
+
         console.log('📦 Loading modification requests...');
         await loadModificationRequests();
         console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
-        
+
         console.log('📦 Loading tech expenses...');
         await loadTechExpenses();
         console.log('✅ Tech expenses loaded:', window.techExpenses.length);
-        
+
         console.log('📦 Loading tech remittances...');
         await loadTechRemittances();
         console.log('✅ Tech remittances loaded:', window.techRemittances.length);
-        
+
         console.log('📦 Loading daily cash counts...');
         await loadDailyCashCounts();
         console.log('✅ Daily cash counts loaded:', Object.keys(window.dailyCashCounts || {}).length);
-        
+
         console.log('📦 Loading activity logs...');
         await loadActivityLogs();
         console.log('✅ Activity logs loaded:', window.allActivityLogs.length);
-        
+
         console.log('📦 Loading users...');
         await loadUsers();
         console.log('✅ Users loaded:', Object.keys(window.allUsers).length);
-        
+
         console.log('� Loading overhead expenses...');
         await loadOverheadExpenses();
         console.log('✅ Overhead expenses loaded:', window.overheadExpenses.length);
-        
+
         console.log('📦 Loading supplier purchases...');
         await loadSupplierPurchases();
         console.log('✅ Supplier purchases loaded:', window.supplierPurchases.length);
-        
+
         console.log('�🔖 Building tabs...');
         buildTabs();
-        
+
         console.log('🎨 Initializing sidebars...');
         initSidebar();
-        
+
         // Start auto-finalization checker for Released devices
         if (window.startAutoFinalizeChecker) {
             console.log('⏱️ Starting auto-finalization checker...');
             window.startAutoFinalizeChecker();
         }
-        
+
         // Initialize export scheduler for admin
         if (window.currentUserData.role === 'admin' && window.exportScheduler) {
             console.log('📤 Initializing export scheduler...');
             window.exportScheduler.initializeAutoExport();
         }
-        
+
         // Start data health monitor for admin
         if (window.currentUserData.role === 'admin' && window.startDataHealthMonitor) {
             console.log('🔍 Starting data health monitor...');
             window.startDataHealthMonitor();
         }
-        
+
         // Check for expired cleanups to archive (once per month)
         if (window.currentUserData.role === 'admin' && window.archiveExpiredCleanups) {
             const lastArchiveCheck = localStorage.getItem('lastCleanupArchiveCheck');
             const now = new Date();
             const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
-            
+
             if (lastArchiveCheck !== currentMonth) {
                 console.log('🗄️ Checking for expired cleanups to archive...');
                 setTimeout(() => {
@@ -128,12 +128,12 @@ async function initializeApp() {
                 }, 5000);
             }
         }
-        
+
         // CRITICAL: ALWAYS hide loading at the end
         utils.showLoading(false);
-        
+
         console.log('✅ App initialization complete!');
-        
+
         // Show onboarding wizard for first-time users (after UI is ready)
         setTimeout(() => {
             if (!hasSeenOnboarding()) {
@@ -143,14 +143,14 @@ async function initializeApp() {
                 console.log('✓ User has seen onboarding before');
             }
         }, 1000); // Delay to ensure UI is fully rendered
-        
+
     } catch (error) {
         console.error('❌ Error initializing app:', error);
         console.error('Stack:', error.stack);
-        
+
         // CRITICAL: ALWAYS hide loading on error
         utils.showLoading(false);
-        
+
         alert('Error loading app: ' + error.message + '\n\nTry refreshing the page.');
     }
 }
@@ -163,20 +163,20 @@ function updateHeaderUserInfo() {
         const userName = document.getElementById('userName');
         const userRole = document.getElementById('userRole');
         const userAvatar = document.getElementById('userAvatar');
-        
+
         if (!userName || !userRole || !userAvatar) {
             console.warn('⚠️ Header elements not found');
             return;
         }
-        
+
         if (window.currentUserData) {
             userName.textContent = window.currentUserData.displayName || 'User';
             userRole.textContent = window.currentUserData.role || 'user';
-            
-            const avatarUrl = window.currentUserData.profilePicture || 
-                             utils.getDefaultAvatar(window.currentUserData.displayName || 'U');
+
+            const avatarUrl = window.currentUserData.profilePicture ||
+                utils.getDefaultAvatar(window.currentUserData.displayName || 'U');
             userAvatar.src = avatarUrl;
-            
+
             console.log('✅ Header updated');
         }
     } catch (error) {
@@ -192,7 +192,7 @@ function updateHeaderUserInfo() {
 /**
  * Close modals when clicking outside
  */
-window.onclick = function(event) {
+window.onclick = function (event) {
     if (event.target.classList.contains('modal')) {
         event.target.style.display = 'none';
     }
@@ -231,27 +231,27 @@ function closePaymentModal() {
 function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
     if (!sidebar) return;
-    
+
     // On mobile, close the sidebar instead of collapsing
     if (window.innerWidth <= 768) {
         closeMobileSidebar();
         return;
     }
-    
+
     // Desktop: toggle collapse
     sidebar.classList.toggle('collapsed');
-    
+
     // Update body class for CSS adjustments
     if (sidebar.classList.contains('collapsed')) {
         document.body.classList.add('left-sidebar-collapsed');
     } else {
         document.body.classList.remove('left-sidebar-collapsed');
     }
-    
+
     // Save state to localStorage
     const isCollapsed = sidebar.classList.contains('collapsed');
     localStorage.setItem('sidebarCollapsed', isCollapsed);
-    
+
     console.log(`Left sidebar ${isCollapsed ? 'collapsed' : 'expanded'}`);
 }
 
@@ -261,9 +261,9 @@ function toggleSidebar() {
 function toggleMobileSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    
+
     if (!sidebar || !overlay) return;
-    
+
     sidebar.classList.toggle('mobile-open');
     overlay.classList.toggle('active');
 }
@@ -274,7 +274,7 @@ function toggleMobileSidebar() {
 function closeMobileSidebar() {
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
-    
+
     if (sidebar) sidebar.classList.remove('mobile-open');
     if (overlay) overlay.classList.remove('active');
 }
@@ -284,16 +284,16 @@ function closeMobileSidebar() {
  */
 function initSidebar() {
     console.log('🎨 Initializing sidebar layout...');
-    
+
     // Restore left sidebar state
     const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
     const sidebar = document.getElementById('sidebar');
-    
+
     if (sidebar && isCollapsed) {
         sidebar.classList.add('collapsed');
         document.body.classList.add('left-sidebar-collapsed');
     }
-    
+
     console.log('✅ Sidebar initialized');
 }
 

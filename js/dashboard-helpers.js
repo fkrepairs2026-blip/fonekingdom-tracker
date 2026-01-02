@@ -574,15 +574,15 @@ function buildDataHealthWidget() {
     if (!window.currentUserData || window.currentUserData.role !== 'admin') {
         return '';
     }
-    
+
     // Calculate issues
     const issues = window.calculateDataHealthIssues ? window.calculateDataHealthIssues() : { total: 0 };
-    
+
     // Determine status color
     let statusColor = '#10b981'; // Green
     let statusIcon = '🟢';
     let statusText = 'Healthy';
-    
+
     if (issues.total > 0 && issues.total <= 5) {
         statusColor = '#f59e0b'; // Yellow
         statusIcon = '🟡';
@@ -592,7 +592,7 @@ function buildDataHealthWidget() {
         statusIcon = '🔴';
         statusText = 'Needs Attention';
     }
-    
+
     return `
         <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); cursor: pointer;" 
              onclick="openAdminToolsDataHealth()">
@@ -621,22 +621,22 @@ function startDataHealthMonitor() {
     if (!window.currentUserData || window.currentUserData.role !== 'admin') {
         return;
     }
-    
+
     console.log('🔍 Starting data health monitor...');
-    
+
     // Clear existing interval
     if (dataHealthInterval) {
         clearInterval(dataHealthInterval);
     }
-    
+
     // Update badge immediately
     updateDataHealthBadge();
-    
+
     // Check every 5 minutes
     dataHealthInterval = setInterval(() => {
         updateDataHealthBadge();
     }, 300000); // 5 minutes
-    
+
     console.log('✅ Data health monitor started (checking every 5 minutes)');
 }
 
@@ -647,10 +647,10 @@ function updateDataHealthBadge() {
     if (!window.calculateDataHealthIssues) {
         return;
     }
-    
+
     const issues = window.calculateDataHealthIssues();
     window.dataHealthIssueCount = issues.total;
-    
+
     // Update badge if it exists
     const badge = document.getElementById('data-health-badge');
     if (badge) {
@@ -661,7 +661,7 @@ function updateDataHealthBadge() {
             badge.style.display = 'none';
         }
     }
-    
+
     // Update widget if dashboard is visible
     const widget = document.querySelector('.dashboard-stats-grid');
     if (widget) {
@@ -685,7 +685,7 @@ function openAdminToolsDataHealth() {
     if (modal) {
         modal.style.display = 'block';
     }
-    
+
     // Switch to Data Health section
     setTimeout(() => {
         showAdminToolsSection('dataHealth');
