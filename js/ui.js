@@ -1719,7 +1719,10 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
     // Render grouped repairs
     const role = window.currentUserData.role;
     
-    container.innerHTML = sortedDates.map(dateKey => {
+    // Get today's date string for comparison
+    const todayDateString = utils.formatDate(new Date());
+    
+    container.innerHTML = sortedDates.map((dateKey, index) => {
         const repairsInDate = groupedByDate[dateKey];
         
         // Sort repairs within each date group by most recent first
@@ -1734,18 +1737,29 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
         // Calculate days ago for the date group
         const daysAgoText = utils.daysAgo(repairsInDate[0][dateField] || repairsInDate[0].createdAt);
         
+        // Check if this is today's date - show expanded by default
+        const isToday = dateKey === todayDateString;
+        const groupId = `date-group-${dateKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        
         return `
             <div class="date-group" style="margin-bottom:30px;">
-                <div class="date-group-header" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:15px 20px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 12px rgba(102,126,234,0.2);">
+                <div class="date-group-header" 
+                     onclick="toggleDateGroup('${groupId}')"
+                     style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:15px 20px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 12px rgba(102,126,234,0.2);cursor:pointer;user-select:none;">
                     <div>
-                        <h4 style="margin:0;font-size:18px;font-weight:600;">${dateKey}</h4>
+                        <h4 style="margin:0;font-size:18px;font-weight:600;">${dateKey}${isToday ? ' <span style="background:rgba(255,255,255,0.3);padding:2px 8px;border-radius:4px;font-size:13px;">Today</span>' : ''}</h4>
                         <span style="font-size:13px;opacity:0.9;">${daysAgoText}</span>
                     </div>
-                    <span style="background:rgba(255,255,255,0.25);padding:6px 14px;border-radius:15px;font-size:14px;font-weight:600;">
-                        ${count} device${count !== 1 ? 's' : ''}
-                    </span>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="background:rgba(255,255,255,0.25);padding:6px 14px;border-radius:15px;font-size:14px;font-weight:600;">
+                            ${count} device${count !== 1 ? 's' : ''}
+                        </span>
+                        <span class="date-group-toggle-icon" style="font-size:20px;transition:transform 0.3s;">
+                            ${isToday ? '▼' : '▶'}
+                        </span>
+                    </div>
                 </div>
-                <div class="date-group-items" style="padding-left:10px;">
+                <div class="date-group-items" id="${groupId}" style="padding-left:10px;display:${isToday ? 'block' : 'none'};">
                     ${repairsInDate.map(r => {
                         const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
                         const isExpanded = window.expandedRepairId === r.id;
@@ -1787,6 +1801,26 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
             </div>
         `;
     }).join('');
+}
+
+/**
+ * Toggle visibility of date group items
+ * Called when clicking on date group header
+ */
+function toggleDateGroup(groupId) {
+    const itemsDiv = document.getElementById(groupId);
+    const header = document.querySelector(`[onclick="toggleDateGroup('${groupId}')"]`);
+    
+    if (itemsDiv && header) {
+        const isHidden = itemsDiv.style.display === 'none';
+        itemsDiv.style.display = isHidden ? 'block' : 'none';
+        
+        // Update arrow icon
+        const icon = header.querySelector('.date-group-toggle-icon');
+        if (icon) {
+            icon.textContent = isHidden ? '▼' : '▶';
+        }
+    }
 }
 
 /**
@@ -4399,6 +4433,8 @@ window.buildPendingPaymentsTab = buildPendingPaymentsTab;
 window.buildPaidTab = buildPaidTab;
 window.displayRepairsInContainer = displayRepairsInContainer;
 window.displayCompactRepairsList = displayCompactRepairsList;
+window.displayGroupedRepairsList = displayGroupedRepairsList;
+window.toggleDateGroup = toggleDateGroup;
 window.renderExpandedRepairDetails = renderExpandedRepairDetails;
 window.renderForReleaseButtons = renderForReleaseButtons;
 window.renderReleasedButtons = renderReleasedButtons;
