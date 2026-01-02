@@ -7502,9 +7502,9 @@ function refreshProfitDashboard() {
                                 <th>Repair Type</th>
                                 <th>Count</th>
                                 <th>Revenue</th>
-                                <th>Net Profit</th>
+                                <th>Shop Revenue (60%)</th>
                                 <th>Margin</th>
-                                <th>Avg Profit</th>
+                                <th>Avg Shop Rev</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -7513,11 +7513,11 @@ function refreshProfitDashboard() {
                                     <td><strong>${type}</strong></td>
                                     <td>${data.count}</td>
                                     <td>₱${data.totalRevenue.toFixed(2)}</td>
-                                    <td style="color:${data.totalNetProfit >= 0 ? '#4caf50' : '#f44336'};font-weight:bold;">
+                                    <td style="color:#4caf50;font-weight:bold;">
                                         ₱${data.totalNetProfit.toFixed(2)}
                                     </td>
                                     <td>
-                                        <span style="background:${data.avgProfitMargin >= 20 ? '#4caf50' : data.avgProfitMargin >= 10 ? '#ff9800' : '#f44336'};
+                                        <span style="background:${data.avgProfitMargin >= 50 ? '#4caf50' : data.avgProfitMargin >= 40 ? '#ff9800' : '#f44336'};
                                                      color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;">
                                             ${data.avgProfitMargin.toFixed(1)}%
                                         </span>
@@ -7540,9 +7540,9 @@ function refreshProfitDashboard() {
                                 <th>Technician</th>
                                 <th>Repairs</th>
                                 <th>Revenue</th>
-                                <th>Net Profit</th>
+                                <th>Shop Revenue (60%)</th>
                                 <th>Margin</th>
-                                <th>Avg Profit</th>
+                                <th>Avg Shop Rev</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -7551,11 +7551,11 @@ function refreshProfitDashboard() {
                                     <td><strong>${tech}</strong></td>
                                     <td>${data.repairCount}</td>
                                     <td>₱${data.totalRevenue.toFixed(2)}</td>
-                                    <td style="color:${data.totalNetProfit >= 0 ? '#4caf50' : '#f44336'};font-weight:bold;">
+                                    <td style="color:#4caf50;font-weight:bold;">
                                         ₱${data.totalNetProfit.toFixed(2)}
                                     </td>
                                     <td>
-                                        <span style="background:${data.avgProfitMargin >= 20 ? '#4caf50' : data.avgProfitMargin >= 10 ? '#ff9800' : '#f44336'};
+                                        <span style="background:${data.avgProfitMargin >= 50 ? '#4caf50' : data.avgProfitMargin >= 40 ? '#ff9800' : '#f44336'};
                                                      color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;">
                                             ${data.avgProfitMargin.toFixed(1)}%
                                         </span>
@@ -7578,8 +7578,8 @@ function refreshProfitDashboard() {
                                 <th>Date</th>
                                 <th>Repairs</th>
                                 <th>Revenue</th>
-                                <th>Costs</th>
-                                <th>Profit</th>
+                                <th>Parts + Tech (40%)</th>
+                                <th>Shop Revenue (60%)</th>
                                 <th>Margin</th>
                             </tr>
                         </thead>
@@ -7590,7 +7590,7 @@ function refreshProfitDashboard() {
                                     <td>${trend.repairCount}</td>
                                     <td>₱${trend.totalRevenue.toFixed(2)}</td>
                                     <td>₱${trend.totalCosts.toFixed(2)}</td>
-                                    <td style="color:${trend.totalProfit >= 0 ? '#4caf50' : '#f44336'};font-weight:bold;">
+                                    <td style="color:#4caf50;font-weight:bold;">
                                         ₱${trend.totalProfit.toFixed(2)}
                                     </td>
                                     <td>${trend.avgProfitMargin.toFixed(1)}%</td>

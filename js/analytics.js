@@ -1104,9 +1104,8 @@ function getProfitByRepairType(startDate, endDate) {
                 count: 0,
                 totalRevenue: 0,
                 totalPartsCost: 0,
-                totalCommission: 0,
-                totalGrossProfit: 0,
-                totalOverhead: 0,
+                totalTechCommission: 0,
+                totalShopRevenue: 0,
                 totalNetProfit: 0,
                 avgProfitMargin: 0,
                 repairs: []
@@ -1116,10 +1115,9 @@ function getProfitByRepairType(startDate, endDate) {
         byType[type].count++;
         byType[type].totalRevenue += profit.revenue;
         byType[type].totalPartsCost += profit.partsCost;
-        byType[type].totalCommission += profit.commission;
-        byType[type].totalGrossProfit += profit.grossProfit;
-        byType[type].totalOverhead += profit.overheadBurden;
-        byType[type].totalNetProfit += profit.netProfit;
+        byType[type].totalTechCommission += profit.techCommission;
+        byType[type].totalShopRevenue += profit.shopRevenue;
+        byType[type].totalNetProfit += profit.shopRevenue; // Shop revenue before overhead
         byType[type].repairs.push(profit);
     });
 
@@ -1128,8 +1126,8 @@ function getProfitByRepairType(startDate, endDate) {
         const data = byType[type];
         data.avgRevenue = data.totalRevenue / data.count;
         data.avgProfit = data.totalNetProfit / data.count;
-        data.avgProfitMargin = data.totalRevenue > 0 ?
-            (data.totalNetProfit / data.totalRevenue) * 100 : 0;
+        data.avgProfitMargin = data.totalShopRevenue > 0 ?
+            (data.totalNetProfit / data.totalShopRevenue) * 100 : 0;
     });
 
     // Sort by total net profit descending
@@ -1165,29 +1163,30 @@ function getProfitByTechnician(startDate, endDate) {
         if (!profit) return;
 
         const tech = repair.acceptedBy;
+        const techName = window.allUsers && window.allUsers[tech] ? 
+            window.allUsers[tech].displayName : tech;
 
-        if (!byTech[tech]) {
-            byTech[tech] = {
+        if (!byTech[techName]) {
+            byTech[techName] = {
+                techId: tech,
                 repairCount: 0,
                 totalRevenue: 0,
                 totalPartsCost: 0,
-                totalCommission: 0,
-                totalGrossProfit: 0,
-                totalOverhead: 0,
+                totalTechCommission: 0,
+                totalShopRevenue: 0,
                 totalNetProfit: 0,
                 avgProfitMargin: 0,
                 repairs: []
             };
         }
 
-        byTech[tech].repairCount++;
-        byTech[tech].totalRevenue += profit.revenue;
-        byTech[tech].totalPartsCost += profit.partsCost;
-        byTech[tech].totalCommission += profit.commission;
-        byTech[tech].totalGrossProfit += profit.grossProfit;
-        byTech[tech].totalOverhead += profit.overheadBurden;
-        byTech[tech].totalNetProfit += profit.netProfit;
-        byTech[tech].repairs.push(profit);
+        byTech[techName].repairCount++;
+        byTech[techName].totalRevenue += profit.revenue;
+        byTech[techName].totalPartsCost += profit.partsCost;
+        byTech[techName].totalTechCommission += profit.techCommission;
+        byTech[techName].totalShopRevenue += profit.shopRevenue;
+        byTech[techName].totalNetProfit += profit.netProfit;
+        byTech[techName].repairs.push(profit);
     });
 
     // Calculate averages
@@ -1195,8 +1194,8 @@ function getProfitByTechnician(startDate, endDate) {
         const data = byTech[tech];
         data.avgRevenue = data.totalRevenue / data.repairCount;
         data.avgProfit = data.totalNetProfit / data.repairCount;
-        data.avgProfitMargin = data.totalRevenue > 0 ?
-            (data.totalNetProfit / data.totalRevenue) * 100 : 0;
+        data.avgProfitMargin = data.totalShopRevenue > 0 ?
+            (data.totalNetProfit / data.totalShopRevenue) * 100 : 0;
     });
 
     // Sort by total net profit descending
@@ -1256,14 +1255,14 @@ function getProfitTrends(startDate, endDate, interval = 'daily') {
 
         dataByPeriod[periodKey].repairCount++;
         dataByPeriod[periodKey].totalRevenue += profit.revenue;
-        dataByPeriod[periodKey].totalCosts += (profit.partsCost + profit.commission + profit.overheadBurden);
-        dataByPeriod[periodKey].totalProfit += profit.netProfit;
+        dataByPeriod[periodKey].totalCosts += (profit.partsCost + profit.techCommission);
+        dataByPeriod[periodKey].totalProfit += profit.shopRevenue;
     });
 
     // Calculate averages and sort by period
     Object.values(dataByPeriod).forEach(data => {
-        data.avgProfitMargin = data.totalRevenue > 0 ?
-            (data.totalProfit / data.totalRevenue) * 100 : 0;
+        data.avgProfitMargin = data.totalProfit > 0 ?
+            (data.totalProfit / data.totalProfit) * 100 : 0;
     });
 
     return Object.values(dataByPeriod).sort((a, b) =>
