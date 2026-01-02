@@ -2316,6 +2316,16 @@ function renderClaimedButtons(r, role) {
             </button>
         `;
     }
+    
+    // View Payments button (for fully paid devices or to view/refund payments)
+    // Show for admin, manager, cashier to access refund functionality
+    if (!hidePaymentActions && (r.payments || []).length > 0 && role !== 'technician') {
+        buttons += `
+            <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#667eea;color:white;">
+                💳 View Payments
+            </button>
+        `;
+    }
 
     // Warranty claim button (admin/manager only)
     if (role === 'admin' || role === 'manager') {
