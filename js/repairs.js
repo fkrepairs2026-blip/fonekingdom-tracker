@@ -929,6 +929,19 @@ function openPaymentModal(repairId) {
         return;
     }
 
+    // Ensure user data is loaded
+    if (!window.currentUserData) {
+        console.error('User data not loaded yet');
+        setTimeout(() => openPaymentModal(repairId), 500);
+        return;
+    }
+
+    const userRole = window.currentUserData.role;
+    const isAdmin = userRole === 'admin';
+    const isManager = userRole === 'manager';
+    const isCashier = userRole === 'cashier';
+    const canRefund = isAdmin || isManager || isCashier;
+
     // Calculate total paid (verified payments only)
     const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = repair.total - totalPaid;
@@ -1076,24 +1089,24 @@ function openPaymentModal(repairId) {
                                 </div>
                             ` : ''}
                             <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;">
-                                ${!p.verified && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? `
+                                ${!p.verified && (isAdmin || isManager) ? `
                                     <button onclick="verifyPayment('${repairId}', ${i})" style="background:#4caf50;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
                                         ✅ Verify Payment
                                     </button>
                                 ` : ''}
-                                ${p.verified && !p.refunded && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
+                                ${p.verified && !p.refunded && canRefund ? `
                                     <button onclick="showRefundModal('${repairId}', ${i})" style="background:#e91e63;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
                                         🔄 Refund
                                     </button>
                                 ` : ''}
-                                ${p.isAdvance && p.advanceStatus === 'pending' && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? `
+                                ${p.isAdvance && p.advanceStatus === 'pending' && (isAdmin || isManager) ? `
                                     <button onclick="refundAdvancePayment('${repairId}', ${i})" style="background:#2196f3;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
                                         ↩️ Mark as Refunded
                                     </button>
                                 ` : ''}
-                                ${(window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
-    <button onclick="${window.currentUserData.role === 'admin' ? `editPaymentDate('${repairId}', ${i})` : `requestPaymentDateModification('${repairId}', ${i})`}" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
-        📅 ${window.currentUserData.role === 'admin' ? 'Edit Payment Date' : 'Request Edit Payment Date'}
+                                ${canRefund ? `
+    <button onclick="${isAdmin ? `editPaymentDate('${repairId}', ${i})` : `requestPaymentDateModification('${repairId}', ${i})`}" style="background:#667eea;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+        📅 ${isAdmin ? 'Edit Payment Date' : 'Request Edit Payment Date'}
     </button>
 ` : ''}
                             </div>
