@@ -552,11 +552,14 @@ const utils = {
         
         if (typeof clickAction === 'function') {
             clickHandler = `onclick="${clickAction.name}()" style="cursor:pointer;"`;
-        } else if (typeof clickAction === 'string') {
-            // Check if it's a function name (contains no slashes or special chars)
-            if (clickAction && !clickAction.includes('/') && window[clickAction]) {
+        } else if (typeof clickAction === 'string' && clickAction) {
+            // Check if it looks like a function name (starts with lowercase letter, no slashes)
+            const isFunctionName = /^[a-z][a-zA-Z0-9]*$/.test(clickAction);
+            
+            if (isFunctionName) {
+                // It's a function name
                 clickHandler = `onclick="${clickAction}()" style="cursor:pointer;"`;
-            } else if (clickAction) {
+            } else {
                 // It's a tab name
                 clickHandler = dateFilter
                     ? `onclick="switchTab('${clickAction}', '${dateFilter}')" style="cursor:pointer;"`
