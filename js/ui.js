@@ -7756,8 +7756,8 @@ function buildOverheadExpensesTab(container) {
                                             <td>${utils.formatDate(new Date(exp.date))}</td>
                                             <td><strong>${exp.category}</strong></td>
                                             <td style="font-weight:bold;color:#667eea;">₱${exp.amount.toFixed(2)}</td>
-                                            <td>${exp.recurring ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;">${exp.recurring}</span>` : '-'}</td>
-                                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${exp.description || '-'}</td>
+                                            <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;">${exp.recurringFrequency}</span>` : '-'}</td>
+                                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${exp.description || exp.notes || '-'}</td>
                                             <td>
                                                 <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm">
                                                     🗑️ Delete
@@ -7790,8 +7790,10 @@ function saveOverheadExpense() {
         category: category,
         amount: amount,
         date: date + 'T00:00:00.000Z',
-        recurring: recurring || null,
-        description: description || null,
+        isRecurring: recurring ? true : false,
+        recurringFrequency: recurring || null,
+        description: description || '',
+        notes: description || '',
         createdBy: window.currentUser.uid,
         createdByName: window.currentUserData.displayName,
         createdAt: new Date().toISOString()
