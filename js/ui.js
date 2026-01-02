@@ -7625,7 +7625,7 @@ function exportCurrentProfitReport() {
 // ===== OVERHEAD EXPENSES TAB =====
 function buildOverheadExpensesTab(container) {
     console.log('💼 Building Overhead Expenses tab');
-    window.currentTabRefresh = () => buildOverheadExpensesTab(document.getElementById('overheadTab'));
+    window.currentTabRefresh = () => buildOverheadExpensesTab(container);
 
     // Get current month expenses
     const now = new Date();

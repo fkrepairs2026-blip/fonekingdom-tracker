@@ -680,16 +680,18 @@ function updateDataHealthBadge() {
  * Navigate to Admin Tools Data Health section
  */
 function openAdminToolsDataHealth() {
-    // Open Admin Tools modal
-    const modal = document.getElementById('adminToolsModal');
-    if (modal) {
-        modal.style.display = 'block';
+    // Switch to Admin Tools tab
+    if (window.switchTab) {
+        window.switchTab('admin-tools');
     }
 
-    // Switch to Data Health section
+    // Scroll to Data Health section after tab loads
     setTimeout(() => {
-        showAdminToolsSection('dataHealth');
-    }, 100);
+        const dataHealthSection = document.querySelector('[data-section="dataHealth"]');
+        if (dataHealthSection) {
+            dataHealthSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 500);
 }
 
 // Export functions to window

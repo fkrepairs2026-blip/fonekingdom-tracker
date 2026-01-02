@@ -5073,6 +5073,13 @@ function getRepairDeliveryExpenses(repairId) {
  * Returns: { eligible, amount, breakdown }
  */
 function calculateRepairCommission(repair, techId) {
+    // Determine commission rate based on user role
+    let commissionRate = 0.40; // Default for technician
+    const techUser = window.allUsers ? window.allUsers[techId] : null;
+    if (techUser && (techUser.role === 'admin' || techUser.role === 'manager')) {
+        commissionRate = 0.60;
+    }
+
     const result = {
         eligible: false,
         amount: 0,
@@ -5081,7 +5088,7 @@ function calculateRepairCommission(repair, techId) {
             partsCost: 0,
             deliveryExpenses: 0,
             netAmount: 0,
-            commissionRate: 0.40
+            commissionRate: commissionRate
         }
     };
 
@@ -11809,9 +11816,16 @@ function calculateDataHealthIssues() {
         if (repair.deleted) return;
 
         // Check for missing parts cost on completed repairs
+        // Exclude software repairs which legitimately have zero parts cost
+        const isSoftwareRepair = repair.repairType === 'Software Issue' ||
+                                 repair.repairType === 'FRP Unlock' ||
+                                 repair.repairType === 'Password Unlock' ||
+                                 repair.repairType === 'Data Recovery';
+
         if ((repair.status === 'Claimed' || repair.status === 'Released') &&
             repair.total > 0 &&
-            (!repair.partsCost || repair.partsCost === 0)) {
+            (!repair.partsCost || repair.partsCost === 0) &&
+            !isSoftwareRepair) {
             issues.missingPartsCost.push({
                 repairId: repair.id,
                 customerName: repair.customerName,
@@ -11918,15 +11932,29 @@ async function performCleanup(category, affectedRecords) {
 
             switch (category) {
                 case 'missingPartsCost':
+                    // Prompt user for actual parts cost
+                    const actualPartsCost = prompt(
+                        `Enter parts cost for repair #${repair.id}\nCustomer: ${repair.customerName}\nTotal: ₱${repair.total}\n\nEnter 0 if no parts were used:`,
+                        '0'
+                    );
+
+                    // Skip if user cancels
+                    if (actualPartsCost === null) {
+                        console.log(`Skipped parts cost for repair ${repair.id}`);
+                        continue;
+                    }
+
+                    const partsCostValue = parseFloat(actualPartsCost) || 0;
+
                     snapshot.oldValues.partsCost = repair.partsCost || null;
                     snapshot.oldValues.partsCostNotes = repair.partsCostNotes || null;
 
-                    snapshot.newValues.partsCost = 0;
-                    snapshot.newValues.partsCostNotes = `Auto-set to 0 by data cleanup on ${utils.formatDate(now)} (original value unknown)`;
+                    snapshot.newValues.partsCost = partsCostValue;
+                    snapshot.newValues.partsCostNotes = `Set to ₱${partsCostValue} by data cleanup on ${utils.formatDate(now)}`;
                     snapshot.newValues.partsCostRecordedBy = window.currentUserData.displayName;
                     snapshot.newValues.partsCostRecordedAt = now;
 
-                    updates[`${repairRef}/partsCost`] = 0;
+                    updates[`${repairRef}/partsCost`] = partsCostValue;
                     updates[`${repairRef}/partsCostNotes`] = snapshot.newValues.partsCostNotes;
                     updates[`${repairRef}/partsCostRecordedBy`] = snapshot.newValues.partsCostRecordedBy;
                     updates[`${repairRef}/partsCostRecordedAt`] = snapshot.newValues.partsCostRecordedAt;
