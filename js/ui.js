@@ -2355,9 +2355,9 @@ function renderClaimedButtons(r, role) {
         `;
     }
     
-    // View Payments button (for fully paid devices or to view/refund payments)
-    // Show for admin, manager, cashier to access refund functionality
-    if (!hidePaymentActions && (r.payments || []).length > 0 && role !== 'technician') {
+    // View Payments button - Show for ALL roles to view payment history and request refunds
+    // Technicians can request refunds, others can directly refund
+    if ((r.payments || []).length > 0) {
         buttons += `
             <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#667eea;color:white;">
                 💳 View Payments
