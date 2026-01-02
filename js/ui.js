@@ -4943,6 +4943,7 @@ window.renderForReleaseButtons = renderForReleaseButtons;
 window.renderReleasedButtons = renderReleasedButtons;
 window.renderClaimedButtons = renderClaimedButtons;
 window.toggleRepairDetails = toggleRepairDetails;
+window.buildDashboardTab = buildDashboardTab;
 window.buildAllRepairsTab = buildAllRepairsTab;
 window.filterAllRepairs = filterAllRepairs;
 window.buildMyRepairsTab = buildMyRepairsTab;

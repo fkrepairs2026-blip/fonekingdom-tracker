@@ -725,9 +725,11 @@ function toggleCommissionPeriod() {
         window.commissionPeriod = 'daily';
     }
 
-    // Refresh dashboard to show new period
-    if (window.currentTabRefresh) {
-        window.currentTabRefresh();
+    // Refresh dashboard explicitly (not relying on currentTabRefresh which may be overwritten)
+    const dashboardContainer = document.getElementById('dashboardTab');
+    if (dashboardContainer) {
+        utils.invalidateDashboardCache();
+        window.buildDashboardTab(dashboardContainer);
     }
 }
 
