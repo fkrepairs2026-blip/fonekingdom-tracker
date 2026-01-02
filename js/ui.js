@@ -1620,7 +1620,7 @@ function buildAllRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
-            displaySearchableRepairsList(repairs, listContainer);
+            displayGroupedRepairsList(repairs, listContainer, 'all', 'recordedDate');
         }
     }, 0);
 }
@@ -2977,7 +2977,7 @@ function buildMyClaimedDevicesTab(container) {
         }
         if (myClaimedDevices.length > 0) {
             const claimedListContainer = document.getElementById('myClaimedDevicesList');
-            displayGroupedRepairsList(myClaimedDevices, claimedListContainer, 'claimed', 'claimedAt');
+            displayGroupedRepairsList(myClaimedDevices, claimedListContainer, 'claimed', 'completedAt');
         }
     }, 0);
 }
