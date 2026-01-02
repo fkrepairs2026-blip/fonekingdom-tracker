@@ -134,6 +134,9 @@ async function initializeApp() {
 
         console.log('✅ App initialization complete!');
 
+        // Prevent accidental browser back button exits
+        setupBackButtonHandler();
+
         // Show onboarding wizard for first-time users (after UI is ready)
         setTimeout(() => {
             if (!hasSeenOnboarding()) {
@@ -295,6 +298,32 @@ function initSidebar() {
     }
 
     console.log('✅ Sidebar initialized');
+}
+
+/**
+ * Setup browser back button handler
+ * Prevents accidental exits from the app
+ */
+function setupBackButtonHandler() {
+    // Push initial state
+    window.history.pushState({ page: 'app' }, '', window.location.href);
+
+    // Handle back button
+    window.addEventListener('popstate', function(event) {
+        // Confirm before leaving the app
+        const confirmExit = confirm('Are you sure you want to leave the app? Any unsaved changes may be lost.');
+        
+        if (confirmExit) {
+            // Allow navigation away
+            window.removeEventListener('popstate', arguments.callee);
+            window.history.back();
+        } else {
+            // Stay in the app - push state again
+            window.history.pushState({ page: 'app' }, '', window.location.href);
+        }
+    });
+
+    console.log('✅ Back button handler initialized');
 }
 
 // Export to global scope
