@@ -519,13 +519,13 @@ function buildForReleasePage(container) {
             if (forReleaseRepairs.length === 0) {
                 listContainer.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">No devices ready for pickup</p>';
             } else {
-                displayCompactRepairsList(forReleaseRepairs, listContainer, 'forrelease');
+                displayGroupedRepairsList(forReleaseRepairs, listContainer, 'forrelease', 'completedAt');
             }
         }
 
         const releasedContainer = document.getElementById('releasedList');
         if (releasedContainer && releasedRepairs.length > 0) {
-            displayCompactRepairsList(releasedRepairs, releasedContainer, 'released');
+            displayGroupedRepairsList(releasedRepairs, releasedContainer, 'released', 'releasedAt');
         }
     }, 0);
 }
@@ -1562,7 +1562,7 @@ function buildAllRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
-            displayCompactRepairsList(repairs, listContainer);
+            displayGroupedRepairsList(repairs, listContainer, 'all', 'recordedDate');
         }
     }, 0);
 }
@@ -1668,6 +1668,121 @@ function displayRepairsInContainer(repairs, container) {
                     ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
                     ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * Display repairs grouped by date
+ * @param {Array} repairs - Array of repair objects
+ * @param {HTMLElement} container - Container element
+ * @param {string} context - Display context ('forrelease', 'claimed', 'all', etc.)
+ * @param {string} dateField - Field name to group by (e.g., 'completedAt', 'claimedAt', 'recordedDate')
+ */
+function displayGroupedRepairsList(repairs, container, context = 'default', dateField = 'createdAt') {
+    if (!container) {
+        console.warn('⚠️ Container not found, skipping display');
+        return;
+    }
+
+    if (!repairs || repairs.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#666;padding:40px;">No repairs found</p>';
+        return;
+    }
+
+    // Group repairs by date
+    const groupedByDate = {};
+    
+    repairs.forEach(r => {
+        // Use fallback dates if primary field doesn't exist
+        let dateValue = r[dateField] || r.createdAt || r.recordedDate;
+        if (!dateValue) return;
+        
+        // Get date only (no time) - format as "Jan 02, 2026"
+        const dateKey = utils.formatDate(dateValue);
+        
+        if (!groupedByDate[dateKey]) {
+            groupedByDate[dateKey] = [];
+        }
+        groupedByDate[dateKey].push(r);
+    });
+
+    // Sort date groups (most recent first)
+    const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+        const dateA = new Date(groupedByDate[a][0][dateField] || groupedByDate[a][0].createdAt);
+        const dateB = new Date(groupedByDate[b][0][dateField] || groupedByDate[b][0].createdAt);
+        return dateB - dateA;
+    });
+
+    // Render grouped repairs
+    const role = window.currentUserData.role;
+    
+    container.innerHTML = sortedDates.map(dateKey => {
+        const repairsInDate = groupedByDate[dateKey];
+        
+        // Sort repairs within each date group by most recent first
+        repairsInDate.sort((a, b) => {
+            const dateA = new Date(a[dateField] || a.createdAt || a.recordedDate);
+            const dateB = new Date(b[dateField] || b.createdAt || b.recordedDate);
+            return dateB - dateA;
+        });
+        
+        const count = repairsInDate.length;
+        
+        // Calculate days ago for the date group
+        const daysAgoText = utils.daysAgo(repairsInDate[0][dateField] || repairsInDate[0].createdAt);
+        
+        return `
+            <div class="date-group" style="margin-bottom:30px;">
+                <div class="date-group-header" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;padding:15px 20px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 4px 12px rgba(102,126,234,0.2);">
+                    <div>
+                        <h4 style="margin:0;font-size:18px;font-weight:600;">${dateKey}</h4>
+                        <span style="font-size:13px;opacity:0.9;">${daysAgoText}</span>
+                    </div>
+                    <span style="background:rgba(255,255,255,0.25);padding:6px 14px;border-radius:15px;font-size:14px;font-weight:600;">
+                        ${count} device${count !== 1 ? 's' : ''}
+                    </span>
+                </div>
+                <div class="date-group-items" style="padding-left:10px;">
+                    ${repairsInDate.map(r => {
+                        const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
+                        const isExpanded = window.expandedRepairId === r.id;
+                        const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
+                        
+                        return `
+                            <div class="repair-list-item-compact ${isExpanded ? 'expanded' : ''}" 
+                                 id="repair-item-${r.id}"
+                                 data-repair-id="${r.id}"
+                                 data-context="${context}">
+                                <div class="repair-compact-header" onclick="toggleRepairDetails('${r.id}', '${context}')">
+                                    <div class="repair-compact-main">
+                                        <div class="repair-compact-title">
+                                            <strong>${r.brand} ${r.model}</strong>
+                                            <span class="repair-compact-customer">| ${r.customerName}${r.shopName ? ` (${r.shopName})` : ''}</span>
+                                        </div>
+                                        <div class="repair-compact-badges">
+                                            <span class="status-badge status-${statusClass}">${r.status}</span>
+                                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
+                                            ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="status-badge" style="background:#ff9800;color:white;">⭐ Your Previous Customer</span>' : ''}
+                                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
+                                        </div>
+                                        <div class="repair-compact-problem">
+                                            <strong>Problem:</strong> ${problemPreview}
+                                        </div>
+                                    </div>
+                                    <div class="expand-indicator">
+                                        ${isExpanded ? '▲' : '▼'}
+                                    </div>
+                                </div>
+                                
+                                <div class="repair-detail-content" style="display:${isExpanded ? 'block' : 'none'};">
+                                    ${isExpanded ? renderExpandedRepairDetails(r, role, context) : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             </div>
         `;
@@ -4216,7 +4331,7 @@ function buildClaimedUnitsPage(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('claimedUnitsList');
         if (listContainer && claimedUnits.length > 0) {
-            displayCompactRepairsList(claimedUnits, listContainer, 'claimed');
+            displayGroupedRepairsList(claimedUnits, listContainer, 'claimed', 'claimedAt');
         }
     }, 0);
 }

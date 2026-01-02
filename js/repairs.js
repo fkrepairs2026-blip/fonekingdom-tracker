@@ -947,7 +947,20 @@ function openPaymentModal(repairId) {
         isAdmin,
         isManager,
         isCashier,
-        canRefund
+        canRefund,
+        currentUserData: window.currentUserData
+    });
+    
+    console.log('📋 Payment Data Check:', {
+        repairId,
+        totalPayments: repair.payments ? repair.payments.length : 0,
+        payments: repair.payments ? repair.payments.map((p, i) => ({
+            index: i,
+            amount: p.amount,
+            verified: p.verified,
+            refunded: p.refunded,
+            method: p.method
+        })) : []
     });
 
     // Calculate total paid (verified payments only)
