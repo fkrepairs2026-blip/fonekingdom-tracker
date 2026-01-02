@@ -17,10 +17,7 @@
     "users": {
       ".read": "auth != null",
       "$userId": {
-        ".write": "auth != null && (
-          auth.uid === $userId ||
-          root.child('users').child(auth.uid).child('role').val() === 'admin'
-        )"
+        ".write": "auth != null && (auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     "inventory": {

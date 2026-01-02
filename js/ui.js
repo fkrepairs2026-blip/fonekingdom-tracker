@@ -370,9 +370,12 @@ function switchTab(tabId, dateFilter = null) {
         });
     }
 
-    // Store date filter for specific tabs
+    // Store or clear date filter for specific tabs
     if (tabId === 'myclaimed') {
-        window.currentDateFilter = dateFilter;
+        window.currentDateFilter = dateFilter || null;  // Explicitly clear if no filter provided
+    } else {
+        // Clear date filter when switching to other tabs
+        window.currentDateFilter = null;
     }
 
     // Remove active class from all navigation items

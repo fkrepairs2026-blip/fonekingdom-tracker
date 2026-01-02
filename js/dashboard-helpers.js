@@ -26,11 +26,11 @@ function buildTechnicianDashboard(userName, stats) {
                 ${utils.createStatCard(
         'Completed Today',
         stats.myCompletedToday,
-        'Finished repairs',
+        'Finished repairs today',
         'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
         'myclaimed',
         '✅',
-        'today'  // Pass date filter
+        'today'  // Pass date filter - shows only today's completions
     )}
                 ${utils.createStatCard(
         'Ready for Pickup',
@@ -739,7 +739,7 @@ function toggleCommissionPeriod() {
  */
 function getCommissionForPeriod(stats) {
     const period = window.commissionPeriod || 'daily';
-    
+
     if (period === 'daily') {
         return {
             label: 'Commission Today',
