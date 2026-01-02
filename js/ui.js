@@ -1777,7 +1777,7 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
         
         // Check if this is today's date - show expanded by default
         const isToday = dateKey === todayDateString;
-        const groupId = `date-group-${dateKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
+        const groupId = `date-group-${index}`; // Use index for unique ID
         
         return `
             <div class="date-group" style="margin-bottom:30px;">
