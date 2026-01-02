@@ -281,10 +281,11 @@ const utils = {
             received: activeRepairs.filter(r => r.status === 'Received').length,
             inProgress: activeRepairs.filter(r => r.status === 'In Progress' || r.status === 'Waiting for Parts').length,
             readyForPickup: activeRepairs.filter(r => r.status === 'Ready for Pickup').length,
-            released: activeRepairs.filter(r => {
-                if (r.status !== 'Released' || !r.releasedAt) return false;
-                const releasedDate = new Date(r.releasedAt);
-                return releasedDate >= today;
+            released: activeRepairs.filter(r => r.status === 'Ready for Pickup').length,
+            claimedToday: activeRepairs.filter(r => {
+                if (!r.claimedAt) return false;
+                const claimedDate = new Date(r.claimedAt);
+                return claimedDate >= today;
             }).length,
 
             // Priority alerts

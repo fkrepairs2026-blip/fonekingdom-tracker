@@ -119,12 +119,12 @@ function buildCashierDashboard(userName, stats) {
         '💵'
     )}
                 ${utils.createStatCard(
-        'Pending Verification',
-        stats.pendingVerification,
-        'Payments to verify',
-        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-        'pendingVerification',
-        '✓'
+        'Claimed Today',
+        stats.claimedToday,
+        'Successfully finalized',
+        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'claimed',
+        '✅'
     )}
                 ${utils.createStatCard(
         'Ready for Release',
@@ -220,12 +220,20 @@ function buildManagerDashboard(userName, stats) {
         '💰'
     )}
                 ${utils.createStatCard(
-        'Released Today',
+        'Ready for Release',
         stats.released,
-        'Awaiting finalization',
+        'Awaiting customer pickup',
         'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
         'forrelease',
-        '⚡'
+        '📦'
+    )}
+                ${utils.createStatCard(
+        'Claimed Today',
+        stats.claimedToday,
+        'Successfully finalized',
+        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'claimed',
+        '✅'
     )}
                 ${utils.createStatCard(
         'In Progress',
@@ -330,12 +338,20 @@ function buildAdminDashboard(userName, stats) {
         '💰'
     )}
                 ${utils.createStatCard(
-        'Released Today',
+        'Ready for Release',
         stats.released,
-        'Awaiting finalization',
+        'Awaiting customer pickup',
         'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
         'forrelease',
-        '⚡'
+        '📦'
+    )}
+                ${utils.createStatCard(
+        'Claimed Today',
+        stats.claimedToday,
+        'Successfully finalized',
+        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'claimed',
+        '✅'
     )}
                 ${utils.createStatCard(
         'All Devices',
