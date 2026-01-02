@@ -553,17 +553,18 @@ const utils = {
         if (typeof clickAction === 'function') {
             clickHandler = `onclick="${clickAction.name}()" style="cursor:pointer;"`;
         } else if (typeof clickAction === 'string' && clickAction) {
-            // Tab names contain spaces, function names don't
-            const isTabName = clickAction.includes(' ');
+            // Check if it's a known function name (starts with lowercase and has specific patterns)
+            const knownFunctions = ['toggleCommissionPeriod', 'openAdminToolsDataHealth'];
+            const isFunctionName = knownFunctions.includes(clickAction);
             
-            if (isTabName) {
-                // It's a tab name
+            if (isFunctionName) {
+                // It's a function name
+                clickHandler = `onclick="${clickAction}()" style="cursor:pointer;"`;
+            } else {
+                // It's a tab name (including single-word tab IDs like 'my', 'myclaimed', etc.)
                 clickHandler = dateFilter
                     ? `onclick="switchTab('${clickAction}', '${dateFilter}')" style="cursor:pointer;"`
                     : `onclick="switchTab('${clickAction}')" style="cursor:pointer;"`;
-            } else {
-                // It's a function name
-                clickHandler = `onclick="${clickAction}()" style="cursor:pointer;"`;
             }
         }
 

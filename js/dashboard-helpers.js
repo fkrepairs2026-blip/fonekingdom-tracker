@@ -48,17 +48,14 @@ function buildTechnicianDashboard(userName, stats) {
         'myclaimed',
         '✅'
     )}
-                ${(() => {
-        const commission = getCommissionForPeriod(stats);
-        return utils.createStatCard(
-            commission.label,
-            '₱' + commission.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
-            commission.breakdown + ' • Click to toggle',
-            'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-            'toggleCommissionPeriod',
-            '💰'
-        );
-    })()}
+                ${utils.createStatCard(
+        'Commission Today',
+        '₱' + (stats.myCommissionToday || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        `Cash: ₱${(stats.myCashCommissionToday || 0).toFixed(2)} | GCash: ₱${(stats.myGCashCommissionToday || 0).toFixed(2)}`,
+        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+        null,
+        '💰'
+    )}
             </div>
             
             <!-- Alerts Section -->
