@@ -327,17 +327,41 @@ const utils = {
                 !r.deleted
             ).length;
 
-            // Commission tracking - include both Released and Claimed devices
-            stats.myCommissionThisMonth = activeRepairs.filter(r => {
-                if (r.acceptedBy !== currentUserId || !r.commissionAmount) return false;
-
-                // Check finalization date (Released uses releasedAt, Claimed uses claimedAt)
-                const finalizeDate = r.claimedAt || r.releasedAt;
-                if (!finalizeDate) return false;
-
-                const finalized = new Date(finalizeDate);
-                return finalized.getMonth() === now.getMonth() && finalized.getFullYear() === now.getFullYear();
-            }).reduce((sum, r) => sum + (parseFloat(r.commissionAmount) || 0), 0);
+            // Commission tracking - Calculate from actual payments this month
+            // Includes both cash (in remittances) and GCash (reported)
+            const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+            const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+            
+            let cashCommission = 0;
+            let gcashCommission = 0;
+            
+            activeRepairs.forEach(r => {
+                if (r.acceptedBy !== currentUserId || !r.payments) return;
+                
+                r.payments.forEach(payment => {
+                    if (!payment.verified) return;
+                    
+                    const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                    if (paymentDate < monthStart || paymentDate > monthEnd) return;
+                    
+                    // Calculate commission based on payment - parts cost
+                    const repairPartsCost = r.partsCost || 0;
+                    const paymentShare = payment.amount;
+                    const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
+                    const netAmount = Math.max(0, paymentShare - partsCostShare);
+                    const commission = netAmount * 0.40; // Tech gets 40%
+                    
+                    if (payment.method === 'GCash') {
+                        gcashCommission += commission;
+                    } else {
+                        cashCommission += commission;
+                    }
+                });
+            });
+            
+            stats.myCommissionThisMonth = cashCommission + gcashCommission;
+            stats.myCashCommission = cashCommission;
+            stats.myGCashCommission = gcashCommission;
 
             // Remittance status
             const techRemittances = window.techRemittances || [];
@@ -380,16 +404,34 @@ const utils = {
                 return completed >= today;
             }).length;
 
-            // Daily revenue (shop's 60% share after 40% tech commission)
-            stats.revenueToday = activeRepairs.reduce((sum, r) => {
+            // Daily revenue (shop's 60% share after 40% tech commission and parts cost)
+            let todayCashRevenue = 0;
+            let todayGCashRevenue = 0;
+            
+            activeRepairs.forEach(r => {
                 const verifiedPayments = (r.payments || []).filter(p => {
                     if (!p.verified) return false;
                     const payDate = new Date(p.recordedDate || p.paymentDate);
                     return payDate >= today;
                 });
-                const totalPayments = verifiedPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
-                return sum + (totalPayments * 0.6); // Shop's 60% share
-            }, 0);
+                
+                verifiedPayments.forEach(p => {
+                    const repairPartsCost = r.partsCost || 0;
+                    const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
+                    const netAmount = Math.max(0, p.amount - partsCostShare);
+                    const shopShare = netAmount * 0.60; // Shop gets 60%
+                    
+                    if (p.method === 'GCash') {
+                        todayGCashRevenue += shopShare;
+                    } else {
+                        todayCashRevenue += shopShare;
+                    }
+                });
+            });
+            
+            stats.revenueToday = todayCashRevenue + todayGCashRevenue;
+            stats.todayCashRevenue = todayCashRevenue;
+            stats.todayGCashRevenue = todayGCashRevenue;
 
             // Average completion time this week
             const completedThisWeek = activeRepairs.filter(r => {

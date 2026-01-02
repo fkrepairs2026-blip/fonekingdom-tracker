@@ -50,7 +50,7 @@ function buildTechnicianDashboard(userName, stats) {
                 ${utils.createStatCard(
         'Commission This Month',
         '₱' + stats.myCommissionThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
-        'Earned commission',
+        `Cash: ₱${stats.myCashCommission.toFixed(2)} | GCash: ₱${stats.myGCashCommission.toFixed(2)}`,
         'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
         null,
         '💰'
@@ -322,9 +322,9 @@ function buildAdminDashboard(userName, stats) {
             <!-- Primary Metrics -->
             <div class="dashboard-stats-grid">
                 ${utils.createStatCard(
-        'Revenue Today',
+        'Revenue Today (Shop 60%)',
         '₱' + stats.revenueToday.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
-        'Payments collected',
+        `Cash: ₱${(stats.todayCashRevenue || 0).toFixed(2)} | GCash: ₱${(stats.todayGCashRevenue || 0).toFixed(2)}`,
         'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
         'analytics',
         '💰'
