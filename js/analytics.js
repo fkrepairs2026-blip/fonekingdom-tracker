@@ -69,8 +69,12 @@ function getRevenueAnalytics(startDate, endDate) {
             const partsCost = window.getRepairPartsCost ? window.getRepairPartsCost(repair) : (repair.partsCost || 0);
             totalPartsCost += partsCost;
 
-            if (repair.commissionAmount) {
-                totalCommissions += repair.commissionAmount;
+            // Calculate commission properly
+            if (window.calculateRepairCommission && repair.acceptedBy) {
+                const commissionResult = window.calculateRepairCommission(repair, repair.acceptedBy);
+                if (commissionResult.eligible && commissionResult.amount > 0) {
+                    totalCommissions += commissionResult.amount;
+                }
             }
         }
     });
@@ -137,8 +141,12 @@ function getTechnicianPerformance(startDate, endDate) {
             .reduce((sum, p) => sum + p.amount, 0);
         techStats[techName].totalRevenue += revenue;
 
-        if (repair.commissionAmount) {
-            techStats[techName].totalCommission += repair.commissionAmount;
+        // Calculate commission properly
+        if (window.calculateRepairCommission && repair.acceptedBy) {
+            const commissionResult = window.calculateRepairCommission(repair, repair.acceptedBy);
+            if (commissionResult.eligible && commissionResult.amount > 0) {
+                techStats[techName].totalCommission += commissionResult.amount;
+            }
         }
 
         // Calculate repair time
@@ -417,11 +425,11 @@ function getFinancialReport(startDate, endDate) {
         const repairPartsCost = window.getRepairPartsCost ? window.getRepairPartsCost(repair) : (repair.partsCost || 0);
         partsCost += repairPartsCost;
 
-        // Commissions
-        if (repair.commissionAmount && repair.commissionClaimedAt) {
-            const claimDate = new Date(repair.commissionClaimedAt).getTime();
-            if (claimDate >= start && claimDate <= end) {
-                commissions += repair.commissionAmount;
+        // Commissions - calculate for all repairs with claimed status
+        if (repair.status === 'Claimed' && repair.acceptedBy && window.calculateRepairCommission) {
+            const commissionResult = window.calculateRepairCommission(repair, repair.acceptedBy);
+            if (commissionResult.eligible && commissionResult.amount > 0) {
+                commissions += commissionResult.amount;
             }
         }
     });
@@ -1035,17 +1043,13 @@ function calculateRepairProfit(repair, startDate, endDate) {
     const partsCost = repair.partsCost || 0;
 
     // Tech commission paid out (tech keeps this)
-    // Technician gets 40%, admin gets 0% (admin doesn't do repairs)
     let techCommission = 0;
     const techId = repair.acceptedBy || repair.technicianId;
-    if (techId && window.allUsers && window.allUsers[techId]) {
-        const techUser = window.allUsers[techId];
-        const techCommissionRate = (techUser.role === 'technician') ? 0.40 : 0.00;
-        const netAmount = revenue - partsCost;
-        techCommission = netAmount * techCommissionRate;
-    } else if (repair.commissionAmount) {
-        // Fallback to stored commission if tech not found
-        techCommission = repair.commissionAmount;
+    if (techId && window.calculateRepairCommission) {
+        const commissionResult = window.calculateRepairCommission(repair, techId);
+        if (commissionResult.eligible && commissionResult.amount > 0) {
+            techCommission = commissionResult.amount;
+        }
     }
 
     // Shop revenue (what shop keeps after paying tech)
@@ -1409,8 +1413,17 @@ function generateProfitLossStatement(startDate, endDate) {
     }, 0);
     
     // Cost of Goods Sold (COGS)
-    const totalPartsCost = completedRepairs.reduce((sum, r) => sum + (r.partsCost || 0), 0);
-    const totalCommission = completedRepairs.reduce((sum, r) => sum + (r.commissionAmount || 0), 0);
+    const totalPartsCost = completedRepairs.reduce((sum, r) => {
+        return sum + (window.getRepairPartsCost ? window.getRepairPartsCost(r) : (r.partsCost || 0));
+    }, 0);
+    
+    const totalCommission = completedRepairs.reduce((sum, r) => {
+        if (r.acceptedBy && window.calculateRepairCommission) {
+            const commissionResult = window.calculateRepairCommission(r, r.acceptedBy);
+            return sum + (commissionResult.eligible ? commissionResult.amount : 0);
+        }
+        return sum;
+    }, 0);
     const grossProfit = totalRevenue - totalPartsCost - totalCommission;
     const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
     
