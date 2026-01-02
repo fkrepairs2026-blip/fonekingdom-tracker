@@ -33,14 +33,6 @@ function buildTechnicianDashboard(userName, stats) {
         'today'  // Pass date filter - shows only today's completions
     )}
                 ${utils.createStatCard(
-        'Ready for Pickup',
-        stats.myReadyForPickup,
-        'Awaiting customer',
-        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        'forrelease',
-        '📦'
-    )}
-                ${utils.createStatCard(
         'My Claimed Devices',
         stats.myClaimedCount || 0,
         'Finalized & picked up',
