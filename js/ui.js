@@ -4000,27 +4000,32 @@ function buildTodayTransactionsSection() {
     }).join('') : '<p style="color:#999;font-size:13px;">No payments today</p>';
 
     // Build expenses list
-    const expensesHTML = cashData.expenses.length > 0 ? cashData.expenses.map(e => `
+    const expensesHTML = cashData.expenses.length > 0 ? cashData.expenses.map(e => {
+        // Check if expense is nested or direct
+        const expense = e.expense || e;
+        
+        return `
         <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid #f44336;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;">
                 <div style="flex:1;">
-                    <strong>${e.expense.category}</strong>
+                    <strong>${expense.category || 'Uncategorized'}</strong>
                     <div style="font-size:12px;color:#666;margin-top:3px;">
-                        Amount: <strong style="color:#f44336;">₱${e.expense.amount.toFixed(2)}</strong>
-                        ${e.expense.description ? ` | ${e.expense.description}` : ''}
+                        Amount: <strong style="color:#f44336;">₱${(expense.amount || 0).toFixed(2)}</strong>
+                        ${expense.description ? ` | ${expense.description}` : ''}
                     </div>
                     <div style="font-size:11px;color:#999;margin-top:2px;">
-                        Recorded by: ${e.expense.recordedBy}
+                        Recorded by: ${expense.recordedBy || 'N/A'}
                     </div>
                 </div>
-                <button onclick="adminDeleteExpense('${e.expenseId}')" 
+                <button onclick="adminDeleteExpense('${e.expenseId || e.id}')" 
                         class="btn btn-danger" 
                         style="padding:4px 10px;font-size:12px;">
                     🗑️ Delete
                 </button>
             </div>
         </div>
-    `).join('') : '<p style="color:#999;font-size:13px;">No expenses today</p>';
+        `;
+    }).join('') : '<p style="color:#999;font-size:13px;">No expenses today</p>';
 
     return `
         <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #2196f3;">
