@@ -231,26 +231,26 @@ const utils = {
      * @param {Date} endDate - Period end
      * @returns {object} Commission breakdown {total, cash, gcash}
      */
-    calculateCommissionForPeriod: function(repairs, techId, startDate, endDate) {
+    calculateCommissionForPeriod: function (repairs, techId, startDate, endDate) {
         let cashCommission = 0;
         let gcashCommission = 0;
-        
+
         repairs.forEach(r => {
             if (r.acceptedBy !== techId || !r.payments) return;
-            
+
             r.payments.forEach(payment => {
                 if (!payment.verified) return;
-                
+
                 const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                 if (paymentDate < startDate || paymentDate > endDate) return;
-                
+
                 // Calculate commission based on payment - parts cost
                 const repairPartsCost = r.partsCost || 0;
                 const paymentShare = payment.amount;
                 const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
                 const netAmount = Math.max(0, paymentShare - partsCostShare);
                 const commission = netAmount * 0.40; // Tech gets 40%
-                
+
                 if (payment.method === 'GCash') {
                     gcashCommission += commission;
                 } else {
@@ -258,7 +258,7 @@ const utils = {
                 }
             });
         });
-        
+
         return {
             total: cashCommission + gcashCommission,
             cash: cashCommission,
@@ -358,8 +358,11 @@ const utils = {
                 (r.status === 'In Progress' || r.status === 'Waiting for Parts')
             ).length;
 
+            // Completed today = Ready for Pickup + Released (not yet Claimed)
             stats.myCompletedToday = activeRepairs.filter(r => {
-                if (r.acceptedBy !== currentUserId || !r.completedAt) return false;
+                if (r.acceptedBy !== currentUserId) return false;
+                if (r.status !== 'Ready for Pickup' && r.status !== 'Released') return false;
+                if (!r.completedAt) return false;
                 const completedDate = new Date(r.completedAt);
                 return completedDate >= today;
             }).length;
@@ -368,10 +371,10 @@ const utils = {
                 r.acceptedBy === currentUserId && r.status === 'Ready for Pickup'
             ).length;
 
-            // Count Released and Claimed devices by this tech
+            // Count only Claimed devices by this tech (fully finalized)
             stats.myClaimedCount = activeRepairs.filter(r =>
                 r.acceptedBy === currentUserId &&
-                (r.status === 'Released' || r.status === 'Claimed') &&
+                r.status === 'Claimed' &&
                 !r.deleted
             ).length;
 
@@ -379,26 +382,26 @@ const utils = {
             // Includes both cash (in remittances) and GCash (reported)
             const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
             const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-            
+
             let cashCommission = 0;
             let gcashCommission = 0;
-            
+
             activeRepairs.forEach(r => {
                 if (r.acceptedBy !== currentUserId || !r.payments) return;
-                
+
                 r.payments.forEach(payment => {
                     if (!payment.verified) return;
-                    
+
                     const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                     if (paymentDate < monthStart || paymentDate > monthEnd) return;
-                    
+
                     // Calculate commission based on payment - parts cost
                     const repairPartsCost = r.partsCost || 0;
                     const paymentShare = payment.amount;
                     const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
                     const netAmount = Math.max(0, paymentShare - partsCostShare);
                     const commission = netAmount * 0.40; // Tech gets 40%
-                    
+
                     if (payment.method === 'GCash') {
                         gcashCommission += commission;
                     } else {
@@ -406,7 +409,7 @@ const utils = {
                     }
                 });
             });
-            
+
             stats.myCommissionThisMonth = cashCommission + gcashCommission;
             stats.myCashCommission = cashCommission;
             stats.myGCashCommission = gcashCommission;
@@ -414,7 +417,7 @@ const utils = {
             // Calculate daily and weekly commission as well
             const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-            
+
             // Get start of week (Sunday)
             const weekStart = new Date(now);
             weekStart.setDate(now.getDate() - now.getDay());
@@ -422,13 +425,13 @@ const utils = {
             const weekEnd = new Date(weekStart);
             weekEnd.setDate(weekStart.getDate() + 6);
             weekEnd.setHours(23, 59, 59);
-            
+
             // Calculate daily commission
             const dailyComm = this.calculateCommissionForPeriod(activeRepairs, currentUserId, todayStart, todayEnd);
             stats.myCommissionToday = dailyComm.total;
             stats.myCashCommissionToday = dailyComm.cash;
             stats.myGCashCommissionToday = dailyComm.gcash;
-            
+
             // Calculate weekly commission
             const weeklyComm = this.calculateCommissionForPeriod(activeRepairs, currentUserId, weekStart, weekEnd);
             stats.myCommissionThisWeek = weeklyComm.total;
@@ -479,20 +482,20 @@ const utils = {
             // Daily revenue (shop's 60% share after 40% tech commission and parts cost)
             let todayCashRevenue = 0;
             let todayGCashRevenue = 0;
-            
+
             activeRepairs.forEach(r => {
                 const verifiedPayments = (r.payments || []).filter(p => {
                     if (!p.verified) return false;
                     const payDate = new Date(p.recordedDate || p.paymentDate);
                     return payDate >= today;
                 });
-                
+
                 verifiedPayments.forEach(p => {
                     const repairPartsCost = r.partsCost || 0;
                     const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
                     const netAmount = Math.max(0, p.amount - partsCostShare);
                     const shopShare = netAmount * 0.60; // Shop gets 60%
-                    
+
                     if (p.method === 'GCash') {
                         todayGCashRevenue += shopShare;
                     } else {
@@ -500,7 +503,7 @@ const utils = {
                     }
                 });
             });
-            
+
             stats.revenueToday = todayCashRevenue + todayGCashRevenue;
             stats.todayCashRevenue = todayCashRevenue;
             stats.todayGCashRevenue = todayGCashRevenue;
@@ -549,14 +552,14 @@ const utils = {
      */
     createStatCard: function (label, value, subtext, gradient, clickAction, icon = '', dateFilter = null) {
         let clickHandler = '';
-        
+
         if (typeof clickAction === 'function') {
             clickHandler = `onclick="${clickAction.name}()" style="cursor:pointer;"`;
         } else if (typeof clickAction === 'string' && clickAction) {
             // Check if it's a known function name (starts with lowercase and has specific patterns)
             const knownFunctions = ['toggleCommissionPeriod', 'openAdminToolsDataHealth'];
             const isFunctionName = knownFunctions.includes(clickAction);
-            
+
             if (isFunctionName) {
                 // It's a function name
                 clickHandler = `onclick="${clickAction}()" style="cursor:pointer;"`;

@@ -26,9 +26,9 @@ function buildTechnicianDashboard(userName, stats) {
                 ${utils.createStatCard(
         'Completed Today',
         stats.myCompletedToday,
-        'Finished repairs today',
+        'Ready for pickup',
         'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-        'myclaimed',
+        'mycompleted',
         '✅',
         'today'  // Pass date filter - shows only today's completions
     )}
@@ -43,10 +43,10 @@ function buildTechnicianDashboard(userName, stats) {
                 ${utils.createStatCard(
         'My Claimed Devices',
         stats.myClaimedCount || 0,
-        'Successfully completed',
-        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+        'Finalized & picked up',
+        'linear-gradient(135deg, #94d82d 0%, #5f9ea0 100%)',
         'myclaimed',
-        '✅'
+        '🎉'
     )}
                 ${utils.createStatCard(
         'Commission Today',

@@ -126,7 +126,8 @@ function buildTabs() {
         sections.operations.tabs.push(
             { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
             { id: 'my', label: 'My Jobs', icon: '🔧', build: buildMyRepairsTab },
-            { id: 'myclaimed', label: 'My Claimed', icon: '✅', build: buildMyClaimedDevicesTab },
+            { id: 'mycompleted', label: 'My Completed', icon: '✅', build: buildMyCompletedDevicesTab },
+            { id: 'myclaimed', label: 'My Claimed', icon: '🎉', build: buildMyClaimedDevicesTab },
             { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
             { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
             { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
@@ -371,7 +372,7 @@ function switchTab(tabId, dateFilter = null) {
     }
 
     // Store or clear date filter for specific tabs
-    if (tabId === 'myclaimed') {
+    if (tabId === 'myclaimed' || tabId === 'mycompleted') {
         window.currentDateFilter = dateFilter || null;  // Explicitly clear if no filter provided
     } else {
         // Clear date filter when switching to other tabs
@@ -2878,34 +2879,39 @@ function buildMyRepairsTab(container) {
 }
 
 /**
- * Build My Claimed Devices Tab (Technician Only)
- * Shows Released + Claimed devices repaired by this technician
+ * Build My Completed Devices Tab (Technician Only)
+ * Shows Ready for Pickup + Released devices (not yet Claimed)
  */
-function buildMyClaimedDevicesTab(container) {
+function buildMyCompletedDevicesTab(container) {
     const dateFilter = window.currentDateFilter || null;
-    console.log('✅ Building My Claimed Devices tab', dateFilter ? `(Filter: ${dateFilter})` : '');
-    window.currentTabRefresh = () => buildMyClaimedDevicesTab(document.getElementById('myclaimedTab'));
+    console.log('✅ Building My Completed Devices tab', dateFilter ? `(Filter: ${dateFilter})` : '');
+    window.currentTabRefresh = () => buildMyCompletedDevicesTab(document.getElementById('mycompletedTab'));
 
     const techId = window.currentUser.uid;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Filter: Devices where this tech did the repair
-    const myReleasedDevices = window.allRepairs.filter(r =>
+    // Filter: Devices where this tech did the repair - Ready for Pickup + Released
+    let myReadyDevices = window.allRepairs.filter(r =>
+        r.acceptedBy === techId &&
+        r.status === 'Ready for Pickup' &&
+        !r.deleted
+    );
+
+    let myReleasedDevices = window.allRepairs.filter(r =>
         r.acceptedBy === techId &&
         r.status === 'Released' &&
         !r.deleted
     );
 
-    let myClaimedDevices = window.allRepairs.filter(r =>
-        r.acceptedBy === techId &&
-        r.status === 'Claimed' &&
-        !r.deleted
-    );
-
     // Apply date filter if specified
     if (dateFilter === 'today') {
-        myClaimedDevices = myClaimedDevices.filter(r => {
+        myReadyDevices = myReadyDevices.filter(r => {
+            if (!r.completedAt) return false;
+            const completedDate = new Date(r.completedAt);
+            return completedDate >= today;
+        });
+        myReleasedDevices = myReleasedDevices.filter(r => {
             if (!r.completedAt) return false;
             const completedDate = new Date(r.completedAt);
             return completedDate >= today;
@@ -2913,31 +2919,49 @@ function buildMyClaimedDevicesTab(container) {
     }
 
     // Sort by most recent first
+    myReadyDevices.sort((a, b) => new Date(b.completedAt || b.recordedDate) - new Date(a.completedAt || a.recordedDate));
     myReleasedDevices.sort((a, b) => new Date(b.releasedAt || b.releaseDate) - new Date(a.releasedAt || a.releaseDate));
-    myClaimedDevices.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
+
+    const totalCompleted = myReadyDevices.length + myReleasedDevices.length;
 
     container.innerHTML = `
         <div class="card">
             <div class="card-header">
-                <h2 style="margin:0;">✅ My Claimed Devices</h2>
+                <h2 style="margin:0;">✅ My Completed Devices</h2>
                 <p style="margin:5px 0 0;color:var(--text-secondary);">
-                    Devices I successfully repaired - Released and Claimed
+                    Repairs I finished - Ready for pickup and recently released
                 </p>
                 ${dateFilter === 'today' ? `
                     <div style="margin-top:15px;padding:12px;background:#e3f2fd;border-radius:8px;border-left:4px solid #2196f3;display:flex;justify-content:space-between;align-items:center;">
                         <span><strong>📅 Showing:</strong> Completed Today</span>
-                        <button onclick="switchTab('myclaimed')" class="btn btn-secondary" style="padding:6px 12px;font-size:13px;">
-                            📋 Show All Devices
+                        <button onclick="switchTab('mycompleted')" class="btn btn-secondary" style="padding:6px 12px;font-size:13px;">
+                            📋 Show All Completed
                         </button>
                     </div>
                 ` : ''}
             </div>
 
+            <!-- Ready for Pickup Section -->
+            ${myReadyDevices.length > 0 ? `
+                <div style="margin-bottom:30px;">
+                    <h3 style="margin:20px 0 15px;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
+                        <span>📦 Ready for Pickup</span>
+                        <span style="background:#2196f3;color:white;padding:4px 12px;border-radius:12px;font-size:14px;font-weight:bold;">
+                            ${myReadyDevices.length}
+                        </span>
+                    </h3>
+                    <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #2196f3;">
+                        <strong>📱 Status:</strong> Repair completed, waiting for customer to pick up
+                    </div>
+                    <div id="myReadyDevicesList"></div>
+                </div>
+            ` : ''}
+
             <!-- Released - Awaiting Finalization Section -->
             ${myReleasedDevices.length > 0 ? `
                 <div style="margin-bottom:30px;">
                     <h3 style="margin:20px 0 15px;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
-                        <span>📦 Released - Awaiting Finalization</span>
+                        <span>⚡ Released - Awaiting Finalization</span>
                         <span style="background:#ff9800;color:white;padding:4px 12px;border-radius:12px;font-size:14px;font-weight:bold;">
                             ${myReleasedDevices.length}
                         </span>
@@ -2950,38 +2974,111 @@ function buildMyClaimedDevicesTab(container) {
                 </div>
             ` : ''}
 
+            ${totalCompleted === 0 ? `
+                <div class="empty-state">
+                    <div style="font-size:48px;margin-bottom:10px;">✅</div>
+                    <p>No completed devices${dateFilter === 'today' ? ' today' : ''}</p>
+                    <p style="color:var(--text-secondary);font-size:14px;">
+                        Devices appear here when repair is finished
+                    </p>
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    // Render lists after DOM update
+    setTimeout(() => {
+        if (myReadyDevices.length > 0) {
+            const readyListContainer = document.getElementById('myReadyDevicesList');
+            displayGroupedRepairsList(myReadyDevices, readyListContainer, 'forrelease', 'completedAt');
+        }
+        if (myReleasedDevices.length > 0) {
+            const releasedListContainer = document.getElementById('myReleasedDevicesList');
+            displayGroupedRepairsList(myReleasedDevices, releasedListContainer, 'released', 'releasedAt');
+        }
+    }, 0);
+}
+
+/**
+ * Build My Claimed Devices Tab (Technician Only)
+ * Shows ONLY Claimed devices (fully finalized and picked up)
+ */
+function buildMyClaimedDevicesTab(container) {
+    const dateFilter = window.currentDateFilter || null;
+    console.log('🎉 Building My Claimed Devices tab', dateFilter ? `(Filter: ${dateFilter})` : '');
+    window.currentTabRefresh = () => buildMyClaimedDevicesTab(document.getElementById('myclaimedTab'));
+
+    const techId = window.currentUser.uid;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Filter: Only Claimed devices (fully finalized)
+    let myClaimedDevices = window.allRepairs.filter(r =>
+        r.acceptedBy === techId &&
+        r.status === 'Claimed' &&
+        !r.deleted
+    );
+
+    // Apply date filter if specified
+    if (dateFilter === 'today') {
+        myClaimedDevices = myClaimedDevices.filter(r => {
+            if (!r.claimedAt) return false;
+            const claimedDate = new Date(r.claimedAt);
+            return claimedDate >= today;
+        });
+    }
+
+    // Sort by most recent first
+    myClaimedDevices.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
+
+    container.innerHTML = `
+        <div class="card">
+            <div class="card-header">
+                <h2 style="margin:0;">🎉 My Claimed Devices</h2>
+                <p style="margin:5px 0 0;color:var(--text-secondary);">
+                    Devices I repaired that were finalized and picked up by customers
+                </p>
+                ${dateFilter === 'today' ? `
+                    <div style="margin-top:15px;padding:12px;background:#e3f2fd;border-radius:8px;border-left:4px solid #2196f3;display:flex;justify-content:space-between;align-items:center;">
+                        <span><strong>📅 Showing:</strong> Claimed Today</span>
+                        <button onclick="switchTab('myclaimed')" class="btn btn-secondary" style="padding:6px 12px;font-size:13px;">
+                            📋 Show All Claimed Devices
+                        </button>
+                    </div>
+                ` : ''}
+            </div>
+
             <!-- Claimed Devices Section -->
             <div>
                 <h3 style="margin:20px 0 15px;color:var(--text-primary);display:flex;align-items:center;gap:10px;">
-                    <span>✅ Claimed - Completed Repairs</span>
+                    <span>🎉 Fully Finalized Repairs</span>
                     <span style="background:#4caf50;color:white;padding:4px 12px;border-radius:12px;font-size:14px;font-weight:bold;">
                         ${myClaimedDevices.length}
                     </span>
                 </h3>
                 ${myClaimedDevices.length === 0 ? `
                     <div class="empty-state">
-                        <div style="font-size:48px;margin-bottom:10px;">✅</div>
-                        <p>No claimed devices yet</p>
+                        <div style="font-size:48px;margin-bottom:10px;">🎉</div>
+                        <p>No claimed devices${dateFilter === 'today' ? ' today' : ' yet'}</p>
                         <p style="color:var(--text-secondary);font-size:14px;">
                             Devices appear here after they are released and finalized
                         </p>
                     </div>
                 ` : `
+                    <div style="background:#e8f5e9;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                        <strong>✅ Status:</strong> These repairs are fully completed, paid, and customer has picked up the device.
+                    </div>
                     <div id="myClaimedDevicesList"></div>
                 `}
             </div>
         </div>
     `;
 
-    // Render lists after DOM update
+    // Render list after DOM update
     setTimeout(() => {
-        if (myReleasedDevices.length > 0) {
-            const releasedListContainer = document.getElementById('myReleasedDevicesList');
-            displayGroupedRepairsList(myReleasedDevices, releasedListContainer, 'released', 'releasedAt');
-        }
         if (myClaimedDevices.length > 0) {
             const claimedListContainer = document.getElementById('myClaimedDevicesList');
-            displayGroupedRepairsList(myClaimedDevices, claimedListContainer, 'claimed', 'completedAt');
+            displayGroupedRepairsList(myClaimedDevices, claimedListContainer, 'claimed', 'claimedAt');
         }
     }, 0);
 }
@@ -4850,6 +4947,7 @@ window.buildAllRepairsTab = buildAllRepairsTab;
 window.filterAllRepairs = filterAllRepairs;
 window.buildMyRepairsTab = buildMyRepairsTab;
 window.buildMyClaimedDevicesTab = buildMyClaimedDevicesTab;
+window.buildMyCompletedDevicesTab = buildMyCompletedDevicesTab;
 window.buildPendingTab = buildPendingTab;
 window.buildCashCountTab = buildCashCountTab;
 window.updateCashCountDate = updateCashCountDate;
