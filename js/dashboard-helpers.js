@@ -76,16 +76,7 @@ function buildTechnicianDashboard(userName, stats) {
             <!-- Recent Activity -->
             <div style="margin-top:30px;">
                 <h3 style="margin-bottom:15px;color:var(--text-primary);">📋 My Recent Activity</h3>
-                ${recentActivities.length === 0 ? `
-                    <div class="empty-state">
-                        <div style="font-size:48px;margin-bottom:10px;">🔧</div>
-                        <p>No recent activity. Ready to start a new repair?</p>
-                    </div>
-                ` : `
-                    <div class="activity-feed">
-                        ${recentActivities.map(activity => renderActivityItem(activity)).join('')}
-                    </div>
-                `}
+                ${renderGroupedActivities(recentActivities)}
             </div>
         </div>
     `;
@@ -485,6 +476,9 @@ function getRecentActivities(limit = 10) {
 /**
  * Get recent activities for specific user
  */
+/**
+ * Get recent activities for a specific user
+ */
 function getRecentActivitiesForUser(userId, limit = 10) {
     const activities = [];
     const repairs = window.allRepairs || [];
@@ -533,6 +527,118 @@ function getRecentActivitiesForUser(userId, limit = 10) {
 
     activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
     return activities.slice(0, limit);
+}
+
+/**
+ * Render grouped recent activities by type, then by date
+ */
+function renderGroupedActivities(activities) {
+    if (activities.length === 0) {
+        return `
+            <div class="empty-state">
+                <div style="font-size:48px;margin-bottom:10px;">🔧</div>
+                <p>No recent activity. Ready to start a new repair?</p>
+            </div>
+        `;
+    }
+
+    // Group activities by type first
+    const groupedByType = {
+        'repair_created': { label: 'Received', icon: '➕', color: '#667eea', activities: [] },
+        'repair_accepted': { label: 'Accepted', icon: '✅', color: '#51cf66', activities: [] },
+        'repair_completed': { label: 'Completed', icon: '🎉', color: '#4facfe', activities: [] },
+        'payment_recorded': { label: 'Payments', icon: '💰', color: '#ffd93d', activities: [] }
+    };
+
+    activities.forEach(activity => {
+        if (groupedByType[activity.type]) {
+            groupedByType[activity.type].activities.push(activity);
+        }
+    });
+
+    // Render each activity type group
+    return Object.keys(groupedByType).map((typeKey, typeIndex) => {
+        const typeGroup = groupedByType[typeKey];
+        if (typeGroup.activities.length === 0) return '';
+
+        const typeId = `activity-type-${typeKey}`;
+
+        // Group activities within this type by date
+        const groupedByDate = {};
+        typeGroup.activities.forEach(activity => {
+            const dateKey = window.utils.formatDate(activity.timestamp);
+            if (!groupedByDate[dateKey]) {
+                groupedByDate[dateKey] = [];
+            }
+            groupedByDate[dateKey].push(activity);
+        });
+
+        const todayDateString = window.utils.formatDate(new Date());
+        const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+            const dateA = new Date(groupedByDate[a][0].timestamp);
+            const dateB = new Date(groupedByDate[b][0].timestamp);
+            return dateB - dateA;
+        });
+
+        // Render type group
+        return `
+            <div class="activity-type-group" style="margin-bottom:25px;">
+                <!-- Type Header -->
+                <div class="activity-type-header" 
+                     onclick="toggleActivityTypeGroup('${typeId}')"
+                     style="background:linear-gradient(135deg, ${typeGroup.color} 0%, ${typeGroup.color}dd 100%);color:white;padding:15px 20px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;box-shadow:0 4px 12px ${typeGroup.color}40;">
+                    <div style="display:flex;align-items:center;gap:12px;">
+                        <span style="font-size:24px;">${typeGroup.icon}</span>
+                        <strong style="font-size:16px;">${typeGroup.label}</strong>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="background:rgba(255,255,255,0.25);padding:6px 14px;border-radius:15px;font-size:14px;font-weight:600;">
+                            ${typeGroup.activities.length} ${typeGroup.activities.length === 1 ? 'item' : 'items'}
+                        </span>
+                        <span class="activity-type-toggle-icon" style="font-size:18px;transition:transform 0.3s;">
+                            ${typeIndex === 0 ? '▼' : '▶'}
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Date Groups within Type -->
+                <div class="activity-type-items" id="${typeId}" style="padding-left:15px;display:${typeIndex === 0 ? 'block' : 'none'};">
+                    ${sortedDates.map((dateKey, dateIndex) => {
+                        const activitiesInDate = groupedByDate[dateKey];
+                        const isToday = dateKey === todayDateString;
+                        const groupId = `${typeId}-date-${dateKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
+                        const daysAgoText = window.utils.daysAgo(activitiesInDate[0].timestamp);
+
+                        return `
+                            <div class="activity-date-group" style="margin-bottom:15px;">
+                                <div class="activity-date-header" 
+                                     onclick="toggleActivityGroup('${groupId}')"
+                                     style="background:#f8f9fa;border-left:4px solid ${typeGroup.color};padding:10px 15px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;">
+                                    <div>
+                                        <strong style="font-size:14px;color:#333;">${dateKey}${isToday ? ' <span style="background:' + typeGroup.color + '20;color:' + typeGroup.color + ';padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">Today</span>' : ''}</strong>
+                                        <span style="font-size:12px;color:#666;margin-left:10px;">${daysAgoText}</span>
+                                    </div>
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <span style="background:${typeGroup.color}20;color:${typeGroup.color};padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;">
+                                            ${activitiesInDate.length}
+                                        </span>
+                                        <span class="activity-toggle-icon" style="font-size:16px;transition:transform 0.3s;color:#666;">
+                                            ${isToday && dateIndex === 0 ? '▼' : '▶'}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="activity-date-items" id="${groupId}" style="display:${isToday && dateIndex === 0 ? 'block' : 'none'};">
+                                    <div class="activity-feed" style="padding-left:10px;">
+                                        ${activitiesInDate.map(activity => renderActivityItem(activity)).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }).filter(html => html).join('');
 }
 
 /**
@@ -707,6 +813,44 @@ function openAdminToolsDataHealth() {
 }
 
 /**
+ * Toggle activity type group visibility
+ */
+function toggleActivityTypeGroup(groupId) {
+    const itemsDiv = document.getElementById(groupId);
+    const header = document.querySelector(`[onclick="toggleActivityTypeGroup('${groupId}')"]`);
+    
+    if (itemsDiv && header) {
+        const isHidden = itemsDiv.style.display === 'none';
+        itemsDiv.style.display = isHidden ? 'block' : 'none';
+        
+        // Update arrow icon
+        const icon = header.querySelector('.activity-type-toggle-icon');
+        if (icon) {
+            icon.textContent = isHidden ? '▼' : '▶';
+        }
+    }
+}
+
+/**
+ * Toggle activity group visibility (date groups within type)
+ */
+function toggleActivityGroup(groupId) {
+    const itemsDiv = document.getElementById(groupId);
+    const header = document.querySelector(`[onclick="toggleActivityGroup('${groupId}')"]`);
+    
+    if (itemsDiv && header) {
+        const isHidden = itemsDiv.style.display === 'none';
+        itemsDiv.style.display = isHidden ? 'block' : 'none';
+        
+        // Update arrow icon
+        const icon = header.querySelector('.activity-toggle-icon');
+        if (icon) {
+            icon.textContent = isHidden ? '▼' : '▶';
+        }
+    }
+}
+
+/**
  * Toggle commission period (daily -> weekly -> monthly -> daily)
  */
 function toggleCommissionPeriod() {
@@ -762,6 +906,9 @@ window.buildAdminDashboard = buildAdminDashboard;
 window.getRecentActivities = getRecentActivities;
 window.getRecentActivitiesForUser = getRecentActivitiesForUser;
 window.renderActivityItem = renderActivityItem;
+window.renderGroupedActivities = renderGroupedActivities;
+window.toggleActivityTypeGroup = toggleActivityTypeGroup;
+window.toggleActivityGroup = toggleActivityGroup;
 
 // Export data health functions
 window.buildDataHealthWidget = buildDataHealthWidget;
