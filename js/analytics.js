@@ -1034,8 +1034,18 @@ function calculateRepairProfit(repair, startDate, endDate) {
     // Parts cost
     const partsCost = repair.partsCost || 0;
 
-    // Tech commission (40% of net)
-    const commission = repair.commissionAmount || 0;
+    // Tech commission - recalculate based on current role
+    let commission = 0;
+    const techId = repair.acceptedBy || repair.technicianId;
+    if (techId && window.allUsers && window.allUsers[techId]) {
+        const techUser = window.allUsers[techId];
+        const commissionRate = (techUser.role === 'admin' || techUser.role === 'manager') ? 0.60 : 0.40;
+        const netAmount = revenue - partsCost;
+        commission = netAmount * commissionRate;
+    } else if (repair.commissionAmount) {
+        // Fallback to stored commission if tech not found
+        commission = repair.commissionAmount;
+    }
 
     // Gross profit before overhead
     const grossProfit = revenue - partsCost - commission;

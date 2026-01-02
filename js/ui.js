@@ -7386,7 +7386,7 @@ function updateExportSchedule() {
 // ===== PROFIT DASHBOARD TAB =====
 function buildProfitDashboardTab(container) {
     console.log('💰 Building Profit Dashboard tab');
-    window.currentTabRefresh = () => buildProfitDashboardTab(document.getElementById('profit-dashboardTab'));
+    window.currentTabRefresh = () => buildProfitDashboardTab(container);
 
     // Get date range (default: last 30 days)
     const endDate = new Date();
