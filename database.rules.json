@@ -66,6 +66,10 @@
     "dailyCashCounts": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "stockMovements": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }
