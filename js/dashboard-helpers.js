@@ -222,10 +222,10 @@ function buildManagerDashboard(userName, stats) {
                 ${utils.createStatCard(
         'Released Today',
         stats.released,
-        'Given to customers',
+        'Awaiting finalization',
         'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        'claimed',
-        '✅'
+        'forrelease',
+        '⚡'
     )}
                 ${utils.createStatCard(
         'In Progress',
@@ -332,10 +332,10 @@ function buildAdminDashboard(userName, stats) {
                 ${utils.createStatCard(
         'Released Today',
         stats.released,
-        'Given to customers',
+        'Awaiting finalization',
         'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        'claimed',
-        '✅'
+        'forrelease',
+        '⚡'
     )}
                 ${utils.createStatCard(
         'All Devices',
