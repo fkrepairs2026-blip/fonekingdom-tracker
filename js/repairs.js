@@ -1078,19 +1078,6 @@ function openPaymentModal(repairId) {
             canRefund: canRefund,
             shouldShowRefund: p.verified && !p.refunded && canRefund
         });
-                advanceIcon = '💰';
-                advanceColor = '#ff9800';
-                advanceLabel = 'ADVANCE (Pending)';
-            } else if (p.advanceStatus === 'applied') {
-                advanceIcon = '✅';
-                advanceColor = '#4caf50';
-                advanceLabel = 'ADVANCE (Applied)';
-            } else if (p.advanceStatus === 'refunded') {
-                advanceIcon = '↩️';
-                advanceColor = '#2196f3';
-                advanceLabel = 'ADVANCE (Refunded)';
-            }
-        }
 
         return `
                         <div class="${p.verified ? 'alert-success-compact' : 'alert-warning-compact'}">
