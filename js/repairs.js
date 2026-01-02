@@ -12196,6 +12196,417 @@ async function getCleanupHistory(limit = 20) {
     }
 }
 
+// ===== OVERHEAD EXPENSE MANAGEMENT =====
+
+// Global overhead expenses array
+window.overheadExpenses = [];
+
+/**
+ * Load overhead expenses from Firebase
+ */
+async function loadOverheadExpenses() {
+    try {
+        console.log('📦 Loading overhead expenses...');
+        
+        db.ref('overheadExpenses').on('value', (snapshot) => {
+            const expenses = [];
+            snapshot.forEach(child => {
+                expenses.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            window.overheadExpenses = expenses;
+            console.log(`✅ Loaded ${expenses.length} overhead expenses`);
+            
+            // Trigger refresh if on relevant tab
+            if (window.currentTabRefresh) {
+                setTimeout(() => window.currentTabRefresh(), 400);
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error loading overhead expenses:', error);
+    }
+}
+
+/**
+ * Add overhead expense
+ * @param {Object} expense - Expense data
+ */
+async function addOverheadExpense(expense) {
+    if (!window.currentUserData || !['admin', 'manager'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only administrators and managers can add overhead expenses');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const expenseData = {
+            category: expense.category,
+            description: expense.description,
+            amount: parseFloat(expense.amount),
+            date: expense.date || new Date().toISOString(),
+            isRecurring: expense.isRecurring || false,
+            recurringFrequency: expense.recurringFrequency || null, // 'monthly', 'quarterly', 'yearly'
+            notes: expense.notes || '',
+            createdBy: window.currentUserData.displayName,
+            createdById: window.currentUser.uid,
+            createdAt: new Date().toISOString()
+        };
+        
+        const newRef = await db.ref('overheadExpenses').push(expenseData);
+        
+        // Log activity
+        await logActivity('overhead_expense_added', {
+            expenseId: newRef.key,
+            category: expenseData.category,
+            amount: expenseData.amount
+        });
+        
+        utils.showLoading(false);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `✅ Overhead expense added: ₱${expenseData.amount.toLocaleString()}`,
+                'success',
+                3000
+            );
+        }
+        
+        return { success: true, expenseId: newRef.key };
+        
+    } catch (error) {
+        console.error('❌ Error adding overhead expense:', error);
+        utils.showLoading(false);
+        alert(`Error adding overhead expense: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Update overhead expense
+ */
+async function updateOverheadExpense(expenseId, updates) {
+    if (!window.currentUserData || !['admin', 'manager'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only administrators and managers can update overhead expenses');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        updates.lastUpdatedBy = window.currentUserData.displayName;
+        updates.lastUpdatedAt = new Date().toISOString();
+        
+        await db.ref(`overheadExpenses/${expenseId}`).update(updates);
+        
+        await logActivity('overhead_expense_updated', {
+            expenseId: expenseId,
+            updates: updates
+        });
+        
+        utils.showLoading(false);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast('✅ Overhead expense updated', 'success', 3000);
+        }
+        
+        return { success: true };
+        
+    } catch (error) {
+        console.error('❌ Error updating overhead expense:', error);
+        utils.showLoading(false);
+        alert(`Error updating overhead expense: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Delete overhead expense
+ */
+async function deleteOverheadExpense(expenseId) {
+    if (!window.currentUserData || window.currentUserData.role !== 'admin') {
+        alert('⚠️ Only administrators can delete overhead expenses');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const expense = window.overheadExpenses.find(e => e.id === expenseId);
+        
+        // Soft delete (backup to deletedOverheadExpenses)
+        await db.ref(`deletedOverheadExpenses/${expenseId}`).set({
+            ...expense,
+            deletedBy: window.currentUserData.displayName,
+            deletedAt: new Date().toISOString()
+        });
+        
+        await db.ref(`overheadExpenses/${expenseId}`).remove();
+        
+        await logActivity('overhead_expense_deleted', {
+            expenseId: expenseId,
+            category: expense.category,
+            amount: expense.amount
+        });
+        
+        utils.showLoading(false);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast('✅ Overhead expense deleted', 'success', 3000);
+        }
+        
+        return { success: true };
+        
+    } catch (error) {
+        console.error('❌ Error deleting overhead expense:', error);
+        utils.showLoading(false);
+        alert(`Error deleting overhead expense: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Calculate total overhead for a period
+ */
+function calculateOverheadForPeriod(startDate, endDate) {
+    if (!window.overheadExpenses) return 0;
+    
+    return window.overheadExpenses.reduce((total, expense) => {
+        const expenseDate = new Date(expense.date);
+        if (expenseDate >= startDate && expenseDate <= endDate) {
+            return total + expense.amount;
+        }
+        return total;
+    }, 0);
+}
+
+// ===== SUPPLIER PAYABLES MANAGEMENT =====
+
+// Global supplier purchases array
+window.supplierPurchases = [];
+
+/**
+ * Load supplier purchases from Firebase
+ */
+async function loadSupplierPurchases() {
+    try {
+        console.log('📦 Loading supplier purchases...');
+        
+        db.ref('supplierPurchases').on('value', (snapshot) => {
+            const purchases = [];
+            snapshot.forEach(child => {
+                purchases.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            window.supplierPurchases = purchases;
+            console.log(`✅ Loaded ${purchases.length} supplier purchases`);
+            
+            // Trigger refresh if on relevant tab
+            if (window.currentTabRefresh) {
+                setTimeout(() => window.currentTabRefresh(), 400);
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error loading supplier purchases:', error);
+    }
+}
+
+/**
+ * Add supplier purchase
+ */
+async function addSupplierPurchase(purchase) {
+    if (!window.currentUserData || !['admin', 'manager', 'technician'].includes(window.currentUserData.role)) {
+        alert('⚠️ You do not have permission to add supplier purchases');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const purchaseData = {
+            supplierId: purchase.supplierId,
+            supplierName: purchase.supplierName,
+            description: purchase.description,
+            totalAmount: parseFloat(purchase.totalAmount),
+            amountPaid: parseFloat(purchase.amountPaid || 0),
+            amountDue: parseFloat(purchase.totalAmount) - parseFloat(purchase.amountPaid || 0),
+            purchaseDate: purchase.purchaseDate || new Date().toISOString(),
+            dueDate: purchase.dueDate || null,
+            paymentStatus: purchase.amountPaid >= purchase.totalAmount ? 'paid' : 
+                          purchase.amountPaid > 0 ? 'partial' : 'unpaid',
+            invoiceNumber: purchase.invoiceNumber || '',
+            notes: purchase.notes || '',
+            repairId: purchase.repairId || null, // Link to repair if applicable
+            createdBy: window.currentUserData.displayName,
+            createdById: window.currentUser.uid,
+            createdAt: new Date().toISOString(),
+            payments: []
+        };
+        
+        const newRef = await db.ref('supplierPurchases').push(purchaseData);
+        
+        // Update supplier outstanding balance
+        if (purchaseData.amountDue > 0) {
+            await updateSupplierOutstanding(purchaseData.supplierId, purchaseData.amountDue);
+        }
+        
+        // Log activity
+        await logActivity('supplier_purchase_added', {
+            purchaseId: newRef.key,
+            supplierName: purchaseData.supplierName,
+            amount: purchaseData.totalAmount
+        });
+        
+        utils.showLoading(false);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `✅ Purchase added: ₱${purchaseData.totalAmount.toLocaleString()}`,
+                'success',
+                3000
+            );
+        }
+        
+        return { success: true, purchaseId: newRef.key };
+        
+    } catch (error) {
+        console.error('❌ Error adding supplier purchase:', error);
+        utils.showLoading(false);
+        alert(`Error adding supplier purchase: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Record payment for supplier purchase
+ */
+async function recordSupplierPayment(purchaseId, payment) {
+    if (!window.currentUserData || !['admin', 'manager', 'cashier'].includes(window.currentUserData.role)) {
+        alert('⚠️ You do not have permission to record payments');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const purchase = window.supplierPurchases.find(p => p.id === purchaseId);
+        if (!purchase) {
+            throw new Error('Purchase not found');
+        }
+        
+        const paymentData = {
+            amount: parseFloat(payment.amount),
+            method: payment.method || 'Cash',
+            paymentDate: payment.paymentDate || new Date().toISOString(),
+            notes: payment.notes || '',
+            recordedBy: window.currentUserData.displayName,
+            recordedById: window.currentUser.uid,
+            recordedAt: new Date().toISOString()
+        };
+        
+        // Add payment to purchase payments array
+        const payments = purchase.payments || [];
+        payments.push(paymentData);
+        
+        const newAmountPaid = purchase.amountPaid + paymentData.amount;
+        const newAmountDue = purchase.totalAmount - newAmountPaid;
+        const newStatus = newAmountDue <= 0 ? 'paid' : 
+                         newAmountPaid > 0 ? 'partial' : 'unpaid';
+        
+        await db.ref(`supplierPurchases/${purchaseId}`).update({
+            payments: payments,
+            amountPaid: newAmountPaid,
+            amountDue: newAmountDue,
+            paymentStatus: newStatus,
+            lastPaymentDate: paymentData.paymentDate,
+            lastUpdatedBy: window.currentUserData.displayName,
+            lastUpdatedAt: new Date().toISOString()
+        });
+        
+        // Update supplier outstanding balance
+        await updateSupplierOutstanding(purchase.supplierId, -paymentData.amount);
+        
+        // Log activity
+        await logActivity('supplier_payment_recorded', {
+            purchaseId: purchaseId,
+            supplierName: purchase.supplierName,
+            amount: paymentData.amount
+        });
+        
+        utils.showLoading(false);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `✅ Payment recorded: ₱${paymentData.amount.toLocaleString()}`,
+                'success',
+                3000
+            );
+        }
+        
+        return { success: true };
+        
+    } catch (error) {
+        console.error('❌ Error recording supplier payment:', error);
+        utils.showLoading(false);
+        alert(`Error recording payment: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Update supplier outstanding balance
+ */
+async function updateSupplierOutstanding(supplierId, amountChange) {
+    try {
+        const supplierSnapshot = await db.ref(`suppliers/${supplierId}`).once('value');
+        const supplier = supplierSnapshot.val();
+        
+        if (supplier) {
+            const currentOutstanding = supplier.outstandingBalance || 0;
+            const newOutstanding = currentOutstanding + amountChange;
+            
+            await db.ref(`suppliers/${supplierId}`).update({
+                outstandingBalance: newOutstanding,
+                lastUpdatedAt: new Date().toISOString()
+            });
+        }
+    } catch (error) {
+        console.error('Error updating supplier outstanding:', error);
+    }
+}
+
+/**
+ * Get supplier outstanding balance
+ */
+function getSupplierOutstanding(supplierId) {
+    if (!window.supplierPurchases) return 0;
+    
+    return window.supplierPurchases
+        .filter(p => p.supplierId === supplierId && p.paymentStatus !== 'paid')
+        .reduce((total, p) => total + p.amountDue, 0);
+}
+
+/**
+ * Get overdue purchases
+ */
+function getOverduePurchases() {
+    if (!window.supplierPurchases) return [];
+    
+    const now = new Date();
+    return window.supplierPurchases.filter(p => {
+        if (p.paymentStatus === 'paid' || !p.dueDate) return false;
+        return new Date(p.dueDate) < now;
+    });
+}
+
 // Export functions
 window.checkAndAutoFinalizeReleased = checkAndAutoFinalizeReleased;
 window.getCountdownTo6PM = getCountdownTo6PM;
@@ -12207,6 +12618,20 @@ window.performCleanup = performCleanup;
 window.undoCleanup = undoCleanup;
 window.archiveExpiredCleanups = archiveExpiredCleanups;
 window.getCleanupHistory = getCleanupHistory;
+
+// Export overhead expense functions
+window.loadOverheadExpenses = loadOverheadExpenses;
+window.addOverheadExpense = addOverheadExpense;
+window.updateOverheadExpense = updateOverheadExpense;
+window.deleteOverheadExpense = deleteOverheadExpense;
+window.calculateOverheadForPeriod = calculateOverheadForPeriod;
+
+// Export supplier payables functions
+window.loadSupplierPurchases = loadSupplierPurchases;
+window.addSupplierPurchase = addSupplierPurchase;
+window.recordSupplierPayment = recordSupplierPayment;
+window.getSupplierOutstanding = getSupplierOutstanding;
+window.getOverduePurchases = getOverduePurchases;
 
 // Start checker when repairs are loaded
 if (window.allRepairs) {

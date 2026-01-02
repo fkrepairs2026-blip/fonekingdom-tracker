@@ -82,7 +82,15 @@ async function initializeApp() {
         await loadUsers();
         console.log('✅ Users loaded:', Object.keys(window.allUsers).length);
         
-        console.log('🔖 Building tabs...');
+        console.log('� Loading overhead expenses...');
+        await loadOverheadExpenses();
+        console.log('✅ Overhead expenses loaded:', window.overheadExpenses.length);
+        
+        console.log('📦 Loading supplier purchases...');
+        await loadSupplierPurchases();
+        console.log('✅ Supplier purchases loaded:', window.supplierPurchases.length);
+        
+        console.log('�🔖 Building tabs...');
         buildTabs();
         
         console.log('🎨 Initializing sidebars...');

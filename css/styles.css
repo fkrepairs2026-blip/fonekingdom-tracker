@@ -5364,6 +5364,121 @@ input:checked + .toggle-slider:before {
     color: #065f46;
 }
 
+/* ===== PROFIT DASHBOARD STYLES ===== */
+.stat-label {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.stat-value {
+    font-size: 28px;
+    font-weight: bold;
+    margin-bottom: 3px;
+    line-height: 1;
+}
+
+.stat-sublabel {
+    font-size: 13px;
+    opacity: 0.85;
+    margin-top: 5px;
+}
+
+/* Profit margin color indicators */
+.profit-high {
+    color: #4caf50;
+    font-weight: bold;
+}
+
+.profit-medium {
+    color: #ff9800;
+    font-weight: bold;
+}
+
+.profit-low {
+    color: #f44336;
+    font-weight: bold;
+}
+
+/* Overhead expense form */
+.overhead-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+}
+
+/* Supplier payables table enhancements */
+.payables-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.payables-table thead {
+    background: var(--bg-secondary);
+}
+
+.payables-table th,
+.payables-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.payables-table tr:hover {
+    background: var(--bg-hover);
+}
+
+/* Overdue indicator */
+.overdue-row {
+    background: #ffebee !important;
+    border-left: 4px solid #f44336;
+}
+
+/* Payment status badges */
+.status-paid {
+    background: #4caf50;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-unpaid {
+    background: #f44336;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.status-partial {
+    background: #ff9800;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+/* Profit chart placeholder */
+.profit-chart {
+    background: var(--bg-card);
+    padding: 20px;
+    border-radius: 8px;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* Responsive Toast Notifications */
 @media (max-width: 768px) {
     .toast-container {
@@ -5383,5 +5498,13 @@ input:checked + .toggle-slider:before {
     
     .export-cards-grid {
         grid-template-columns: 1fr;
+    }
+    
+    .overhead-form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-value {
+        font-size: 24px;
     }
 }

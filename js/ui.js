@@ -96,6 +96,9 @@ function buildTabs() {
         sections.inventory.tabs.push(
             { id: 'all', label: 'All Repairs', icon: '📋', build: buildAllRepairsTab },
             { id: 'historical-review', label: 'Historical Review', icon: '📅', build: buildHistoricalReviewTab },
+            { id: 'profit-dashboard', label: 'Profit Dashboard', icon: '💰', build: buildProfitDashboardTab },
+            { id: 'overhead', label: 'Overhead Expenses', icon: '💼', build: buildOverheadExpensesTab },
+            { id: 'supplier-payables', label: 'Supplier Payables', icon: '🧾', build: buildSupplierPayablesTab },
             { id: 'analytics', label: 'Analytics & Reports', icon: '📊', build: buildAnalyticsTab },
             { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
             { id: 'suppliers', label: 'Supplier Report', icon: '📊', build: buildSuppliersTab },
@@ -7378,6 +7381,960 @@ function updateExportSchedule() {
         alert('Error saving export schedule');
     }
 }
+
+// ===== PROFIT DASHBOARD TAB =====
+function buildProfitDashboardTab(container) {
+    console.log('💰 Building Profit Dashboard tab');
+    window.currentTabRefresh = () => buildProfitDashboardTab(document.getElementById('profit-dashboardTab'));
+    
+    // Get date range (default: last 30 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    const startStr = startDate.toISOString().split('T')[0];
+    const endStr = endDate.toISOString().split('T')[0];
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>💰 Profit Dashboard</h3>
+            
+            <!-- DATE RANGE SELECTOR -->
+            <div style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:20px;">
+                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+                    <div>
+                        <label>Start Date</label>
+                        <input type="date" id="profitStartDate" value="${startStr}" class="form-control">
+                    </div>
+                    <div>
+                        <label>End Date</label>
+                        <input type="date" id="profitEndDate" value="${endStr}" class="form-control">
+                    </div>
+                    <div>
+                        <button onclick="refreshProfitDashboard()" class="btn btn-primary">
+                            🔄 Refresh
+                        </button>
+                        <button onclick="exportCurrentProfitReport()" class="btn btn-success">
+                            📊 Export CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- DASHBOARD CONTENT -->
+            <div id="profitDashboardContent">
+                <div style="text-align:center;padding:40px;color:#999;">
+                    Click "Refresh" to load profit data
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function refreshProfitDashboard() {
+    const startInput = document.getElementById('profitStartDate');
+    const endInput = document.getElementById('profitEndDate');
+    
+    if (!startInput || !endInput) return;
+    
+    const startDate = new Date(startInput.value + 'T00:00:00');
+    const endDate = new Date(endInput.value + 'T23:59:59');
+    
+    utils.showLoading(true);
+    
+    setTimeout(() => {
+        const dashboard = window.getProfitDashboard(startDate, endDate);
+        const container = document.getElementById('profitDashboardContent');
+        
+        if (!container) {
+            utils.showLoading(false);
+            return;
+        }
+        
+        container.innerHTML = `
+            <!-- SUMMARY CARDS -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:25px;">
+                <div class="stat-card" style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;">
+                    <div class="stat-label">Total Revenue</div>
+                    <div class="stat-value">₱${dashboard.summary.totalRevenue.toFixed(2)}</div>
+                    <div class="stat-sublabel">${dashboard.summary.repairCount} repairs</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;">
+                    <div class="stat-label">Parts Cost</div>
+                    <div class="stat-value">₱${dashboard.summary.totalPartsCost.toFixed(2)}</div>
+                    <div class="stat-sublabel">${((dashboard.summary.totalPartsCost / dashboard.summary.totalRevenue) * 100).toFixed(1)}% of revenue</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,#fa709a 0%,#fee140 100%);color:white;">
+                    <div class="stat-label">Commission</div>
+                    <div class="stat-value">₱${dashboard.summary.totalCommission.toFixed(2)}</div>
+                    <div class="stat-sublabel">${((dashboard.summary.totalCommission / dashboard.summary.totalRevenue) * 100).toFixed(1)}% of revenue</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,#30cfd0 0%,#330867 100%);color:white;">
+                    <div class="stat-label">Overhead</div>
+                    <div class="stat-value">₱${dashboard.summary.totalOverhead.toFixed(2)}</div>
+                    <div class="stat-sublabel">₱${dashboard.overhead.perRepair.toFixed(2)} per repair</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,${dashboard.summary.totalNetProfit >= 0 ? '#11998e 0%,#38ef7d 100%' : '#eb3349 0%,#f45c43 100%'});color:white;">
+                    <div class="stat-label">Net Profit</div>
+                    <div class="stat-value">₱${dashboard.summary.totalNetProfit.toFixed(2)}</div>
+                    <div class="stat-sublabel">₱${dashboard.summary.avgProfitPerRepair.toFixed(2)} per repair</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,#a8edea 0%,#fed6e3 100%);color:#333;">
+                    <div class="stat-label">Profit Margin</div>
+                    <div class="stat-value">${dashboard.summary.avgProfitMargin.toFixed(1)}%</div>
+                    <div class="stat-sublabel">${dashboard.summary.avgProfitMargin >= 20 ? '✅ Healthy' : dashboard.summary.avgProfitMargin >= 10 ? '⚠️ Fair' : '❌ Low'}</div>
+                </div>
+            </div>
+            
+            <!-- PROFIT BY REPAIR TYPE -->
+            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
+                <h4 style="margin:0 0 15px;">📊 Profit by Repair Type</h4>
+                <div style="overflow-x:auto;">
+                    <table class="repairs-table">
+                        <thead>
+                            <tr>
+                                <th>Repair Type</th>
+                                <th>Count</th>
+                                <th>Revenue</th>
+                                <th>Net Profit</th>
+                                <th>Margin</th>
+                                <th>Avg Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(dashboard.byType.byType).map(([type, data]) => `
+                                <tr>
+                                    <td><strong>${type}</strong></td>
+                                    <td>${data.count}</td>
+                                    <td>₱${data.totalRevenue.toFixed(2)}</td>
+                                    <td style="color:${data.totalNetProfit >= 0 ? '#4caf50' : '#f44336'};font-weight:bold;">
+                                        ₱${data.totalNetProfit.toFixed(2)}
+                                    </td>
+                                    <td>
+                                        <span style="background:${data.avgProfitMargin >= 20 ? '#4caf50' : data.avgProfitMargin >= 10 ? '#ff9800' : '#f44336'};
+                                                     color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                            ${data.avgProfitMargin.toFixed(1)}%
+                                        </span>
+                                    </td>
+                                    <td>₱${data.avgProfit.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- PROFIT BY TECHNICIAN -->
+            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
+                <h4 style="margin:0 0 15px;">👨‍🔧 Profit by Technician</h4>
+                <div style="overflow-x:auto;">
+                    <table class="repairs-table">
+                        <thead>
+                            <tr>
+                                <th>Technician</th>
+                                <th>Repairs</th>
+                                <th>Revenue</th>
+                                <th>Net Profit</th>
+                                <th>Margin</th>
+                                <th>Avg Profit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(dashboard.byTechnician).map(([tech, data]) => `
+                                <tr>
+                                    <td><strong>${tech}</strong></td>
+                                    <td>${data.repairCount}</td>
+                                    <td>₱${data.totalRevenue.toFixed(2)}</td>
+                                    <td style="color:${data.totalNetProfit >= 0 ? '#4caf50' : '#f44336'};font-weight:bold;">
+                                        ₱${data.totalNetProfit.toFixed(2)}
+                                    </td>
+                                    <td>
+                                        <span style="background:${data.avgProfitMargin >= 20 ? '#4caf50' : data.avgProfitMargin >= 10 ? '#ff9800' : '#f44336'};
+                                                     color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                            ${data.avgProfitMargin.toFixed(1)}%
+                                        </span>
+                                    </td>
+                                    <td>₱${data.avgProfit.toFixed(2)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- PROFIT TRENDS -->
+            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <h4 style="margin:0 0 15px;">📈 Daily Profit Trends</h4>
+                <div style="overflow-x:auto;">
+                    <table class="repairs-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Repairs</th>
+                                <th>Revenue</th>
+                                <th>Costs</th>
+                                <th>Profit</th>
+                                <th>Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${dashboard.trends.map(trend => `
+                                <tr>
+                                    <td>${utils.formatDate(new Date(trend.period))}</td>
+                                    <td>${trend.repairCount}</td>
+                                    <td>₱${trend.totalRevenue.toFixed(2)}</td>
+                                    <td>₱${trend.totalCosts.toFixed(2)}</td>
+                                    <td style="color:${trend.totalProfit >= 0 ? '#4caf50' : '#f44336'};font-weight:bold;">
+                                        ₱${trend.totalProfit.toFixed(2)}
+                                    </td>
+                                    <td>${trend.avgProfitMargin.toFixed(1)}%</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        
+        utils.showLoading(false);
+    }, 300);
+}
+
+function exportCurrentProfitReport() {
+    const startInput = document.getElementById('profitStartDate');
+    const endInput = document.getElementById('profitEndDate');
+    
+    if (!startInput || !endInput) return;
+    
+    const startDate = new Date(startInput.value + 'T00:00:00');
+    const endDate = new Date(endInput.value + 'T23:59:59');
+    
+    window.exportProfitReport(startDate, endDate);
+    
+    if (window.utils && window.utils.showToast) {
+        window.utils.showToast('✅ Profit report exported', 'success', 2000);
+    }
+}
+
+// ===== OVERHEAD EXPENSES TAB =====
+function buildOverheadExpensesTab(container) {
+    console.log('💼 Building Overhead Expenses tab');
+    window.currentTabRefresh = () => buildOverheadExpensesTab(document.getElementById('overheadTab'));
+    
+    // Get current month expenses
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    
+    const monthExpenses = (window.overheadExpenses || []).filter(exp => {
+        const expDate = new Date(exp.date);
+        return expDate >= monthStart && expDate <= monthEnd && !exp.deleted;
+    });
+    
+    const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    
+    // Group by category
+    const byCategory = {};
+    monthExpenses.forEach(exp => {
+        if (!byCategory[exp.category]) byCategory[exp.category] = 0;
+        byCategory[exp.category] += exp.amount;
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>💼 Overhead Expenses</h3>
+            
+            <!-- ADD NEW EXPENSE -->
+            <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h4 style="margin:0 0 15px;">➕ Add New Overhead Expense</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+                    <div>
+                        <label>Category *</label>
+                        <select id="overheadCategory" class="form-control">
+                            <option value="Rent">🏢 Rent</option>
+                            <option value="Utilities">⚡ Utilities (Electric, Water)</option>
+                            <option value="Salaries">👥 Salaries</option>
+                            <option value="Equipment">🔧 Equipment</option>
+                            <option value="Marketing">📢 Marketing</option>
+                            <option value="Insurance">🛡️ Insurance</option>
+                            <option value="Supplies">📦 Supplies</option>
+                            <option value="Maintenance">🔨 Maintenance</option>
+                            <option value="Other">📝 Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Amount *</label>
+                        <input type="number" id="overheadAmount" class="form-control" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+                    <div>
+                        <label>Date *</label>
+                        <input type="date" id="overheadDate" class="form-control" value="${now.toISOString().split('T')[0]}">
+                    </div>
+                    <div>
+                        <label>Recurring</label>
+                        <select id="overheadRecurring" class="form-control">
+                            <option value="">One-time</option>
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="yearly">Yearly</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>Description</label>
+                    <textarea id="overheadDescription" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+                </div>
+                <button onclick="saveOverheadExpense()" class="btn btn-primary">
+                    ✅ Add Expense
+                </button>
+            </div>
+            
+            <!-- MONTHLY SUMMARY -->
+            <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h4 style="margin:0 0 10px;">📊 ${new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(now)} Summary</h4>
+                <div style="font-size:32px;font-weight:bold;margin-bottom:10px;">₱${monthTotal.toFixed(2)}</div>
+                <div style="font-size:14px;opacity:0.9;">${monthExpenses.length} expense(s)</div>
+                
+                ${Object.keys(byCategory).length > 0 ? `
+                    <div style="margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.3);">
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                            ${Object.entries(byCategory).map(([cat, amt]) => `
+                                <div>
+                                    <div style="font-size:12px;opacity:0.9;">${cat}</div>
+                                    <div style="font-size:18px;font-weight:bold;">₱${amt.toFixed(2)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- EXPENSE LIST -->
+            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <h4 style="margin:0 0 15px;">📋 All Overhead Expenses</h4>
+                ${(window.overheadExpenses || []).filter(e => !e.deleted).length === 0 ? `
+                    <div style="text-align:center;padding:40px;color:#999;">
+                        No overhead expenses recorded yet
+                    </div>
+                ` : `
+                    <div style="overflow-x:auto;">
+                        <table class="repairs-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Category</th>
+                                    <th>Amount</th>
+                                    <th>Recurring</th>
+                                    <th>Description</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${(window.overheadExpenses || [])
+                                    .filter(e => !e.deleted)
+                                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                                    .map(exp => `
+                                        <tr>
+                                            <td>${utils.formatDate(new Date(exp.date))}</td>
+                                            <td><strong>${exp.category}</strong></td>
+                                            <td style="font-weight:bold;color:#667eea;">₱${exp.amount.toFixed(2)}</td>
+                                            <td>${exp.recurring ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;">${exp.recurring}</span>` : '-'}</td>
+                                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${exp.description || '-'}</td>
+                                            <td>
+                                                <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm">
+                                                    🗑️ Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}
+
+function saveOverheadExpense() {
+    const category = document.getElementById('overheadCategory').value;
+    const amount = parseFloat(document.getElementById('overheadAmount').value);
+    const date = document.getElementById('overheadDate').value;
+    const recurring = document.getElementById('overheadRecurring').value;
+    const description = document.getElementById('overheadDescription').value.trim();
+    
+    if (!category || !amount || amount <= 0 || !date) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const expense = {
+        category: category,
+        amount: amount,
+        date: date + 'T00:00:00.000Z',
+        recurring: recurring || null,
+        description: description || null,
+        createdBy: window.currentUser.uid,
+        createdByName: window.currentUserData.displayName,
+        createdAt: new Date().toISOString()
+    };
+    
+    utils.showLoading(true);
+    
+    window.addOverheadExpense(expense)
+        .then(() => {
+            utils.showLoading(false);
+            if (window.utils && window.utils.showToast) {
+                window.utils.showToast('✅ Overhead expense added', 'success', 2000);
+            }
+            
+            // Clear form
+            document.getElementById('overheadAmount').value = '';
+            document.getElementById('overheadDescription').value = '';
+            
+            // Refresh will happen automatically via Firebase listener
+        })
+        .catch(error => {
+            utils.showLoading(false);
+            alert('Error adding overhead expense: ' + error.message);
+        });
+}
+
+function deleteOverheadExpenseById(expenseId) {
+    if (!confirm('Delete this overhead expense?')) return;
+    
+    utils.showLoading(true);
+    
+    window.deleteOverheadExpense(expenseId)
+        .then(() => {
+            utils.showLoading(false);
+            if (window.utils && window.utils.showToast) {
+                window.utils.showToast('✅ Overhead expense deleted', 'success', 2000);
+            }
+        })
+        .catch(error => {
+            utils.showLoading(false);
+            alert('Error deleting overhead expense: ' + error.message);
+        });
+}
+
+// ===== SUPPLIER PAYABLES TAB =====
+function buildSupplierPayablesTab(container) {
+    console.log('🧾 Building Supplier Payables tab');
+    window.currentTabRefresh = () => buildSupplierPayablesTab(document.getElementById('supplier-payablesTab'));
+    
+    const purchases = window.supplierPurchases || [];
+    const unpaid = purchases.filter(p => p.paymentStatus === 'unpaid' && !p.deleted);
+    const partial = purchases.filter(p => p.paymentStatus === 'partial' && !p.deleted);
+    const overdue = window.getOverduePurchases ? window.getOverduePurchases() : [];
+    
+    const totalOutstanding = [...unpaid, ...partial].reduce((sum, p) => sum + p.outstandingBalance, 0);
+    
+    // Group by supplier
+    const bySupplier = {};
+    purchases.filter(p => !p.deleted && p.paymentStatus !== 'paid').forEach(p => {
+        if (!bySupplier[p.supplierName]) {
+            bySupplier[p.supplierName] = {
+                count: 0,
+                total: 0,
+                overdue: 0
+            };
+        }
+        bySupplier[p.supplierName].count++;
+        bySupplier[p.supplierName].total += p.outstandingBalance;
+        if (overdue.some(o => o.id === p.id)) {
+            bySupplier[p.supplierName].overdue++;
+        }
+    });
+    
+    container.innerHTML = `
+        <div class="card">
+            <h3>🧾 Supplier Payables</h3>
+            
+            <!-- ADD NEW PURCHASE -->
+            <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h4 style="margin:0 0 15px;">➕ Record New Purchase</h4>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+                    <div>
+                        <label>Supplier *</label>
+                        <input type="text" id="purchaseSupplier" class="form-control" placeholder="Supplier name">
+                    </div>
+                    <div>
+                        <label>Invoice Number *</label>
+                        <input type="text" id="purchaseInvoice" class="form-control" placeholder="INV-001">
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:15px;">
+                    <div>
+                        <label>Amount *</label>
+                        <input type="number" id="purchaseAmount" class="form-control" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                    <div>
+                        <label>Purchase Date *</label>
+                        <input type="date" id="purchaseDate" class="form-control" value="${new Date().toISOString().split('T')[0]}">
+                    </div>
+                    <div>
+                        <label>Due Date</label>
+                        <input type="date" id="purchaseDueDate" class="form-control">
+                    </div>
+                </div>
+                <div style="margin-bottom:15px;">
+                    <label>Description</label>
+                    <textarea id="purchaseDescription" class="form-control" rows="2" placeholder="Items purchased..."></textarea>
+                </div>
+                <button onclick="saveSupplierPurchase()" class="btn btn-primary">
+                    ✅ Record Purchase
+                </button>
+            </div>
+            
+            <!-- OUTSTANDING SUMMARY -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+                <div class="stat-card" style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%);color:white;">
+                    <div class="stat-label">Total Outstanding</div>
+                    <div class="stat-value">₱${totalOutstanding.toFixed(2)}</div>
+                    <div class="stat-sublabel">${unpaid.length + partial.length} invoice(s)</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,#fa709a 0%,#fee140 100%);color:white;">
+                    <div class="stat-label">Unpaid</div>
+                    <div class="stat-value">${unpaid.length}</div>
+                    <div class="stat-sublabel">₱${unpaid.reduce((sum, p) => sum + p.amount, 0).toFixed(2)}</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,#ff9a56 0%,#ff6a88 100%);color:white;">
+                    <div class="stat-label">Partial Paid</div>
+                    <div class="stat-value">${partial.length}</div>
+                    <div class="stat-sublabel">₱${partial.reduce((sum, p) => sum + p.outstandingBalance, 0).toFixed(2)} remaining</div>
+                </div>
+                
+                <div class="stat-card" style="background:linear-gradient(135deg,#eb3349 0%,#f45c43 100%);color:white;">
+                    <div class="stat-label">Overdue</div>
+                    <div class="stat-value">${overdue.length}</div>
+                    <div class="stat-sublabel">⚠️ Action required</div>
+                </div>
+            </div>
+            
+            <!-- BY SUPPLIER -->
+            ${Object.keys(bySupplier).length > 0 ? `
+                <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
+                    <h4 style="margin:0 0 15px;">📊 Outstanding by Supplier</h4>
+                    <div style="overflow-x:auto;">
+                        <table class="repairs-table">
+                            <thead>
+                                <tr>
+                                    <th>Supplier</th>
+                                    <th>Invoices</th>
+                                    <th>Outstanding</th>
+                                    <th>Overdue</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${Object.entries(bySupplier)
+                                    .sort(([, a], [, b]) => b.total - a.total)
+                                    .map(([supplier, data]) => `
+                                        <tr>
+                                            <td><strong>${supplier}</strong></td>
+                                            <td>${data.count}</td>
+                                            <td style="font-weight:bold;color:#f5576c;">₱${data.total.toFixed(2)}</td>
+                                            <td>${data.overdue > 0 ? `<span style="background:#f44336;color:white;padding:2px 6px;border-radius:3px;font-size:11px;">${data.overdue}</span>` : '-'}</td>
+                                        </tr>
+                                    `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : ''}
+            
+            <!-- ALL PURCHASES -->
+            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <h4 style="margin:0 0 15px;">📋 All Supplier Purchases</h4>
+                ${purchases.filter(p => !p.deleted).length === 0 ? `
+                    <div style="text-align:center;padding:40px;color:#999;">
+                        No supplier purchases recorded yet
+                    </div>
+                ` : `
+                    <div style="overflow-x:auto;">
+                        <table class="repairs-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Supplier</th>
+                                    <th>Invoice</th>
+                                    <th>Amount</th>
+                                    <th>Paid</th>
+                                    <th>Outstanding</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${purchases
+                                    .filter(p => !p.deleted)
+                                    .sort((a, b) => new Date(b.purchaseDate) - new Date(a.purchaseDate))
+                                    .map(purchase => {
+                                        const isOverdue = overdue.some(o => o.id === purchase.id);
+                                        return `
+                                            <tr style="${isOverdue ? 'background:#ffebee;' : ''}">
+                                                <td>${utils.formatDate(new Date(purchase.purchaseDate))}</td>
+                                                <td><strong>${purchase.supplierName}</strong></td>
+                                                <td>${purchase.invoiceNumber}</td>
+                                                <td>₱${purchase.amount.toFixed(2)}</td>
+                                                <td style="color:#4caf50;">₱${purchase.totalPaid.toFixed(2)}</td>
+                                                <td style="font-weight:bold;color:${purchase.outstandingBalance > 0 ? '#f44336' : '#4caf50'};">
+                                                    ₱${purchase.outstandingBalance.toFixed(2)}
+                                                </td>
+                                                <td>
+                                                    ${purchase.dueDate ? utils.formatDate(new Date(purchase.dueDate)) : '-'}
+                                                    ${isOverdue ? '<br><span style="color:#f44336;font-size:11px;">⚠️ OVERDUE</span>' : ''}
+                                                </td>
+                                                <td>
+                                                    <span style="background:${purchase.paymentStatus === 'paid' ? '#4caf50' : purchase.paymentStatus === 'partial' ? '#ff9800' : '#f44336'};
+                                                                 color:white;padding:3px 8px;border-radius:3px;font-size:11px;font-weight:bold;">
+                                                        ${purchase.paymentStatus.toUpperCase()}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    ${purchase.paymentStatus !== 'paid' ? `
+                                                        <button onclick="showRecordPaymentModal('${purchase.id}')" class="btn btn-success btn-sm">
+                                                            💵 Pay
+                                                        </button>
+                                                    ` : ''}
+                                                    <button onclick="viewPurchaseDetails('${purchase.id}')" class="btn btn-primary btn-sm">
+                                                        👁️ View
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}
+
+function saveSupplierPurchase() {
+    const supplier = document.getElementById('purchaseSupplier').value.trim();
+    const invoice = document.getElementById('purchaseInvoice').value.trim();
+    const amount = parseFloat(document.getElementById('purchaseAmount').value);
+    const purchaseDate = document.getElementById('purchaseDate').value;
+    const dueDate = document.getElementById('purchaseDueDate').value;
+    const description = document.getElementById('purchaseDescription').value.trim();
+    
+    if (!supplier || !invoice || !amount || amount <= 0 || !purchaseDate) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    const purchase = {
+        supplierName: supplier,
+        invoiceNumber: invoice,
+        amount: amount,
+        purchaseDate: purchaseDate + 'T00:00:00.000Z',
+        dueDate: dueDate ? dueDate + 'T00:00:00.000Z' : null,
+        description: description || null,
+        paymentStatus: 'unpaid',
+        totalPaid: 0,
+        outstandingBalance: amount,
+        payments: [],
+        createdBy: window.currentUser.uid,
+        createdByName: window.currentUserData.displayName,
+        createdAt: new Date().toISOString()
+    };
+    
+    utils.showLoading(true);
+    
+    window.addSupplierPurchase(purchase)
+        .then(() => {
+            utils.showLoading(false);
+            if (window.utils && window.utils.showToast) {
+                window.utils.showToast('✅ Purchase recorded', 'success', 2000);
+            }
+            
+            // Clear form
+            document.getElementById('purchaseSupplier').value = '';
+            document.getElementById('purchaseInvoice').value = '';
+            document.getElementById('purchaseAmount').value = '';
+            document.getElementById('purchaseDueDate').value = '';
+            document.getElementById('purchaseDescription').value = '';
+        })
+        .catch(error => {
+            utils.showLoading(false);
+            alert('Error recording purchase: ' + error.message);
+        });
+}
+
+function showRecordPaymentModal(purchaseId) {
+    const purchase = (window.supplierPurchases || []).find(p => p.id === purchaseId);
+    if (!purchase) {
+        alert('Purchase not found');
+        return;
+    }
+    
+    const modal = document.getElementById('supplierPaymentModal');
+    if (!modal) {
+        // Create modal if it doesn't exist
+        const modalHTML = `
+            <div id="supplierPaymentModal" class="modal">
+                <div class="modal-content" style="max-width:500px;">
+                    <span class="close" onclick="document.getElementById('supplierPaymentModal').style.display='none'">&times;</span>
+                    <h3>💵 Record Payment</h3>
+                    
+                    <div id="supplierPaymentModalContent"></div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    const contentDiv = document.getElementById('supplierPaymentModalContent');
+    contentDiv.innerHTML = `
+        <div style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:20px;">
+            <div style="margin-bottom:10px;">
+                <strong>Supplier:</strong> ${purchase.supplierName}
+            </div>
+            <div style="margin-bottom:10px;">
+                <strong>Invoice:</strong> ${purchase.invoiceNumber}
+            </div>
+            <div style="margin-bottom:10px;">
+                <strong>Total Amount:</strong> ₱${purchase.amount.toFixed(2)}
+            </div>
+            <div style="margin-bottom:10px;">
+                <strong>Already Paid:</strong> <span style="color:#4caf50;">₱${purchase.totalPaid.toFixed(2)}</span>
+            </div>
+            <div>
+                <strong>Outstanding:</strong> <span style="color:#f44336;font-size:18px;font-weight:bold;">₱${purchase.outstandingBalance.toFixed(2)}</span>
+            </div>
+        </div>
+        
+        <div class="form-group">
+            <label>Payment Amount *</label>
+            <input type="number" id="paymentAmount" class="form-control" 
+                   placeholder="0.00" step="0.01" min="0" max="${purchase.outstandingBalance}"
+                   value="${purchase.outstandingBalance}">
+        </div>
+        
+        <div class="form-group">
+            <label>Payment Date *</label>
+            <input type="date" id="paymentDate" class="form-control" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+        
+        <div class="form-group">
+            <label>Payment Method</label>
+            <select id="paymentMethod" class="form-control">
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+                <option value="Check">Check</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Reference Number</label>
+            <input type="text" id="paymentReference" class="form-control" placeholder="Optional">
+        </div>
+        
+        <div class="form-group">
+            <label>Notes</label>
+            <textarea id="paymentNotes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+        </div>
+        
+        <div style="display:flex;gap:10px;margin-top:20px;">
+            <button onclick="confirmSupplierPayment('${purchaseId}')" class="btn btn-success" style="flex:1;">
+                ✅ Record Payment
+            </button>
+            <button onclick="document.getElementById('supplierPaymentModal').style.display='none'" class="btn btn-secondary" style="flex:1;">
+                ❌ Cancel
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('supplierPaymentModal').style.display = 'block';
+}
+
+function confirmSupplierPayment(purchaseId) {
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const date = document.getElementById('paymentDate').value;
+    const method = document.getElementById('paymentMethod').value;
+    const reference = document.getElementById('paymentReference').value.trim();
+    const notes = document.getElementById('paymentNotes').value.trim();
+    
+    const purchase = (window.supplierPurchases || []).find(p => p.id === purchaseId);
+    if (!purchase) {
+        alert('Purchase not found');
+        return;
+    }
+    
+    if (!amount || amount <= 0) {
+        alert('Please enter a valid payment amount');
+        return;
+    }
+    
+    if (amount > purchase.outstandingBalance) {
+        alert('Payment amount cannot exceed outstanding balance');
+        return;
+    }
+    
+    if (!date) {
+        alert('Please select a payment date');
+        return;
+    }
+    
+    const payment = {
+        amount: amount,
+        date: date + 'T00:00:00.000Z',
+        method: method,
+        reference: reference || null,
+        notes: notes || null,
+        recordedBy: window.currentUser.uid,
+        recordedByName: window.currentUserData.displayName,
+        recordedAt: new Date().toISOString()
+    };
+    
+    utils.showLoading(true);
+    document.getElementById('supplierPaymentModal').style.display = 'none';
+    
+    window.recordSupplierPayment(purchaseId, payment)
+        .then(() => {
+            utils.showLoading(false);
+            if (window.utils && window.utils.showToast) {
+                window.utils.showToast('✅ Payment recorded', 'success', 2000);
+            }
+        })
+        .catch(error => {
+            utils.showLoading(false);
+            alert('Error recording payment: ' + error.message);
+        });
+}
+
+function viewPurchaseDetails(purchaseId) {
+    const purchase = (window.supplierPurchases || []).find(p => p.id === purchaseId);
+    if (!purchase) {
+        alert('Purchase not found');
+        return;
+    }
+    
+    const paymentsHTML = (purchase.payments || []).length > 0 ? `
+        <h4 style="margin:20px 0 10px;">Payment History</h4>
+        <table class="repairs-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Method</th>
+                    <th>Reference</th>
+                    <th>Recorded By</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${purchase.payments.map(pmt => `
+                    <tr>
+                        <td>${utils.formatDate(new Date(pmt.date))}</td>
+                        <td style="color:#4caf50;font-weight:bold;">₱${pmt.amount.toFixed(2)}</td>
+                        <td>${pmt.method}</td>
+                        <td>${pmt.reference || '-'}</td>
+                        <td>${pmt.recordedByName}<br><small>${utils.formatDateTime(pmt.recordedAt)}</small></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    ` : '<p style="color:#999;text-align:center;padding:20px;">No payments recorded yet</p>';
+    
+    const detailsHTML = `
+        <h3>🧾 Purchase Details</h3>
+        
+        <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                <div>
+                    <div style="color:#666;font-size:12px;margin-bottom:5px;">Supplier</div>
+                    <div style="font-size:18px;font-weight:bold;">${purchase.supplierName}</div>
+                </div>
+                <div>
+                    <div style="color:#666;font-size:12px;margin-bottom:5px;">Invoice Number</div>
+                    <div style="font-size:18px;font-weight:bold;">${purchase.invoiceNumber}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin-bottom:20px;">
+            <div style="background:white;padding:15px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <div style="color:#666;font-size:12px;margin-bottom:5px;">Total Amount</div>
+                <div style="font-size:24px;font-weight:bold;">₱${purchase.amount.toFixed(2)}</div>
+            </div>
+            <div style="background:white;padding:15px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <div style="color:#666;font-size:12px;margin-bottom:5px;">Total Paid</div>
+                <div style="font-size:24px;font-weight:bold;color:#4caf50;">₱${purchase.totalPaid.toFixed(2)}</div>
+            </div>
+            <div style="background:white;padding:15px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                <div style="color:#666;font-size:12px;margin-bottom:5px;">Outstanding</div>
+                <div style="font-size:24px;font-weight:bold;color:#f44336;">₱${purchase.outstandingBalance.toFixed(2)}</div>
+            </div>
+        </div>
+        
+        <div style="background:white;padding:15px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                <div>
+                    <div style="color:#666;font-size:12px;margin-bottom:5px;">Purchase Date</div>
+                    <div>${utils.formatDate(new Date(purchase.purchaseDate))}</div>
+                </div>
+                <div>
+                    <div style="color:#666;font-size:12px;margin-bottom:5px;">Due Date</div>
+                    <div>${purchase.dueDate ? utils.formatDate(new Date(purchase.dueDate)) : 'Not set'}</div>
+                </div>
+                <div>
+                    <div style="color:#666;font-size:12px;margin-bottom:5px;">Status</div>
+                    <div>
+                        <span style="background:${purchase.paymentStatus === 'paid' ? '#4caf50' : purchase.paymentStatus === 'partial' ? '#ff9800' : '#f44336'};
+                                     color:white;padding:5px 10px;border-radius:3px;font-size:12px;font-weight:bold;">
+                            ${purchase.paymentStatus.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                <div>
+                    <div style="color:#666;font-size:12px;margin-bottom:5px;">Created By</div>
+                    <div>${purchase.createdByName}<br><small>${utils.formatDateTime(purchase.createdAt)}</small></div>
+                </div>
+            </div>
+            ${purchase.description ? `
+                <div style="margin-top:15px;padding-top:15px;border-top:1px solid #eee;">
+                    <div style="color:#666;font-size:12px;margin-bottom:5px;">Description</div>
+                    <div>${purchase.description}</div>
+                </div>
+            ` : ''}
+        </div>
+        
+        ${paymentsHTML}
+    `;
+    
+    showModal('Purchase Details', detailsHTML);
+}
+
+// Export profit dashboard functions
+window.buildProfitDashboardTab = buildProfitDashboardTab;
+window.refreshProfitDashboard = refreshProfitDashboard;
+window.exportCurrentProfitReport = exportCurrentProfitReport;
+
+// Export overhead expense functions
+window.buildOverheadExpensesTab = buildOverheadExpensesTab;
+window.saveOverheadExpense = saveOverheadExpense;
+window.deleteOverheadExpenseById = deleteOverheadExpenseById;
+
+// Export supplier payables functions
+window.buildSupplierPayablesTab = buildSupplierPayablesTab;
+window.saveSupplierPurchase = saveSupplierPurchase;
+window.showRecordPaymentModal = showRecordPaymentModal;
+window.confirmSupplierPayment = confirmSupplierPayment;
+window.viewPurchaseDetails = viewPurchaseDetails;
 
 // Export checkbox functions
 window.toggleAllDeviceCheckboxes = toggleAllDeviceCheckboxes;

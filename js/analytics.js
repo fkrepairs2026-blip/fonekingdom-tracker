@@ -1015,5 +1015,374 @@ window.exportDailySummary = exportDailySummary;
 window.exportWeeklyReport = exportWeeklyReport;
 window.exportMonthlyArchive = exportMonthlyArchive;
 
+// ===== PROFIT CALCULATION ENGINE =====
+
+/**
+ * Calculate true profit for a repair including overhead burden
+ * @param {Object} repair - Repair object
+ * @param {Date} startDate - Period start for overhead calculation
+ * @param {Date} endDate - Period end for overhead calculation
+ */
+function calculateRepairProfit(repair, startDate, endDate) {
+    if (!repair || repair.deleted) return null;
+    
+    // Revenue: Total verified payments
+    const revenue = (repair.payments || [])
+        .filter(p => p.verified)
+        .reduce((sum, p) => sum + p.amount, 0);
+    
+    // Parts cost
+    const partsCost = repair.partsCost || 0;
+    
+    // Tech commission (40% of net)
+    const commission = repair.commissionAmount || 0;
+    
+    // Gross profit before overhead
+    const grossProfit = revenue - partsCost - commission;
+    
+    // Calculate overhead burden (allocated per repair)
+    let overheadBurden = 0;
+    if (startDate && endDate && window.overheadExpenses) {
+        const totalOverhead = window.calculateOverheadForPeriod(startDate, endDate);
+        const completedRepairs = window.allRepairs.filter(r => {
+            if (!r.claimedAt || r.deleted) return false;
+            const claimedDate = new Date(r.claimedAt);
+            return claimedDate >= startDate && claimedDate <= endDate;
+        }).length;
+        
+        // Allocate overhead equally across all completed repairs in period
+        if (completedRepairs > 0) {
+            overheadBurden = totalOverhead / completedRepairs;
+        }
+    }
+    
+    // Net profit = Gross profit - Overhead burden
+    const netProfit = grossProfit - overheadBurden;
+    
+    // Profit margin = (Net profit / Revenue) * 100
+    const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    
+    return {
+        repairId: repair.id,
+        customerName: repair.customerName,
+        repairType: repair.problemType,
+        revenue: revenue,
+        partsCost: partsCost,
+        commission: commission,
+        grossProfit: grossProfit,
+        overheadBurden: overheadBurden,
+        netProfit: netProfit,
+        profitMargin: profitMargin,
+        claimedAt: repair.claimedAt
+    };
+}
+
+/**
+ * Get profit analytics by repair type
+ */
+function getProfitByRepairType(startDate, endDate) {
+    if (!window.allRepairs) return {};
+    
+    const byType = {};
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.deleted || !repair.claimedAt) return;
+        
+        const claimedDate = new Date(repair.claimedAt);
+        if (claimedDate < startDate || claimedDate > endDate) return;
+        
+        const profit = calculateRepairProfit(repair, startDate, endDate);
+        if (!profit) return;
+        
+        const type = repair.problemType || 'Other';
+        
+        if (!byType[type]) {
+            byType[type] = {
+                count: 0,
+                totalRevenue: 0,
+                totalPartsCost: 0,
+                totalCommission: 0,
+                totalGrossProfit: 0,
+                totalOverhead: 0,
+                totalNetProfit: 0,
+                avgProfitMargin: 0,
+                repairs: []
+            };
+        }
+        
+        byType[type].count++;
+        byType[type].totalRevenue += profit.revenue;
+        byType[type].totalPartsCost += profit.partsCost;
+        byType[type].totalCommission += profit.commission;
+        byType[type].totalGrossProfit += profit.grossProfit;
+        byType[type].totalOverhead += profit.overheadBurden;
+        byType[type].totalNetProfit += profit.netProfit;
+        byType[type].repairs.push(profit);
+    });
+    
+    // Calculate averages
+    Object.keys(byType).forEach(type => {
+        const data = byType[type];
+        data.avgRevenue = data.totalRevenue / data.count;
+        data.avgProfit = data.totalNetProfit / data.count;
+        data.avgProfitMargin = data.totalRevenue > 0 ? 
+            (data.totalNetProfit / data.totalRevenue) * 100 : 0;
+    });
+    
+    // Sort by total net profit descending
+    const sorted = Object.entries(byType)
+        .sort(([, a], [, b]) => b.totalNetProfit - a.totalNetProfit)
+        .reduce((acc, [type, data]) => {
+            acc[type] = data;
+            return acc;
+        }, {});
+    
+    return {
+        byType: sorted,
+        mostProfitable: Object.entries(sorted)[0]?.[0] || null,
+        leastProfitable: Object.entries(sorted).slice(-1)[0]?.[0] || null
+    };
+}
+
+/**
+ * Get profit analytics by technician
+ */
+function getProfitByTechnician(startDate, endDate) {
+    if (!window.allRepairs) return {};
+    
+    const byTech = {};
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.deleted || !repair.claimedAt || !repair.acceptedBy) return;
+        
+        const claimedDate = new Date(repair.claimedAt);
+        if (claimedDate < startDate || claimedDate > endDate) return;
+        
+        const profit = calculateRepairProfit(repair, startDate, endDate);
+        if (!profit) return;
+        
+        const tech = repair.acceptedBy;
+        
+        if (!byTech[tech]) {
+            byTech[tech] = {
+                repairCount: 0,
+                totalRevenue: 0,
+                totalPartsCost: 0,
+                totalCommission: 0,
+                totalGrossProfit: 0,
+                totalOverhead: 0,
+                totalNetProfit: 0,
+                avgProfitMargin: 0,
+                repairs: []
+            };
+        }
+        
+        byTech[tech].repairCount++;
+        byTech[tech].totalRevenue += profit.revenue;
+        byTech[tech].totalPartsCost += profit.partsCost;
+        byTech[tech].totalCommission += profit.commission;
+        byTech[tech].totalGrossProfit += profit.grossProfit;
+        byTech[tech].totalOverhead += profit.overheadBurden;
+        byTech[tech].totalNetProfit += profit.netProfit;
+        byTech[tech].repairs.push(profit);
+    });
+    
+    // Calculate averages
+    Object.keys(byTech).forEach(tech => {
+        const data = byTech[tech];
+        data.avgRevenue = data.totalRevenue / data.repairCount;
+        data.avgProfit = data.totalNetProfit / data.repairCount;
+        data.avgProfitMargin = data.totalRevenue > 0 ? 
+            (data.totalNetProfit / data.totalRevenue) * 100 : 0;
+    });
+    
+    // Sort by total net profit descending
+    const sorted = Object.entries(byTech)
+        .sort(([, a], [, b]) => b.totalNetProfit - a.totalNetProfit)
+        .reduce((acc, [tech, data]) => {
+            acc[tech] = data;
+            return acc;
+        }, {});
+    
+    return sorted;
+}
+
+/**
+ * Get profit trends over time
+ * @param {Date} startDate
+ * @param {Date} endDate
+ * @param {string} interval - 'daily', 'weekly', 'monthly'
+ */
+function getProfitTrends(startDate, endDate, interval = 'daily') {
+    if (!window.allRepairs) return [];
+    
+    const trends = [];
+    const dataByPeriod = {};
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.deleted || !repair.claimedAt) return;
+        
+        const claimedDate = new Date(repair.claimedAt);
+        if (claimedDate < startDate || claimedDate > endDate) return;
+        
+        const profit = calculateRepairProfit(repair, startDate, endDate);
+        if (!profit) return;
+        
+        // Determine period key based on interval
+        let periodKey;
+        if (interval === 'daily') {
+            periodKey = claimedDate.toISOString().split('T')[0];
+        } else if (interval === 'weekly') {
+            const weekStart = new Date(claimedDate);
+            weekStart.setDate(claimedDate.getDate() - claimedDate.getDay());
+            periodKey = weekStart.toISOString().split('T')[0];
+        } else if (interval === 'monthly') {
+            periodKey = `${claimedDate.getFullYear()}-${(claimedDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        }
+        
+        if (!dataByPeriod[periodKey]) {
+            dataByPeriod[periodKey] = {
+                period: periodKey,
+                repairCount: 0,
+                totalRevenue: 0,
+                totalCosts: 0,
+                totalProfit: 0,
+                avgProfitMargin: 0
+            };
+        }
+        
+        dataByPeriod[periodKey].repairCount++;
+        dataByPeriod[periodKey].totalRevenue += profit.revenue;
+        dataByPeriod[periodKey].totalCosts += (profit.partsCost + profit.commission + profit.overheadBurden);
+        dataByPeriod[periodKey].totalProfit += profit.netProfit;
+    });
+    
+    // Calculate averages and sort by period
+    Object.values(dataByPeriod).forEach(data => {
+        data.avgProfitMargin = data.totalRevenue > 0 ? 
+            (data.totalProfit / data.totalRevenue) * 100 : 0;
+    });
+    
+    return Object.values(dataByPeriod).sort((a, b) => 
+        a.period.localeCompare(b.period)
+    );
+}
+
+/**
+ * Get comprehensive profit dashboard data
+ */
+function getProfitDashboard(startDate, endDate) {
+    if (!window.allRepairs) {
+        return {
+            summary: {},
+            byType: {},
+            byTechnician: {},
+            trends: [],
+            overhead: {}
+        };
+    }
+    
+    // Summary metrics
+    const allProfits = [];
+    window.allRepairs.forEach(repair => {
+        if (repair.deleted || !repair.claimedAt) return;
+        
+        const claimedDate = new Date(repair.claimedAt);
+        if (claimedDate < startDate || claimedDate > endDate) return;
+        
+        const profit = calculateRepairProfit(repair, startDate, endDate);
+        if (profit) allProfits.push(profit);
+    });
+    
+    const totalRevenue = allProfits.reduce((sum, p) => sum + p.revenue, 0);
+    const totalPartsCost = allProfits.reduce((sum, p) => sum + p.partsCost, 0);
+    const totalCommission = allProfits.reduce((sum, p) => sum + p.commission, 0);
+    const totalOverhead = allProfits.reduce((sum, p) => sum + p.overheadBurden, 0);
+    const totalNetProfit = allProfits.reduce((sum, p) => sum + p.netProfit, 0);
+    const avgProfitMargin = totalRevenue > 0 ? (totalNetProfit / totalRevenue) * 100 : 0;
+    
+    return {
+        summary: {
+            repairCount: allProfits.length,
+            totalRevenue: totalRevenue,
+            totalPartsCost: totalPartsCost,
+            totalCommission: totalCommission,
+            totalOverhead: totalOverhead,
+            totalNetProfit: totalNetProfit,
+            avgProfitMargin: avgProfitMargin,
+            avgProfitPerRepair: allProfits.length > 0 ? totalNetProfit / allProfits.length : 0
+        },
+        byType: getProfitByRepairType(startDate, endDate),
+        byTechnician: getProfitByTechnician(startDate, endDate),
+        trends: getProfitTrends(startDate, endDate, 'daily'),
+        overhead: {
+            total: totalOverhead,
+            perRepair: allProfits.length > 0 ? totalOverhead / allProfits.length : 0,
+            percentage: totalRevenue > 0 ? (totalOverhead / totalRevenue) * 100 : 0
+        }
+    };
+}
+
+/**
+ * Export profit report to CSV
+ */
+function exportProfitReport(startDate, endDate) {
+    const dashboard = getProfitDashboard(startDate, endDate);
+    
+    const exportData = [];
+    
+    // Summary section
+    exportData.push({
+        'PROFIT REPORT': '',
+        'Period': `${utils.formatDate(startDate)} - ${utils.formatDate(endDate)}`
+    });
+    exportData.push({});
+    exportData.push({ '=== SUMMARY ===': '' });
+    exportData.push({ 'Metric': 'Total Repairs', 'Value': dashboard.summary.repairCount });
+    exportData.push({ 'Metric': 'Total Revenue', 'Value': dashboard.summary.totalRevenue });
+    exportData.push({ 'Metric': 'Parts Cost', 'Value': dashboard.summary.totalPartsCost });
+    exportData.push({ 'Metric': 'Commission', 'Value': dashboard.summary.totalCommission });
+    exportData.push({ 'Metric': 'Overhead', 'Value': dashboard.summary.totalOverhead });
+    exportData.push({ 'Metric': 'Net Profit', 'Value': dashboard.summary.totalNetProfit });
+    exportData.push({ 'Metric': 'Profit Margin', 'Value': `${dashboard.summary.avgProfitMargin.toFixed(2)}%` });
+    exportData.push({});
+    
+    // By repair type
+    exportData.push({ '=== PROFIT BY REPAIR TYPE ===': '' });
+    Object.entries(dashboard.byType.byType).forEach(([type, data]) => {
+        exportData.push({
+            'Repair Type': type,
+            'Count': data.count,
+            'Revenue': data.totalRevenue,
+            'Net Profit': data.totalNetProfit,
+            'Profit Margin': `${data.avgProfitMargin.toFixed(2)}%`
+        });
+    });
+    exportData.push({});
+    
+    // By technician
+    exportData.push({ '=== PROFIT BY TECHNICIAN ===': '' });
+    Object.entries(dashboard.byTechnician).forEach(([tech, data]) => {
+        exportData.push({
+            'Technician': tech,
+            'Repairs': data.repairCount,
+            'Revenue': data.totalRevenue,
+            'Net Profit': data.totalNetProfit,
+            'Profit Margin': `${data.avgProfitMargin.toFixed(2)}%`
+        });
+    });
+    
+    const filename = `profit_report_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`;
+    exportToCSV(exportData, filename);
+}
+
+// Export profit functions
+window.calculateRepairProfit = calculateRepairProfit;
+window.getProfitByRepairType = getProfitByRepairType;
+window.getProfitByTechnician = getProfitByTechnician;
+window.getProfitTrends = getProfitTrends;
+window.getProfitDashboard = getProfitDashboard;
+window.exportProfitReport = exportProfitReport;
+
 console.log('✅ analytics.js loaded');
 
