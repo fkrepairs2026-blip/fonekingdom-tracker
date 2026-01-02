@@ -2625,19 +2625,11 @@ function toggleRepairDetails(repairId, context = 'default') {
                     detailContent.innerHTML = renderExpandedRepairDetails(repair, role, context);
                 }
             }
+            // FORCE visible - bypass CSS animation completely
             detailContent.style.display = 'block';
-            detailContent.style.opacity = '1'; // Force opacity to 1
-            
-            // Comprehensive debugging
-            const computedStyle = window.getComputedStyle(detailContent);
-            console.log('🔍 OPACITY DEBUG:');
-            console.log('  Inline opacity:', detailContent.style.opacity);
-            console.log('  Computed opacity:', computedStyle.opacity);
-            console.log('  Display:', computedStyle.display);
-            console.log('  Visibility:', computedStyle.visibility);
-            console.log('  Height:', computedStyle.height);
-            console.log('  Max-height:', computedStyle.maxHeight);
-            console.log('  Classes:', detailContent.className);
+            detailContent.style.opacity = '1';
+            detailContent.style.maxHeight = 'none';
+            detailContent.style.animation = 'none';
         }
 
         const indicator = repairItem.querySelector('.expand-indicator');
