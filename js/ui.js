@@ -446,7 +446,7 @@ function buildReceivedDevicesPage(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('receivedDevicesList');
         if (listContainer && receivedDevices.length > 0) {
-            displayCompactRepairsList(receivedDevices, listContainer, 'received');
+            displayGroupedRepairsList(receivedDevices, listContainer, 'received', 'recordedDate');
         }
     }, 0);
 }
@@ -480,7 +480,7 @@ function buildInProgressPage(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('inProgressList');
         if (listContainer && inProgressDevices.length > 0) {
-            displayCompactRepairsList(inProgressDevices, listContainer);
+            displayGroupedRepairsList(inProgressDevices, listContainer, 'default', 'recordedDate');
         }
     }, 0);
 }
@@ -559,7 +559,7 @@ function buildRTODevicesTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('rtoDevicesList');
         if (listContainer && rtoDevices.length > 0) {
-            displayCompactRepairsList(rtoDevices, listContainer, 'rto');
+            displayGroupedRepairsList(rtoDevices, listContainer, 'rto', 'rtoDate');
         }
     }, 0);
 }
@@ -2613,7 +2613,7 @@ function buildMyRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('myRepairsList');
         if (listContainer) {
-            displayCompactRepairsList(myRepairs, listContainer);
+            displayGroupedRepairsList(myRepairs, listContainer, 'default', 'recordedDate');
         }
     }, 0);
 }
@@ -2698,11 +2698,11 @@ function buildMyClaimedDevicesTab(container) {
     setTimeout(() => {
         if (myReleasedDevices.length > 0) {
             const releasedListContainer = document.getElementById('myReleasedDevicesList');
-            displayCompactRepairsList(myReleasedDevices, releasedListContainer, 'released');
+            displayGroupedRepairsList(myReleasedDevices, releasedListContainer, 'released', 'releasedAt');
         }
         if (myClaimedDevices.length > 0) {
             const claimedListContainer = document.getElementById('myClaimedDevicesList');
-            displayCompactRepairsList(myClaimedDevices, claimedListContainer, 'claimed');
+            displayGroupedRepairsList(myClaimedDevices, claimedListContainer, 'claimed', 'claimedAt');
         }
     }, 0);
 }
