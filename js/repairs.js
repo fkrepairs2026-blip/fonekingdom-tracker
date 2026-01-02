@@ -5046,22 +5046,25 @@ function getTechDailyExpenses(techId, date) {
  * Uses inventory partsUsed or manual partsCost field
  */
 function getRepairPartsCost(repair) {
-    let totalPartsCost = 0;
-
+    // Priority: Use inventory system cost if available, otherwise use manual entry
+    // Never add both together to avoid double-counting
+    
     // Get cost from inventory system (Phase 3 partsUsed)
     if (repair.partsUsed) {
         const inventoryCost = Object.values(repair.partsUsed).reduce((sum, part) => {
             return sum + (part.totalCost || 0);
         }, 0);
-        totalPartsCost += inventoryCost;
+        if (inventoryCost > 0) {
+            return inventoryCost; // Use inventory cost
+        }
     }
 
-    // Add manual parts cost if entered
+    // Fallback to manual parts cost if inventory not used
     if (repair.partsCost) {
-        totalPartsCost += parseFloat(repair.partsCost) || 0;
+        return parseFloat(repair.partsCost) || 0;
     }
 
-    return totalPartsCost;
+    return 0;
 }
 
 /**
