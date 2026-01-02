@@ -38,9 +38,9 @@ function getRevenueAnalytics(startDate, endDate) {
     const revenueByTech = {};
 
     relevantRepairs.forEach(repair => {
-        // Get verified payments in range
+        // Get verified payments in range (exclude refunded)
         const verifiedPayments = (repair.payments || []).filter(p => {
-            if (!p.verified) return false;
+            if (!p.verified || p.refunded) return false;
             const paymentDate = new Date(p.recordedDate || p.paymentDate).getTime();
             return paymentDate >= start && paymentDate <= end;
         });
@@ -135,9 +135,9 @@ function getTechnicianPerformance(startDate, endDate) {
             techStats[techName].completedRepairs++;
         }
 
-        // Calculate revenue from this repair
+        // Calculate revenue from this repair (exclude refunded payments)
         const revenue = (repair.payments || [])
-            .filter(p => p.verified)
+            .filter(p => p.verified && !p.refunded)
             .reduce((sum, p) => sum + p.amount, 0);
         techStats[techName].totalRevenue += revenue;
 

@@ -378,7 +378,7 @@ const utils = {
             stats.unpaidCount = activeRepairs.filter(r => {
                 const total = parseFloat(r.total) || 0;
                 const paid = (r.payments || [])
-                    .filter(p => p.verified)
+                    .filter(p => p.verified && !p.refunded)
                     .reduce((sum, p) => sum + parseFloat(p.amount), 0);
                 return total > paid;
             }).length;

@@ -1081,6 +1081,11 @@ function openPaymentModal(repairId) {
                                         ✅ Verify Payment
                                     </button>
                                 ` : ''}
+                                ${p.verified && !p.refunded && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager' || window.currentUserData.role === 'cashier') ? `
+                                    <button onclick="showRefundModal('${repairId}', ${i})" style="background:#e91e63;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+                                        🔄 Refund
+                                    </button>
+                                ` : ''}
                                 ${p.isAdvance && p.advanceStatus === 'pending' && (window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager') ? `
                                     <button onclick="refundAdvancePayment('${repairId}', ${i})" style="background:#2196f3;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
                                         ↩️ Mark as Refunded
@@ -1298,6 +1303,176 @@ async function refundAdvancePayment(repairId, paymentIndex) {
     } catch (error) {
         console.error('Error refunding advance:', error);
         alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Show refund request modal
+ */
+function showRefundModal(repairId, paymentIndex) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) return;
+
+    const payment = repair.payments[paymentIndex];
+    if (!payment) return;
+
+    const tier = determineRefundTier(repair, payment);
+    const tierLabels = {
+        1: { label: 'Low Risk', color: '#4caf50', desc: 'Auto-approved (safe scenario)' },
+        2: { label: 'Medium Risk', color: '#ff9800', desc: 'Requires admin approval' },
+        3: { label: 'High Risk', color: '#f44336', desc: 'Requires admin approval + detailed justification' }
+    };
+    const tierInfo = tierLabels[tier];
+
+    const content = document.getElementById('paymentModalContent');
+    content.innerHTML = `
+        <div style="background:#fff3cd;border-left:4px solid #ffc107;padding:15px;margin-bottom:20px;border-radius:4px;">
+            <strong>⚠️ Refund Request</strong>
+            <div style="margin-top:5px;font-size:14px;">
+                Risk Level: <span style="color:${tierInfo.color};font-weight:bold;">${tierInfo.label}</span><br>
+                <span style="color:#666;">${tierInfo.desc}</span>
+            </div>
+        </div>
+
+        <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:20px;">
+            <h4 style="margin:0 0 10px;">Payment Details</h4>
+            <div style="font-size:14px;">
+                <strong>Amount:</strong> ₱${payment.amount.toFixed(2)}<br>
+                <strong>Method:</strong> ${payment.method}<br>
+                <strong>Date:</strong> ${utils.formatDate(payment.paymentDate || payment.recordedDate)}<br>
+                <strong>Received by:</strong> ${payment.receivedBy}<br>
+                <strong>Status:</strong> ${payment.verified ? '✅ Verified' : '⏳ Pending'}
+                ${payment.remittanceStatus ? `<br><strong>Remittance:</strong> ${payment.remittanceStatus}` : ''}
+            </div>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label><strong>Refund Type *</strong></label>
+            <select id="refundType" class="form-control" onchange="toggleRefundAmount()">
+                <option value="full">Full Refund (₱${payment.amount.toFixed(2)})</option>
+                <option value="partial">Partial Refund</option>
+            </select>
+        </div>
+
+        <div id="partialAmountDiv" style="margin-bottom:15px;display:none;">
+            <label><strong>Refund Amount *</strong></label>
+            <input type="number" id="refundAmount" class="form-control" 
+                   min="0.01" max="${payment.amount}" step="0.01" 
+                   placeholder="Enter amount to refund">
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label><strong>Refund Reason *</strong></label>
+            <select id="refundReason" class="form-control">
+                <option value="">-- Select Reason --</option>
+                <option value="customer_request">Customer Request</option>
+                <option value="failed_repair">Failed Repair</option>
+                <option value="overcharge">Overcharge/Incorrect Amount</option>
+                <option value="warranty_issue">Warranty Issue</option>
+                <option value="dispute">Customer Dispute</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label><strong>Detailed Explanation * (minimum 20 characters)</strong></label>
+            <textarea id="refundReasonDetails" class="form-control" rows="3" 
+                      placeholder="Explain in detail why this refund is being requested..."></textarea>
+        </div>
+
+        <div style="margin-bottom:15px;">
+            <label><strong>Refund Method</strong></label>
+            <select id="refundMethod" class="form-control">
+                <option value="${payment.method}">${payment.method} (Same as original)</option>
+                <option value="Cash">Cash</option>
+                <option value="GCash">GCash</option>
+                <option value="Bank Transfer">Bank Transfer</option>
+            </select>
+        </div>
+
+        ${tier >= 2 ? `
+            <div style="background:#ffebee;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #f44336;">
+                <strong>⚠️ ${tier === 3 ? 'HIGH RISK REFUND' : 'ADMIN APPROVAL REQUIRED'}</strong>
+                <div style="font-size:13px;margin-top:8px;color:#666;">
+                    ${tier === 3 
+                        ? 'This refund requires admin approval because the device is claimed or commission already paid.'
+                        : 'This refund requires admin approval due to remittance status or device status.'}
+                </div>
+            </div>
+        ` : ''}
+
+        <div style="margin-bottom:15px;">
+            <label><strong>Additional Notes</strong></label>
+            <textarea id="refundNotes" class="form-control" rows="2" 
+                      placeholder="Any additional information..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:10px;">
+            <button onclick="submitRefundRequest('${repairId}', ${paymentIndex})" 
+                    class="btn-primary" style="flex:1;">
+                ${tier === 1 && window.currentUserData.role === 'admin' ? '✅ Process Refund' : '📝 Submit Request'}
+            </button>
+            <button onclick="openPaymentModal('${repairId}')" 
+                    class="btn-secondary">
+                Cancel
+            </button>
+        </div>
+    `;
+
+    // Show/hide partial amount field
+    window.toggleRefundAmount = function() {
+        const type = document.getElementById('refundType').value;
+        const div = document.getElementById('partialAmountDiv');
+        div.style.display = type === 'partial' ? 'block' : 'none';
+    };
+}
+
+/**
+ * Submit refund request
+ */
+async function submitRefundRequest(repairId, paymentIndex) {
+    const type = document.getElementById('refundType').value;
+    const reason = document.getElementById('refundReason').value;
+    const reasonDetails = document.getElementById('refundReasonDetails').value.trim();
+    const method = document.getElementById('refundMethod').value;
+    const notes = document.getElementById('refundNotes').value.trim();
+
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    const payment = repair.payments[paymentIndex];
+
+    const refundAmount = type === 'full' 
+        ? payment.amount 
+        : parseFloat(document.getElementById('refundAmount').value);
+
+    // Validation
+    if (!reason) {
+        alert('⚠️ Please select a refund reason');
+        return;
+    }
+
+    if (reasonDetails.length < 20) {
+        alert('⚠️ Please provide a detailed explanation (minimum 20 characters)');
+        return;
+    }
+
+    if (type === 'partial' && (!refundAmount || refundAmount <= 0 || refundAmount > payment.amount)) {
+        alert('⚠️ Invalid refund amount');
+        return;
+    }
+
+    const refundData = {
+        refundAmount: refundAmount,
+        reason: reason,
+        reasonDetails: reasonDetails,
+        refundMethod: method,
+        notes: notes
+    };
+
+    const result = await requestRefund(repairId, paymentIndex, refundData);
+
+    if (result.success) {
+        // Close modal and refresh payment view
+        setTimeout(() => openPaymentModal(repairId), 500);
     }
 }
 
@@ -9019,6 +9194,8 @@ window.openPaymentModal = openPaymentModal;
 window.previewPaymentProof = previewPaymentProof;
 window.savePayment = savePayment;
 window.refundAdvancePayment = refundAdvancePayment;
+window.showRefundModal = showRefundModal;
+window.submitRefundRequest = submitRefundRequest;
 window.editPaymentDate = editPaymentDate;
 window.savePaymentDateEdit = savePaymentDateEdit;
 window.verifyPayment = verifyPayment;
@@ -12705,6 +12882,442 @@ function getOverduePurchases() {
         return new Date(p.dueDate) < now;
     });
 }
+
+// ===== REFUND MANAGEMENT SYSTEM =====
+
+// Global refunds array
+window.refunds = [];
+
+/**
+ * Load refunds from Firebase
+ */
+async function loadRefunds() {
+    try {
+        console.log('🔄 Loading refunds...');
+
+        db.ref('refunds').on('value', (snapshot) => {
+            const refunds = [];
+            snapshot.forEach(child => {
+                refunds.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+
+            window.refunds = refunds;
+            console.log(`✅ Loaded ${refunds.length} refunds`);
+
+            // Refresh refund requests tab if active
+            setTimeout(() => {
+                const refundContainer = document.getElementById('refund-requestsTab');
+                if (refundContainer && window.buildRefundRequestsTab) {
+                    if (refundContainer.classList.contains('active')) {
+                        window.buildRefundRequestsTab(refundContainer);
+                        console.log('🔄 Refund requests tab refreshed');
+                    }
+                }
+            }, 400);
+        });
+
+    } catch (error) {
+        console.error('❌ Error loading refunds:', error);
+    }
+}
+
+/**
+ * Request a refund for a payment
+ * @param {string} repairId - Repair ID
+ * @param {number} paymentIndex - Index of payment in payments array
+ * @param {Object} refundData - Refund details
+ */
+async function requestRefund(repairId, paymentIndex, refundData) {
+    if (!window.currentUserData || !['admin', 'manager', 'cashier'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only admin, manager, or cashier can request refunds');
+        return { success: false };
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        if (!repair || !repair.payments || !repair.payments[paymentIndex]) {
+            throw new Error('Payment not found');
+        }
+
+        const payment = repair.payments[paymentIndex];
+
+        // Validation
+        if (!payment.verified) {
+            throw new Error('Cannot refund unverified payment');
+        }
+
+        if (payment.refunded) {
+            throw new Error('Payment already refunded');
+        }
+
+        if (refundData.refundAmount <= 0 || refundData.refundAmount > payment.amount) {
+            throw new Error('Invalid refund amount');
+        }
+
+        // Check existing refund requests
+        const existingRefund = window.refunds.find(r =>
+            r.repairId === repairId &&
+            r.paymentIndex === paymentIndex &&
+            r.status === 'pending_approval'
+        );
+
+        if (existingRefund) {
+            throw new Error('Refund request already pending for this payment');
+        }
+
+        // Determine refund tier and auto-approval
+        const tier = determineRefundTier(repair, payment);
+        const requiresApproval = tier >= 2 || window.currentUserData.role !== 'admin';
+
+        const refundRecord = {
+            repairId: repairId,
+            paymentIndex: paymentIndex,
+            refundType: refundData.refundAmount === payment.amount ? 'full' : 'partial',
+            refundReason: refundData.reason,
+            refundReasonDetails: refundData.reasonDetails || '',
+
+            // Amount details
+            refundAmount: parseFloat(refundData.refundAmount),
+            originalPaymentAmount: payment.amount,
+
+            // Payment details
+            originalPaymentMethod: payment.method,
+            originalPaymentDate: payment.paymentDate || payment.recordedDate,
+            refundMethod: refundData.refundMethod || payment.method,
+
+            // Refund details
+            refundDate: new Date().toISOString(),
+            requestedBy: window.currentUserData.displayName,
+            requestedById: window.currentUser.uid,
+            requestedAt: new Date().toISOString(),
+
+            // Status
+            status: requiresApproval ? 'pending_approval' : 'approved',
+            tier: tier,
+
+            // Commission impact
+            commissionAffected: false,
+            commissionToReverse: 0,
+            technicianId: repair.acceptedBy || null,
+            technicianName: repair.acceptedByName || null,
+
+            // Parts handling
+            partsReturned: refundData.partsReturned || false,
+            partsReturnNotes: refundData.partsReturnNotes || '',
+
+            // Notes
+            notes: refundData.notes || '',
+            adminNotes: '',
+
+            // Remittance check
+            remittanceStatus: payment.remittanceStatus || 'n/a',
+            techRemittanceId: payment.techRemittanceId || null,
+
+            // Audit
+            createdAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        };
+
+        // Calculate commission impact
+        if (repair.acceptedBy && window.calculateRepairCommission) {
+            const commissionCalc = window.calculateRepairCommission(repair, repair.acceptedBy);
+            if (commissionCalc.eligible && commissionCalc.amount > 0) {
+                refundRecord.commissionAffected = true;
+                // Proportional commission reduction
+                const refundRatio = refundData.refundAmount / repair.total;
+                refundRecord.commissionToReverse = commissionCalc.amount * refundRatio;
+            }
+        }
+
+        const newRef = await db.ref('refunds').push(refundRecord);
+
+        // Log activity
+        await logActivity('refund_requested', {
+            refundId: newRef.key,
+            repairId: repairId,
+            amount: refundData.refundAmount,
+            reason: refundData.reason,
+            tier: tier,
+            requiresApproval: requiresApproval
+        });
+
+        // Auto-process if approved
+        if (!requiresApproval) {
+            await processRefund(newRef.key);
+        }
+
+        utils.showLoading(false);
+
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                requiresApproval
+                    ? `🔔 Refund request submitted for approval (₱${refundData.refundAmount})`
+                    : `✅ Refund processed: ₱${refundData.refundAmount}`,
+                requiresApproval ? 'info' : 'success',
+                3000
+            );
+        }
+
+        return { success: true, refundId: newRef.key, requiresApproval };
+
+    } catch (error) {
+        console.error('❌ Error requesting refund:', error);
+        utils.showLoading(false);
+        alert(`Error requesting refund: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Determine refund tier based on risk factors
+ * @param {Object} repair - Repair object
+ * @param {Object} payment - Payment object
+ * @returns {number} - Tier (1=low risk, 2=medium, 3=high)
+ */
+function determineRefundTier(repair, payment) {
+    // Tier 3 (High Risk) - Device already claimed
+    if (repair.status === 'Claimed') {
+        return 3;
+    }
+
+    // Tier 3 - Commission already paid
+    if (repair.commissionClaimedBy && repair.commissionClaimedAt) {
+        return 3;
+    }
+
+    // Tier 2 (Medium Risk) - Device released but not claimed
+    if (repair.status === 'Released' || repair.status === 'For Release') {
+        return 2;
+    }
+
+    // Tier 2 - Payment in verified remittance
+    if (payment.remittanceStatus === 'verified') {
+        return 2;
+    }
+
+    // Tier 2 - Payment in pending remittance
+    if (payment.remittanceStatus === 'remitted') {
+        return 2;
+    }
+
+    // Tier 1 (Low Risk) - Safe to auto-approve
+    return 1;
+}
+
+/**
+ * Process an approved refund
+ * @param {string} refundId - Refund ID
+ */
+async function processRefund(refundId) {
+    try {
+        const refund = window.refunds.find(r => r.id === refundId);
+        if (!refund) {
+            throw new Error('Refund not found');
+        }
+
+        if (refund.status === 'completed') {
+            throw new Error('Refund already completed');
+        }
+
+        if (refund.status === 'pending_approval') {
+            throw new Error('Refund requires approval first');
+        }
+
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        if (!repair) {
+            throw new Error('Repair not found');
+        }
+
+        // Mark payment as refunded
+        const updatedPayments = [...repair.payments];
+        updatedPayments[refund.paymentIndex].refunded = true;
+        updatedPayments[refund.paymentIndex].refundedAmount = refund.refundAmount;
+        updatedPayments[refund.paymentIndex].refundedAt = new Date().toISOString();
+        updatedPayments[refund.paymentIndex].refundedBy = window.currentUserData.displayName;
+        updatedPayments[refund.paymentIndex].refundId = refundId;
+
+        // Update repair
+        await db.ref(`repairs/${refund.repairId}`).update({
+            payments: updatedPayments,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+
+        // Update refund status
+        await db.ref(`refunds/${refundId}`).update({
+            status: 'completed',
+            completedAt: new Date().toISOString(),
+            completedBy: window.currentUserData.displayName,
+            completedById: window.currentUser.uid,
+            lastUpdated: new Date().toISOString()
+        });
+
+        // Log activity
+        await logActivity('refund_processed', {
+            refundId: refundId,
+            repairId: refund.repairId,
+            amount: refund.refundAmount
+        });
+
+        // Invalidate dashboard cache
+        if (window.invalidateDashboardCache) {
+            window.invalidateDashboardCache();
+        }
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ Error processing refund:', error);
+        throw error;
+    }
+}
+
+/**
+ * Approve a refund request (admin/manager only)
+ * @param {string} refundId - Refund ID
+ * @param {string} adminNotes - Admin notes
+ */
+async function approveRefund(refundId, adminNotes = '') {
+    if (!window.currentUserData || !['admin', 'manager'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only admin or manager can approve refunds');
+        return { success: false };
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const refund = window.refunds.find(r => r.id === refundId);
+        if (!refund) {
+            throw new Error('Refund not found');
+        }
+
+        if (refund.status !== 'pending_approval') {
+            throw new Error('Refund is not pending approval');
+        }
+
+        // Check if payment still exists and is valid
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        if (!repair || !repair.payments[refund.paymentIndex]) {
+            throw new Error('Payment no longer exists');
+        }
+
+        const payment = repair.payments[refund.paymentIndex];
+        if (payment.refunded) {
+            throw new Error('Payment already refunded');
+        }
+
+        // Auto-reject remittance if exists
+        if (refund.techRemittanceId) {
+            const remittance = window.techRemittances?.find(r => r.id === refund.techRemittanceId);
+            if (remittance && remittance.status === 'remitted') {
+                // Reject the remittance
+                await rejectRemittance(refund.techRemittanceId, `Auto-rejected: Payment refunded (Refund ID: ${refundId})`);
+            }
+        }
+
+        // Update refund to approved
+        await db.ref(`refunds/${refundId}`).update({
+            status: 'approved',
+            approvedBy: window.currentUserData.displayName,
+            approvedById: window.currentUser.uid,
+            approvedAt: new Date().toISOString(),
+            adminNotes: adminNotes,
+            lastUpdated: new Date().toISOString()
+        });
+
+        // Process the refund
+        await processRefund(refundId);
+
+        utils.showLoading(false);
+
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `✅ Refund approved and processed: ₱${refund.refundAmount}`,
+                'success',
+                3000
+            );
+        }
+
+        // Log activity
+        await logActivity('refund_approved', {
+            refundId: refundId,
+            repairId: refund.repairId,
+            amount: refund.refundAmount
+        });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ Error approving refund:', error);
+        utils.showLoading(false);
+        alert(`Error approving refund: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Reject a refund request
+ * @param {string} refundId - Refund ID
+ * @param {string} reason - Rejection reason
+ */
+async function rejectRefund(refundId, reason) {
+    if (!window.currentUserData || !['admin', 'manager'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only admin or manager can reject refunds');
+        return { success: false };
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const refund = window.refunds.find(r => r.id === refundId);
+        if (!refund) {
+            throw new Error('Refund not found');
+        }
+
+        await db.ref(`refunds/${refundId}`).update({
+            status: 'rejected',
+            rejectedBy: window.currentUserData.displayName,
+            rejectedById: window.currentUser.uid,
+            rejectedAt: new Date().toISOString(),
+            rejectionReason: reason,
+            lastUpdated: new Date().toISOString()
+        });
+
+        utils.showLoading(false);
+
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast('✅ Refund request rejected', 'success', 2000);
+        }
+
+        // Log activity
+        await logActivity('refund_rejected', {
+            refundId: refundId,
+            repairId: refund.repairId,
+            reason: reason
+        });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ Error rejecting refund:', error);
+        utils.showLoading(false);
+        alert(`Error rejecting refund: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+// Export refund functions
+window.loadRefunds = loadRefunds;
+window.requestRefund = requestRefund;
+window.processRefund = processRefund;
+window.approveRefund = approveRefund;
+window.rejectRefund = rejectRefund;
+window.determineRefundTier = determineRefundTier;
 
 // Export functions
 window.checkAndAutoFinalizeReleased = checkAndAutoFinalizeReleased;

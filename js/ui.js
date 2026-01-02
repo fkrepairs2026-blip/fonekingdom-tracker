@@ -115,6 +115,7 @@ function buildTabs() {
             sections.admin.tabs.push(
                 { id: 'users', label: 'Users', icon: '👥', build: buildUsersTab },
                 { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
+                { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
                 { id: 'admin-tools', label: 'Admin Tools', icon: '🔧', build: buildAdminToolsTab },
                 { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab }
             );
@@ -1305,6 +1306,167 @@ function buildModificationRequestsTab(container) {
             `}
         </div>
     `;
+}
+
+/**
+ * Build Refund Requests Tab (Admin/Manager only)
+ */
+function buildRefundRequestsTab(container) {
+    console.log('🔄 Building Refund Requests tab');
+    window.currentTabRefresh = () => buildRefundRequestsTab(document.getElementById('refund-requestsTab'));
+
+    const pendingRefunds = (window.refunds || []).filter(r => r.status === 'pending_approval');
+    const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
+    const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
+
+    container.innerHTML = `
+        <div class="card">
+            <h3>🔄 Refund Requests (${pendingRefunds.length} pending)</h3>
+            <p style="color:#666;margin-bottom:15px;">Review and approve/reject refund requests</p>
+            
+            ${pendingRefunds.length === 0 && completedRefunds.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">✅</h2>
+                    <p>No refund requests</p>
+                </div>
+            ` : `
+                ${pendingRefunds.length > 0 ? `
+                    <h4 style="margin-top:20px;color:#e91e63;">⏳ PENDING REFUND REQUESTS (${pendingRefunds.length})</h4>
+                    ${pendingRefunds.map(refund => {
+                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                        const tierColors = {
+                            1: { bg: '#e8f5e9', border: '#4caf50', label: 'Low Risk' },
+                            2: { bg: '#fff3e0', border: '#ff9800', label: 'Medium Risk' },
+                            3: { bg: '#ffebee', border: '#f44336', label: 'High Risk' }
+                        };
+                        const tier = tierColors[refund.tier] || tierColors[2];
+                        
+                        return `
+                        <div style="background:${tier.bg};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${tier.border};">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                                <div>
+                                    <strong style="color:${tier.border};font-size:16px;">🔄 REFUND REQUEST</strong>
+                                    <span style="background:${tier.border};color:white;padding:2px 8px;border-radius:3px;font-size:11px;margin-left:8px;">
+                                        ${tier.label}
+                                    </span>
+                                </div>
+                                <span style="background:#ff9800;color:white;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                    ⏳ PENDING APPROVAL
+                                </span>
+                            </div>
+                            
+                            <div style="background:white;padding:12px;border-radius:5px;margin-bottom:12px;">
+                                <div style="font-size:14px;margin-bottom:8px;">
+                                    <div><strong>Customer:</strong> ${repair ? repair.customerName : 'N/A'}</div>
+                                    <div><strong>Device:</strong> ${repair ? `${repair.brand} ${repair.model}` : 'N/A'}</div>
+                                    <div><strong>Repair Status:</strong> ${repair ? repair.status : 'N/A'}</div>
+                                </div>
+                            </div>
+                            
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                                <div style="background:white;padding:10px;border-radius:5px;">
+                                    <div style="font-size:12px;color:#666;">Refund Amount</div>
+                                    <div style="font-size:20px;font-weight:bold;color:#e91e63;">₱${refund.refundAmount.toFixed(2)}</div>
+                                    <div style="font-size:11px;color:#999;">Original: ₱${refund.originalPaymentAmount.toFixed(2)}</div>
+                                </div>
+                                <div style="background:white;padding:10px;border-radius:5px;">
+                                    <div style="font-size:12px;color:#666;">Type & Method</div>
+                                    <div style="font-size:14px;font-weight:bold;">${refund.refundType === 'full' ? 'Full Refund' : 'Partial Refund'}</div>
+                                    <div style="font-size:12px;color:#666;">${refund.refundMethod}</div>
+                                </div>
+                            </div>
+                            
+                            <div style="background:white;padding:12px;border-radius:5px;margin-bottom:12px;">
+                                <div style="font-size:13px;">
+                                    <div style="margin-bottom:5px;"><strong>Reason:</strong> <span style="color:#e91e63;">${refund.refundReason.replace('_', ' ').toUpperCase()}</span></div>
+                                    <div style="margin-bottom:5px;color:#666;">${refund.refundReasonDetails}</div>
+                                    ${refund.notes ? `<div style="margin-top:8px;padding:8px;background:#f5f5f5;border-radius:4px;font-size:12px;"><strong>Additional Notes:</strong> ${refund.notes}</div>` : ''}
+                                </div>
+                            </div>
+                            
+                            ${refund.commissionAffected ? `
+                                <div style="background:#fff3cd;padding:10px;border-radius:5px;margin-bottom:12px;border-left:3px solid #ffc107;">
+                                    <strong>⚠️ Commission Impact:</strong> ₱${refund.commissionToReverse.toFixed(2)} commission reversal for ${refund.technicianName}
+                                </div>
+                            ` : ''}
+                            
+                            <div style="font-size:13px;color:#666;margin-bottom:12px;">
+                                <div><strong>Requested by:</strong> ${refund.requestedBy}</div>
+                                <div><strong>Date:</strong> ${utils.formatDateTime(refund.requestedAt)} (${utils.daysAgo(refund.requestedAt)})</div>
+                            </div>
+                            
+                            <div style="margin-bottom:10px;">
+                                <textarea id="adminNotes_${refund.id}" placeholder="Admin notes (optional)..." 
+                                          style="width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;font-size:13px;" rows="2"></textarea>
+                            </div>
+                            
+                            <div style="display:flex;gap:10px;">
+                                <button onclick="approveRefundRequest('${refund.id}')" 
+                                        style="background:#4caf50;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;flex:1;">
+                                    ✅ Approve Refund
+                                </button>
+                                <button onclick="rejectRefundRequest('${refund.id}')" 
+                                        style="background:#f44336;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;flex:1;">
+                                    ❌ Reject
+                                </button>
+                            </div>
+                        </div>
+                    `}).join('')}
+                ` : ''}
+                
+                ${completedRefunds.length > 0 ? `
+                    <h4 style="margin-top:30px;">✅ Recent Completed Refunds (Last 20)</h4>
+                    ${completedRefunds.map(refund => {
+                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                        return `
+                        <div style="background:#e8f5e9;padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid #4caf50;">
+                            <div style="display:flex;justify-content:space-between;font-size:14px;">
+                                <div>
+                                    <strong>₱${refund.refundAmount.toFixed(2)}</strong> - ${repair ? repair.customerName : 'N/A'} 
+                                    <span style="color:#666;font-size:12px;">(${refund.refundReason.replace('_', ' ')})</span>
+                                </div>
+                                <span style="font-size:12px;color:#666;">${utils.formatDate(refund.completedAt)}</span>
+                            </div>
+                            ${refund.adminNotes ? `<div style="font-size:12px;color:#666;margin-top:5px;">Note: ${refund.adminNotes}</div>` : ''}
+                        </div>
+                    `}).join('')}
+                ` : ''}
+                
+                ${rejectedRefunds.length > 0 ? `
+                    <h4 style="margin-top:30px;">❌ Recent Rejected Refunds (Last 10)</h4>
+                    ${rejectedRefunds.map(refund => {
+                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                        return `
+                        <div style="background:#ffebee;padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid #f44336;">
+                            <div style="display:flex;justify-content:space-between;font-size:14px;">
+                                <div>
+                                    <strong>₱${refund.refundAmount.toFixed(2)}</strong> - ${repair ? repair.customerName : 'N/A'}
+                                </div>
+                                <span style="font-size:12px;color:#666;">${utils.formatDate(refund.rejectedAt)}</span>
+                            </div>
+                            <div style="font-size:12px;color:#666;margin-top:5px;">Reason: ${refund.rejectionReason}</div>
+                        </div>
+                    `}).join('')}
+                ` : ''}
+            `}
+        </div>
+    `;
+}
+
+// Refund approval handlers
+function approveRefundRequest(refundId) {
+    const adminNotes = document.getElementById(`adminNotes_${refundId}`)?.value || '';
+    
+    if (confirm('Approve this refund request?\n\nThis will process the refund immediately.')) {
+        window.approveRefund(refundId, adminNotes);
+    }
+}
+
+function rejectRefundRequest(refundId) {
+    const reason = prompt('Enter rejection reason:');
+    if (reason && reason.trim()) {
+        window.rejectRefund(refundId, reason.trim());
+    }
 }
 
 function buildUnpaidTab(container) {
@@ -4099,6 +4261,9 @@ window.buildReceiveDeviceTab = buildReceiveDeviceTab;
 window.populateReceiveSupplierDropdown = populateReceiveSupplierDropdown;
 window.buildMyRequestsTab = buildMyRequestsTab;
 window.buildModificationRequestsTab = buildModificationRequestsTab;
+window.buildRefundRequestsTab = buildRefundRequestsTab;
+window.approveRefundRequest = approveRefundRequest;
+window.rejectRefundRequest = rejectRefundRequest;
 window.buildUnpaidTab = buildUnpaidTab;
 window.buildPendingPaymentsTab = buildPendingPaymentsTab;
 window.buildPaidTab = buildPaidTab;

@@ -85,7 +85,9 @@ async function initializeApp() {
         console.log('� Loading overhead expenses...');
         await loadOverheadExpenses();
         console.log('✅ Overhead expenses loaded:', window.overheadExpenses.length);
-
+        console.log('🔄 Loading refunds...');
+        await loadRefunds();
+        console.log('✅ Refunds loaded:', window.refunds.length);
         console.log('📦 Loading supplier purchases...');
         await loadSupplierPurchases();
         console.log('✅ Supplier purchases loaded:', window.supplierPurchases.length);
