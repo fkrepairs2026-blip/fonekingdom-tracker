@@ -70,6 +70,10 @@
     "stockMovements": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "dataCleanupHistory": {
+      ".read": "auth != null",
+      ".write": "auth != null"
     }
   }
 }
