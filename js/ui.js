@@ -2578,9 +2578,14 @@ function renderRTODeviceButtons(r, role) {
  * Toggle repair details expansion/collapse
  */
 function toggleRepairDetails(repairId, context = 'default') {
+    console.log('🔄 toggleRepairDetails called:', { repairId, context });
+    
     // Get the repair item
     const repairItem = document.getElementById(`repair-item-${repairId}`);
-    if (!repairItem) return;
+    if (!repairItem) {
+        console.warn('⚠️ Repair item not found:', repairId);
+        return;
+    }
 
     // Get context from data attribute if not provided
     if (context === 'default' && repairItem.dataset.context) {
@@ -2589,6 +2594,10 @@ function toggleRepairDetails(repairId, context = 'default') {
 
     // Check if this item is already expanded
     const isCurrentlyExpanded = window.expandedRepairId === repairId;
+    console.log('📊 Current state:', { 
+        isCurrentlyExpanded, 
+        windowExpandedId: window.expandedRepairId 
+    });
 
     // Collapse all items first
     document.querySelectorAll('.repair-list-item-compact').forEach(item => {
@@ -2601,6 +2610,7 @@ function toggleRepairDetails(repairId, context = 'default') {
 
     // If was not expanded, expand it
     if (!isCurrentlyExpanded) {
+        console.log('✅ Expanding repair:', repairId);
         window.expandedRepairId = repairId;
         repairItem.classList.add('expanded');
 
@@ -2608,6 +2618,7 @@ function toggleRepairDetails(repairId, context = 'default') {
         if (detailContent) {
             // If content is empty, render it
             if (!detailContent.innerHTML.trim()) {
+                console.log('📝 Rendering content for:', repairId);
                 const repair = window.allRepairs.find(r => r.id === repairId);
                 const role = window.currentUserData.role;
                 if (repair) {
@@ -2615,6 +2626,7 @@ function toggleRepairDetails(repairId, context = 'default') {
                 }
             }
             detailContent.style.display = 'block';
+            console.log('👁️ Set display to block, actual display:', detailContent.style.display);
         }
 
         const indicator = repairItem.querySelector('.expand-indicator');
