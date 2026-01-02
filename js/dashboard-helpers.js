@@ -48,14 +48,17 @@ function buildTechnicianDashboard(userName, stats) {
         'myclaimed',
         '✅'
     )}
-                ${utils.createStatCard(
-        'Commission This Month',
-        '₱' + stats.myCommissionThisMonth.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
-        `Cash: ₱${stats.myCashCommission.toFixed(2)} | GCash: ₱${stats.myGCashCommission.toFixed(2)}`,
-        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-        null,
-        '💰'
-    )}
+                ${(() => {
+        const commission = getCommissionForPeriod(stats);
+        return utils.createStatCard(
+            commission.label,
+            '₱' + commission.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+            commission.breakdown + ' • Click to toggle',
+            'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+            'toggleCommissionPeriod',
+            '💰'
+        );
+    })()}
             </div>
             
             <!-- Alerts Section -->
@@ -711,6 +714,56 @@ function openAdminToolsDataHealth() {
     }, 500);
 }
 
+/**
+ * Toggle commission period (daily -> weekly -> monthly -> daily)
+ */
+function toggleCommissionPeriod() {
+    // Initialize or cycle through periods
+    if (!window.commissionPeriod) {
+        window.commissionPeriod = 'daily';
+    } else if (window.commissionPeriod === 'daily') {
+        window.commissionPeriod = 'weekly';
+    } else if (window.commissionPeriod === 'weekly') {
+        window.commissionPeriod = 'monthly';
+    } else {
+        window.commissionPeriod = 'daily';
+    }
+
+    // Refresh dashboard to show new period
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
+    }
+}
+
+/**
+ * Get commission data for current period
+ * @param {object} stats - Dashboard stats object
+ * @returns {object} {label, amount, breakdown}
+ */
+function getCommissionForPeriod(stats) {
+    const period = window.commissionPeriod || 'daily';
+    
+    if (period === 'daily') {
+        return {
+            label: 'Commission Today',
+            amount: stats.myCommissionToday || 0,
+            breakdown: `Cash: ₱${(stats.myCashCommissionToday || 0).toFixed(2)} | GCash: ₱${(stats.myGCashCommissionToday || 0).toFixed(2)}`
+        };
+    } else if (period === 'weekly') {
+        return {
+            label: 'Commission This Week',
+            amount: stats.myCommissionThisWeek || 0,
+            breakdown: `Cash: ₱${(stats.myCashCommissionWeek || 0).toFixed(2)} | GCash: ₱${(stats.myGCashCommissionWeek || 0).toFixed(2)}`
+        };
+    } else { // monthly
+        return {
+            label: 'Commission This Month',
+            amount: stats.myCommissionThisMonth || 0,
+            breakdown: `Cash: ₱${(stats.myCashCommission || 0).toFixed(2)} | GCash: ₱${(stats.myGCashCommission || 0).toFixed(2)}`
+        };
+    }
+}
+
 // Export functions to window
 window.buildTechnicianDashboard = buildTechnicianDashboard;
 window.buildCashierDashboard = buildCashierDashboard;
@@ -725,5 +778,9 @@ window.buildDataHealthWidget = buildDataHealthWidget;
 window.startDataHealthMonitor = startDataHealthMonitor;
 window.updateDataHealthBadge = updateDataHealthBadge;
 window.openAdminToolsDataHealth = openAdminToolsDataHealth;
+
+// Export commission toggle functions
+window.toggleCommissionPeriod = toggleCommissionPeriod;
+window.getCommissionForPeriod = getCommissionForPeriod;
 
 console.log('✅ dashboard-helpers.js loaded');

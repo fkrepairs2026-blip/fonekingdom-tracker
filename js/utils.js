@@ -224,6 +224,49 @@ const utils = {
     },
 
     /**
+     * Calculate commission for a specific time period
+     * @param {Array} repairs - All repairs
+     * @param {string} techId - Technician user ID
+     * @param {Date} startDate - Period start
+     * @param {Date} endDate - Period end
+     * @returns {object} Commission breakdown {total, cash, gcash}
+     */
+    calculateCommissionForPeriod: function(repairs, techId, startDate, endDate) {
+        let cashCommission = 0;
+        let gcashCommission = 0;
+        
+        repairs.forEach(r => {
+            if (r.acceptedBy !== techId || !r.payments) return;
+            
+            r.payments.forEach(payment => {
+                if (!payment.verified) return;
+                
+                const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                if (paymentDate < startDate || paymentDate > endDate) return;
+                
+                // Calculate commission based on payment - parts cost
+                const repairPartsCost = r.partsCost || 0;
+                const paymentShare = payment.amount;
+                const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
+                const netAmount = Math.max(0, paymentShare - partsCostShare);
+                const commission = netAmount * 0.40; // Tech gets 40%
+                
+                if (payment.method === 'GCash') {
+                    gcashCommission += commission;
+                } else {
+                    cashCommission += commission;
+                }
+            });
+        });
+        
+        return {
+            total: cashCommission + gcashCommission,
+            cash: cashCommission,
+            gcash: gcashCommission
+        };
+    },
+
+    /**
      * Get cached dashboard stats or recalculate
      * @param {string} role - User role (admin, manager, cashier, technician)
      * @returns {object} Calculated stats for the role
@@ -368,6 +411,30 @@ const utils = {
             stats.myCashCommission = cashCommission;
             stats.myGCashCommission = gcashCommission;
 
+            // Calculate daily and weekly commission as well
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+            
+            // Get start of week (Sunday)
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay());
+            weekStart.setHours(0, 0, 0, 0);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            weekEnd.setHours(23, 59, 59);
+            
+            // Calculate daily commission
+            const dailyComm = this.calculateCommissionForPeriod(activeRepairs, currentUserId, todayStart, todayEnd);
+            stats.myCommissionToday = dailyComm.total;
+            stats.myCashCommissionToday = dailyComm.cash;
+            stats.myGCashCommissionToday = dailyComm.gcash;
+            
+            // Calculate weekly commission
+            const weeklyComm = this.calculateCommissionForPeriod(activeRepairs, currentUserId, weekStart, weekEnd);
+            stats.myCommissionThisWeek = weeklyComm.total;
+            stats.myCashCommissionWeek = weeklyComm.cash;
+            stats.myGCashCommissionWeek = weeklyComm.gcash;
+
             // Remittance status
             const techRemittances = window.techRemittances || [];
             const myPendingRemittances = techRemittances.filter(r =>
@@ -481,13 +548,21 @@ const utils = {
      * @returns {string} HTML string
      */
     createStatCard: function (label, value, subtext, gradient, clickAction, icon = '', dateFilter = null) {
-        const clickHandler = typeof clickAction === 'function'
-            ? `onclick="${clickAction.name}()"`
-            : clickAction
-                ? dateFilter
+        let clickHandler = '';
+        
+        if (typeof clickAction === 'function') {
+            clickHandler = `onclick="${clickAction.name}()" style="cursor:pointer;"`;
+        } else if (typeof clickAction === 'string') {
+            // Check if it's a function name (contains no slashes or special chars)
+            if (clickAction && !clickAction.includes('/') && window[clickAction]) {
+                clickHandler = `onclick="${clickAction}()" style="cursor:pointer;"`;
+            } else if (clickAction) {
+                // It's a tab name
+                clickHandler = dateFilter
                     ? `onclick="switchTab('${clickAction}', '${dateFilter}')" style="cursor:pointer;"`
-                    : `onclick="switchTab('${clickAction}')" style="cursor:pointer;"`
-                : '';
+                    : `onclick="switchTab('${clickAction}')" style="cursor:pointer;"`;
+            }
+        }
 
         return `
             <div class="dashboard-stat-card" ${clickHandler}>
