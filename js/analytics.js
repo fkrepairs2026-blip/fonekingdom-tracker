@@ -1034,43 +1034,35 @@ function calculateRepairProfit(repair, startDate, endDate) {
     // Parts cost
     const partsCost = repair.partsCost || 0;
 
-    // Tech commission - recalculate based on current role
-    let commission = 0;
+    // Tech commission paid out (tech keeps this)
+    // Technician gets 40%, admin gets 0% (admin doesn't do repairs)
+    let techCommission = 0;
     const techId = repair.acceptedBy || repair.technicianId;
     if (techId && window.allUsers && window.allUsers[techId]) {
         const techUser = window.allUsers[techId];
-        const commissionRate = (techUser.role === 'admin' || techUser.role === 'manager') ? 0.60 : 0.40;
+        const techCommissionRate = (techUser.role === 'technician') ? 0.40 : 0.00;
         const netAmount = revenue - partsCost;
-        commission = netAmount * commissionRate;
+        techCommission = netAmount * techCommissionRate;
     } else if (repair.commissionAmount) {
         // Fallback to stored commission if tech not found
-        commission = repair.commissionAmount;
+        techCommission = repair.commissionAmount;
     }
 
-    // Gross profit before overhead
-    const grossProfit = revenue - partsCost - commission;
+    // Shop revenue (what shop keeps after paying tech)
+    const shopRevenue = revenue - partsCost - techCommission;
 
-    // Calculate overhead burden (allocated per repair)
-    let overheadBurden = 0;
-    if (startDate && endDate && window.overheadExpenses) {
-        const totalOverhead = window.calculateOverheadForPeriod(startDate, endDate);
-        const completedRepairs = window.allRepairs.filter(r => {
-            if (!r.claimedAt || r.deleted) return false;
-            const claimedDate = new Date(r.claimedAt);
-            return claimedDate >= startDate && claimedDate <= endDate;
-        }).length;
+    // NOTE: Overhead is NOT allocated per repair, it's tracked as total period expense
+    // This is just for individual repair profit calculation
+    const overheadBurden = 0; // Don't burden individual repairs with overhead
 
-        // Allocate overhead equally across all completed repairs in period
-        if (completedRepairs > 0) {
-            overheadBurden = totalOverhead / completedRepairs;
-        }
-    }
+    // Gross profit for this repair (before overhead)
+    const grossProfit = shopRevenue;
 
-    // Net profit = Gross profit - Overhead burden
-    const netProfit = grossProfit - overheadBurden;
+    // Net profit for this repair (overhead deducted at dashboard level, not per repair)
+    const netProfit = grossProfit;
 
-    // Profit margin = (Net profit / Revenue) * 100
-    const profitMargin = revenue > 0 ? (netProfit / revenue) * 100 : 0;
+    // Profit margin based on shop revenue (before overhead)
+    const profitMargin = shopRevenue > 0 ? (grossProfit / shopRevenue) * 100 : 0;
 
     return {
         repairId: repair.id,
@@ -1078,7 +1070,8 @@ function calculateRepairProfit(repair, startDate, endDate) {
         repairType: repair.problemType,
         revenue: revenue,
         partsCost: partsCost,
-        commission: commission,
+        techCommission: techCommission,
+        shopRevenue: shopRevenue,
         grossProfit: grossProfit,
         overheadBurden: overheadBurden,
         netProfit: netProfit,
@@ -1306,17 +1299,24 @@ function getProfitDashboard(startDate, endDate) {
 
     const totalRevenue = allProfits.reduce((sum, p) => sum + p.revenue, 0);
     const totalPartsCost = allProfits.reduce((sum, p) => sum + p.partsCost, 0);
-    const totalCommission = allProfits.reduce((sum, p) => sum + p.commission, 0);
-    const totalOverhead = allProfits.reduce((sum, p) => sum + p.overheadBurden, 0);
-    const totalNetProfit = allProfits.reduce((sum, p) => sum + p.netProfit, 0);
-    const avgProfitMargin = totalRevenue > 0 ? (totalNetProfit / totalRevenue) * 100 : 0;
+    const totalTechCommission = allProfits.reduce((sum, p) => sum + p.techCommission, 0);
+    const totalShopRevenue = allProfits.reduce((sum, p) => sum + p.shopRevenue, 0);
+    
+    // Get TOTAL overhead for period (not per repair)
+    const totalOverhead = window.calculateOverheadForPeriod ? 
+        window.calculateOverheadForPeriod(startDate, endDate) : 0;
+    
+    // Net profit = Shop Revenue - Overhead
+    const totalNetProfit = totalShopRevenue - totalOverhead;
+    const avgProfitMargin = totalShopRevenue > 0 ? (totalNetProfit / totalShopRevenue) * 100 : 0;
 
     return {
         summary: {
             repairCount: allProfits.length,
             totalRevenue: totalRevenue,
             totalPartsCost: totalPartsCost,
-            totalCommission: totalCommission,
+            totalCommission: totalTechCommission,
+            totalShopRevenue: totalShopRevenue,
             totalOverhead: totalOverhead,
             totalNetProfit: totalNetProfit,
             avgProfitMargin: avgProfitMargin,

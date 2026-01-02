@@ -7468,15 +7468,15 @@ function refreshProfitDashboard() {
                 </div>
                 
                 <div class="stat-card" style="background:linear-gradient(135deg,#fa709a 0%,#fee140 100%);color:white;">
-                    <div class="stat-label">Commission</div>
+                    <div class="stat-label">Tech Commission (Paid Out)</div>
                     <div class="stat-value">₱${dashboard.summary.totalCommission.toFixed(2)}</div>
                     <div class="stat-sublabel">${((dashboard.summary.totalCommission / dashboard.summary.totalRevenue) * 100).toFixed(1)}% of revenue</div>
                 </div>
                 
                 <div class="stat-card" style="background:linear-gradient(135deg,#30cfd0 0%,#330867 100%);color:white;">
-                    <div class="stat-label">Overhead</div>
+                    <div class="stat-label">Overhead (Total Period)</div>
                     <div class="stat-value">₱${dashboard.summary.totalOverhead.toFixed(2)}</div>
-                    <div class="stat-sublabel">₱${dashboard.overhead.perRepair.toFixed(2)} per repair</div>
+                    <div class="stat-sublabel">${dashboard.summary.repairCount > 0 ? '₱' + (dashboard.summary.totalOverhead / dashboard.summary.repairCount).toFixed(2) + ' avg per repair' : 'No repairs'}</div>
                 </div>
                 
                 <div class="stat-card" style="background:linear-gradient(135deg,${dashboard.summary.totalNetProfit >= 0 ? '#11998e 0%,#38ef7d 100%' : '#eb3349 0%,#f45c43 100%'});color:white;">
