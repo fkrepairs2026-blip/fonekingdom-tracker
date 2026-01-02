@@ -2626,6 +2626,7 @@ function toggleRepairDetails(repairId, context = 'default') {
                 }
             }
             detailContent.style.display = 'block';
+            detailContent.style.opacity = '1'; // Force opacity to 1
             console.log('👁️ Set display to block, actual display:', detailContent.style.display);
         }
 
