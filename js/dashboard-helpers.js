@@ -48,14 +48,17 @@ function buildTechnicianDashboard(userName, stats) {
         'myclaimed',
         '🎉'
     )}
-                ${utils.createStatCard(
-        'Commission Today',
-        '₱' + (stats.myCommissionToday || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 }),
-        `Cash: ₱${(stats.myCashCommissionToday || 0).toFixed(2)} | GCash: ₱${(stats.myGCashCommissionToday || 0).toFixed(2)}`,
-        'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-        null,
-        '💰'
-    )}
+                ${(() => {
+        const commission = getCommissionForPeriod(stats);
+        return utils.createStatCard(
+            commission.label,
+            '₱' + commission.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+            commission.breakdown + ' • Click to toggle',
+            'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+            'toggleCommissionPeriod',
+            '💰'
+        );
+    })()}
             </div>
             
             <!-- Alerts Section -->
@@ -715,12 +718,8 @@ function openAdminToolsDataHealth() {
  * Toggle commission period (daily -> weekly -> monthly -> daily)
  */
 function toggleCommissionPeriod() {
-    // Initialize or cycle through periods
-    if (!window.commissionPeriod) {
-        window.commissionPeriod = 'daily';
-    } else if (window.commissionPeriod === 'daily') {
-        window.commissionPeriod = 'weekly';
-    } else if (window.commissionPeriod === 'weekly') {
+    // Toggle between daily and monthly only
+    if (!window.commissionPeriod || window.commissionPeriod === 'daily') {
         window.commissionPeriod = 'monthly';
     } else {
         window.commissionPeriod = 'daily';
