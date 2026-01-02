@@ -2627,7 +2627,17 @@ function toggleRepairDetails(repairId, context = 'default') {
             }
             detailContent.style.display = 'block';
             detailContent.style.opacity = '1'; // Force opacity to 1
-            console.log('👁️ Set display to block, actual display:', detailContent.style.display);
+            
+            // Comprehensive debugging
+            const computedStyle = window.getComputedStyle(detailContent);
+            console.log('🔍 OPACITY DEBUG:');
+            console.log('  Inline opacity:', detailContent.style.opacity);
+            console.log('  Computed opacity:', computedStyle.opacity);
+            console.log('  Display:', computedStyle.display);
+            console.log('  Visibility:', computedStyle.visibility);
+            console.log('  Height:', computedStyle.height);
+            console.log('  Max-height:', computedStyle.maxHeight);
+            console.log('  Classes:', detailContent.className);
         }
 
         const indicator = repairItem.querySelector('.expand-indicator');
