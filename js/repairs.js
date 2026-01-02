@@ -1129,6 +1129,11 @@ function openPaymentModal(repairId) {
                                         🔄 Refund
                                     </button>
                                 ` : ''}
+                                ${p.verified && !p.refunded && userRole === 'technician' ? `
+                                    <button onclick="showRefundModal('${repairId}', ${i})" style="background:#ff9800;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
+                                        🔄 Request Refund
+                                    </button>
+                                ` : ''}
                                 ${p.isAdvance && p.advanceStatus === 'pending' && (isAdmin || isManager) ? `
                                     <button onclick="refundAdvancePayment('${repairId}', ${i})" style="background:#2196f3;color:white;padding:5px 10px;border:none;border-radius:3px;cursor:pointer;font-size:12px;">
                                         ↩️ Mark as Refunded

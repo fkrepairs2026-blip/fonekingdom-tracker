@@ -1149,23 +1149,61 @@ function buildMyRequestsTab(container) {
     window.currentTabRefresh = () => buildMyRequestsTab(document.getElementById('requestsTab'));
 
     // Load modification requests for this user
-    const myRequests = window.allModificationRequests ?
+    const myModRequests = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.requestedBy === window.currentUser.uid) : [];
+    
+    // Load refund requests for this user
+    const myRefundRequests = window.refunds ?
+        window.refunds.filter(r => r.requestedById === window.currentUser.uid) : [];
+    
+    const totalRequests = myModRequests.length + myRefundRequests.length;
 
     container.innerHTML = `
         <div class="card">
-            <h3>📝 My Modification Requests (${myRequests.length})</h3>
-            <p style="color:#666;margin-bottom:15px;">Your requests to modify payment/repair data</p>
+            <h3>📝 My Requests (${totalRequests})</h3>
+            <p style="color:#666;margin-bottom:15px;">Your modification and refund requests</p>
             
-            ${myRequests.length === 0 ? `
+            ${totalRequests === 0 ? `
                 <div style="text-align:center;padding:40px;color:#999;">
                     <h2 style="font-size:48px;margin:0;">📭</h2>
-                    <p>No modification requests</p>
-                    <p style="font-size:14px;color:#999;">When you need to change payment dates or repair data, submit a request here.</p>
+                    <p>No requests submitted</p>
+                    <p style="font-size:14px;color:#999;">Refund and modification requests will appear here</p>
                 </div>
             ` : `
-                <div>
-                    ${myRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).map(req => `
+                ${myRefundRequests.length > 0 ? `
+                    <h4 style="margin-top:20px;color:#e91e63;">🔄 My Refund Requests (${myRefundRequests.length})</h4>
+                    ${myRefundRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).map(refund => {
+                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                        return `
+                        <div style="background:${refund.status === 'completed' ? '#e8f5e9' : refund.status === 'rejected' ? '#ffebee' : '#fff3e0'};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${refund.status === 'completed' ? '#4caf50' : refund.status === 'rejected' ? '#f44336' : '#ff9800'};">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                                <strong>🔄 Refund Request - ₱${refund.refundAmount.toFixed(2)}</strong>
+                                <span style="background:${refund.status === 'completed' ? '#4caf50' : refund.status === 'rejected' ? '#f44336' : '#ff9800'};color:white;padding:2px 8px;border-radius:3px;font-size:12px;">
+                                    ${refund.status === 'completed' ? '✅ Approved' : refund.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}
+                                </span>
+                            </div>
+                            <div style="font-size:14px;color:#666;margin-bottom:10px;">
+                                <div><strong>Customer:</strong> ${repair ? repair.customerName : 'N/A'}</div>
+                                <div><strong>Device:</strong> ${repair ? `${repair.brand} ${repair.model}` : 'N/A'}</div>
+                                <div><strong>Reason:</strong> ${refund.refundReason.replace('_', ' ').toUpperCase()}</div>
+                                <div><strong>Explanation:</strong> ${refund.refundReasonDetails}</div>
+                                <div><strong>Requested:</strong> ${utils.formatDateTime(refund.requestedAt)}</div>
+                            </div>
+                            ${refund.status !== 'pending_approval' ? `
+                                <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;font-size:13px;">
+                                    <div><strong>${refund.status === 'completed' ? 'Approved' : 'Rejected'} by:</strong> ${refund.completedBy || refund.rejectedBy}</div>
+                                    <div><strong>On:</strong> ${utils.formatDateTime(refund.completedAt || refund.rejectedAt)}</div>
+                                    ${refund.adminNotes ? `<div><strong>Admin Notes:</strong> ${refund.adminNotes}</div>` : ''}
+                                    ${refund.rejectionReason ? `<div><strong>Rejection Reason:</strong> ${refund.rejectionReason}</div>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `}).join('')}
+                ` : ''}
+                
+                ${myModRequests.length > 0 ? `
+                    <h4 style="margin-top:30px;color:#667eea;">📝 My Modification Requests (${myModRequests.length})</h4>
+                    ${myModRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).map(req => `
                         <div style="background:${req.status === 'approved' ? '#e8f5e9' : req.status === 'rejected' ? '#ffebee' : '#fff3e0'};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${req.status === 'approved' ? '#4caf50' : req.status === 'rejected' ? '#f44336' : '#ff9800'};">
                             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                                 <strong>${req.requestType === 'payment-date' ? '📅 Payment Date Change' : req.requestType === 'recorded-date' ? '🕒 Recorded Date Change' : '📝 Data Modification'}</strong>
@@ -1189,7 +1227,7 @@ function buildMyRequestsTab(container) {
                             ` : ''}
                         </div>
                     `).join('')}
-                </div>
+                ` : ''}
             `}
         </div>
     `;
