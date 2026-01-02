@@ -8472,8 +8472,17 @@ async function finalizeClaimDevice(repairId, isAutomatic = false) {
 }
 
 function openFinalizeModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    // Default warranty: 0 days for software repairs, 30 days for hardware
+    const isSoftwareRepair = repair && (repair.repairType === 'Software Issue' ||
+                                        repair.repairType === 'FRP Unlock' ||
+                                        repair.repairType === 'Password Unlock' ||
+                                        repair.repairType === 'Data Recovery');
+    const defaultWarranty = isSoftwareRepair ? '0' : '30';
+    
     document.getElementById('finalizeRepairId').value = repairId;
-    document.getElementById('finalizeWarrantyDays').value = '30';
+    document.getElementById('finalizeWarrantyDays').value = defaultWarranty;
     document.getElementById('finalizeFinalNotes').value = '';
 
     // Reset payment fields
@@ -11822,9 +11831,12 @@ function calculateDataHealthIssues() {
                                  repair.repairType === 'Password Unlock' ||
                                  repair.repairType === 'Data Recovery';
 
+        // Only flag if parts cost was never set (no partsCostRecordedBy field)
+        // If partsCostRecordedBy exists, it means the value was explicitly set (even if 0)
         if ((repair.status === 'Claimed' || repair.status === 'Released') &&
             repair.total > 0 &&
             (!repair.partsCost || repair.partsCost === 0) &&
+            !repair.partsCostRecordedBy &&
             !isSoftwareRepair) {
             issues.missingPartsCost.push({
                 repairId: repair.id,
