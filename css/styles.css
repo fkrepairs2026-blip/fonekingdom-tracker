@@ -983,7 +983,8 @@ body.left-sidebar-collapsed .main-content {
 .repair-detail-content {
     padding: var(--spacing-lg);
     border-top: 1px solid var(--border-color);
-    animation: slideDown 0.3s ease;
+    /* animation: slideDown 0.3s ease; */
+    opacity: 1 !important; /* Force visible - override any animation */
 }
 
 @keyframes slideDown {
