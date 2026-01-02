@@ -941,6 +941,14 @@ function openPaymentModal(repairId) {
     const isManager = userRole === 'manager';
     const isCashier = userRole === 'cashier';
     const canRefund = isAdmin || isManager || isCashier;
+    
+    console.log('🔍 Payment Modal - User Role Check:', {
+        userRole,
+        isAdmin,
+        isManager,
+        isCashier,
+        canRefund
+    });
 
     // Calculate total paid (verified payments only)
     const totalPaid = (repair.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
@@ -1048,6 +1056,28 @@ function openPaymentModal(repairId) {
 
         if (p.isAdvance) {
             if (p.advanceStatus === 'pending') {
+                advanceIcon = '💰';
+                advanceColor = '#ff9800';
+                advanceLabel = 'ADVANCE (Pending)';
+            } else if (p.advanceStatus === 'applied') {
+                advanceIcon = '✅';
+                advanceColor = '#4caf50';
+                advanceLabel = 'ADVANCE (Applied)';
+            } else if (p.advanceStatus === 'refunded') {
+                advanceIcon = '↩️';
+                advanceColor = '#2196f3';
+                advanceLabel = 'ADVANCE (Refunded)';
+            }
+        }
+        
+        // Log payment refund eligibility
+        console.log(`💳 Payment ${i}:`, {
+            amount: p.amount,
+            verified: p.verified,
+            refunded: p.refunded,
+            canRefund: canRefund,
+            shouldShowRefund: p.verified && !p.refunded && canRefund
+        });
                 advanceIcon = '💰';
                 advanceColor = '#ff9800';
                 advanceLabel = 'ADVANCE (Pending)';
