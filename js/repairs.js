@@ -5129,12 +5129,33 @@ function getPendingGCashDates(techId) {
         }
     });
 
-    // Calculate commission per date (40% of NET AMOUNT after parts cost)
+    // Calculate commission per date using custom tech rate
+    const techUser = window.allUsers ? window.allUsers[techId] : null;
+    let commissionRate = 0.40; // Default
+    
+    if (techUser) {
+        const compensationType = techUser.compensationType || 'commission';
+        if (compensationType === 'salary') {
+            commissionRate = 0;
+        } else if (compensationType === 'hybrid') {
+            commissionRate = techUser.hybridCommissionRate || 0.20;
+        } else if (compensationType === 'commission') {
+            commissionRate = techUser.commissionRate || 0.40;
+        } else {
+            commissionRate = 0;
+        }
+        
+        // Admin/manager repairs get their custom rate
+        if ((techUser.role === 'admin' || techUser.role === 'manager') && compensationType === 'commission') {
+            commissionRate = techUser.commissionRate || 0.60;
+        }
+    }
+    
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
-        dateData.totalCommission = dateData.totalNetAmount * 0.40;
-        // 60% is "remitted" (shop keeps after parts cost)
-        dateData.remittedAmount = dateData.totalNetAmount * 0.60;
+        dateData.totalCommission = dateData.totalNetAmount * commissionRate;
+        // Remaining % is "remitted" (shop keeps after parts cost)
+        dateData.remittedAmount = dateData.totalNetAmount * (1 - commissionRate);
     });
 
     // Convert to array and sort by date (oldest first)
@@ -5274,11 +5295,33 @@ function getRepairDeliveryExpenses(repairId) {
  * Returns: { eligible, amount, breakdown }
  */
 function calculateRepairCommission(repair, techId) {
-    // Determine commission rate based on user role
-    let commissionRate = 0.40; // Default for technician
+    // Determine commission rate based on user compensation settings
     const techUser = window.allUsers ? window.allUsers[techId] : null;
-    if (techUser && (techUser.role === 'admin' || techUser.role === 'manager')) {
-        commissionRate = 0.60;
+    let commissionRate = 0.40; // Fallback default
+    let compensationType = 'commission'; // Default type
+    
+    if (techUser) {
+        compensationType = techUser.compensationType || 'commission';
+        
+        // Calculate rate based on compensation type
+        if (compensationType === 'salary') {
+            // Salary-only techs don't earn commission from repairs
+            commissionRate = 0;
+        } else if (compensationType === 'hybrid') {
+            // Hybrid: Salary + reduced commission
+            commissionRate = techUser.hybridCommissionRate || 0.20; // Default 20% for hybrid
+        } else if (compensationType === 'commission') {
+            // Pure commission techs
+            commissionRate = techUser.commissionRate || 0.40; // Use custom rate or default
+        } else {
+            // 'none' or unknown - no commission (cashiers, managers)
+            commissionRate = 0;
+        }
+        
+        // Special case: Admin/manager repairs get higher rate if doing repairs themselves
+        if ((techUser.role === 'admin' || techUser.role === 'manager') && compensationType === 'commission') {
+            commissionRate = techUser.commissionRate || 0.60;
+        }
     }
 
     const result = {
@@ -5289,7 +5332,8 @@ function calculateRepairCommission(repair, techId) {
             partsCost: 0,
             deliveryExpenses: 0,
             netAmount: 0,
-            commissionRate: commissionRate
+            commissionRate: commissionRate,
+            compensationType: compensationType // Track for transparency
         }
     };
 
@@ -5299,7 +5343,9 @@ function calculateRepairCommission(repair, techId) {
         techId: techId,
         repairTotal: repair.total,
         status: repair.status,
-        acceptedBy: repair.acceptedBy
+        acceptedBy: repair.acceptedBy,
+        compensationType: compensationType,
+        commissionRate: commissionRate
     });
 
     // Check eligibility
@@ -5363,6 +5409,7 @@ function calculateRepairCommission(repair, techId) {
         partsCost: result.breakdown.partsCost,
         deliveryExpenses: result.breakdown.deliveryExpenses,
         netAmount: result.breakdown.netAmount,
+        compensationType: result.breakdown.compensationType,
         commissionRate: result.breakdown.commissionRate,
         commissionAmount: result.amount
     });
@@ -10647,7 +10694,20 @@ async function createUser(event) {
             createdBy: window.currentUser.uid,
             createdByName: window.currentUserData.displayName,
             lastLogin: null,
-            loginHistory: {}
+            loginHistory: {},
+            
+            // Compensation settings
+            compensationType: role === 'technician' ? 'commission' : 'none',
+            commissionRate: role === 'technician' ? 0.40 : (role === 'admin' || role === 'manager' ? 0.60 : 0),
+            monthlySalary: 0,
+            hybridCommissionRate: 0,
+            commissionRateHistory: [{
+                rate: role === 'technician' ? 0.40 : (role === 'admin' || role === 'manager' ? 0.60 : 0),
+                changedBy: window.currentUserData.displayName,
+                changedById: window.currentUser.uid,
+                changedAt: new Date().toISOString(),
+                reason: 'Initial setup'
+            }]
         };
 
         await db.ref(`users/${uid}`).set(userData);
@@ -10916,6 +10976,247 @@ function viewUserProfile(userId) {
     }
 }
 
+/**
+ * ========================================
+ * COMPENSATION MANAGEMENT
+ * ========================================
+ */
+
+/**
+ * Open compensation management modal
+ */
+function openCompensationModal(userId) {
+    const user = window.allUsers[userId];
+    if (!user) {
+        alert('User not found');
+        return;
+    }
+    
+    // Populate user info
+    document.getElementById('compensationUserId').value = userId;
+    document.getElementById('compensationUserName').textContent = user.displayName;
+    document.getElementById('compensationUserRole').textContent = user.role.toUpperCase();
+    
+    // Populate current compensation settings
+    const compensationType = user.compensationType || 'commission';
+    document.getElementById('compensationType').value = compensationType;
+    
+    // Set current values
+    document.getElementById('commissionRate').value = user.commissionRate ? (user.commissionRate * 100).toFixed(0) : '';
+    document.getElementById('monthlySalary').value = user.monthlySalary || '';
+    document.getElementById('hybridCommissionRate').value = user.hybridCommissionRate ? (user.hybridCommissionRate * 100).toFixed(0) : '';
+    document.getElementById('compensationReason').value = '';
+    
+    // Show/hide fields based on type
+    handleCompensationTypeChange();
+    
+    // Show history if exists
+    if (user.commissionRateHistory && user.commissionRateHistory.length > 0) {
+        const historySection = document.getElementById('compensationHistorySection');
+        const historyContainer = document.getElementById('compensationHistory');
+        historySection.style.display = 'block';
+        
+        historyContainer.innerHTML = user.commissionRateHistory
+            .slice()
+            .reverse() // Show newest first
+            .map(entry => `
+                <div style="padding:8px;border-bottom:1px solid #ddd;font-size:12px;">
+                    <div style="font-weight:600;">
+                        ${entry.compensationType === 'salary' ? `Salary: ₱${(entry.monthlySalary || 0).toLocaleString()}/mo` :
+                          entry.compensationType === 'hybrid' ? `Hybrid: ₱${(entry.monthlySalary || 0).toLocaleString()}/mo + ${(entry.rate * 100).toFixed(0)}%` :
+                          entry.compensationType === 'commission' ? `Commission: ${(entry.rate * 100).toFixed(0)}%` :
+                          'None'}
+                    </div>
+                    <div style="color:#666;margin-top:3px;">
+                        ${utils.formatDateTime(entry.changedAt)} by ${entry.changedBy}
+                    </div>
+                    ${entry.reason ? `<div style="color:#999;margin-top:2px;font-style:italic;">"${entry.reason}"</div>` : ''}
+                </div>
+            `).join('');
+    } else {
+        document.getElementById('compensationHistorySection').style.display = 'none';
+    }
+    
+    document.getElementById('compensationModal').style.display = 'flex';
+}
+
+/**
+ * Close compensation modal
+ */
+function closeCompensationModal() {
+    document.getElementById('compensationModal').style.display = 'none';
+    document.getElementById('compensationForm').reset();
+}
+
+/**
+ * Handle compensation type change
+ */
+function handleCompensationTypeChange() {
+    const type = document.getElementById('compensationType').value;
+    
+    // Show/hide fields based on type
+    document.getElementById('commissionRateField').style.display = 
+        (type === 'commission') ? 'block' : 'none';
+    
+    document.getElementById('monthlySalaryField').style.display = 
+        (type === 'salary' || type === 'hybrid') ? 'block' : 'none';
+    
+    document.getElementById('hybridCommissionRateField').style.display = 
+        (type === 'hybrid') ? 'block' : 'none';
+    
+    // Set required flags
+    document.getElementById('commissionRate').required = (type === 'commission');
+    document.getElementById('monthlySalary').required = (type === 'salary' || type === 'hybrid');
+    document.getElementById('hybridCommissionRate').required = (type === 'hybrid');
+}
+
+/**
+ * Save compensation settings
+ */
+async function saveCompensationSettings(event) {
+    event.preventDefault();
+    
+    const userId = document.getElementById('compensationUserId').value;
+    const user = window.allUsers[userId];
+    if (!user) {
+        alert('User not found');
+        return;
+    }
+    
+    const compensationType = document.getElementById('compensationType').value;
+    const reason = document.getElementById('compensationReason').value.trim();
+    
+    if (!compensationType) {
+        alert('Please select a compensation type');
+        return;
+    }
+    
+    if (!reason || reason.length < 10) {
+        alert('Please provide a reason (minimum 10 characters)');
+        return;
+    }
+    
+    // Build updates object
+    const updates = {
+        compensationType: compensationType,
+        compensationChangedAt: new Date().toISOString(),
+        compensationChangedBy: window.currentUserData.displayName
+    };
+    
+    // Get values based on type
+    let rate = 0;
+    let monthlySalary = 0;
+    let hybridCommissionRate = 0;
+    
+    if (compensationType === 'commission') {
+        const ratePercent = parseFloat(document.getElementById('commissionRate').value);
+        if (isNaN(ratePercent) || ratePercent < 0 || ratePercent > 100) {
+            alert('Please enter a valid commission rate (0-100)');
+            return;
+        }
+        rate = ratePercent / 100;
+        updates.commissionRate = rate;
+        updates.monthlySalary = 0;
+        updates.hybridCommissionRate = 0;
+        
+    } else if (compensationType === 'salary') {
+        monthlySalary = parseFloat(document.getElementById('monthlySalary').value);
+        if (isNaN(monthlySalary) || monthlySalary < 0) {
+            alert('Please enter a valid monthly salary');
+            return;
+        }
+        rate = 0; // No commission for salary
+        updates.commissionRate = 0;
+        updates.monthlySalary = monthlySalary;
+        updates.hybridCommissionRate = 0;
+        
+    } else if (compensationType === 'hybrid') {
+        monthlySalary = parseFloat(document.getElementById('monthlySalary').value);
+        const hybridRatePercent = parseFloat(document.getElementById('hybridCommissionRate').value);
+        
+        if (isNaN(monthlySalary) || monthlySalary < 0) {
+            alert('Please enter a valid monthly salary');
+            return;
+        }
+        if (isNaN(hybridRatePercent) || hybridRatePercent < 0 || hybridRatePercent > 100) {
+            alert('Please enter a valid hybrid commission rate (0-100)');
+            return;
+        }
+        
+        hybridCommissionRate = hybridRatePercent / 100;
+        rate = hybridCommissionRate; // Store for history
+        updates.commissionRate = 0; // Not used for hybrid (uses hybridCommissionRate)
+        updates.monthlySalary = monthlySalary;
+        updates.hybridCommissionRate = hybridCommissionRate;
+        
+    } else { // 'none'
+        updates.commissionRate = 0;
+        updates.monthlySalary = 0;
+        updates.hybridCommissionRate = 0;
+    }
+    
+    // Add to rate history
+    const historyEntry = {
+        compensationType: compensationType,
+        rate: rate,
+        monthlySalary: monthlySalary,
+        hybridCommissionRate: hybridCommissionRate,
+        changedBy: window.currentUserData.displayName,
+        changedAt: new Date().toISOString(),
+        reason: reason
+    };
+    
+    const existingHistory = user.commissionRateHistory || [];
+    updates.commissionRateHistory = [...existingHistory, historyEntry];
+    
+    // Confirm before saving
+    let confirmMsg = `💰 Update Compensation for ${user.displayName}?\n\n`;
+    if (compensationType === 'salary') {
+        confirmMsg += `Type: Salary Only\nAmount: ₱${monthlySalary.toLocaleString()}/month`;
+    } else if (compensationType === 'hybrid') {
+        confirmMsg += `Type: Hybrid\nSalary: ₱${monthlySalary.toLocaleString()}/month\nCommission: ${(hybridCommissionRate * 100).toFixed(0)}%`;
+    } else if (compensationType === 'commission') {
+        confirmMsg += `Type: Commission Only\nRate: ${(rate * 100).toFixed(0)}%`;
+    } else {
+        confirmMsg += `Type: None`;
+    }
+    confirmMsg += `\n\nReason: ${reason}`;
+    confirmMsg += `\n\n⚠️ This will apply to future repairs only.`;
+    
+    if (!confirm(confirmMsg)) return;
+    
+    try {
+        utils.showLoading(true);
+        
+        await db.ref(`users/${userId}`).update(updates);
+        
+        // Log activity
+        await logActivity('compensation_changed', {
+            userId: userId,
+            compensationType: compensationType,
+            rate: rate,
+            monthlySalary: monthlySalary,
+            hybridCommissionRate: hybridCommissionRate,
+            reason: reason
+        }, `${window.currentUserData.displayName} updated compensation for ${user.displayName}`);
+        
+        utils.showLoading(false);
+        alert('✅ Compensation settings saved successfully!');
+        closeCompensationModal();
+        
+        // Refresh page
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error saving compensation:', error);
+        alert('Error saving compensation: ' + error.message);
+    }
+}
+
+
 // Export user management functions
 window.openCreateUserModal = openCreateUserModal;
 window.closeCreateUserModal = closeCreateUserModal;
@@ -10930,6 +11231,10 @@ window.handleEditUserProfilePicture = handleEditUserProfilePicture;
 window.updateUser = updateUser;
 window.toggleUserStatus = toggleUserStatus;
 window.viewUserProfile = viewUserProfile;
+window.openCompensationModal = openCompensationModal;
+window.closeCompensationModal = closeCompensationModal;
+window.handleCompensationTypeChange = handleCompensationTypeChange;
+window.saveCompensationSettings = saveCompensationSettings;
 window.closePartsCostModal = closePartsCostModal;
 window.openExpenseModal = openExpenseModal;
 window.saveExpense = saveExpense;

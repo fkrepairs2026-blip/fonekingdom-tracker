@@ -2890,6 +2890,16 @@ function buildUsersTab(container) {
                                             ${user.role === 'technician' && user.technicianName ? `
                                                 <div><strong>Tech Name:</strong> ${user.technicianName}</div>
                                             ` : ''}
+                                            ${user.role === 'technician' || user.role === 'admin' || user.role === 'manager' ? `
+                                                <div><strong>💰 Compensation:</strong> 
+                                                    <span style="font-weight:600;">
+                                                        ${user.compensationType === 'salary' ? `Salary (₱${(user.monthlySalary || 0).toLocaleString()}/mo)` :
+            user.compensationType === 'hybrid' ? `Hybrid (₱${(user.monthlySalary || 0).toLocaleString()}/mo + ${(user.hybridCommissionRate * 100).toFixed(0)}%)` :
+                user.compensationType === 'commission' ? `Commission (${(user.commissionRate * 100).toFixed(0)}%)` :
+                    'Not Set'}
+                                                    </span>
+                                                </div>
+                                            ` : ''}
                                             <div><strong>Status:</strong> 
                                                 <span style="color:${isActive ? '#4caf50' : '#f44336'};font-weight:600;">
                                                     ${isActive ? '✅ Active' : '❌ Inactive'}
@@ -2904,6 +2914,11 @@ function buildUsersTab(container) {
                                         </div>
                                     </div>
                                     <div style="display:flex;flex-direction:column;gap:8px;">
+                                        ${(user.role === 'technician' || user.role === 'admin' || user.role === 'manager') ? `
+                                            <button onclick="openCompensationModal('${user.id}')" class="btn-small" style="background:#4caf50;color:white;">
+                                                💰 Compensation
+                                            </button>
+                                        ` : ''}
                                         <button onclick="openEditUserModal('${user.id}')" class="btn-small" style="background:#667eea;color:white;">
                                             ✏️ Edit
                                         </button>

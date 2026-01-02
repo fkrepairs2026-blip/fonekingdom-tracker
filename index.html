@@ -918,6 +918,80 @@
         </div>
     </div>
 
+    <!-- Compensation Management Modal -->
+    <div id="compensationModal" class="modal">
+        <div class="modal-content" style="max-width:700px;">
+            <span class="close" onclick="closeCompensationModal()">&times;</span>
+            <h3>💰 Manage Compensation Settings</h3>
+            
+            <input type="hidden" id="compensationUserId">
+            
+            <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #2196f3;">
+                <div style="font-weight:600;margin-bottom:5px;">👤 <span id="compensationUserName"></span></div>
+                <div style="font-size:13px;color:#666;">Role: <span id="compensationUserRole"></span></div>
+            </div>
+            
+            <form id="compensationForm" onsubmit="saveCompensationSettings(event)">
+                <div class="form-group">
+                    <label>Compensation Type *</label>
+                    <select id="compensationType" required onchange="handleCompensationTypeChange()">
+                        <option value="">-- Select Type --</option>
+                        <option value="commission">💵 Commission Only (% of net profit)</option>
+                        <option value="salary">💰 Salary Only (Fixed monthly)</option>
+                        <option value="hybrid">💎 Hybrid (Salary + Commission)</option>
+                        <option value="none">❌ None (Cashier/Manager)</option>
+                    </select>
+                    <small style="color:#666;">Commission applies to future repairs only</small>
+                </div>
+                
+                <!-- Commission Rate (shown for 'commission' type) -->
+                <div id="commissionRateField" class="form-group" style="display:none;">
+                    <label>Commission Rate (%) *</label>
+                    <input type="number" id="commissionRate" min="0" max="100" step="1" placeholder="40">
+                    <small style="color:#666;">Default: 40% for technicians, 60% for admin/manager</small>
+                </div>
+                
+                <!-- Monthly Salary (shown for 'salary' and 'hybrid') -->
+                <div id="monthlySalaryField" class="form-group" style="display:none;">
+                    <label>Monthly Salary (₱) *</label>
+                    <input type="number" id="monthlySalary" min="0" step="100" placeholder="15000">
+                    <small style="color:#666;">Base salary paid monthly regardless of repairs</small>
+                </div>
+                
+                <!-- Hybrid Commission Rate (shown for 'hybrid' only) -->
+                <div id="hybridCommissionRateField" class="form-group" style="display:none;">
+                    <label>Hybrid Commission Rate (%) *</label>
+                    <input type="number" id="hybridCommissionRate" min="0" max="100" step="1" placeholder="20">
+                    <small style="color:#666;">Usually lower than pure commission (e.g., 20%)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Reason for Change *</label>
+                    <textarea id="compensationReason" required minlength="10" rows="3" 
+                        placeholder="Explain why compensation is being changed (e.g., 'New hire', 'Promotion', 'Performance review')"></textarea>
+                    <small style="color:#666;">Minimum 10 characters - all changes are logged</small>
+                </div>
+                
+                <!-- Rate Change History -->
+                <div id="compensationHistorySection" style="display:none;margin:20px 0;">
+                    <h4 style="margin-bottom:10px;">📊 Change History</h4>
+                    <div id="compensationHistory" style="background:#f5f5f5;padding:10px;border-radius:5px;max-height:200px;overflow-y:auto;">
+                        <!-- History items will be populated here -->
+                    </div>
+                </div>
+                
+                <div style="display:flex;gap:10px;margin-top:20px;">
+                    <button type="submit" class="btn-primary" style="flex:1;">
+                        💾 Save Changes
+                    </button>
+                    <button type="button" onclick="closeCompensationModal()" class="btn-secondary" style="flex:1;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Help Guide Modal -->
     <div id="helpGuideModal" class="modal">
         <div class="modal-content" style="max-width:900px;max-height:90vh;overflow-y:auto;">
