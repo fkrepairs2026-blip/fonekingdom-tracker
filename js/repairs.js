@@ -8153,12 +8153,25 @@ let serviceSlipPhoto = null;
  * Toggle payment entry section in release modal
  */
 function toggleReleasePaymentSection() {
-    const checkbox = document.getElementById('customerPaidCheckbox');
+    const paidYes = document.getElementById('customerPaidYes');
+    const paidNo = document.getElementById('customerPaidNo');
     const section = document.getElementById('releasePaymentSection');
     const amountField = document.getElementById('releasePaymentAmount');
     const methodField = document.getElementById('releasePaymentMethod');
 
-    if (checkbox.checked) {
+    // Update radio button label styling
+    const yesLabel = paidYes.parentElement;
+    const noLabel = paidNo.parentElement;
+
+    if (paidYes.checked) {
+        // Highlight selected option
+        yesLabel.style.borderColor = '#667eea';
+        yesLabel.style.background = '#f0f4ff';
+        yesLabel.style.borderWidth = '2px';
+        noLabel.style.borderColor = '#ddd';
+        noLabel.style.background = '#fff';
+
+        // Show payment fields
         section.style.display = 'block';
 
         // Auto-populate remaining balance
@@ -8180,7 +8193,15 @@ function toggleReleasePaymentSection() {
 
         amountField.required = true;
         methodField.required = true;
-    } else {
+    } else if (paidNo.checked) {
+        // Highlight selected option
+        noLabel.style.borderColor = '#667eea';
+        noLabel.style.background = '#f0f4ff';
+        noLabel.style.borderWidth = '2px';
+        yesLabel.style.borderColor = '#ddd';
+        yesLabel.style.background = '#fff';
+
+        // Hide payment fields
         section.style.display = 'none';
         amountField.required = false;
         methodField.required = false;
@@ -8305,11 +8326,22 @@ function openReleaseDeviceModal(repairId) {
         photoPreview.style.display = 'none';
     }
 
-    // Reset payment checkbox and section
-    const paymentCheckbox = document.getElementById('customerPaidCheckbox');
+    // Reset payment radio buttons and section
+    const paidYes = document.getElementById('customerPaidYes');
+    const paidNo = document.getElementById('customerPaidNo');
     const paymentSection = document.getElementById('releasePaymentSection');
-    if (paymentCheckbox) {
-        paymentCheckbox.checked = false;
+    
+    if (paidYes) {
+        paidYes.checked = false;
+        // Reset label styling
+        paidYes.parentElement.style.borderColor = '#ddd';
+        paidYes.parentElement.style.background = '#fff';
+    }
+    if (paidNo) {
+        paidNo.checked = false;
+        // Reset label styling
+        paidNo.parentElement.style.borderColor = '#ddd';
+        paidNo.parentElement.style.background = '#fff';
     }
     if (paymentSection) {
         paymentSection.style.display = 'none';
@@ -8395,6 +8427,16 @@ async function confirmReleaseDevice() {
         return;
     }
 
+    // VALIDATE PAYMENT STATUS RADIO BUTTON SELECTION (REQUIRED)
+    const paidYes = document.getElementById('customerPaidYes');
+    const paidNo = document.getElementById('customerPaidNo');
+    
+    if (!paidYes.checked && !paidNo.checked) {
+        alert('⚠️ Please select payment status:\n\n• Customer Paid Now\n• Not Paid Yet (Outstanding Balance)');
+        DebugLogger.log('ERROR', 'Release Validation Failed', { reason: 'Payment status not selected' });
+        return;
+    }
+
     const repair = window.allRepairs.find(r => r.id === repairId);
 
     // DUPLICATE PREVENTION: Check if already released
@@ -8417,8 +8459,8 @@ async function confirmReleaseDevice() {
         }
     }
 
-    // Check if payment is being recorded via checkbox
-    const customerPaid = document.getElementById('customerPaidCheckbox').checked;
+    // Check if payment is being recorded via radio button
+    const customerPaid = paidYes.checked;
     let paymentCollected = null;
     let paymentAmount = 0;
 
@@ -12221,6 +12263,215 @@ window.adminDeletePayment = adminDeletePayment;
 window.adminUnremitPayment = adminUnremitPayment;
 window.adminDeleteExpense = adminDeleteExpense;
 window.requestRepairDeletion = requestRepairDeletion;
+
+// Admin Bulk Fix Tools exports
+window.recordMissingPaymentForDevice = recordMissingPaymentForDevice;
+window.exportUnpaidDevicesList = exportUnpaidDevicesList;
+
+/**
+ * Record Missing Payment for a Device (Admin Bulk Fix Tool)
+ */
+async function recordMissingPaymentForDevice(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('⚠️ Repair record not found!');
+        return;
+    }
+
+    const totalPaid = (repair.payments || []).reduce((sum, p) => sum + p.amount, 0);
+    const balance = repair.total - totalPaid;
+
+    if (balance <= 0) {
+        alert('✅ This device is already fully paid!');
+        if (window.currentTabRefresh) window.currentTabRefresh();
+        return;
+    }
+
+    // Prompt for payment details
+    const amountStr = prompt(
+        `💰 Record Missing Payment\n\n` +
+        `Device: ${repair.brand} ${repair.model}\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Status: ${repair.status}\n` +
+        `Released: ${utils.formatDate(repair.releasedAt || repair.completedAt)}\n\n` +
+        `Total: ₱${repair.total.toFixed(2)}\n` +
+        `Paid: ₱${totalPaid.toFixed(2)}\n` +
+        `Balance: ₱${balance.toFixed(2)}\n\n` +
+        `Enter payment amount (or leave blank for full balance):`,
+        balance.toFixed(2)
+    );
+
+    if (amountStr === null) return; // Cancelled
+
+    const amount = parseFloat(amountStr);
+    if (isNaN(amount) || amount <= 0) {
+        alert('⚠️ Invalid payment amount!');
+        return;
+    }
+
+    if (amount > balance) {
+        if (!confirm(`⚠️ Payment amount (₱${amount.toFixed(2)}) exceeds balance (₱${balance.toFixed(2)}).\n\nContinue anyway?`)) {
+            return;
+        }
+    }
+
+    // Prompt for payment method
+    const method = prompt(
+        `Payment Method:\n\n` +
+        `1 = Cash\n` +
+        `2 = GCash\n` +
+        `3 = Bank Transfer\n` +
+        `4 = Check\n` +
+        `5 = Credit Card\n\n` +
+        `Enter number (default: 1 for Cash):`,
+        '1'
+    );
+
+    if (method === null) return; // Cancelled
+
+    const methodMap = {
+        '1': 'Cash',
+        '2': 'GCash',
+        '3': 'Bank Transfer',
+        '4': 'Check',
+        '5': 'Credit Card'
+    };
+
+    const paymentMethod = methodMap[method] || 'Cash';
+
+    // GCash reference if needed
+    let gcashRef = null;
+    if (paymentMethod === 'GCash') {
+        gcashRef = prompt('Enter GCash reference number (13 digits):');
+        if (gcashRef && !/^\d{13}$/.test(gcashRef)) {
+            alert('⚠️ GCash reference must be exactly 13 digits. Payment recorded without reference.');
+            gcashRef = null;
+        }
+    }
+
+    // Optional notes
+    const notes = prompt('Payment notes (optional):\n(e.g., "Payment recorded retrospectively by admin")', 
+        'Missing payment recorded by ' + window.currentUserData.displayName);
+
+    // Confirm before saving
+    if (!confirm(
+        `✅ Confirm Payment Recording\n\n` +
+        `Device: ${repair.brand} ${repair.model}\n` +
+        `Customer: ${repair.customerName}\n` +
+        `Amount: ₱${amount.toFixed(2)}\n` +
+        `Method: ${paymentMethod}\n` +
+        `${gcashRef ? `GCash Ref: ${gcashRef}\n` : ''}` +
+        `${notes ? `Notes: ${notes}\n` : ''}\n` +
+        `Recorded by: ${window.currentUserData.displayName}\n\n` +
+        `Proceed with recording?`
+    )) {
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        // Create payment object
+        const payment = {
+            amount: amount,
+            method: paymentMethod,
+            notes: notes || '',
+            receivedBy: window.currentUserData.displayName,
+            receivedById: window.currentUser.uid,
+            receivedAt: new Date().toISOString(),
+            verified: true, // Admin-recorded payments are auto-verified
+            remittanceStatus: 'verified', // Skip remittance process
+            gcashReferenceNumber: gcashRef,
+            adminRecorded: true, // Flag for audit trail
+            adminRecordedReason: 'Missing payment recorded retrospectively via Admin Tools'
+        };
+
+        // Add to payments array
+        const payments = repair.payments || [];
+        payments.push(payment);
+
+        await db.ref(`repairs/${repairId}`).update({
+            payments: payments,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+
+        // Log the action
+        await logAdminAction({
+            action: 'record_missing_payment',
+            targetType: 'repair',
+            targetId: repairId,
+            targetName: `${repair.brand} ${repair.model} - ${repair.customerName}`,
+            details: {
+                amount: amount,
+                method: paymentMethod,
+                previousBalance: balance,
+                newBalance: balance - amount,
+                gcashReference: gcashRef,
+                notes: notes
+            },
+            performedBy: window.currentUserData.displayName,
+            performedById: window.currentUser.uid,
+            timestamp: new Date().toISOString()
+        });
+
+        utils.showLoading(false);
+        alert(`✅ Payment Recorded Successfully!\n\nAmount: ₱${amount.toFixed(2)}\nNew Balance: ₱${(balance - amount).toFixed(2)}`);
+
+        // Refresh the tab
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        console.error('Error recording missing payment:', error);
+        utils.showLoading(false);
+        alert('❌ Error recording payment: ' + error.message);
+    }
+}
+
+/**
+ * Export Unpaid Devices List to CSV (Admin Tool)
+ */
+function exportUnpaidDevicesList() {
+    // Find unpaid devices
+    const unpaidDevices = window.allRepairs.filter(r => {
+        if (r.deleted || !r.status) return false;
+        if (r.status !== 'Released' && r.status !== 'Claimed') return false;
+        
+        const totalPaid = (r.payments || []).reduce((sum, p) => sum + p.amount, 0);
+        const balance = r.total - totalPaid;
+        
+        return balance > 0 && (!r.payments || r.payments.length === 0);
+    });
+
+    if (unpaidDevices.length === 0) {
+        alert('✅ No unpaid devices to export!');
+        return;
+    }
+
+    // Generate CSV
+    let csv = 'Repair ID,Customer Name,Contact Number,Brand,Model,Problem,Status,Released Date,Total,Paid,Balance\n';
+    
+    unpaidDevices.forEach(r => {
+        const totalPaid = (r.payments || []).reduce((sum, p) => sum + p.amount, 0);
+        const balance = r.total - totalPaid;
+        const releaseDate = r.releasedAt || r.completedAt || '';
+        
+        csv += `"${r.id}","${r.customerName}","${r.contactNumber}","${r.brand}","${r.model}","${r.problem}","${r.status}","${utils.formatDate(releaseDate)}",${r.total.toFixed(2)},${totalPaid.toFixed(2)},${balance.toFixed(2)}\n`;
+    });
+
+    // Download CSV
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `unpaid-devices-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+
+    console.log(`📊 Exported ${unpaidDevices.length} unpaid devices to CSV`);
+}
 
 // ==================== AUTO-FINALIZATION FOR RELEASED STATUS ====================
 

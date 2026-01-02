@@ -542,15 +542,51 @@
                 </div>
             </div>
 
-            <!-- Payment Recording (New Section) -->
-            <div class="form-group" style="border-top:1px solid #ddd;padding-top:15px;margin-top:15px;">
-                <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
-                    <input type="checkbox" id="customerPaidCheckbox" onchange="toggleReleasePaymentSection()">
-                    <strong>💰 Customer Paid During Release</strong>
-                </label>
-                <small style="color:#666;display:block;margin-top:5px;">
-                    Check this if customer is paying now. Leave unchecked for dealers with outstanding balance.
-                </small>
+            <!-- Payment Recording (Radio Button Section) -->
+            <div class="form-group" style="border-top:2px solid #ddd;padding-top:20px;margin-top:20px;">
+                <div style="margin-bottom:15px;">
+                    <strong style="font-size:16px;">💰 Payment Status *</strong>
+                    <small style="color:#e53e3e;display:block;margin-top:5px;font-weight:600;">
+                        ⚠️ REQUIRED: Please select one option before releasing device
+                    </small>
+                </div>
+
+                <!-- Radio Button Options -->
+                <div style="display:flex;flex-direction:column;gap:12px;margin-top:15px;">
+                    <!-- Option 1: Customer Paid Now -->
+                    <label style="display:flex;align-items:center;gap:15px;padding:15px;border:2px solid #ddd;border-radius:10px;cursor:pointer;transition:all 0.2s;background:#fff;"
+                        onmouseover="this.style.borderColor='#667eea';this.style.background='#f7fafc';"
+                        onmouseout="if(!document.getElementById('customerPaidYes').checked){this.style.borderColor='#ddd';this.style.background='#fff';}">
+                        <input type="radio" name="releasePaymentStatus" id="customerPaidYes" value="paid"
+                            onchange="toggleReleasePaymentSection()"
+                            style="width:24px;height:24px;cursor:pointer;accent-color:#667eea;">
+                        <div style="flex:1;">
+                            <div style="font-size:16px;font-weight:600;color:#2d3748;">
+                                ⭕ Customer Paid Now
+                            </div>
+                            <div style="font-size:13px;color:#666;margin-top:4px;">
+                                Customer is paying the balance during device release
+                            </div>
+                        </div>
+                    </label>
+
+                    <!-- Option 2: Not Paid Yet -->
+                    <label style="display:flex;align-items:center;gap:15px;padding:15px;border:2px solid #ddd;border-radius:10px;cursor:pointer;transition:all 0.2s;background:#fff;"
+                        onmouseover="this.style.borderColor='#667eea';this.style.background='#f7fafc';"
+                        onmouseout="if(!document.getElementById('customerPaidNo').checked){this.style.borderColor='#ddd';this.style.background='#fff';}">
+                        <input type="radio" name="releasePaymentStatus" id="customerPaidNo" value="unpaid"
+                            onchange="toggleReleasePaymentSection()"
+                            style="width:24px;height:24px;cursor:pointer;accent-color:#667eea;">
+                        <div style="flex:1;">
+                            <div style="font-size:16px;font-weight:600;color:#2d3748;">
+                                ⭕ Not Paid Yet (Outstanding Balance)
+                            </div>
+                            <div style="font-size:13px;color:#666;margin-top:4px;">
+                                For dealers/accounts receivable - payment will be recorded separately
+                            </div>
+                        </div>
+                    </label>
+                </div>
             </div>
 
             <!-- Payment Entry Fields (Initially Hidden) -->

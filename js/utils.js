@@ -480,11 +480,13 @@ const utils = {
      * @param {string} icon - Optional emoji icon
      * @returns {string} HTML string
      */
-    createStatCard: function (label, value, subtext, gradient, clickAction, icon = '') {
+    createStatCard: function (label, value, subtext, gradient, clickAction, icon = '', dateFilter = null) {
         const clickHandler = typeof clickAction === 'function'
             ? `onclick="${clickAction.name}()"`
             : clickAction
-                ? `onclick="switchTab('${clickAction}')" style="cursor:pointer;"`
+                ? dateFilter
+                    ? `onclick="switchTab('${clickAction}', '${dateFilter}')" style="cursor:pointer;"`
+                    : `onclick="switchTab('${clickAction}')" style="cursor:pointer;"`
                 : '';
 
         return `

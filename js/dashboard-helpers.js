@@ -29,7 +29,8 @@ function buildTechnicianDashboard(userName, stats) {
         'Finished repairs',
         'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
         'myclaimed',
-        '✅'
+        '✅',
+        'today'  // Pass date filter
     )}
                 ${utils.createStatCard(
         'Ready for Pickup',

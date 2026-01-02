@@ -359,14 +359,20 @@ function renderTabs() {
 /**
  * Switch tab
  */
-function switchTab(tabId) {
-    console.log('🔄 Switching to tab:', tabId);
+function switchTab(tabId, dateFilter = null) {
+    console.log('🔄 Switching to tab:', tabId, dateFilter ? `(Filter: ${dateFilter})` : '');
 
     if (window.DebugLogger) {
         DebugLogger.log('UI', 'Tab Switch', {
             from: activeTab,
-            to: tabId
+            to: tabId,
+            dateFilter: dateFilter
         });
+    }
+
+    // Store date filter for specific tabs
+    if (tabId === 'myclaimed') {
+        window.currentDateFilter = dateFilter;
     }
 
     // Remove active class from all navigation items
@@ -2544,10 +2550,13 @@ function renderClaimedButtons(r, role) {
     
     // View Payments button - Show for ALL roles to view payment history and request refunds
     // Technicians can request refunds, others can directly refund
-    if ((r.payments || []).length > 0) {
+    // ALSO show if device has balance but no payments (to record missing payment)
+    if ((r.payments || []).length > 0 || (r.total > 0 && totalPaid === 0)) {
+        const buttonText = (r.payments || []).length > 0 ? '💳 View Payments' : '💰 Record Missing Payment';
+        const buttonColor = (r.payments || []).length > 0 ? '#667eea' : '#ff9800';
         buttons += `
-            <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#667eea;color:white;">
-                💳 View Payments
+            <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:${buttonColor};color:white;">
+                ${buttonText}
             </button>
         `;
     }
@@ -2869,10 +2878,13 @@ function buildMyRepairsTab(container) {
  * Shows Released + Claimed devices repaired by this technician
  */
 function buildMyClaimedDevicesTab(container) {
-    console.log('✅ Building My Claimed Devices tab');
+    const dateFilter = window.currentDateFilter || null;
+    console.log('✅ Building My Claimed Devices tab', dateFilter ? `(Filter: ${dateFilter})` : '');
     window.currentTabRefresh = () => buildMyClaimedDevicesTab(document.getElementById('myclaimedTab'));
 
     const techId = window.currentUser.uid;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     // Filter: Devices where this tech did the repair
     const myReleasedDevices = window.allRepairs.filter(r =>
@@ -2881,11 +2893,20 @@ function buildMyClaimedDevicesTab(container) {
         !r.deleted
     );
 
-    const myClaimedDevices = window.allRepairs.filter(r =>
+    let myClaimedDevices = window.allRepairs.filter(r =>
         r.acceptedBy === techId &&
         r.status === 'Claimed' &&
         !r.deleted
     );
+
+    // Apply date filter if specified
+    if (dateFilter === 'today') {
+        myClaimedDevices = myClaimedDevices.filter(r => {
+            if (!r.completedAt) return false;
+            const completedDate = new Date(r.completedAt);
+            return completedDate >= today;
+        });
+    }
 
     // Sort by most recent first
     myReleasedDevices.sort((a, b) => new Date(b.releasedAt || b.releaseDate) - new Date(a.releasedAt || a.releaseDate));
@@ -2898,6 +2919,14 @@ function buildMyClaimedDevicesTab(container) {
                 <p style="margin:5px 0 0;color:var(--text-secondary);">
                     Devices I successfully repaired - Released and Claimed
                 </p>
+                ${dateFilter === 'today' ? `
+                    <div style="margin-top:15px;padding:12px;background:#e3f2fd;border-radius:8px;border-left:4px solid #2196f3;display:flex;justify-content:space-between;align-items:center;">
+                        <span><strong>📅 Showing:</strong> Completed Today</span>
+                        <button onclick="switchTab('myclaimed')" class="btn btn-secondary" style="padding:6px 12px;font-size:13px;">
+                            📋 Show All Devices
+                        </button>
+                    </div>
+                ` : ''}
             </div>
 
             <!-- Released - Awaiting Finalization Section -->
@@ -3367,6 +3396,9 @@ function buildAdminToolsTab(container) {
             <!-- DATA HEALTH & CLEANUP -->
             ${buildDataHealthSection()}
             
+            <!-- UNPAID DEVICES BULK FIX -->
+            ${buildUnpaidDevicesFixSection()}
+            
             <!-- SCHEDULED EXPORTS -->
             ${buildExportSettingsSection()}
             
@@ -3537,6 +3569,115 @@ function buildAdminToolsTab(container) {
                     📋 View Activity Logs
                 </button>
             </div>
+        </div>
+    `;
+}
+
+/**
+ * Build Unpaid Devices Fix Section for Admin Tools
+ */
+function buildUnpaidDevicesFixSection() {
+    // Find all devices that were released/claimed without payment records but have outstanding balance
+    const unpaidDevices = window.allRepairs.filter(r => {
+        if (r.deleted || !r.status) return false;
+        
+        // Only check Released and Claimed devices
+        if (r.status !== 'Released' && r.status !== 'Claimed') return false;
+        
+        // Calculate payment info
+        const totalPaid = (r.payments || []).reduce((sum, p) => sum + p.amount, 0);
+        const balance = r.total - totalPaid;
+        
+        // Flag if has balance but no payments array or empty
+        return balance > 0 && (!r.payments || r.payments.length === 0);
+    });
+
+    const totalBalance = unpaidDevices.reduce((sum, r) => {
+        const totalPaid = (r.payments || []).reduce((s, p) => s + p.amount, 0);
+        return sum + (r.total - totalPaid);
+    }, 0);
+
+    return `
+        <div class="unpaid-devices-section" style="margin-bottom:30px;">
+            <h4 style="margin:0 0 15px;">💰 Unpaid Released Devices</h4>
+            
+            ${unpaidDevices.length === 0 ? `
+                <div style="background:#d1fae5;padding:15px;border-radius:8px;border-left:4px solid #10b981;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:24px;">✅</span>
+                        <div>
+                            <strong style="color:#065f46;">No Unpaid Devices</strong>
+                            <div style="font-size:13px;color:#065f46;margin-top:4px;">All released devices have payment records</div>
+                        </div>
+                    </div>
+                </div>
+            ` : `
+                <div style="background:#fff3cd;padding:15px;border-radius:8px;border-left:4px solid #ffc107;margin-bottom:15px;">
+                    <strong style="color:#856404;">⚠️ ${unpaidDevices.length} Device${unpaidDevices.length !== 1 ? 's' : ''} Released Without Payment Records</strong>
+                    <div style="font-size:13px;color:#856404;margin-top:4px;">Total outstanding balance: ₱${totalBalance.toFixed(2)}</div>
+                </div>
+                
+                <div style="max-height:400px;overflow-y:auto;background:white;border-radius:8px;border:1px solid #ddd;">
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead style="position:sticky;top:0;background:#f8f9fa;border-bottom:2px solid #ddd;">
+                            <tr>
+                                <th style="padding:10px;text-align:left;border-right:1px solid #ddd;">Device</th>
+                                <th style="padding:10px;text-align:left;border-right:1px solid #ddd;">Customer</th>
+                                <th style="padding:10px;text-align:right;border-right:1px solid #ddd;">Balance</th>
+                                <th style="padding:10px;text-align:center;border-right:1px solid #ddd;">Status</th>
+                                <th style="padding:10px;text-align:center;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${unpaidDevices.map(r => {
+                                const totalPaid = (r.payments || []).reduce((s, p) => s + p.amount, 0);
+                                const balance = r.total - totalPaid;
+                                return `
+                                    <tr style="border-bottom:1px solid #eee;">
+                                        <td style="padding:10px;border-right:1px solid #eee;">
+                                            <div style="font-weight:600;">${r.brand} ${r.model}</div>
+                                            <div style="font-size:11px;color:#666;">${r.id}</div>
+                                        </td>
+                                        <td style="padding:10px;border-right:1px solid #eee;">
+                                            <div>${r.customerName}</div>
+                                            <div style="font-size:11px;color:#666;">${r.contactNumber}</div>
+                                        </td>
+                                        <td style="padding:10px;text-align:right;border-right:1px solid #eee;">
+                                            <strong style="color:#f44336;">₱${balance.toFixed(2)}</strong>
+                                            <div style="font-size:11px;color:#666;">Total: ₱${r.total.toFixed(2)}</div>
+                                        </td>
+                                        <td style="padding:10px;text-align:center;border-right:1px solid #eee;">
+                                            <span style="background:${r.status === 'Released' ? '#ff9800' : '#4caf50'};color:white;padding:3px 8px;border-radius:3px;font-size:11px;">
+                                                ${r.status}
+                                            </span>
+                                            <div style="font-size:10px;color:#666;margin-top:3px;">
+                                                ${utils.formatDate(r.releasedAt || r.completedAt)}
+                                            </div>
+                                        </td>
+                                        <td style="padding:10px;text-align:center;">
+                                            <button onclick="recordMissingPaymentForDevice('${r.id}')" 
+                                                class="btn-small btn-primary" 
+                                                style="font-size:11px;padding:5px 10px;">
+                                                💳 Add Payment
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top:15px;padding:15px;background:#f8f9fa;border-radius:8px;">
+                    <p style="font-size:13px;color:#666;margin:0 0 10px;">
+                        📝 <strong>Note:</strong> These devices were released without payment checkbox being marked. 
+                        Use the "Add Payment" button to record missing payments for each device.
+                    </p>
+                    <button onclick="exportUnpaidDevicesList()" class="btn-small" style="margin-top:5px;">
+                        📊 Export List to CSV
+                    </button>
+                </div>
+            `}
         </div>
     `;
 }
