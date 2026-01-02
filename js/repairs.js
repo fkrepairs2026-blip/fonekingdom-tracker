@@ -12312,10 +12312,17 @@ async function loadOverheadExpenses() {
             window.overheadExpenses = expenses;
             console.log(`✅ Loaded ${expenses.length} overhead expenses`);
 
-            // Trigger refresh if on relevant tab
-            if (window.currentTabRefresh) {
-                setTimeout(() => window.currentTabRefresh(), 400);
-            }
+            // Refresh overhead tab if it exists (in case it's currently active)
+            setTimeout(() => {
+                const overheadContainer = document.getElementById('overheadTab');
+                if (overheadContainer && window.buildOverheadExpensesTab) {
+                    // Check if overhead tab is currently active
+                    if (overheadContainer.classList.contains('active')) {
+                        window.buildOverheadExpensesTab(overheadContainer);
+                        console.log('🔄 Overhead tab refreshed');
+                    }
+                }
+            }, 400);
         });
 
     } catch (error) {
