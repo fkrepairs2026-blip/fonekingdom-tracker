@@ -4911,32 +4911,42 @@ function getPendingGCashDates(techId) {
                             date: new Date(dateString + 'T00:00:00'),
                             payments: [],
                             totalPayments: 0,
+                            totalPartsCost: 0,
+                            totalNetAmount: 0,
                             totalCommission: 0
                         };
                     }
+
+                    // Get parts cost for this repair
+                    const partsCost = repair.partsCost || 0;
+                    const netAmount = payment.amount - (partsCost / (repair.payments.length || 1)); // Distribute parts cost across payments
 
                     dateMap[dateString].payments.push({
                         repairId: repair.id,
                         paymentIndex: index,
                         customerName: repair.customerName,
                         amount: payment.amount,
+                        partsCost: partsCost,
+                        netAmount: netAmount > 0 ? netAmount : 0,
                         method: payment.method,
                         gcashReferenceNumber: payment.gcashReferenceNumber,
                         paymentDate: payment.paymentDate,
                         recordedDate: payment.recordedDate
                     });
                     dateMap[dateString].totalPayments += payment.amount;
+                    dateMap[dateString].totalPartsCost += (partsCost / (repair.payments.length || 1));
+                    dateMap[dateString].totalNetAmount += (netAmount > 0 ? netAmount : 0);
                 }
             });
         }
     });
 
-    // Calculate commission per date (40% of total GCash)
+    // Calculate commission per date (40% of NET AMOUNT after parts cost)
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
-        dateData.totalCommission = dateData.totalPayments * 0.40;
-        // 60% is "remitted" (already in shop account)
-        dateData.remittedAmount = dateData.totalPayments * 0.60;
+        dateData.totalCommission = dateData.totalNetAmount * 0.40;
+        // 60% is "remitted" (shop keeps after parts cost)
+        dateData.remittedAmount = dateData.totalNetAmount * 0.60;
     });
 
     // Convert to array and sort by date (oldest first)

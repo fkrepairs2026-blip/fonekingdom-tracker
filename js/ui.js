@@ -4404,6 +4404,16 @@ function buildDailyRemittanceTab(container) {
                                             <span>📱 Total GCash:</span>
                                             <strong>₱${dateData.totalPayments.toFixed(2)}</strong>
                                         </div>
+                                        ${dateData.totalPartsCost > 0 ? `
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#f44336;">
+                                            <span>🔧 Parts Cost:</span>
+                                            <strong>-₱${dateData.totalPartsCost.toFixed(2)}</strong>
+                                        </div>
+                                        <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;padding-top:5px;border-top:1px dashed #ccc;">
+                                            <span><strong>Net Amount:</strong></span>
+                                            <strong>₱${dateData.totalNetAmount.toFixed(2)}</strong>
+                                        </div>
+                                        ` : ''}
                                         <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#4caf50;">
                                             <span>🏦 Remitted (60%):</span>
                                             <strong>₱${dateData.remittedAmount.toFixed(2)}</strong>
