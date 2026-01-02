@@ -2630,6 +2630,12 @@ function toggleRepairDetails(repairId, context = 'default') {
             detailContent.style.opacity = '1';
             detailContent.style.maxHeight = 'none';
             detailContent.style.animation = 'none';
+            console.log('✅ STYLES SET:', {
+                display: detailContent.style.display,
+                opacity: detailContent.style.opacity,
+                maxHeight: detailContent.style.maxHeight,
+                animation: detailContent.style.animation
+            });
         }
 
         const indicator = repairItem.querySelector('.expand-indicator');
