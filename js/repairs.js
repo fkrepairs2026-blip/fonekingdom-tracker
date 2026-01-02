@@ -8302,13 +8302,13 @@ async function confirmReleaseDevice() {
                 collectedByRole: window.currentUserData.role,
                 customerName: repair.customerName
             }, `Payment of ₱${payment.amount.toFixed(2)} collected at release by ${paymentCollected.collectedBy}`);
-            
+
             // Calculate and set commission if device is fully paid
             const totalPaid = [...existingPayments, payment]
                 .filter(p => p.verified)
                 .reduce((sum, p) => sum + (p.amount || 0), 0);
             const balance = repair.total - totalPaid;
-            
+
             if (balance <= 0 && repair.acceptedBy) {
                 const commission = calculateRepairCommission(repair, repair.acceptedBy);
                 if (commission.eligible && !repair.commissionAmount) {
@@ -8668,13 +8668,13 @@ async function confirmFinalizeDevice() {
                 creditedTo: technicianName,
                 customerName: repair.customerName
             }, `Payment of ₱${payment.amount.toFixed(2)} collected at claim finalization - credited to ${technicianName}`);
-            
+
             // Calculate and set commission if device is fully paid
             const totalPaid = [...existingPayments, payment]
                 .filter(p => p.verified)
                 .reduce((sum, p) => sum + (p.amount || 0), 0);
             const balance = repair.total - totalPaid;
-            
+
             if (balance <= 0 && repair.acceptedBy) {
                 const commission = calculateRepairCommission(repair, repair.acceptedBy);
                 if (commission.eligible && !repair.commissionAmount) {
@@ -11787,10 +11787,426 @@ function startAutoFinalizeChecker() {
     console.log('✅ Auto-finalization checker started (every 5 minutes)');
 }
 
+// ===== DATA CLEANUP ENGINE =====
+
+/**
+ * Calculate data health issues across all repairs
+ * Returns categorized list of problems
+ */
+function calculateDataHealthIssues() {
+    const issues = {
+        missingPartsCost: [],
+        orphanedRemittances: [],
+        legacyPayments: [],
+        total: 0
+    };
+    
+    if (!window.allRepairs) {
+        return issues;
+    }
+    
+    window.allRepairs.forEach(repair => {
+        if (repair.deleted) return;
+        
+        // Check for missing parts cost on completed repairs
+        if ((repair.status === 'Claimed' || repair.status === 'Released') && 
+            repair.total > 0 && 
+            (!repair.partsCost || repair.partsCost === 0)) {
+            issues.missingPartsCost.push({
+                repairId: repair.id,
+                customerName: repair.customerName,
+                total: repair.total,
+                status: repair.status,
+                claimedAt: repair.claimedAt
+            });
+        }
+        
+        // Check payments for issues
+        if (repair.payments && repair.payments.length > 0) {
+            repair.payments.forEach((payment, index) => {
+                // Check for orphaned remittances
+                if (payment.techRemittanceId && payment.remittanceStatus === 'remitted') {
+                    const remittanceExists = window.techRemittances && 
+                        window.techRemittances.find(r => r.id === payment.techRemittanceId);
+                    
+                    if (!remittanceExists) {
+                        issues.orphanedRemittances.push({
+                            repairId: repair.id,
+                            paymentIndex: index,
+                            customerName: repair.customerName,
+                            amount: payment.amount,
+                            method: payment.method,
+                            recordedDate: payment.recordedDate,
+                            techRemittanceId: payment.techRemittanceId
+                        });
+                    }
+                }
+                
+                // Check for legacy payments (missing remittanceStatus)
+                if (payment.collectedByTech && !payment.remittanceStatus) {
+                    issues.legacyPayments.push({
+                        repairId: repair.id,
+                        paymentIndex: index,
+                        customerName: repair.customerName,
+                        amount: payment.amount,
+                        method: payment.method,
+                        verified: payment.verified,
+                        recordedDate: payment.recordedDate
+                    });
+                }
+            });
+        }
+    });
+    
+    issues.total = issues.missingPartsCost.length + 
+                   issues.orphanedRemittances.length + 
+                   issues.legacyPayments.length;
+    
+    return issues;
+}
+
+/**
+ * Perform data cleanup with reversible snapshots
+ * @param {string} category - 'missingPartsCost', 'orphanedRemittances', 'legacyPayments'
+ * @param {Array} affectedRecords - List of records to fix
+ */
+async function performCleanup(category, affectedRecords) {
+    if (!window.currentUserData || window.currentUserData.role !== 'admin') {
+        alert('⚠️ Only administrators can perform data cleanup');
+        return { success: false };
+    }
+    
+    if (!affectedRecords || affectedRecords.length === 0) {
+        alert('⚠️ No records to clean up');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Generate cleanup ID
+        const cleanupId = `cleanup_${Date.now()}`;
+        const now = new Date().toISOString();
+        const expiresAt = new Date(Date.now() + (90 * 24 * 60 * 60 * 1000)).toISOString(); // 90 days
+        
+        // Prepare cleanup snapshot
+        const cleanupSnapshot = {
+            cleanupId: cleanupId,
+            category: category,
+            performedBy: window.currentUserData.displayName,
+            performedById: window.currentUser.uid,
+            timestamp: now,
+            expiresAt: expiresAt,
+            status: 'active',
+            affectedRecords: []
+        };
+        
+        // Process each record
+        const updates = {};
+        
+        for (const record of affectedRecords) {
+            const repairRef = `repairs/${record.repairId}`;
+            const repair = window.allRepairs.find(r => r.id === record.repairId);
+            
+            if (!repair) continue;
+            
+            const snapshot = {
+                repairId: record.repairId,
+                oldValues: {},
+                newValues: {}
+            };
+            
+            switch (category) {
+                case 'missingPartsCost':
+                    snapshot.oldValues.partsCost = repair.partsCost || null;
+                    snapshot.oldValues.partsCostNotes = repair.partsCostNotes || null;
+                    
+                    snapshot.newValues.partsCost = 0;
+                    snapshot.newValues.partsCostNotes = `Auto-set to 0 by data cleanup on ${utils.formatDate(now)} (original value unknown)`;
+                    snapshot.newValues.partsCostRecordedBy = window.currentUserData.displayName;
+                    snapshot.newValues.partsCostRecordedAt = now;
+                    
+                    updates[`${repairRef}/partsCost`] = 0;
+                    updates[`${repairRef}/partsCostNotes`] = snapshot.newValues.partsCostNotes;
+                    updates[`${repairRef}/partsCostRecordedBy`] = snapshot.newValues.partsCostRecordedBy;
+                    updates[`${repairRef}/partsCostRecordedAt`] = snapshot.newValues.partsCostRecordedAt;
+                    break;
+                    
+                case 'orphanedRemittances':
+                    const payment = repair.payments[record.paymentIndex];
+                    snapshot.oldValues.remittanceStatus = payment.remittanceStatus;
+                    snapshot.oldValues.techRemittanceId = payment.techRemittanceId;
+                    
+                    snapshot.newValues.remittanceStatus = 'pending';
+                    snapshot.newValues.techRemittanceId = null;
+                    snapshot.paymentIndex = record.paymentIndex;
+                    
+                    updates[`${repairRef}/payments/${record.paymentIndex}/remittanceStatus`] = 'pending';
+                    updates[`${repairRef}/payments/${record.paymentIndex}/techRemittanceId`] = null;
+                    break;
+                    
+                case 'legacyPayments':
+                    const legacyPayment = repair.payments[record.paymentIndex];
+                    snapshot.oldValues.remittanceStatus = legacyPayment.remittanceStatus || null;
+                    
+                    // Set based on verification status
+                    const newStatus = legacyPayment.verified ? 'verified' : 'pending';
+                    snapshot.newValues.remittanceStatus = newStatus;
+                    snapshot.paymentIndex = record.paymentIndex;
+                    
+                    updates[`${repairRef}/payments/${record.paymentIndex}/remittanceStatus`] = newStatus;
+                    break;
+            }
+            
+            cleanupSnapshot.affectedRecords.push(snapshot);
+        }
+        
+        // Save cleanup snapshot to Firebase
+        await db.ref(`dataCleanupHistory/${cleanupId}`).set(cleanupSnapshot);
+        
+        // Apply updates
+        await db.ref().update(updates);
+        
+        // Log activity
+        await logActivity('data_cleanup', {
+            cleanupId: cleanupId,
+            category: category,
+            recordsAffected: affectedRecords.length
+        });
+        
+        utils.showLoading(false);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `✅ Cleanup completed: ${affectedRecords.length} records fixed`,
+                'success',
+                5000
+            );
+        }
+        
+        // Refresh current tab
+        if (window.currentTabRefresh) {
+            setTimeout(() => window.currentTabRefresh(), 400);
+        }
+        
+        return { success: true, cleanupId: cleanupId };
+        
+    } catch (error) {
+        console.error('❌ Error performing cleanup:', error);
+        utils.showLoading(false);
+        alert(`Error performing cleanup: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Undo a cleanup operation (within 90 days)
+ * @param {string} cleanupId - ID of the cleanup to undo
+ */
+async function undoCleanup(cleanupId) {
+    if (!window.currentUserData || window.currentUserData.role !== 'admin') {
+        alert('⚠️ Only administrators can undo cleanup operations');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Retrieve cleanup snapshot
+        const snapshot = await db.ref(`dataCleanupHistory/${cleanupId}`).once('value');
+        const cleanupData = snapshot.val();
+        
+        if (!cleanupData) {
+            throw new Error('Cleanup snapshot not found');
+        }
+        
+        // Check if already undone
+        if (cleanupData.status === 'undone') {
+            alert('⚠️ This cleanup has already been undone');
+            utils.showLoading(false);
+            return { success: false };
+        }
+        
+        // Check if expired
+        const expiresAt = new Date(cleanupData.expiresAt);
+        const now = new Date();
+        if (now > expiresAt) {
+            alert('⚠️ This cleanup has expired (>90 days old) and cannot be undone');
+            utils.showLoading(false);
+            return { success: false };
+        }
+        
+        // Prepare undo updates
+        const updates = {};
+        
+        for (const record of cleanupData.affectedRecords) {
+            const repairRef = `repairs/${record.repairId}`;
+            
+            // Restore old values
+            for (const [key, value] of Object.entries(record.oldValues)) {
+                if (record.paymentIndex !== undefined) {
+                    // Payment field
+                    updates[`${repairRef}/payments/${record.paymentIndex}/${key}`] = value;
+                } else {
+                    // Repair field
+                    updates[`${repairRef}/${key}`] = value;
+                }
+            }
+        }
+        
+        // Apply undo updates
+        await db.ref().update(updates);
+        
+        // Mark cleanup as undone
+        await db.ref(`dataCleanupHistory/${cleanupId}`).update({
+            status: 'undone',
+            undoneBy: window.currentUserData.displayName,
+            undoneById: window.currentUser.uid,
+            undoneAt: new Date().toISOString()
+        });
+        
+        // Log activity
+        await logActivity('cleanup_undone', {
+            cleanupId: cleanupId,
+            category: cleanupData.category,
+            recordsReverted: cleanupData.affectedRecords.length
+        });
+        
+        utils.showLoading(false);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `✅ Cleanup undone: ${cleanupData.affectedRecords.length} records reverted`,
+                'success',
+                5000
+            );
+        }
+        
+        // Refresh current tab
+        if (window.currentTabRefresh) {
+            setTimeout(() => window.currentTabRefresh(), 400);
+        }
+        
+        return { success: true };
+        
+    } catch (error) {
+        console.error('❌ Error undoing cleanup:', error);
+        utils.showLoading(false);
+        alert(`Error undoing cleanup: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Archive expired cleanups (>90 days) to CSV and delete from Firebase
+ * Runs monthly
+ */
+async function archiveExpiredCleanups() {
+    if (!window.currentUserData || window.currentUserData.role !== 'admin') {
+        return;
+    }
+    
+    try {
+        console.log('🗄️ Checking for expired cleanups to archive...');
+        
+        const snapshot = await db.ref('dataCleanupHistory').once('value');
+        const allCleanups = snapshot.val() || {};
+        
+        const now = new Date();
+        const expiredCleanups = [];
+        
+        Object.entries(allCleanups).forEach(([id, cleanup]) => {
+            const expiresAt = new Date(cleanup.expiresAt);
+            if (now > expiresAt) {
+                expiredCleanups.push({
+                    cleanupId: id,
+                    ...cleanup
+                });
+            }
+        });
+        
+        if (expiredCleanups.length === 0) {
+            console.log('✅ No expired cleanups to archive');
+            return;
+        }
+        
+        // Export to CSV
+        const csvData = expiredCleanups.map(c => ({
+            'Cleanup ID': c.cleanupId,
+            'Category': c.category,
+            'Performed By': c.performedBy,
+            'Timestamp': utils.formatDateTime(c.timestamp),
+            'Status': c.status,
+            'Records Affected': c.affectedRecords.length,
+            'Expires At': utils.formatDateTime(c.expiresAt)
+        }));
+        
+        const now_str = new Date().toISOString().split('T')[0];
+        exportToCSV(csvData, `cleanup_archive_${now_str}`);
+        
+        // Delete from Firebase
+        const deleteUpdates = {};
+        expiredCleanups.forEach(c => {
+            deleteUpdates[`dataCleanupHistory/${c.cleanupId}`] = null;
+        });
+        
+        await db.ref().update(deleteUpdates);
+        
+        console.log(`✅ Archived and deleted ${expiredCleanups.length} expired cleanups`);
+        
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `📦 Archived ${expiredCleanups.length} expired cleanups`,
+                'info',
+                5000
+            );
+        }
+        
+    } catch (error) {
+        console.error('❌ Error archiving expired cleanups:', error);
+    }
+}
+
+/**
+ * Get cleanup history for display
+ */
+async function getCleanupHistory(limit = 20) {
+    try {
+        const snapshot = await db.ref('dataCleanupHistory')
+            .orderByChild('timestamp')
+            .limitToLast(limit)
+            .once('value');
+        
+        const cleanups = [];
+        snapshot.forEach(child => {
+            cleanups.push({
+                id: child.key,
+                ...child.val()
+            });
+        });
+        
+        // Sort by timestamp descending (newest first)
+        cleanups.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        return cleanups;
+        
+    } catch (error) {
+        console.error('Error loading cleanup history:', error);
+        return [];
+    }
+}
+
 // Export functions
 window.checkAndAutoFinalizeReleased = checkAndAutoFinalizeReleased;
 window.getCountdownTo6PM = getCountdownTo6PM;
 window.startAutoFinalizeChecker = startAutoFinalizeChecker;
+
+// Export cleanup functions
+window.calculateDataHealthIssues = calculateDataHealthIssues;
+window.performCleanup = performCleanup;
+window.undoCleanup = undoCleanup;
+window.archiveExpiredCleanups = archiveExpiredCleanups;
+window.getCleanupHistory = getCleanupHistory;
 
 // Start checker when repairs are loaded
 if (window.allRepairs) {

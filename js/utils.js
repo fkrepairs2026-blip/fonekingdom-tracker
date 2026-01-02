@@ -228,32 +228,32 @@ const utils = {
      * @param {string} role - User role (admin, manager, cashier, technician)
      * @returns {object} Calculated stats for the role
      */
-    getCachedDashboardStats: function(role) {
+    getCachedDashboardStats: function (role) {
         const now = Date.now();
-        
+
         // Return cached stats if still valid
-        if (this.dashboardCache.stats && 
+        if (this.dashboardCache.stats &&
             this.dashboardCache.lastUpdated &&
             (now - this.dashboardCache.lastUpdated) < this.dashboardCache.ttl) {
             console.log('📊 Using cached dashboard stats');
             return this.dashboardCache.stats;
         }
-        
+
         // Recalculate stats
         console.log('🔄 Calculating fresh dashboard stats');
         const stats = this.calculateDashboardStats(role);
-        
+
         // Cache the results
         this.dashboardCache.stats = stats;
         this.dashboardCache.lastUpdated = now;
-        
+
         return stats;
     },
 
     /**
      * Invalidate dashboard cache (called by auto-refresh)
      */
-    invalidateDashboardCache: function() {
+    invalidateDashboardCache: function () {
         this.dashboardCache.stats = null;
         this.dashboardCache.activities = null;
         this.dashboardCache.lastUpdated = null;
@@ -265,16 +265,16 @@ const utils = {
      * @param {string} role - User role
      * @returns {object} Calculated statistics
      */
-    calculateDashboardStats: function(role) {
+    calculateDashboardStats: function (role) {
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const weekAgo = new Date(today);
         weekAgo.setDate(today.getDate() - 7);
-        
+
         const repairs = window.allRepairs || [];
         const activeRepairs = repairs.filter(r => !r.deleted);
         const currentUserId = window.currentUser ? window.currentUser.uid : null;
-        
+
         const stats = {
             // Common stats for all roles
             totalActive: activeRepairs.length,
@@ -282,7 +282,7 @@ const utils = {
             inProgress: activeRepairs.filter(r => r.status === 'In Progress' || r.status === 'Waiting for Parts').length,
             readyForPickup: activeRepairs.filter(r => r.status === 'Ready for Pickup').length,
             released: activeRepairs.filter(r => r.status === 'Released').length,
-            
+
             // Priority alerts
             staleInProgress: activeRepairs.filter(r => {
                 const isInProgress = r.status === 'In Progress' || r.status === 'Waiting for Parts';
@@ -290,65 +290,65 @@ const utils = {
                 const days = Math.floor((now - new Date(r.acceptedAt)) / (1000 * 60 * 60 * 24));
                 return days > 5;
             }).length,
-            
+
             overduePickup: activeRepairs.filter(r => {
                 if (r.status !== 'Ready for Pickup' || !r.completedAt) return false;
                 const days = Math.floor((now - new Date(r.completedAt)) / (1000 * 60 * 60 * 24));
                 return days > 3;
             }).length,
-            
-            pendingApproval: activeRepairs.filter(r => 
+
+            pendingApproval: activeRepairs.filter(r =>
                 r.status === 'Pending Customer Approval' && r.diagnosisCreated && !r.customerApproved
             ).length
         };
-        
+
         // Role-specific calculations
         if (role === 'technician') {
             // Personal job stats
-            stats.myActiveJobs = activeRepairs.filter(r => 
-                r.acceptedBy === currentUserId && 
+            stats.myActiveJobs = activeRepairs.filter(r =>
+                r.acceptedBy === currentUserId &&
                 (r.status === 'In Progress' || r.status === 'Waiting for Parts')
             ).length;
-            
+
             stats.myCompletedToday = activeRepairs.filter(r => {
                 if (r.acceptedBy !== currentUserId || !r.completedAt) return false;
                 const completedDate = new Date(r.completedAt);
                 return completedDate >= today;
             }).length;
-            
-            stats.myReadyForPickup = activeRepairs.filter(r => 
+
+            stats.myReadyForPickup = activeRepairs.filter(r =>
                 r.acceptedBy === currentUserId && r.status === 'Ready for Pickup'
             ).length;
-            
+
             // Count Released and Claimed devices by this tech
-            stats.myClaimedCount = activeRepairs.filter(r => 
-                r.acceptedBy === currentUserId && 
+            stats.myClaimedCount = activeRepairs.filter(r =>
+                r.acceptedBy === currentUserId &&
                 (r.status === 'Released' || r.status === 'Claimed') &&
                 !r.deleted
             ).length;
-            
+
             // Commission tracking - include both Released and Claimed devices
             stats.myCommissionThisMonth = activeRepairs.filter(r => {
                 if (r.acceptedBy !== currentUserId || !r.commissionAmount) return false;
-                
+
                 // Check finalization date (Released uses releasedAt, Claimed uses claimedAt)
                 const finalizeDate = r.claimedAt || r.releasedAt;
                 if (!finalizeDate) return false;
-                
+
                 const finalized = new Date(finalizeDate);
                 return finalized.getMonth() === now.getMonth() && finalized.getFullYear() === now.getFullYear();
             }).reduce((sum, r) => sum + (parseFloat(r.commissionAmount) || 0), 0);
-            
+
             // Remittance status
             const techRemittances = window.techRemittances || [];
-            const myPendingRemittances = techRemittances.filter(r => 
+            const myPendingRemittances = techRemittances.filter(r =>
                 r.techId === currentUserId && r.status === 'pending'
             );
             stats.pendingRemittanceCount = myPendingRemittances.length;
-            stats.pendingRemittanceAmount = myPendingRemittances.reduce((sum, r) => 
+            stats.pendingRemittanceAmount = myPendingRemittances.reduce((sum, r) =>
                 sum + (parseFloat(r.actualAmount) || 0), 0
             );
-            
+
         } else if (role === 'cashier') {
             // Payment-focused stats
             stats.unpaidCount = activeRepairs.filter(r => {
@@ -358,20 +358,20 @@ const utils = {
                     .reduce((sum, p) => sum + parseFloat(p.amount), 0);
                 return total > paid;
             }).length;
-            
+
             stats.pendingVerification = activeRepairs.filter(r => {
                 const hasUnverified = (r.payments || []).some(p => !p.verified);
                 return hasUnverified;
             }).length;
-            
+
             const techRemittances = window.techRemittances || [];
             stats.pendingRemittances = techRemittances.filter(r => r.status === 'pending').length;
-            
+
             // Cash count status
             const dailyCashCounts = window.dailyCashCounts || {};
             const todayKey = today.toISOString().split('T')[0];
             stats.cashCountDone = !!dailyCashCounts[todayKey];
-            
+
         } else if (role === 'admin' || role === 'manager') {
             // System-wide metrics
             stats.completedToday = activeRepairs.filter(r => {
@@ -379,7 +379,7 @@ const utils = {
                 const completed = new Date(r.completedAt);
                 return completed >= today;
             }).length;
-            
+
             // Daily revenue (shop's 60% share after 40% tech commission)
             stats.revenueToday = activeRepairs.reduce((sum, r) => {
                 const verifiedPayments = (r.payments || []).filter(p => {
@@ -390,14 +390,14 @@ const utils = {
                 const totalPayments = verifiedPayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0);
                 return sum + (totalPayments * 0.6); // Shop's 60% share
             }, 0);
-            
+
             // Average completion time this week
             const completedThisWeek = activeRepairs.filter(r => {
                 if (!r.completedAt) return false;
                 const completed = new Date(r.completedAt);
                 return completed >= weekAgo;
             });
-            
+
             if (completedThisWeek.length > 0) {
                 const totalDays = completedThisWeek.reduce((sum, r) => {
                     if (!r.acceptedAt || !r.completedAt) return sum;
@@ -408,18 +408,18 @@ const utils = {
             } else {
                 stats.avgCompletionDays = 0;
             }
-            
+
             // Modification requests (admin only)
             if (role === 'admin') {
                 const modRequests = window.allModificationRequests || [];
                 stats.pendingModRequests = modRequests.filter(r => r.status === 'pending').length;
             }
-            
+
             // Remittances pending verification
             const techRemittances = window.techRemittances || [];
             stats.pendingRemittances = techRemittances.filter(r => r.status === 'pending').length;
         }
-        
+
         return stats;
     },
 
@@ -433,13 +433,13 @@ const utils = {
      * @param {string} icon - Optional emoji icon
      * @returns {string} HTML string
      */
-    createStatCard: function(label, value, subtext, gradient, clickAction, icon = '') {
-        const clickHandler = typeof clickAction === 'function' 
-            ? `onclick="${clickAction.name}()"` 
-            : clickAction 
-                ? `onclick="switchTab('${clickAction}')" style="cursor:pointer;"` 
+    createStatCard: function (label, value, subtext, gradient, clickAction, icon = '') {
+        const clickHandler = typeof clickAction === 'function'
+            ? `onclick="${clickAction.name}()"`
+            : clickAction
+                ? `onclick="switchTab('${clickAction}')" style="cursor:pointer;"`
                 : '';
-        
+
         return `
             <div class="dashboard-stat-card" ${clickHandler}>
                 <div style="font-size:13px;color:rgba(255,255,255,0.9);margin-bottom:8px;">
@@ -463,17 +463,17 @@ const utils = {
      * @param {string} icon - Emoji icon
      * @returns {string} HTML string
      */
-    createAlertCard: function(title, count, urgency, targetTab, icon = '⚠️') {
+    createAlertCard: function (title, count, urgency, targetTab, icon = '⚠️') {
         const colors = {
             high: 'linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%)',
             medium: 'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
             low: 'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)'
         };
-        
+
         const gradient = colors[urgency] || colors.medium;
-        
+
         if (count === 0) return '';  // Don't show alerts with zero count
-        
+
         return `
             <div class="dashboard-alert-card" onclick="switchTab('${targetTab}')" style="cursor:pointer;">
                 <div class="alert-icon">${icon}</div>
@@ -967,24 +967,24 @@ function toggleLanguageDropdown() {
  */
 function setHelpLanguage(lang) {
     localStorage.setItem('helpLanguage', lang);
-    
+
     // Update button text
     const currentLangText = document.getElementById('currentLangText');
     if (currentLangText) {
         currentLangText.textContent = lang.toUpperCase();
     }
-    
+
     // Close dropdown
     const dropdown = document.getElementById('languageDropdown');
     if (dropdown) {
         dropdown.style.display = 'none';
     }
-    
+
     // Refresh current tab to show help in new language
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
     }
-    
+
     console.log('✅ Language set to:', lang);
 }
 
@@ -1004,25 +1004,25 @@ function openHelpGuide(topicKey) {
     const lang = getCurrentHelpLanguage();
     const modal = document.getElementById('helpGuideModal');
     const content = document.getElementById('helpGuideContent');
-    
+
     if (!modal || !content) return;
-    
+
     // Update title based on language
     const titleEl = document.getElementById('helpGuideTitle');
     if (titleEl) {
         titleEl.textContent = lang === 'tl' ? '❓ Gabay sa Paggamit' : '❓ Help Guide';
     }
-    
+
     // Update search placeholder
     const searchInput = document.getElementById('helpSearchInput');
     if (searchInput) {
         searchInput.placeholder = lang === 'tl' ? 'Maghanap ng tulong...' : 'Search help topics...';
         searchInput.value = '';
     }
-    
+
     // Generate help content
     let html = '<div style="display:grid;gap:15px;">';
-    
+
     // Define all topics
     const topics = [
         'deviceIntake',
@@ -1037,16 +1037,16 @@ function openHelpGuide(topicKey) {
         'backJobs',
         'partsCost'
     ];
-    
+
     // Generate help boxes for each topic
     topics.forEach(topic => {
         html += generateHelpBox(topic, lang);
     });
-    
+
     html += '</div>';
-    
+
     content.innerHTML = html;
-    
+
     // Expand specific topic if provided
     if (topicKey) {
         setTimeout(() => {
@@ -1059,7 +1059,7 @@ function openHelpGuide(topicKey) {
             });
         }, 100);
     }
-    
+
     modal.style.display = 'block';
 }
 
@@ -1079,12 +1079,12 @@ function closeHelpGuide() {
 function filterHelpTopics() {
     const input = document.getElementById('helpSearchInput');
     const content = document.getElementById('helpGuideContent');
-    
+
     if (!input || !content) return;
-    
+
     const filter = input.value.toLowerCase();
     const helpBoxes = content.querySelectorAll('.help-box');
-    
+
     helpBoxes.forEach(box => {
         const text = box.textContent.toLowerCase();
         if (text.includes(filter)) {
@@ -1107,7 +1107,7 @@ function filterHelpTopics() {
 function hasSeenOnboarding() {
     const role = window.currentUserData?.role;
     if (!role) return true; // Skip if no role
-    
+
     const key = `hasSeenOnboarding_${role}`;
     return localStorage.getItem(key) === 'true';
 }
@@ -1118,7 +1118,7 @@ function hasSeenOnboarding() {
 function markOnboardingSeen() {
     const role = window.currentUserData?.role;
     if (!role) return;
-    
+
     const key = `hasSeenOnboarding_${role}`;
     localStorage.setItem(key, 'true');
 }
@@ -1128,10 +1128,10 @@ function markOnboardingSeen() {
  */
 function showOnboardingWizard() {
     if (!window.currentUserData) return;
-    
+
     const role = window.currentUserData.role;
     const lang = getCurrentHelpLanguage();
-    
+
     const messages = {
         technician: {
             en: `Welcome, Technician! 👋\n\nKey features for you:\n• My Jobs - See repairs assigned to you\n• Daily Remittance - Submit daily cash collections\n• Accept Repair - Start working on repairs\n\nWould you like to see the full help guide?`,
@@ -1150,13 +1150,13 @@ function showOnboardingWizard() {
             tl: `Maligayang pagdating, Admin! 👋\n\nMay full system access ka:\n• User Management\n• Mod Requests approval\n• Admin Tools & Activity Logs\n• Lahat ng operational features\n\nGusto mo bang tingnan ang buong help guide?`
         }
     };
-    
+
     const message = messages[role]?.[lang] || messages[role]?.en;
-    
+
     if (message && confirm(message)) {
         openHelpGuide();
     }
-    
+
     markOnboardingSeen();
 }
 
@@ -1176,15 +1176,83 @@ window.hasSeenOnboarding = hasSeenOnboarding;
 window.markOnboardingSeen = markOnboardingSeen;
 
 // Close language dropdown when clicking outside
-document.addEventListener('click', function(event) {
+document.addEventListener('click', function (event) {
     const dropdown = document.getElementById('languageDropdown');
     const langBtn = document.getElementById('langToggleBtn');
-    
-    if (dropdown && langBtn && 
-        !dropdown.contains(event.target) && 
+
+    if (dropdown && langBtn &&
+        !dropdown.contains(event.target) &&
         !langBtn.contains(event.target)) {
         dropdown.style.display = 'none';
     }
 });
+
+// ===== TOAST NOTIFICATION SYSTEM =====
+
+/**
+ * Show toast notification
+ * @param {string} message - Message to display
+ * @param {string} type - Type: 'success', 'error', 'warning', 'info'
+ * @param {number} duration - Duration in ms (default 3000)
+ */
+utils.showToast = function(message, type = 'info', duration = 3000) {
+    // Create toast container if it doesn't exist
+    let container = document.getElementById('toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toast-container';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    // Create message span
+    const messageSpan = document.createElement('span');
+    messageSpan.className = 'toast-message';
+    messageSpan.textContent = message;
+    
+    // Create close button
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'toast-close';
+    closeBtn.innerHTML = '×';
+    closeBtn.onclick = () => removeToast(toast);
+    
+    toast.appendChild(messageSpan);
+    toast.appendChild(closeBtn);
+    
+    // Add to container
+    container.appendChild(toast);
+    
+    // Trigger animation
+    setTimeout(() => {
+        toast.classList.add('toast-show');
+    }, 10);
+    
+    // Auto-remove after duration
+    if (duration > 0) {
+        setTimeout(() => {
+            removeToast(toast);
+        }, duration);
+    }
+    
+    return toast;
+};
+
+/**
+ * Remove toast with animation
+ */
+function removeToast(toast) {
+    toast.classList.remove('toast-show');
+    toast.classList.add('toast-hide');
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.parentElement.removeChild(toast);
+        }
+    }, 300);
+}
 
 console.log('✅ utils.js loaded');

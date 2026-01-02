@@ -353,6 +353,7 @@ function buildAdminDashboard(userName, stats) {
         'analytics',
         '⏱️'
     )}
+                ${buildDataHealthWidget()}
             </div>
             
             <!-- Admin Alerts Section -->
@@ -563,6 +564,134 @@ function renderActivityItem(activity) {
     `;
 }
 
+// ===== DATA HEALTH MONITORING =====
+
+/**
+ * Build data health widget for admin dashboard
+ * Shows summary of data issues and provides navigation to cleanup tools
+ */
+function buildDataHealthWidget() {
+    if (!window.currentUserData || window.currentUserData.role !== 'admin') {
+        return '';
+    }
+    
+    // Calculate issues
+    const issues = window.calculateDataHealthIssues ? window.calculateDataHealthIssues() : { total: 0 };
+    
+    // Determine status color
+    let statusColor = '#10b981'; // Green
+    let statusIcon = '🟢';
+    let statusText = 'Healthy';
+    
+    if (issues.total > 0 && issues.total <= 5) {
+        statusColor = '#f59e0b'; // Yellow
+        statusIcon = '🟡';
+        statusText = 'Minor Issues';
+    } else if (issues.total > 5) {
+        statusColor = '#ef4444'; // Red
+        statusIcon = '🔴';
+        statusText = 'Needs Attention';
+    }
+    
+    return `
+        <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); cursor: pointer;" 
+             onclick="openAdminToolsDataHealth()">
+            <div class="stat-icon">🔍</div>
+            <div class="stat-info">
+                <div class="stat-label">Data Health</div>
+                <div class="stat-value" style="display: flex; align-items: center; gap: 10px;">
+                    <span>${statusIcon}</span>
+                    <span>${statusText}</span>
+                </div>
+                <div class="stat-description">
+                    ${issues.total === 0 ? 'No issues detected' : `${issues.total} issue${issues.total !== 1 ? 's' : ''} found`}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Start data health monitor (runs every 5 minutes for admin)
+ * Updates badge count on Admin Tools tab
+ */
+let dataHealthInterval = null;
+
+function startDataHealthMonitor() {
+    if (!window.currentUserData || window.currentUserData.role !== 'admin') {
+        return;
+    }
+    
+    console.log('🔍 Starting data health monitor...');
+    
+    // Clear existing interval
+    if (dataHealthInterval) {
+        clearInterval(dataHealthInterval);
+    }
+    
+    // Update badge immediately
+    updateDataHealthBadge();
+    
+    // Check every 5 minutes
+    dataHealthInterval = setInterval(() => {
+        updateDataHealthBadge();
+    }, 300000); // 5 minutes
+    
+    console.log('✅ Data health monitor started (checking every 5 minutes)');
+}
+
+/**
+ * Update data health badge on Admin Tools tab
+ */
+function updateDataHealthBadge() {
+    if (!window.calculateDataHealthIssues) {
+        return;
+    }
+    
+    const issues = window.calculateDataHealthIssues();
+    window.dataHealthIssueCount = issues.total;
+    
+    // Update badge if it exists
+    const badge = document.getElementById('data-health-badge');
+    if (badge) {
+        if (issues.total > 0) {
+            badge.textContent = issues.total;
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    // Update widget if dashboard is visible
+    const widget = document.querySelector('.dashboard-stats-grid');
+    if (widget) {
+        // Refresh dashboard if health status changed
+        const currentStatus = window.lastHealthStatus || 0;
+        if (currentStatus !== issues.total) {
+            window.lastHealthStatus = issues.total;
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }
+    }
+}
+
+/**
+ * Navigate to Admin Tools Data Health section
+ */
+function openAdminToolsDataHealth() {
+    // Open Admin Tools modal
+    const modal = document.getElementById('adminToolsModal');
+    if (modal) {
+        modal.style.display = 'block';
+    }
+    
+    // Switch to Data Health section
+    setTimeout(() => {
+        showAdminToolsSection('dataHealth');
+    }, 100);
+}
+
 // Export functions to window
 window.buildTechnicianDashboard = buildTechnicianDashboard;
 window.buildCashierDashboard = buildCashierDashboard;
@@ -571,5 +700,11 @@ window.buildAdminDashboard = buildAdminDashboard;
 window.getRecentActivities = getRecentActivities;
 window.getRecentActivitiesForUser = getRecentActivitiesForUser;
 window.renderActivityItem = renderActivityItem;
+
+// Export data health functions
+window.buildDataHealthWidget = buildDataHealthWidget;
+window.startDataHealthMonitor = startDataHealthMonitor;
+window.updateDataHealthBadge = updateDataHealthBadge;
+window.openAdminToolsDataHealth = openAdminToolsDataHealth;
 
 console.log('✅ dashboard-helpers.js loaded');

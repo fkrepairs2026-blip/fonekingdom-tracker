@@ -251,9 +251,9 @@ async function handleLogin(e) {
         // Check if user is active
         if (window.currentUserData.status !== 'active') {
             if (window.DebugLogger) {
-                DebugLogger.log('ERROR', 'Account Deactivated', { 
-                    email, 
-                    status: window.currentUserData.status 
+                DebugLogger.log('ERROR', 'Account Deactivated', {
+                    email,
+                    status: window.currentUserData.status
                 });
             }
             await auth.signOut();

@@ -273,7 +273,7 @@ Data: ${JSON.stringify(log.data, null, 2)}
 
         const allRepairs = window.allRepairs || [];
         const currentUserId = window.currentUser?.uid;
-        const techRepairs = allRepairs.filter(r => 
+        const techRepairs = allRepairs.filter(r =>
             r.acceptedBy === currentUserId && !r.deleted
         );
 
@@ -345,7 +345,7 @@ Data: ${JSON.stringify(log.data, null, 2)}
         let issuesFound = 0;
 
         // Check for missing parts costs
-        const completedWithoutParts = allRepairs.filter(r => 
+        const completedWithoutParts = allRepairs.filter(r =>
             (r.status === 'Claimed' || r.status === 'Released') && !r.partsCost && !r.deleted
         );
         if (completedWithoutParts.length > 0) {
@@ -372,7 +372,7 @@ Data: ${JSON.stringify(log.data, null, 2)}
                     acc[key].push(i + 1);
                     return acc;
                 }, {});
-                
+
                 Object.entries(duplicateCheck).forEach(([key, indices]) => {
                     if (indices.length > 1) {
                         issuesFound++;

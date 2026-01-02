@@ -564,7 +564,7 @@ function buildRTODevicesTab(container) {
  */
 function buildDashboardTab(container) {
     console.log('📊 Building Dashboard tab');
-    
+
     window.currentTabRefresh = () => {
         // Invalidate cache on refresh
         utils.invalidateDashboardCache();
@@ -584,7 +584,7 @@ function buildDashboardTab(container) {
 
     // Build role-specific dashboard
     let dashboardHTML = '';
-    
+
     if (role === 'technician') {
         dashboardHTML = buildTechnicianDashboard(userName, stats);
     } else if (role === 'cashier') {
@@ -1937,7 +1937,7 @@ function renderReleasedButtons(r, role) {
     const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = r.total - totalPaid;
     const hidePaymentActions = role === 'technician';
-    
+
     if (!hidePaymentActions && r.total > 0 && balance > 0) {
         buttons += `
             <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">
@@ -1993,7 +1993,7 @@ function renderClaimedButtons(r, role) {
     const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
     const balance = r.total - totalPaid;
     const hidePaymentActions = role === 'technician';
-    
+
     if (!hidePaymentActions && r.total > 0 && balance > 0) {
         buttons += `
             <button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">
@@ -2302,7 +2302,7 @@ function buildMyClaimedDevicesTab(container) {
     window.currentTabRefresh = () => buildMyClaimedDevicesTab(document.getElementById('myclaimedTab'));
 
     const techId = window.currentUser.uid;
-    
+
     // Filter: Devices where this tech did the repair
     const myReleasedDevices = window.allRepairs.filter(r =>
         r.acceptedBy === techId &&
@@ -2778,6 +2778,12 @@ function buildAdminToolsTab(container) {
                 <br><small>All resets are backed up and logged for audit purposes.</small>
             </div>
             
+            <!-- DATA HEALTH & CLEANUP -->
+            ${buildDataHealthSection()}
+            
+            <!-- SCHEDULED EXPORTS -->
+            ${buildExportSettingsSection()}
+            
             <!-- TODAY'S STATUS -->
             <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:20px;">
                 <h4 style="margin:0 0 10px;">📊 Today's Cash Status</h4>
@@ -2944,6 +2950,181 @@ function buildAdminToolsTab(container) {
                 <button onclick="window.switchToTab('admin-logs')" class="btn btn-primary" style="width:100%;">
                     📋 View Activity Logs
                 </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Build Data Health Section for Admin Tools
+ */
+function buildDataHealthSection() {
+    const issues = window.calculateDataHealthIssues ? window.calculateDataHealthIssues() : { 
+        total: 0, 
+        missingPartsCost: [], 
+        orphanedRemittances: [], 
+        legacyPayments: [] 
+    };
+    
+    return `
+        <div class="data-health-section" style="margin-bottom:30px;">
+            <h4 style="margin:0 0 15px;">🔍 Data Health & Cleanup</h4>
+            
+            ${issues.total === 0 ? `
+                <div style="background:#d1fae5;padding:15px;border-radius:8px;border-left:4px solid #10b981;">
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <span style="font-size:24px;">✅</span>
+                        <div>
+                            <strong style="color:#065f46;">All Systems Healthy</strong>
+                            <div style="font-size:13px;color:#065f46;margin-top:4px;">No data issues detected</div>
+                        </div>
+                    </div>
+                </div>
+            ` : `
+                <div style="background:#fee2e2;padding:15px;border-radius:8px;border-left:4px solid #ef4444;margin-bottom:15px;">
+                    <strong style="color:#991b1b;">⚠️ ${issues.total} Data Issue${issues.total !== 1 ? 's' : ''} Detected</strong>
+                    <div style="font-size:13px;color:#991b1b;margin-top:4px;">Review and fix issues below</div>
+                </div>
+                
+                <div class="issue-cards-grid" style="display:grid;grid-template-columns:1fr;gap:15px;">
+                    ${issues.missingPartsCost.length > 0 ? `
+                        <div class="issue-card" style="background:white;border-radius:8px;padding:15px;border-left:4px solid #ef4444;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                <strong>❌ Missing Parts Cost</strong>
+                                <span class="issue-count-badge" style="background:#ef4444;color:white;padding:4px 10px;border-radius:12px;font-size:12px;">${issues.missingPartsCost.length}</span>
+                            </div>
+                            <p style="font-size:13px;color:#666;margin:10px 0;">Completed repairs missing parts cost information</p>
+                            <div style="display:flex;gap:10px;margin-top:10px;">
+                                <button onclick="fixDataIssues('missingPartsCost')" class="btn-small btn-primary">🔧 Fix All (${issues.missingPartsCost.length})</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${issues.orphanedRemittances.length > 0 ? `
+                        <div class="issue-card" style="background:white;border-radius:8px;padding:15px;border-left:4px solid #f59e0b;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                <strong>⚠️ Orphaned Remittances</strong>
+                                <span class="issue-count-badge" style="background:#f59e0b;color:white;padding:4px 10px;border-radius:12px;font-size:12px;">${issues.orphanedRemittances.length}</span>
+                            </div>
+                            <p style="font-size:13px;color:#666;margin:10px 0;">Payments with invalid remittance references</p>
+                            <div style="display:flex;gap:10px;margin-top:10px;">
+                                <button onclick="fixDataIssues('orphanedRemittances')" class="btn-small btn-primary">🔧 Fix All (${issues.orphanedRemittances.length})</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${issues.legacyPayments.length > 0 ? `
+                        <div class="issue-card" style="background:white;border-radius:8px;padding:15px;border-left:4px solid #3b82f6;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                <strong>ℹ️ Legacy Payments</strong>
+                                <span class="issue-count-badge" style="background:#3b82f6;color:white;padding:4px 10px;border-radius:12px;font-size:12px;">${issues.legacyPayments.length}</span>
+                            </div>
+                            <p style="font-size:13px;color:#666;margin:10px 0;">Old payments missing remittance status field</p>
+                            <div style="display:flex;gap:10px;margin-top:10px;">
+                                <button onclick="fixDataIssues('legacyPayments')" class="btn-small btn-primary">🔧 Fix All (${issues.legacyPayments.length})</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                <!-- Cleanup History -->
+                <div style="margin-top:20px;">
+                    <button onclick="showCleanupHistory()" class="btn-small">📜 View Cleanup History</button>
+                </div>
+            `}
+        </div>
+    `;
+}
+
+/**
+ * Build Export Settings Section for Admin Tools
+ */
+function buildExportSettingsSection() {
+    const config = window.exportScheduler ? window.exportScheduler.getExportScheduleConfig() : {
+        daily: { enabled: true, time: '00:00' },
+        weekly: { enabled: false, time: '23:00' },
+        monthly: { enabled: false, time: '00:00' }
+    };
+    
+    const stats = window.exportScheduler ? window.exportScheduler.getExportStats() : {};
+    
+    // Generate time options
+    const timeOptions = [];
+    for (let h = 0; h < 24; h++) {
+        const hour = h.toString().padStart(2, '0');
+        timeOptions.push(`<option value="${hour}:00" ${config.daily.time === `${hour}:00` ? 'selected' : ''}>${hour}:00</option>`);
+    }
+    
+    return `
+        <div class="export-settings-section" style="margin-bottom:30px;">
+            <h4 style="margin:0 0 15px;">📤 Scheduled Exports</h4>
+            <p style="font-size:13px;color:#666;margin-bottom:15px;">Automatically export financial data for backup and external analysis</p>
+            
+            <div style="display:grid;grid-template-columns:1fr;gap:15px;">
+                <!-- Daily Export -->
+                <div class="export-card" style="background:white;border-radius:8px;padding:15px;border-left:4px solid #10b981;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                        <strong>📅 Daily Summary</strong>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="exportDailyEnabled" ${config.daily.enabled ? 'checked' : ''} onchange="updateExportSchedule()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div style="display:grid;grid-template-columns:100px 1fr;gap:10px;align-items:center;margin-bottom:10px;">
+                        <label style="font-size:13px;color:#666;">Time:</label>
+                        <select id="exportDailyTime" class="input" onchange="updateExportSchedule()">
+                            ${timeOptions.join('')}
+                        </select>
+                    </div>
+                    ${stats.daily ? `
+                        <div style="background:#f8f9fa;padding:10px;border-radius:6px;font-size:12px;">
+                            <strong>Last Export:</strong> ${utils.formatDateTime(stats.daily.timestamp)}
+                            <br><strong>Records:</strong> ${stats.daily.recordCount}
+                        </div>
+                    ` : '<div style="font-size:12px;color:#999;">Not yet exported</div>'}
+                    <button onclick="window.exportScheduler.triggerManualExport('daily')" class="btn-small btn-primary" style="width:100%;margin-top:10px;">
+                        📥 Export Now
+                    </button>
+                </div>
+                
+                <!-- Weekly Export -->
+                <div class="export-card" style="background:white;border-radius:8px;padding:15px;border-left:4px solid #3b82f6;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                        <strong>📊 Weekly Report</strong>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="exportWeeklyEnabled" ${config.weekly.enabled ? 'checked' : ''} onchange="updateExportSchedule()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    ${stats.weekly ? `
+                        <div style="background:#f8f9fa;padding:10px;border-radius:6px;font-size:12px;">
+                            <strong>Last Export:</strong> ${utils.formatDateTime(stats.weekly.timestamp)}
+                        </div>
+                    ` : '<div style="font-size:12px;color:#999;">Not yet exported</div>'}
+                    <button onclick="window.exportScheduler.triggerManualExport('weekly')" class="btn-small btn-primary" style="width:100%;margin-top:10px;">
+                        📥 Export Now
+                    </button>
+                </div>
+                
+                <!-- Monthly Export -->
+                <div class="export-card" style="background:white;border-radius:8px;padding:15px;border-left:4px solid #8b5cf6;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                        <strong>📦 Monthly Archive</strong>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="exportMonthlyEnabled" ${config.monthly.enabled ? 'checked' : ''} onchange="updateExportSchedule()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    ${stats.monthly ? `
+                        <div style="background:#f8f9fa;padding:10px;border-radius:6px;font-size:12px;">
+                            <strong>Last Export:</strong> ${utils.formatDateTime(stats.monthly.timestamp)}
+                            <br><strong>Records:</strong> ${stats.monthly.recordCount}
+                        </div>
+                    ` : '<div style="font-size:12px;color:#999;">Not yet exported</div>'}
+                    <button onclick="window.exportScheduler.triggerManualExport('monthly')" class="btn-small btn-primary" style="width:100%;margin-top:10px;">
+                        📥 Export Now
+                    </button>
+                </div>
             </div>
         </div>
     `;
@@ -3819,15 +4000,15 @@ function buildClaimedUnitsPage(container) {
 
     const role = window.currentUserData.role;
     const techId = window.currentUser.uid;
-    
+
     // Filter claimed devices
     let claimedUnits = window.allRepairs.filter(r => r.claimedAt);
-    
+
     // For technicians, exclude their own devices (they use "My Claimed" tab)
     if (role === 'technician') {
         claimedUnits = claimedUnits.filter(r => r.acceptedBy !== techId);
     }
-    
+
     // Sort by most recent first
     claimedUnits.sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
 
@@ -3835,9 +4016,9 @@ function buildClaimedUnitsPage(container) {
         <div class="card">
             <h3>✅ Claimed Units - Released to Customers (${claimedUnits.length})</h3>
             <p style="color:#666;margin-bottom:15px;">
-                ${role === 'technician' 
-                    ? 'Other technicians\' claimed devices (use "My Claimed" for your own)'
-                    : 'Devices that have been picked up by customers with warranty tracking'}
+                ${role === 'technician'
+            ? 'Other technicians\' claimed devices (use "My Claimed" for your own)'
+            : 'Devices that have been picked up by customers with warranty tracking'}
             </p>
             
             ${claimedUnits.length === 0 ? `
@@ -7018,6 +7199,186 @@ async function executeBulkDelete() {
     await window.adminBulkDeleteDevices(repairIds);
 }
 
+// ===== DATA CLEANUP & EXPORT HELPERS =====
+
+/**
+ * Fix data issues by category
+ */
+async function fixDataIssues(category) {
+    const issues = window.calculateDataHealthIssues();
+    
+    if (!issues || !issues[category] || issues[category].length === 0) {
+        alert('No issues to fix in this category');
+        return;
+    }
+    
+    const categoryNames = {
+        missingPartsCost: 'Missing Parts Cost',
+        orphanedRemittances: 'Orphaned Remittances',
+        legacyPayments: 'Legacy Payments'
+    };
+    
+    const confirmed = confirm(
+        `Fix ${issues[category].length} ${categoryNames[category]} issue(s)?\n\n` +
+        `This action is reversible for 90 days.\n\n` +
+        `Click OK to proceed.`
+    );
+    
+    if (!confirmed) return;
+    
+    // Perform cleanup
+    const result = await window.performCleanup(category, issues[category]);
+    
+    if (result && result.success) {
+        // Refresh tab to show updated status
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    }
+}
+
+/**
+ * Show cleanup history modal
+ */
+async function showCleanupHistory() {
+    const history = await window.getCleanupHistory(20);
+    
+    if (!history || history.length === 0) {
+        alert('No cleanup history found');
+        return;
+    }
+    
+    const now = new Date();
+    
+    const historyHTML = history.map(cleanup => {
+        const expiresAt = new Date(cleanup.expiresAt);
+        const isExpired = now > expiresAt;
+        const canUndo = !isExpired && cleanup.status === 'active';
+        
+        return `
+            <tr>
+                <td style="font-size:12px;">${utils.formatDateTime(cleanup.timestamp)}</td>
+                <td>${cleanup.category}</td>
+                <td>${cleanup.affectedRecords.length}</td>
+                <td>${cleanup.performedBy}</td>
+                <td>
+                    <span class="cleanup-status-badge status-${cleanup.status}">
+                        ${cleanup.status}
+                    </span>
+                </td>
+                <td>
+                    ${canUndo ? `
+                        <button onclick="undoCleanupById('${cleanup.cleanupId}')" class="btn-small">
+                            ↩️ Undo
+                        </button>
+                    ` : (isExpired ? '<small style="color:#999;">Expired</small>' : '<small style="color:#999;">Already undone</small>')}
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    const modalHTML = `
+        <div style="background:white;padding:20px;border-radius:8px;max-width:900px;max-height:80vh;overflow-y:auto;">
+            <h3>📜 Cleanup History</h3>
+            <table class="cleanup-history-table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Category</th>
+                        <th>Records</th>
+                        <th>Performed By</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${historyHTML}
+                </tbody>
+            </table>
+            <button onclick="closeModal()" class="btn" style="margin-top:20px;">Close</button>
+        </div>
+    `;
+    
+    // Show in a modal (reuse existing modal system or create simple overlay)
+    const overlay = document.createElement('div');
+    overlay.id = 'cleanup-history-modal';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = modalHTML;
+    overlay.onclick = (e) => {
+        if (e.target === overlay) {
+            document.body.removeChild(overlay);
+        }
+    };
+    document.body.appendChild(overlay);
+}
+
+/**
+ * Undo cleanup by ID
+ */
+async function undoCleanupById(cleanupId) {
+    const confirmed = confirm(
+        'Undo this cleanup operation?\n\n' +
+        'All changes will be reverted to their original state.'
+    );
+    
+    if (!confirmed) return;
+    
+    const result = await window.undoCleanup(cleanupId);
+    
+    if (result && result.success) {
+        // Close modal and refresh
+        const modal = document.getElementById('cleanup-history-modal');
+        if (modal) {
+            document.body.removeChild(modal);
+        }
+        
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    }
+}
+
+/**
+ * Update export schedule configuration
+ */
+function updateExportSchedule() {
+    if (!window.exportScheduler) {
+        console.error('Export scheduler not loaded');
+        return;
+    }
+    
+    const config = {
+        daily: {
+            enabled: document.getElementById('exportDailyEnabled').checked,
+            time: document.getElementById('exportDailyTime').value
+        },
+        weekly: {
+            enabled: document.getElementById('exportWeeklyEnabled').checked,
+            time: '23:00',
+            dayOfWeek: 0 // Sunday
+        },
+        monthly: {
+            enabled: document.getElementById('exportMonthlyEnabled').checked,
+            time: '00:00',
+            dayOfMonth: 1
+        }
+    };
+    
+    const saved = window.exportScheduler.saveExportScheduleConfig(config);
+    
+    if (saved) {
+        // Update the scheduler
+        window.exportScheduler.updateSchedule();
+        
+        // Show success toast
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast('✅ Export schedule updated', 'success', 2000);
+        }
+    } else {
+        alert('Error saving export schedule');
+    }
+}
+
 // Export checkbox functions
 window.toggleAllDeviceCheckboxes = toggleAllDeviceCheckboxes;
 window.updateBulkDeleteButton = updateBulkDeleteButton;
@@ -7025,5 +7386,11 @@ window.executeBulkDelete = executeBulkDelete;
 
 // Export repair list interaction functions
 window.toggleRepairDetails = toggleRepairDetails;
+
+// Export cleanup and export functions
+window.fixDataIssues = fixDataIssues;
+window.showCleanupHistory = showCleanupHistory;
+window.undoCleanupById = undoCleanupById;
+window.updateExportSchedule = updateExportSchedule;
 
 console.log('✅ ui.js loaded');

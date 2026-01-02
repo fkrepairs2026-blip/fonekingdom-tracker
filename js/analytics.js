@@ -613,6 +613,393 @@ function exportToCSV(data, filename) {
     document.body.removeChild(link);
 }
 
+// ===== SCHEDULED EXPORT FUNCTIONS =====
+
+/**
+ * Export daily summary (all payments/expenses/remittances for a specific date)
+ * @param {Date} date - Date to export (defaults to yesterday)
+ */
+async function exportDailySummary(date = null) {
+    try {
+        // Default to yesterday
+        if (!date) {
+            const now = new Date();
+            date = new Date(now);
+            date.setDate(date.getDate() - 1);
+        }
+        
+        const dateString = date.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        console.log(`📥 Exporting daily summary for ${dateString}...`);
+        
+        // Get all data for the date
+        const paymentsData = [];
+        const expensesData = [];
+        const remittancesData = [];
+        
+        // Filter repairs with payments on this date
+        window.allRepairs.forEach(repair => {
+            if (repair.deleted) return;
+            
+            if (repair.payments && repair.payments.length > 0) {
+                repair.payments.forEach(payment => {
+                    if (!payment.recordedDate) return;
+                    
+                    const paymentDate = new Date(payment.recordedDate).toISOString().split('T')[0];
+                    if (paymentDate === dateString) {
+                        paymentsData.push({
+                            'Repair ID': repair.id,
+                            'Customer': repair.customerName,
+                            'Amount': payment.amount,
+                            'Method': payment.method,
+                            'Verified': payment.verified ? 'Yes' : 'No',
+                            'Collected By': payment.receivedBy || 'N/A',
+                            'Remittance Status': payment.remittanceStatus || 'N/A',
+                            'Recorded At': utils.formatDateTime(payment.recordedDate),
+                            'Notes': payment.notes || ''
+                        });
+                    }
+                });
+            }
+        });
+        
+        // Filter expenses for this date
+        if (window.techExpenses) {
+            window.techExpenses.forEach(expense => {
+                const expenseDate = new Date(expense.date).toISOString().split('T')[0];
+                if (expenseDate === dateString) {
+                    expensesData.push({
+                        'Expense ID': expense.id,
+                        'Technician': expense.techName,
+                        'Category': expense.category,
+                        'Amount': expense.amount,
+                        'Description': expense.description,
+                        'Repair ID': expense.repairId || 'General',
+                        'Remittance ID': expense.remittanceId || 'Not Remitted',
+                        'Created At': utils.formatDateTime(expense.createdAt)
+                    });
+                }
+            });
+        }
+        
+        // Filter remittances for this date
+        if (window.techRemittances) {
+            window.techRemittances.forEach(remittance => {
+                const remittanceDate = new Date(remittance.date).toISOString().split('T')[0];
+                if (remittanceDate === dateString) {
+                    remittancesData.push({
+                        'Remittance ID': remittance.id,
+                        'Technician': remittance.techName,
+                        'Type': remittance.remittanceType || 'cash',
+                        'Total Payments': remittance.totalPaymentsCollected,
+                        'Total Expenses': remittance.totalExpenses,
+                        'Expected Amount': remittance.expectedAmount,
+                        'Actual Amount': remittance.actualAmount,
+                        'Discrepancy': remittance.discrepancy,
+                        'Status': remittance.status,
+                        'Submitted At': utils.formatDateTime(remittance.submittedAt),
+                        'Verified By': remittance.verifiedBy || 'Pending',
+                        'Verified At': remittance.verifiedAt ? utils.formatDateTime(remittance.verifiedAt) : 'N/A'
+                    });
+                }
+            });
+        }
+        
+        const totalRecords = paymentsData.length + expensesData.length + remittancesData.length;
+        
+        // Show warning if large export
+        if (totalRecords > 1000 && window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `⚠️ Large export (${totalRecords} records) may take 10-15 seconds`,
+                'warning',
+                5000
+            );
+        }
+        
+        // Combine all data with section headers
+        const exportData = [];
+        
+        // Add payments section
+        exportData.push({ '=== PAYMENTS ===': '', 'Records': paymentsData.length });
+        exportData.push(...paymentsData);
+        exportData.push({}); // Empty row
+        
+        // Add expenses section
+        exportData.push({ '=== EXPENSES ===': '', 'Records': expensesData.length });
+        exportData.push(...expensesData);
+        exportData.push({}); // Empty row
+        
+        // Add remittances section
+        exportData.push({ '=== REMITTANCES ===': '', 'Records': remittancesData.length });
+        exportData.push(...remittancesData);
+        exportData.push({}); // Empty row
+        
+        // Add summary
+        const totalPayments = paymentsData.reduce((sum, p) => sum + (p.Amount || 0), 0);
+        const totalExpenses = expensesData.reduce((sum, e) => sum + (e.Amount || 0), 0);
+        exportData.push({ '=== SUMMARY ===': '' });
+        exportData.push({ 'Metric': 'Total Payments', 'Value': totalPayments });
+        exportData.push({ 'Metric': 'Total Expenses', 'Value': totalExpenses });
+        exportData.push({ 'Metric': 'Net Revenue', 'Value': totalPayments - totalExpenses });
+        
+        // Export to CSV
+        exportToCSV(exportData, `daily_summary_${dateString}`);
+        
+        console.log(`✅ Daily summary exported: ${totalRecords} records`);
+        
+        return { success: true, recordCount: totalRecords };
+        
+    } catch (error) {
+        console.error('❌ Error exporting daily summary:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Export weekly financial report
+ * @param {Date} startDate - Start date (defaults to 7 days ago)
+ */
+async function exportWeeklyReport(startDate = null) {
+    try {
+        // Default to last 7 days
+        if (!startDate) {
+            const now = new Date();
+            startDate = new Date(now);
+            startDate.setDate(startDate.getDate() - 7);
+        }
+        
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 7);
+        
+        const startString = startDate.toISOString().split('T')[0];
+        const endString = endDate.toISOString().split('T')[0];
+        
+        console.log(`📥 Exporting weekly report from ${startString} to ${endString}...`);
+        
+        // Generate financial report for the period
+        const report = getFinancialReport(startDate, endDate);
+        
+        // Format for CSV
+        const exportData = [];
+        
+        // Header
+        exportData.push({
+            'Weekly Financial Report': '',
+            'Period': `${utils.formatDate(startDate)} - ${utils.formatDate(endDate)}`
+        });
+        exportData.push({});
+        
+        // Revenue section
+        exportData.push({ '=== REVENUE ===': '' });
+        exportData.push({ 'Metric': 'Total Revenue', 'Amount (₱)': report.revenue.total });
+        exportData.push({ 'Metric': 'Cash Payments', 'Amount (₱)': report.revenue.byCash });
+        exportData.push({ 'Metric': 'GCash Payments', 'Amount (₱)': report.revenue.byGCash });
+        exportData.push({ 'Metric': 'Bank Transfers', 'Amount (₱)': report.revenue.byBank });
+        exportData.push({});
+        
+        // Expenses section
+        exportData.push({ '=== EXPENSES ===': '' });
+        exportData.push({ 'Metric': 'Parts Cost', 'Amount (₱)': report.expenses.parts });
+        exportData.push({ 'Metric': 'Tech Commissions', 'Amount (₱)': report.expenses.commissions });
+        exportData.push({ 'Metric': 'General Expenses', 'Amount (₱)': report.expenses.general });
+        exportData.push({ 'Metric': 'Total Expenses', 'Amount (₱)': report.expenses.total });
+        exportData.push({});
+        
+        // Profit section
+        exportData.push({ '=== PROFIT ===': '' });
+        exportData.push({ 'Metric': 'Net Profit', 'Amount (₱)': report.profit.net });
+        exportData.push({ 'Metric': 'Profit Margin', 'Percentage': `${report.profit.margin.toFixed(2)}%` });
+        
+        const recordCount = exportData.length;
+        
+        // Export to CSV
+        exportToCSV(exportData, `weekly_report_${startString}_to_${endString}`);
+        
+        console.log(`✅ Weekly report exported`);
+        
+        return { success: true, recordCount: recordCount };
+        
+    } catch (error) {
+        console.error('❌ Error exporting weekly report:', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Export monthly archive (comprehensive data for entire month)
+ * @param {number} year - Year
+ * @param {number} month - Month (0-11, JavaScript date format)
+ */
+async function exportMonthlyArchive(year = null, month = null) {
+    try {
+        // Default to previous month
+        if (year === null || month === null) {
+            const now = new Date();
+            const prevMonth = new Date(now);
+            prevMonth.setMonth(prevMonth.getMonth() - 1);
+            year = prevMonth.getFullYear();
+            month = prevMonth.getMonth();
+        }
+        
+        const startDate = new Date(year, month, 1);
+        const endDate = new Date(year, month + 1, 0); // Last day of month
+        
+        const monthName = startDate.toLocaleString('default', { month: 'long' });
+        const monthString = `${monthName}_${year}`;
+        
+        console.log(`📥 Exporting monthly archive for ${monthName} ${year}...`);
+        
+        // Collect all data for the month
+        const repairsData = [];
+        const paymentsData = [];
+        const expensesData = [];
+        const remittancesData = [];
+        
+        // Filter repairs claimed/completed in this month
+        window.allRepairs.forEach(repair => {
+            if (repair.deleted) return;
+            
+            let inPeriod = false;
+            
+            // Check if claimed/completed in this month
+            if (repair.claimedAt) {
+                const claimedDate = new Date(repair.claimedAt);
+                if (claimedDate >= startDate && claimedDate <= endDate) {
+                    inPeriod = true;
+                }
+            }
+            
+            if (inPeriod) {
+                repairsData.push({
+                    'Repair ID': repair.id,
+                    'Customer': repair.customerName,
+                    'Contact': repair.contactNumber,
+                    'Type': repair.customerType,
+                    'Brand': repair.brand,
+                    'Model': repair.model,
+                    'Problem': repair.problemType,
+                    'Status': repair.status,
+                    'Total': repair.total,
+                    'Parts Cost': repair.partsCost || 0,
+                    'Labor Cost': repair.laborCost || 0,
+                    'Technician': repair.acceptedBy || 'N/A',
+                    'Received At': utils.formatDateTime(repair.createdAt),
+                    'Completed At': utils.formatDateTime(repair.completedAt),
+                    'Claimed At': utils.formatDateTime(repair.claimedAt)
+                });
+            }
+            
+            // Collect payments from this month
+            if (repair.payments && repair.payments.length > 0) {
+                repair.payments.forEach(payment => {
+                    if (!payment.recordedDate) return;
+                    
+                    const paymentDate = new Date(payment.recordedDate);
+                    if (paymentDate >= startDate && paymentDate <= endDate) {
+                        paymentsData.push({
+                            'Payment ID': `${repair.id}_${payment.paymentDate}`,
+                            'Repair ID': repair.id,
+                            'Customer': repair.customerName,
+                            'Amount': payment.amount,
+                            'Method': payment.method,
+                            'Verified': payment.verified ? 'Yes' : 'No',
+                            'Collected By': payment.receivedBy,
+                            'Recorded Date': utils.formatDateTime(payment.recordedDate)
+                        });
+                    }
+                });
+            }
+        });
+        
+        // Filter expenses from this month
+        if (window.techExpenses) {
+            window.techExpenses.forEach(expense => {
+                const expenseDate = new Date(expense.date);
+                if (expenseDate >= startDate && expenseDate <= endDate) {
+                    expensesData.push({
+                        'Expense ID': expense.id,
+                        'Technician': expense.techName,
+                        'Category': expense.category,
+                        'Amount': expense.amount,
+                        'Description': expense.description,
+                        'Date': utils.formatDate(expense.date)
+                    });
+                }
+            });
+        }
+        
+        // Filter remittances from this month
+        if (window.techRemittances) {
+            window.techRemittances.forEach(remittance => {
+                const remittanceDate = new Date(remittance.date);
+                if (remittanceDate >= startDate && remittanceDate <= endDate) {
+                    remittancesData.push({
+                        'Remittance ID': remittance.id,
+                        'Technician': remittance.techName,
+                        'Payments Collected': remittance.totalPaymentsCollected,
+                        'Expenses': remittance.totalExpenses,
+                        'Expected': remittance.expectedAmount,
+                        'Actual': remittance.actualAmount,
+                        'Status': remittance.status,
+                        'Submitted': utils.formatDate(remittance.submittedAt)
+                    });
+                }
+            });
+        }
+        
+        const totalRecords = repairsData.length + paymentsData.length + 
+                            expensesData.length + remittancesData.length;
+        
+        // Show warning if large export
+        if (totalRecords > 1000 && window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `⚠️ Large export (${totalRecords} records) may take 10-15 seconds`,
+                'warning',
+                5000
+            );
+        }
+        
+        // Combine all data with section headers
+        const exportData = [];
+        
+        exportData.push({ 
+            'Monthly Archive': monthString, 
+            'Total Records': totalRecords 
+        });
+        exportData.push({});
+        
+        // Repairs section
+        exportData.push({ '=== REPAIRS ===': '', 'Count': repairsData.length });
+        exportData.push(...repairsData);
+        exportData.push({});
+        
+        // Payments section
+        exportData.push({ '=== PAYMENTS ===': '', 'Count': paymentsData.length });
+        exportData.push(...paymentsData);
+        exportData.push({});
+        
+        // Expenses section
+        exportData.push({ '=== EXPENSES ===': '', 'Count': expensesData.length });
+        exportData.push(...expensesData);
+        exportData.push({});
+        
+        // Remittances section
+        exportData.push({ '=== REMITTANCES ===': '', 'Count': remittancesData.length });
+        exportData.push(...remittancesData);
+        
+        // Export to CSV
+        exportToCSV(exportData, `monthly_archive_${monthString}`);
+        
+        console.log(`✅ Monthly archive exported: ${totalRecords} records`);
+        
+        return { success: true, recordCount: totalRecords };
+        
+    } catch (error) {
+        console.error('❌ Error exporting monthly archive:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 // Export functions to window
 window.getRevenueAnalytics = getRevenueAnalytics;
 window.getTechnicianPerformance = getTechnicianPerformance;
@@ -622,6 +1009,11 @@ window.getInventoryAnalytics = getInventoryAnalytics;
 window.getFinancialReport = getFinancialReport;
 window.getAdvancePaymentAnalytics = getAdvancePaymentAnalytics;
 window.exportToCSV = exportToCSV;
+
+// Export scheduled export functions
+window.exportDailySummary = exportDailySummary;
+window.exportWeeklyReport = exportWeeklyReport;
+window.exportMonthlyArchive = exportMonthlyArchive;
 
 console.log('✅ analytics.js loaded');
 

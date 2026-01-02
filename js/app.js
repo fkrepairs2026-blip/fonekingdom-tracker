@@ -94,6 +94,33 @@ async function initializeApp() {
             window.startAutoFinalizeChecker();
         }
         
+        // Initialize export scheduler for admin
+        if (window.currentUserData.role === 'admin' && window.exportScheduler) {
+            console.log('📤 Initializing export scheduler...');
+            window.exportScheduler.initializeAutoExport();
+        }
+        
+        // Start data health monitor for admin
+        if (window.currentUserData.role === 'admin' && window.startDataHealthMonitor) {
+            console.log('🔍 Starting data health monitor...');
+            window.startDataHealthMonitor();
+        }
+        
+        // Check for expired cleanups to archive (once per month)
+        if (window.currentUserData.role === 'admin' && window.archiveExpiredCleanups) {
+            const lastArchiveCheck = localStorage.getItem('lastCleanupArchiveCheck');
+            const now = new Date();
+            const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
+            
+            if (lastArchiveCheck !== currentMonth) {
+                console.log('🗄️ Checking for expired cleanups to archive...');
+                setTimeout(() => {
+                    window.archiveExpiredCleanups();
+                    localStorage.setItem('lastCleanupArchiveCheck', currentMonth);
+                }, 5000);
+            }
+        }
+        
         // CRITICAL: ALWAYS hide loading at the end
         utils.showLoading(false);
         
