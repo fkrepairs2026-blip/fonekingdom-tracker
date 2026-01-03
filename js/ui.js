@@ -672,7 +672,9 @@ function buildUserGroupedActivityFeed() {
 
         // Group payments by receiver
         if (repair.payments) {
-            repair.payments.forEach(payment => {
+            // Ensure payments is an array (Firebase may return object)
+            const payments = Array.isArray(repair.payments) ? repair.payments : Object.values(repair.payments);
+            payments.forEach(payment => {
                 const paymentDate = new Date(payment.paymentDate || payment.recordedDate);
                 if (paymentDate < threeDaysAgo) return;
 

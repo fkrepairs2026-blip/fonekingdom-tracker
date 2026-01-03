@@ -238,7 +238,10 @@ const utils = {
         repairs.forEach(r => {
             if (r.acceptedBy !== techId || !r.payments) return;
 
-            r.payments.forEach(payment => {
+            // Ensure payments is an array (Firebase may return object)
+            const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
+            
+            payments.forEach(payment => {
                 if (!payment.verified) return;
 
                 const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
@@ -389,7 +392,10 @@ const utils = {
             activeRepairs.forEach(r => {
                 if (r.acceptedBy !== currentUserId || !r.payments) return;
 
-                r.payments.forEach(payment => {
+                // Ensure payments is an array (Firebase may return object)
+                const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
+                
+                payments.forEach(payment => {
                     if (!payment.verified) return;
 
                     const paymentDate = new Date(payment.recordedDate || payment.paymentDate);

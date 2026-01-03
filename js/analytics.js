@@ -649,8 +649,10 @@ async function exportDailySummary(date = null) {
         window.allRepairs.forEach(repair => {
             if (repair.deleted) return;
 
-            if (repair.payments && repair.payments.length > 0) {
-                repair.payments.forEach(payment => {
+            if (repair.payments) {
+                // Ensure payments is an array (Firebase may return object)
+                const payments = Array.isArray(repair.payments) ? repair.payments : Object.values(repair.payments);
+                payments.forEach(payment => {
                     if (!payment.recordedDate) return;
 
                     const paymentDate = new Date(payment.recordedDate).toISOString().split('T')[0];
@@ -898,8 +900,10 @@ async function exportMonthlyArchive(year = null, month = null) {
             }
 
             // Collect payments from this month
-            if (repair.payments && repair.payments.length > 0) {
-                repair.payments.forEach(payment => {
+            if (repair.payments) {
+                // Ensure payments is an array (Firebase may return object)
+                const payments = Array.isArray(repair.payments) ? repair.payments : Object.values(repair.payments);
+                payments.forEach(payment => {
                     if (!payment.recordedDate) return;
 
                     const paymentDate = new Date(payment.recordedDate);
