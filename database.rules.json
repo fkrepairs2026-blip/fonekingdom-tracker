@@ -71,6 +71,22 @@
     "dataCleanupHistory": {
       ".read": "auth != null",
       ".write": "auth != null"
+    },
+    "overheadExpenses": {
+      ".read": "auth != null",
+      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'manager')"
+    },
+    "refunds": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "supplierPurchases": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "resetBackups": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     }
   }
 }
