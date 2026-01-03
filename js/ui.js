@@ -1211,7 +1211,7 @@ function buildMyRequestsTab(container) {
                                 <div><strong>Explanation:</strong> ${refund.refundReasonDetails}</div>
                                 <div><strong>Requested:</strong> ${utils.formatDateTime(refund.requestedAt)}</div>
                             </div>
-                            ${refund.status !== 'pending_approval' ? `
+                            ${refund.status !== 'pending_approval' && refund.status !== 'pending' ? `
                                 <div style="margin-top:10px;padding-top:10px;border-top:1px solid #ddd;font-size:13px;">
                                     <div><strong>${refund.status === 'completed' ? 'Approved' : 'Rejected'} by:</strong> ${refund.completedBy || refund.rejectedBy}</div>
                                     <div><strong>On:</strong> ${utils.formatDateTime(refund.completedAt || refund.rejectedAt)}</div>
@@ -1375,7 +1375,7 @@ function buildRefundRequestsTab(container) {
     console.log('🔄 Building Refund Requests tab');
     window.currentTabRefresh = () => buildRefundRequestsTab(document.getElementById('refund-requestsTab'));
 
-    const pendingRefunds = (window.refunds || []).filter(r => r.status === 'pending_approval');
+    const pendingRefunds = (window.refunds || []).filter(r => r.status === 'pending_approval' || r.status === 'pending');
     const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
     const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
 
@@ -1451,7 +1451,7 @@ function buildRefundRequestsTab(container) {
                             ` : ''}
                             
                             <div style="font-size:13px;color:#666;margin-bottom:12px;">
-                                <div><strong>Requested by:</strong> ${refund.requestedBy}</div>
+                                <div><strong>Requested by:</strong> ${refund.requestedBy}${refund.requestedByRole ? ` <span style="background:#667eea;color:white;padding:2px 6px;border-radius:3px;font-size:10px;text-transform:uppercase;">${refund.requestedByRole}</span>` : ''}</div>
                                 <div><strong>Date:</strong> ${utils.formatDateTime(refund.requestedAt)} (${utils.daysAgo(refund.requestedAt)})</div>
                             </div>
                             

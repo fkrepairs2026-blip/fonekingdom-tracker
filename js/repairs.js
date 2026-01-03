@@ -13535,11 +13535,16 @@ async function loadRefunds() {
  * @param {Object} refundData - Refund details
  */
 async function requestRefund(repairId, paymentIndex, refundData) {
-    if (!window.currentUserData || !['admin', 'manager', 'cashier'].includes(window.currentUserData.role)) {
-        alert('⚠️ Only admin, manager, or cashier can request refunds');
+    const userRole = window.currentUserData?.role;
+    
+    // Allow all roles to request, but technicians can only create requests
+    if (!window.currentUserData) {
+        alert('⚠️ You must be logged in to request a refund');
         return { success: false };
     }
 
+    const isTechnician = userRole === 'technician';
+    
     try {
         utils.showLoading(true);
 
@@ -13567,7 +13572,7 @@ async function requestRefund(repairId, paymentIndex, refundData) {
         const existingRefund = window.refunds.find(r =>
             r.repairId === repairId &&
             r.paymentIndex === paymentIndex &&
-            r.status === 'pending_approval'
+            (r.status === 'pending_approval' || r.status === 'pending')
         );
 
         if (existingRefund) {
@@ -13576,7 +13581,9 @@ async function requestRefund(repairId, paymentIndex, refundData) {
 
         // Determine refund tier and auto-approval
         const tier = determineRefundTier(repair, payment);
-        const requiresApproval = tier >= 2 || window.currentUserData.role !== 'admin';
+        
+        // Technicians always need approval, others follow tier rules
+        const requiresApproval = isTechnician || tier >= 2 || userRole !== 'admin';
 
         const refundRecord = {
             repairId: repairId,
@@ -13599,9 +13606,10 @@ async function requestRefund(repairId, paymentIndex, refundData) {
             requestedBy: window.currentUserData.displayName,
             requestedById: window.currentUser.uid,
             requestedAt: new Date().toISOString(),
+            requestedByRole: userRole,
 
-            // Status
-            status: requiresApproval ? 'pending_approval' : 'approved',
+            // Status - pending for technicians, otherwise based on tier
+            status: requiresApproval ? 'pending' : 'approved',
             tier: tier,
 
             // Commission impact
@@ -13787,8 +13795,8 @@ async function processRefund(refundId) {
  * @param {string} adminNotes - Admin notes
  */
 async function approveRefund(refundId, adminNotes = '') {
-    if (!window.currentUserData || !['admin', 'manager'].includes(window.currentUserData.role)) {
-        alert('⚠️ Only admin or manager can approve refunds');
+    if (!window.currentUserData || !['admin', 'manager', 'cashier'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only admin, manager, or cashier can approve refunds');
         return { success: false };
     }
 
@@ -13800,7 +13808,7 @@ async function approveRefund(refundId, adminNotes = '') {
             throw new Error('Refund not found');
         }
 
-        if (refund.status !== 'pending_approval') {
+        if (refund.status !== 'pending_approval' && refund.status !== 'pending') {
             throw new Error('Refund is not pending approval');
         }
 
@@ -13870,8 +13878,8 @@ async function approveRefund(refundId, adminNotes = '') {
  * @param {string} reason - Rejection reason
  */
 async function rejectRefund(refundId, reason) {
-    if (!window.currentUserData || !['admin', 'manager'].includes(window.currentUserData.role)) {
-        alert('⚠️ Only admin or manager can reject refunds');
+    if (!window.currentUserData || !['admin', 'manager', 'cashier'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only admin, manager, or cashier can reject refunds');
         return { success: false };
     }
 
