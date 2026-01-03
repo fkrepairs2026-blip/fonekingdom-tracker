@@ -259,11 +259,11 @@ function renderMobileBottomNav() {
         );
     } else if (role === 'technician') {
         quickTabs.push(
-            { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-            { id: 'my', icon: '🔧', label: 'My Jobs' },
+            { id: 'expense', icon: '💰', label: 'Expense' },
             { id: 'receive', icon: '➕', label: 'Receive' },
-            { id: 'remittance', icon: '💸', label: 'Remittance' },
-            { id: 'inprogress', icon: '⚙️', label: 'Progress' }
+            { id: 'dashboard', icon: '🏠', label: 'Home' },
+            { id: 'search', icon: '🔍', label: 'Search' },
+            { id: 'remittance', icon: '💸', label: 'Remittance' }
         );
     } else if (role === 'admin' || role === 'manager') {
         quickTabs.push(
@@ -275,14 +275,26 @@ function renderMobileBottomNav() {
         );
     }
 
-    mobileNav.innerHTML = quickTabs.map(tab => `
-        <div class="mobile-nav-item ${tab.id === activeTab ? 'active' : ''}"
-             id="mobile-tab-${tab.id}"
-             onclick="switchTab('${tab.id}')">
-            <span class="mobile-nav-icon">${tab.icon}</span>
-            <span class="mobile-nav-label">${tab.label}</span>
-        </div>
-    `).join('');
+    mobileNav.innerHTML = quickTabs.map(tab => {
+        // Special handlers for action buttons (not tabs)
+        let clickHandler = '';
+        if (tab.id === 'expense') {
+            clickHandler = 'openQuickExpenseModal()';
+        } else if (tab.id === 'search') {
+            clickHandler = 'openQuickSearchModal()';
+        } else {
+            clickHandler = `switchTab('${tab.id}')`;
+        }
+
+        return `
+            <div class="mobile-nav-item ${tab.id === activeTab ? 'active' : ''}"
+                 id="mobile-tab-${tab.id}"
+                 onclick="${clickHandler}">
+                <span class="mobile-nav-icon">${tab.icon}</span>
+                <span class="mobile-nav-label">${tab.label}</span>
+            </div>
+        `;
+    }).join('');
 }
 
 /**
@@ -9536,6 +9548,148 @@ window.exportAnnualPLStatementCSV = exportAnnualPLStatementCSV;
 window.toggleAllDeviceCheckboxes = toggleAllDeviceCheckboxes;
 window.updateBulkDeleteButton = updateBulkDeleteButton;
 window.executeBulkDelete = executeBulkDelete;
+
+// ========== QUICK ACTION MODALS ==========
+
+/**
+ * Open quick expense modal (from mobile FAB)
+ */
+function openQuickExpenseModal() {
+    // Clear any repair ID context (general expense)
+    if (window.currentExpenseRepairId) {
+        window.currentExpenseRepairId = null;
+    }
+    
+    const display = document.getElementById('expenseRepairIdDisplay');
+    if (display) {
+        display.style.display = 'none';
+    }
+    
+    // Reset form
+    document.getElementById('expenseType').value = 'general';
+    document.getElementById('expenseCategory').value = 'delivery';
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expenseDescription').value = '';
+    document.getElementById('expenseNotes').value = '';
+    
+    // Open modal
+    document.getElementById('expenseModal').style.display = 'block';
+}
+
+/**
+ * Open quick search modal (from mobile FAB)
+ */
+function openQuickSearchModal() {
+    const modal = document.getElementById('quickSearchModal');
+    const searchInput = document.getElementById('quickSearchInput');
+    const resultsDiv = document.getElementById('quickSearchResults');
+    
+    // Clear previous search
+    searchInput.value = '';
+    resultsDiv.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">Type to search for devices...</p>';
+    
+    // Open modal
+    modal.style.display = 'block';
+    
+    // Focus on search input
+    setTimeout(() => searchInput.focus(), 100);
+}
+
+/**
+ * Close quick search modal
+ */
+function closeQuickSearchModal() {
+    document.getElementById('quickSearchModal').style.display = 'none';
+}
+
+/**
+ * Perform quick search across all repairs
+ */
+function performQuickSearch() {
+    const searchTerm = document.getElementById('quickSearchInput').value.trim().toLowerCase();
+    const resultsDiv = document.getElementById('quickSearchResults');
+    
+    if (searchTerm.length < 2) {
+        resultsDiv.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Type at least 2 characters...</p>';
+        return;
+    }
+    
+    // Search across all repairs
+    const allRepairs = window.allRepairs || [];
+    const results = allRepairs.filter(r => {
+        if (r.deleted) return false;
+        
+        const trackingNum = (r.trackingNumber || '').toLowerCase();
+        const customerName = (r.customerName || '').toLowerCase();
+        const shopName = (r.shopName || '').toLowerCase();
+        const brand = (r.brand || '').toLowerCase();
+        const model = (r.model || '').toLowerCase();
+        const problem = (r.problem || '').toLowerCase();
+        
+        return trackingNum.includes(searchTerm) ||
+               customerName.includes(searchTerm) ||
+               shopName.includes(searchTerm) ||
+               brand.includes(searchTerm) ||
+               model.includes(searchTerm) ||
+               problem.includes(searchTerm);
+    }).slice(0, 20); // Limit to 20 results
+    
+    if (results.length === 0) {
+        resultsDiv.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No devices found matching your search.</p>';
+        return;
+    }
+    
+    // Render results
+    resultsDiv.innerHTML = results.map(r => {
+        const statusClass = r.status.toLowerCase().replace(/\\s+/g, '-');
+        
+        // Determine which tab to navigate to based on status
+        let targetTab = 'my';
+        if (r.status === 'Received') targetTab = 'received';
+        else if (r.status === 'In Progress' || r.status === 'Waiting for Parts') targetTab = 'inprogress';
+        else if (r.status === 'Ready for Pickup') targetTab = 'forrelease';
+        else if (r.status === 'Released') targetTab = 'mycompleted';
+        else if (r.status === 'Claimed') targetTab = 'myclaimed';
+        
+        return `
+            <div class="search-result-item" 
+                 onclick="closeQuickSearchModal(); switchTab('${targetTab}'); setTimeout(() => toggleRepairDetails('${r.id}'), 500);"
+                 style="padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;cursor:pointer;transition:all 0.2s;">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:5px;">
+                    <div>
+                        <strong style="font-size:15px;">${r.brand} ${r.model}</strong>
+                        <span style="margin-left:8px;font-size:13px;color:#666;">| ${r.customerName}</span>
+                    </div>
+                    <span class="status-badge status-${statusClass}" style="font-size:11px;">${r.status}</span>
+                </div>
+                <div style="font-size:12px;color:#666;">
+                    📍 ${r.trackingNumber} • ${window.utils.formatDate(r.recordedDate)}
+                </div>
+                ${r.shopName ? `<div style="font-size:12px;color:#999;">🏪 ${r.shopName}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+    
+    // Add hover effect via CSS
+    document.querySelectorAll('.search-result-item').forEach(item => {
+        item.addEventListener('mouseenter', () => {
+            item.style.background = '#f5f5f5';
+            item.style.borderColor = '#667eea';
+        });
+        item.addEventListener('mouseleave', () => {
+            item.style.background = 'white';
+            item.style.borderColor = '#e0e0e0';
+        });
+    });
+}
+
+// Export quick action functions
+window.openQuickExpenseModal = openQuickExpenseModal;
+window.openQuickSearchModal = openQuickSearchModal;
+window.closeQuickSearchModal = closeQuickSearchModal;
+window.performQuickSearch = performQuickSearch;
+
+console.log('✅ ui.js loaded');
 
 // Export repair list interaction functions
 window.toggleRepairDetails = toggleRepairDetails;
