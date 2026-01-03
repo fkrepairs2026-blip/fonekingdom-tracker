@@ -5116,13 +5116,19 @@ function getPendingRemittanceDates(techId) {
         });
     }
 
-    // Calculate commission and unremitted balance per date (40% of net after expenses)
+    // Calculate commission and unremitted balance per date (40% of net after parts and expenses)
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
-        const netAfterExpenses = dateData.totalPayments - dateData.totalExpenses;
-        dateData.totalCommission = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
-        // Unremitted balance = net after expenses - commission (which is 60% of net)
-        dateData.unremittedBalance = netAfterExpenses - dateData.totalCommission;
+        
+        // Get parts costs for this date
+        const { total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
+        dateData.totalPartsCosts = partsCostsTotal;
+        
+        // Calculate net revenue (payments - parts - expenses)
+        const netRevenue = dateData.totalPayments - partsCostsTotal - dateData.totalExpenses;
+        dateData.totalCommission = netRevenue > 0 ? netRevenue * 0.40 : 0;
+        // Unremitted balance = net revenue - commission (which is 60% of net)
+        dateData.unremittedBalance = netRevenue - dateData.totalCommission;
     });
 
     // Convert to array and sort by date (oldest first)
@@ -5224,17 +5230,19 @@ function getPendingGCashDates(techId) {
 function getUnremittedBalance(techId, dateString) {
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
+    const { repairs: partsRepairs, total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
 
-    // Commission is 40% of (payments - expenses)
-    const netAfterExpenses = paymentsTotal - expensesTotal;
-    const commissionDeduction = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
+    // Commission is 40% of (payments - parts costs - expenses)
+    const netRevenue = paymentsTotal - partsCostsTotal - expensesTotal;
+    const commissionDeduction = netRevenue > 0 ? netRevenue * 0.40 : 0;
 
-    const unremittedBalance = netAfterExpenses - commissionDeduction;
+    const unremittedBalance = netRevenue - commissionDeduction;
 
     return {
         paymentsTotal,
+        partsCostsTotal,
         expensesTotal,
-        netAfterExpenses,
+        netRevenue,
         commissionDeduction,
         unremittedBalance,
         paymentCount: payments.length
@@ -5657,6 +5665,50 @@ function getAllPendingCommission(techId) {
 }
 
 /**
+ * Get technician's daily parts costs from repairs where they collected payments
+ */
+function getTechDailyPartsCosts(techId, date) {
+    // Convert date to local date string for comparison
+    const targetDateString = date instanceof Date
+        ? getLocalDateString(date)
+        : date; // Already a string like "2025-12-31"
+
+    const repairs = [];
+    let total = 0;
+
+    window.allRepairs.forEach(repair => {
+        // Only include repairs assigned to this technician
+        if (repair.acceptedBy === techId && repair.payments) {
+            // Check if tech collected any payment on this date
+            const hasPaymentOnDate = repair.payments.some(payment => {
+                // Only count verified payments collected by tech
+                if (!payment.verified || payment.collectedByTech !== true) return false;
+                
+                const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                const paymentDateString = getLocalDateString(paymentDate);
+                return paymentDateString === targetDateString;
+            });
+
+            // If tech collected payment on this date, include the repair's parts cost
+            if (hasPaymentOnDate) {
+                const partsCost = getRepairPartsCost(repair);
+                if (partsCost > 0) {
+                    repairs.push({
+                        repairId: repair.id,
+                        customerName: repair.customerName,
+                        deviceInfo: `${repair.brand || ''} ${repair.model || ''}`.trim(),
+                        partsCost: partsCost
+                    });
+                    total += partsCost;
+                }
+            }
+        }
+    });
+
+    return { repairs, total };
+}
+
+/**
  * Toggle manual commission fields
  */
 function toggleManualCommissionFields() {
@@ -5748,11 +5800,12 @@ function openSingleDayRemittanceModal(dateString) {
     // Get data for this specific date
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
+    const { repairs: partsRepairs, total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
 
-    // Commission: 40% of (payments - expenses)
-    const netAfterExpenses = paymentsTotal - expensesTotal;
-    const commissionDeduction = netAfterExpenses > 0 ? netAfterExpenses * 0.40 : 0;
-    const expectedAmount = netAfterExpenses - commissionDeduction;
+    // Commission: 40% of (payments - parts costs - expenses)
+    const netRevenue = paymentsTotal - partsCostsTotal - expensesTotal;
+    const commissionDeduction = netRevenue > 0 ? netRevenue * 0.40 : 0;
+    const expectedAmount = netRevenue - commissionDeduction;
 
     if (payments.length === 0 && expenses.length === 0) {
         alert('⚠️ No pending payments or expenses for this date.');
@@ -5826,6 +5879,12 @@ function openSingleDayRemittanceModal(dateString) {
                         <span>Gross Cash Collected:</span>
                         <strong>₱${paymentsTotal.toFixed(2)}</strong>
                     </div>
+                    ${partsCostsTotal > 0 ? `
+                        <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                            <span>🔧 Less: Parts Costs</span>
+                            <strong style="color:#f44336;">-₱${partsCostsTotal.toFixed(2)}</strong>
+                        </div>
+                    ` : ''}
                     ${expensesTotal > 0 ? `
                         <div style="display:flex;justify-content:space-between;margin:10px 0;">
                             <span>📦 Less: Your Expenses</span>
@@ -5833,8 +5892,8 @@ function openSingleDayRemittanceModal(dateString) {
                         </div>
                     ` : ''}
                     <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                        <span>Net After Expenses:</span>
-                        <strong>₱${netAfterExpenses.toFixed(2)}</strong>
+                        <span>Net Revenue:</span>
+                        <strong>₱${netRevenue.toFixed(2)}</strong>
                     </div>
                     <div style="display:flex;justify-content:space-between;margin:10px 0;">
                         <span>👤 Less: Your Commission (40%)</span>
@@ -11339,6 +11398,7 @@ window.closeExpenseModal = closeExpenseModal;
 window.getTechDailyPayments = getTechDailyPayments;
 window.getTechDailyGCashPayments = getTechDailyGCashPayments;
 window.getTechDailyExpenses = getTechDailyExpenses;
+window.getTechDailyPartsCosts = getTechDailyPartsCosts;
 window.getRepairPartsCost = getRepairPartsCost;
 window.getRepairDeliveryExpenses = getRepairDeliveryExpenses;
 window.calculateRepairCommission = calculateRepairCommission;

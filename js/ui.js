@@ -5690,6 +5690,12 @@ function buildDailyRemittanceTab(container) {
                                             <span>Collected:</span>
                                             <strong>₱${dateData.totalPayments.toFixed(2)}</strong>
                                         </div>
+                                        ${dateData.totalPartsCosts > 0 ? `
+                                            <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#f44336;">
+                                                <span>🔧 Parts Costs:</span>
+                                                <strong>-₱${dateData.totalPartsCosts.toFixed(2)}</strong>
+                                            </div>
+                                        ` : ''}
                                         ${dateData.totalExpenses > 0 ? `
                                             <div style="display:flex;justify-content:space-between;margin:8px 0;font-size:13px;color:#f44336;">
                                                 <span>Expenses:</span>
