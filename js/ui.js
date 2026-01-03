@@ -1444,14 +1444,25 @@ function buildRefundRequestsTab(container) {
     const awaitingTechRefunds = (window.refunds || []).filter(r => r.status === 'approved_pending_tech');
     const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
     const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
+    const approvedRefunds = (window.refunds || []).filter(r => r.status === 'approved');
+    const otherRefunds = (window.refunds || []).filter(r => 
+        r.status !== 'pending_approval' && 
+        r.status !== 'pending' && 
+        r.status !== 'approved_pending_tech' && 
+        r.status !== 'completed' && 
+        r.status !== 'rejected' &&
+        r.status !== 'approved'
+    );
 
     console.log('📊 Refund breakdown:', {
         total: window.refunds.length,
         pending: pendingRefunds.length,
         awaitingTech: awaitingTechRefunds.length,
+        approved: approvedRefunds.length,
         completed: completedRefunds.length,
         rejected: rejectedRefunds.length,
-        statuses: window.refunds.map(r => ({ id: r.id, status: r.status }))
+        other: otherRefunds.length,
+        statuses: window.refunds.map(r => ({ id: r.id, status: r.status, customerName: window.allRepairs.find(rep => rep.id === r.repairId)?.customerName }))
     });
 
     container.innerHTML = `
