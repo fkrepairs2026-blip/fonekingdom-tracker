@@ -13880,18 +13880,54 @@ async function approveRefund(refundId, adminNotes = '') {
             }
         }
 
-        // Update refund to approved
-        await db.ref(`refunds/${refundId}`).update({
-            status: 'approved',
-            approvedBy: window.currentUserData.displayName,
-            approvedById: window.currentUser.uid,
-            approvedAt: new Date().toISOString(),
-            adminNotes: adminNotes,
-            lastUpdated: new Date().toISOString()
-        });
+        // Check if commission reversal is needed
+        const needsTechAck = refund.commissionAffected && refund.commissionToReverse > 0;
+        
+        if (needsTechAck) {
+            // Require technician acknowledgment before commission deduction
+            await db.ref(`refunds/${refundId}`).update({
+                status: 'approved_pending_tech',
+                approvedBy: window.currentUserData.displayName,
+                approvedById: window.currentUser.uid,
+                approvedAt: new Date().toISOString(),
+                adminNotes: adminNotes,
+                lastUpdated: new Date().toISOString()
+            });
+            
+            utils.showLoading(false);
+            
+            if (window.utils && window.utils.showToast) {
+                window.utils.showToast(
+                    `✅ Refund approved. Waiting for technician (${refund.technicianName}) to acknowledge commission reversal.`,
+                    'success',
+                    4000
+                );
+            }
+            
+            // Log activity
+            await logActivity('refund_approved_pending_tech', {
+                refundId: refundId,
+                repairId: refund.repairId,
+                amount: refund.refundAmount,
+                technicianId: refund.technicianId,
+                commissionToReverse: refund.commissionToReverse
+            });
+            
+            return { success: true, pendingTech: true };
+        } else {
+            // No commission impact, process immediately
+            await db.ref(`refunds/${refundId}`).update({
+                status: 'approved',
+                approvedBy: window.currentUserData.displayName,
+                approvedById: window.currentUser.uid,
+                approvedAt: new Date().toISOString(),
+                adminNotes: adminNotes,
+                lastUpdated: new Date().toISOString()
+            });
 
-        // Process the refund
-        await processRefund(refundId);
+            // Process the refund
+            await processRefund(refundId);
+        }
 
         utils.showLoading(false);
 
@@ -13916,6 +13952,102 @@ async function approveRefund(refundId, adminNotes = '') {
         console.error('❌ Error approving refund:', error);
         utils.showLoading(false);
         alert(`Error approving refund: ${error.message}`);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Technician acknowledges refund and accepts commission reversal
+ * @param {string} refundId - Refund ID
+ */
+async function acknowledgeRefund(refundId) {
+    if (!window.currentUserData || window.currentUserData.role !== 'technician') {
+        alert('⚠️ Only technicians can acknowledge refunds');
+        return { success: false };
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const refund = window.refunds.find(r => r.id === refundId);
+        if (!refund) {
+            throw new Error('Refund not found');
+        }
+
+        if (refund.status !== 'approved_pending_tech') {
+            throw new Error('Refund is not awaiting your acknowledgment');
+        }
+
+        // Verify this tech is the one who needs to acknowledge
+        if (refund.technicianId !== window.currentUser.uid) {
+            throw new Error('This refund is assigned to another technician');
+        }
+
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        if (!repair) {
+            throw new Error('Repair not found');
+        }
+
+        // Add negative payment entry for commission reversal
+        if (refund.commissionToReverse > 0) {
+            const reversalPayment = {
+                amount: -refund.commissionToReverse,
+                method: 'Commission Reversal',
+                type: 'refund_commission_reversal',
+                date: new Date().toISOString(),
+                recordedDate: new Date().toISOString(),
+                paymentDate: new Date().toISOString(),
+                receivedBy: window.currentUserData.displayName,
+                receivedById: window.currentUser.uid,
+                collectedByTech: true,
+                remittanceStatus: 'pending',
+                verified: true,
+                verifiedBy: 'System',
+                verifiedAt: new Date().toISOString(),
+                refundId: refundId,
+                refundAmount: refund.refundAmount,
+                notes: `Commission reversal for refund: ${refund.refundReason.replace('_', ' ')} - ${refund.refundReasonDetails}`,
+                isCommissionReversal: true
+            };
+
+            // Add to repair payments
+            await db.ref(`repairs/${refund.repairId}/payments`).push(reversalPayment);
+        }
+
+        // Update refund status to approved and process
+        await db.ref(`refunds/${refundId}`).update({
+            status: 'approved',
+            acknowledgedByTech: true,
+            acknowledgedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        });
+
+        // Process the refund
+        await processRefund(refundId);
+
+        utils.showLoading(false);
+
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(
+                `✅ Refund acknowledged. ₱${refund.commissionToReverse.toFixed(2)} commission will be deducted from today's remittance.`,
+                'success',
+                4000
+            );
+        }
+
+        // Log activity
+        await logActivity('refund_tech_acknowledged', {
+            refundId: refundId,
+            repairId: refund.repairId,
+            commissionReversed: refund.commissionToReverse
+        });
+
+        return { success: true };
+
+    } catch (error) {
+        console.error('❌ Error acknowledging refund:', error);
+        utils.showLoading(false);
+        alert(`Error acknowledging refund: ${error.message}`);
         return { success: false, error: error.message };
     }
 }
@@ -13976,6 +14108,7 @@ window.loadRefunds = loadRefunds;
 window.requestRefund = requestRefund;
 window.processRefund = processRefund;
 window.approveRefund = approveRefund;
+window.acknowledgeRefund = acknowledgeRefund;
 window.rejectRefund = rejectRefund;
 window.determineRefundTier = determineRefundTier;
 

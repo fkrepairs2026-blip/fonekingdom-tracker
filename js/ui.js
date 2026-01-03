@@ -1184,7 +1184,14 @@ function buildMyRequestsTab(container) {
     const myRefundRequests = window.refunds ?
         window.refunds.filter(r => r.requestedById === window.currentUser.uid) : [];
 
-    const totalRequests = myModRequests.length + myRefundRequests.length;
+    // Load pending refund acknowledgments (for technicians)
+    const pendingAcknowledgments = window.refunds ?
+        window.refunds.filter(r => 
+            r.status === 'approved_pending_tech' && 
+            r.technicianId === window.currentUser.uid
+        ) : [];
+
+    const totalRequests = myModRequests.length + myRefundRequests.length + pendingAcknowledgments.length;
 
     container.innerHTML = `
         <div class="card">
@@ -1198,6 +1205,47 @@ function buildMyRequestsTab(container) {
                     <p style="font-size:14px;color:#999;">Refund and modification requests will appear here</p>
                 </div>
             ` : `
+                ${pendingAcknowledgments.length > 0 ? `
+                    <h4 style="margin-top:20px;color:#ff9800;display:flex;align-items:center;gap:10px;">
+                        ⚠️ Refund Acknowledgments Required (${pendingAcknowledgments.length})
+                        <span style="background:#ff9800;color:white;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:normal;">ACTION NEEDED</span>
+                    </h4>
+                    <p style="color:#666;font-size:14px;margin-bottom:15px;">These refunds have been approved but require your acknowledgment before commission is deducted.</p>
+                    ${pendingAcknowledgments.sort((a, b) => new Date(b.approvedAt) - new Date(a.approvedAt)).map(refund => {
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        return `
+                        <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:10px;align-items:center;">
+                                <strong style="color:#e65100;">⚠️ Refund Approved - Commission Reversal</strong>
+                                <span style="background:#ff9800;color:white;padding:4px 12px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                    REQUIRES ACKNOWLEDGMENT
+                                </span>
+                            </div>
+                            <div style="background:white;padding:12px;border-radius:5px;margin-bottom:10px;">
+                                <div style="font-size:14px;color:#666;margin-bottom:8px;">
+                                    <div><strong>Customer:</strong> ${repair ? repair.customerName : 'N/A'}</div>
+                                    <div><strong>Device:</strong> ${repair ? `${repair.brand} ${repair.model}` : 'N/A'}</div>
+                                    <div><strong>Refund Amount:</strong> ₱${refund.refundAmount.toFixed(2)}</div>
+                                    <div style="color:#d32f2f;font-weight:bold;"><strong>Commission to Deduct:</strong> -₱${refund.commissionToReverse.toFixed(2)}</div>
+                                    <div><strong>Reason:</strong> ${refund.refundReason.replace('_', ' ').toUpperCase()}</div>
+                                    <div><strong>Explanation:</strong> ${refund.refundReasonDetails}</div>
+                                    <div><strong>Approved by:</strong> ${refund.approvedBy} on ${utils.formatDateTime(refund.approvedAt)}</div>
+                                </div>
+                            </div>
+                            <div style="background:#fff8e1;padding:10px;border-radius:5px;margin-bottom:10px;border-left:3px solid #ffc107;">
+                                <p style="margin:0;font-size:13px;color:#f57c00;">
+                                    <strong>⚠️ Action Required:</strong> Please review and acknowledge this refund. 
+                                    The commission of ₱${refund.commissionToReverse.toFixed(2)} will be deducted from your daily remittance once acknowledged.
+                                </p>
+                            </div>
+                            <button onclick="if(confirm('This will deduct ₱${refund.commissionToReverse.toFixed(2)} from your commission. Continue?')) window.acknowledgeRefund('${refund.id}')" 
+                                    style="background:#ff9800;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;font-weight:bold;">
+                                ✅ Acknowledge and Accept Commission Deduction
+                            </button>
+                        </div>
+                    `}).join('')}
+                ` : ''}
+                
                 ${myRefundRequests.length > 0 ? `
                     <h4 style="margin-top:20px;color:#e91e63;">🔄 My Refund Requests (${myRefundRequests.length})</h4>
                     ${myRefundRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).map(refund => {
@@ -1382,12 +1430,13 @@ function buildRefundRequestsTab(container) {
     window.currentTabRefresh = () => buildRefundRequestsTab(document.getElementById('refund-requestsTab'));
 
     const pendingRefunds = (window.refunds || []).filter(r => r.status === 'pending_approval' || r.status === 'pending');
+    const awaitingTechRefunds = (window.refunds || []).filter(r => r.status === 'approved_pending_tech');
     const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
     const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
 
     container.innerHTML = `
         <div class="card">
-            <h3>🔄 Refund Requests (${pendingRefunds.length} pending)</h3>
+            <h3>🔄 Refund Requests (${pendingRefunds.length} pending${awaitingTechRefunds.length > 0 ? `, ${awaitingTechRefunds.length} awaiting tech` : ''})</h3>
             <p style="color:#666;margin-bottom:15px;">Review and approve/reject refund requests</p>
             
             ${pendingRefunds.length === 0 && completedRefunds.length === 0 ? `
@@ -1475,6 +1524,43 @@ function buildRefundRequestsTab(container) {
                                         style="background:#f44336;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;flex:1;">
                                     ❌ Reject
                                 </button>
+                            </div>
+                        </div>
+                    `}).join('')}
+                ` : ''}
+                
+                ${awaitingTechRefunds.length > 0 ? `
+                    <h4 style="margin-top:30px;color:#ff9800;">⏳ AWAITING TECHNICIAN ACKNOWLEDGMENT (${awaitingTechRefunds.length})</h4>
+                    <p style="color:#666;font-size:14px;margin-bottom:15px;">These refunds have been approved but are waiting for the technician to acknowledge the commission reversal.</p>
+                    ${awaitingTechRefunds.map(refund => {
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        const tech = repair ? window.allUsers?.find(u => u.id === refund.technicianId) : null;
+        return `
+                        <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                                <div>
+                                    <strong style="color:#e65100;font-size:16px;">✅ Approved - Awaiting Tech</strong>
+                                </div>
+                                <span style="background:#ff9800;color:white;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                    PENDING TECH ACK
+                                </span>
+                            </div>
+                            
+                            <div style="background:white;padding:12px;border-radius:5px;margin-bottom:12px;">
+                                <div style="font-size:14px;margin-bottom:8px;">
+                                    <div><strong>Customer:</strong> ${repair ? repair.customerName : 'N/A'}</div>
+                                    <div><strong>Device:</strong> ${repair ? `${repair.brand} ${repair.model}` : 'N/A'}</div>
+                                    <div><strong>Refund Amount:</strong> ₱${refund.refundAmount.toFixed(2)}</div>
+                                    <div style="color:#d32f2f;"><strong>Commission to Reverse:</strong> -₱${refund.commissionToReverse.toFixed(2)}</div>
+                                    <div><strong>Technician:</strong> ${tech ? tech.displayName : refund.technicianName || 'N/A'}</div>
+                                    <div><strong>Approved by:</strong> ${refund.approvedBy} on ${utils.formatDateTime(refund.approvedAt)}</div>
+                                </div>
+                            </div>
+                            
+                            <div style="background:#fff8e1;padding:10px;border-radius:5px;border-left:3px solid #ffc107;">
+                                <p style="margin:0;font-size:13px;color:#f57c00;">
+                                    ℹ️ Waiting for <strong>${tech ? tech.displayName : 'technician'}</strong> to acknowledge this refund before commission is deducted.
+                                </p>
                             </div>
                         </div>
                     `}).join('')}
