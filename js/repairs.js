@@ -13092,6 +13092,13 @@ async function loadOverheadExpenses() {
 
             window.overheadExpenses = expenses;
             console.log(`✅ Loaded ${expenses.length} overhead expenses`);
+            
+            // Debug: Log first few expenses
+            if (expenses.length > 0) {
+                console.log('📊 Sample overhead expenses:', expenses.slice(0, 3));
+            } else {
+                console.warn('⚠️ No overhead expenses found in database');
+            }
 
             // Refresh overhead tab if it exists (in case it's currently active)
             setTimeout(() => {
@@ -13253,14 +13260,22 @@ async function deleteOverheadExpense(expenseId) {
  * Calculate total overhead for a period
  */
 function calculateOverheadForPeriod(startDate, endDate) {
-    if (!window.overheadExpenses) return 0;
+    if (!window.overheadExpenses) {
+        console.warn('⚠️ calculateOverheadForPeriod: window.overheadExpenses is undefined');
+        return 0;
+    }
 
-    return window.overheadExpenses.reduce((total, expense) => {
+    const total = window.overheadExpenses.reduce((sum, expense) => {
         const expenseDate = new Date(expense.date);
         if (expenseDate >= startDate && expenseDate <= endDate) {
-            return total + expense.amount;
+            return sum + expense.amount;
         }
-        return total;
+        return sum;
+    }, 0);
+    
+    console.log(`📊 Overhead for period ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}: ₱${total.toFixed(2)} from ${window.overheadExpenses.length} total expenses`);
+    
+    return total;
     }, 0);
 }
 
