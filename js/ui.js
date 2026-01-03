@@ -1445,6 +1445,7 @@ function buildRefundRequestsTab(container) {
 
     const pendingRefunds = (window.refunds || []).filter(r => r.status === 'pending_approval' || r.status === 'pending');
     const awaitingTechRefunds = (window.refunds || []).filter(r => r.status === 'approved_pending_tech' || (r.status === 'approved' && r.commissionAffected && !r.acknowledgedByTech));
+    const stuckRefunds = (window.refunds || []).filter(r => r.status === 'approved' && r.acknowledgedByTech);
     const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
     const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
     const approvedRefunds = (window.refunds || []).filter(r => r.status === 'approved' && (!r.commissionAffected || r.acknowledgedByTech));
@@ -1461,6 +1462,7 @@ function buildRefundRequestsTab(container) {
         total: window.refunds.length,
         pending: pendingRefunds.length,
         awaitingTech: awaitingTechRefunds.length,
+        stuck: stuckRefunds.length,
         approved: approvedRefunds.length,
         completed: completedRefunds.length,
         rejected: rejectedRefunds.length,
@@ -1470,10 +1472,10 @@ function buildRefundRequestsTab(container) {
 
     container.innerHTML = `
         <div class="card">
-            <h3>🔄 Refund Requests (${pendingRefunds.length} pending${awaitingTechRefunds.length > 0 ? `, ${awaitingTechRefunds.length} awaiting tech` : ''})</h3>
+            <h3>🔄 Refund Requests (${pendingRefunds.length} pending${awaitingTechRefunds.length > 0 ? `, ${awaitingTechRefunds.length} awaiting tech` : ''}${stuckRefunds.length > 0 ? `, ${stuckRefunds.length} need recovery` : ''})</h3>
             <p style="color:#666;margin-bottom:15px;">Review and approve/reject refund requests</p>
             
-            ${pendingRefunds.length === 0 && completedRefunds.length === 0 && awaitingTechRefunds.length === 0 ? `
+            ${pendingRefunds.length === 0 && completedRefunds.length === 0 && awaitingTechRefunds.length === 0 && stuckRefunds.length === 0 ? `
                 <div style="text-align:center;padding:40px;color:#999;">
                     <h2 style="font-size:48px;margin:0;">✅</h2>
                     <p>No refund requests</p>
@@ -1559,6 +1561,49 @@ function buildRefundRequestsTab(container) {
                                     ❌ Reject
                                 </button>
                             </div>
+                        </div>
+                    `}).join('')}
+                ` : ''}
+                
+                ${stuckRefunds.length > 0 ? `
+                    <h4 style="margin-top:30px;color:#f44336;">⚠️ STUCK REFUNDS - NEED RECOVERY (${stuckRefunds.length})</h4>
+                    <p style="color:#666;font-size:14px;margin-bottom:15px;">These refunds were acknowledged by tech but failed to complete. Click "Retry Processing" to complete them.</p>
+                    ${stuckRefunds.map(refund => {
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        const tech = repair ? window.allUsers?.find(u => u.id === refund.technicianId) : null;
+        return `
+                        <div style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                                <div>
+                                    <strong style="color:#c62828;font-size:16px;">⚠️ Processing Failed</strong>
+                                </div>
+                                <span style="background:#f44336;color:white;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                    STUCK
+                                </span>
+                            </div>
+                            
+                            <div style="background:white;padding:12px;border-radius:5px;margin-bottom:12px;">
+                                <div style="font-size:14px;margin-bottom:8px;">
+                                    <div><strong>Customer:</strong> ${repair ? repair.customerName : 'N/A'}</div>
+                                    <div><strong>Device:</strong> ${repair ? `${repair.brand} ${repair.model}` : 'N/A'}</div>
+                                    <div><strong>Refund Amount:</strong> ₱${refund.refundAmount.toFixed(2)}</div>
+                                    <div style="color:#d32f2f;"><strong>Commission to Reverse:</strong> -₱${refund.commissionToReverse.toFixed(2)}</div>
+                                    <div><strong>Technician:</strong> ${tech ? tech.displayName : refund.technicianName || 'N/A'}</div>
+                                    <div><strong>Approved by:</strong> ${refund.approvedBy} on ${utils.formatDateTime(refund.approvedAt)}</div>
+                                    <div><strong>Acknowledged by tech:</strong> ${utils.formatDateTime(refund.acknowledgedAt)}</div>
+                                </div>
+                            </div>
+                            
+                            <div style="background:#fff8e1;padding:10px;border-radius:5px;margin-bottom:10px;border-left:3px solid #ffc107;">
+                                <p style="margin:0;font-size:13px;color:#f57c00;">
+                                    ⚠️ <strong>Issue:</strong> Tech acknowledged but processing failed. Click button below to retry and complete the refund.
+                                </p>
+                            </div>
+                            
+                            <button onclick="if(confirm('Retry processing this refund? This will complete the refund and mark the payment as refunded.')) window.processRefund('${refund.id}')" 
+                                    style="background:#4caf50;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;font-weight:bold;">
+                                🔄 Retry Processing
+                            </button>
                         </div>
                     `}).join('')}
                 ` : ''}
