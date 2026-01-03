@@ -1305,9 +1305,15 @@ function getProfitDashboard(startDate, endDate) {
     const totalTechCommission = allProfits.reduce((sum, p) => sum + p.techCommission, 0);
     const totalShopRevenue = allProfits.reduce((sum, p) => sum + p.shopRevenue, 0);
     
+    console.log(`📊 Profit Dashboard - Calculating for period: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`📦 window.overheadExpenses available:`, !!window.overheadExpenses);
+    console.log(`📦 window.overheadExpenses count:`, window.overheadExpenses ? window.overheadExpenses.length : 0);
+    
     // Get TOTAL overhead for period (not per repair)
     const totalOverhead = window.calculateOverheadForPeriod ? 
         window.calculateOverheadForPeriod(startDate, endDate) : 0;
+    
+    console.log(`💰 Total overhead calculated: ₱${totalOverhead.toFixed(2)}`);
     
     // Net profit = Shop Revenue - Overhead
     const totalNetProfit = totalShopRevenue - totalOverhead;

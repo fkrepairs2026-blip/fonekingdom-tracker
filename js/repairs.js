@@ -13293,16 +13293,23 @@ function calculateOverheadForPeriod(startDate, endDate) {
         return 0;
     }
 
-    const total = window.overheadExpenses.reduce((sum, expense) => {
-        const expenseDate = new Date(expense.date);
-        if (expenseDate >= startDate && expenseDate <= endDate) {
-            return sum + expense.amount;
-        }
-        return sum;
-    }, 0);
+    console.log(`📊 Calculating overhead for period ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
+    console.log(`📦 Total overhead expenses in array: ${window.overheadExpenses.length}`);
 
-    console.log(`📊 Overhead for period ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}: ₱${total.toFixed(2)} from ${window.overheadExpenses.length} total expenses`);
+    const total = window.overheadExpenses
+        .filter(expense => !expense.deleted) // Exclude deleted expenses
+        .reduce((sum, expense) => {
+            const expenseDate = new Date(expense.date);
+            const isInRange = expenseDate >= startDate && expenseDate <= endDate;
+            
+            if (isInRange) {
+                console.log(`  ✅ Including: ${expense.category} - ₱${expense.amount} on ${expense.date.split('T')[0]}`);
+            }
+            
+            return isInRange ? sum + expense.amount : sum;
+        }, 0);
 
+    console.log(`💰 Total overhead for period: ₱${total.toFixed(2)}`);
     return total;
 }
 
