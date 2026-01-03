@@ -6755,6 +6755,7 @@ async function confirmSingleDayRemittance() {
         // Get payments for this specific date
         const { payments, total: paymentsCheckTotal } = getTechDailyPayments(techId, dateString);
         const { expenses, total: expensesCheckTotal } = getTechDailyExpenses(techId, dateString);
+        const { repairs: partsRepairs, total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
 
         // Create remittance record for this specific date
         const remittanceDate = new Date(dateString + 'T00:00:00');
@@ -6778,6 +6779,14 @@ async function confirmSingleDayRemittance() {
                 customerName: p.customerName,
                 amount: p.amount,
                 method: p.method
+            })),
+            // Parts Costs
+            totalPartsCosts: partsCostsTotal,
+            partsRepairs: partsRepairs.map(p => ({
+                repairId: p.repairId,
+                customerName: p.customerName,
+                deviceInfo: p.deviceInfo,
+                partsCost: p.partsCost
             })),
             // Commission
             commissionDeduction: commissionDeduction,
@@ -7369,6 +7378,21 @@ function openVerifyRemittanceModal(remittanceId, isAdminOverride = false) {
             </div>
             <div class="remittance-total">Total: ₱${(remittance.totalPaymentsCollected || 0).toFixed(2)}</div>
         </div>
+        
+        ${(remittance.totalPartsCosts || 0) > 0 ? `
+            <div class="remittance-summary-section">
+                <h4>🔧 Parts Costs (${(remittance.partsRepairs || []).length})</h4>
+                <div class="remittance-list">
+                    ${(remittance.partsRepairs || []).length > 0 ? (remittance.partsRepairs || []).map(p => `
+                        <div class="remittance-item">
+                            <span>${p.customerName} - ${p.deviceInfo}</span>
+                            <span style="color:#f44336;">-₱${p.partsCost.toFixed(2)}</span>
+                        </div>
+                    `).join('') : '<p style="color:#999;">No parts costs</p>'}
+                </div>
+                <div class="remittance-total" style="color:#f44336;">Total: -₱${(remittance.totalPartsCosts || 0).toFixed(2)}</div>
+            </div>
+        ` : ''}
         
         ${(remittance.totalCommission || remittance.commissionEarned || 0) > 0 ? `
             <div class="card" style="background:#e8f5e9;margin:20px 0;border-left:4px solid #4caf50;">
