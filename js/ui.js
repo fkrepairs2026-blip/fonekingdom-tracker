@@ -120,6 +120,12 @@ function buildTabs() {
                 { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab }
             );
         }
+        // Refund Requests for Manager and Cashier (under Admin section)
+        if (role === 'manager' || role === 'cashier') {
+            sections.admin.tabs.push(
+                { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab }
+            );
+        }
     }
     else if (role === 'technician') {
         // Operations
