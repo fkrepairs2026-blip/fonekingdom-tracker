@@ -13284,22 +13284,6 @@ async function updateOverheadExpense(expenseId, updates) {
     }
 }
 
-        utils.showLoading(false);
-
-        if (window.utils && window.utils.showToast) {
-            window.utils.showToast('✅ Overhead expense deleted', 'success', 3000);
-        }
-
-        return { success: true };
-
-    } catch (error) {
-        console.error('❌ Error deleting overhead expense:', error);
-        utils.showLoading(false);
-        alert(`Error deleting overhead expense: ${error.message}`);
-        return { success: false, error: error.message };
-    }
-}
-
 /**
  * Calculate total overhead for a period
  */
