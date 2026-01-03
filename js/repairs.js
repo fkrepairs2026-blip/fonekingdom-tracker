@@ -13276,7 +13276,6 @@ function calculateOverheadForPeriod(startDate, endDate) {
     console.log(`📊 Overhead for period ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}: ₱${total.toFixed(2)} from ${window.overheadExpenses.length} total expenses`);
     
     return total;
-    }, 0);
 }
 
 // ===== SUPPLIER PAYABLES MANAGEMENT =====
