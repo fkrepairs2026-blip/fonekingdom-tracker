@@ -144,7 +144,8 @@ function buildTabs() {
         );
         // Payments
         sections.payments.tabs.push(
-            { id: 'remittance', label: 'Daily Remittance', icon: '💸', build: buildDailyRemittanceTab }
+            { id: 'remittance', label: 'Daily Remittance', icon: '💸', build: buildDailyRemittanceTab },
+            { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab }
         );
         // Inventory & Reports
         sections.inventory.tabs.push(
