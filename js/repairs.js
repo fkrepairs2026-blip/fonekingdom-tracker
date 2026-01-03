@@ -4666,12 +4666,15 @@ async function openAddSupplierFromReceive() {
 
         const newSupplierRef = db.ref('suppliers').push();
         await newSupplierRef.set({
-            name: name.trim(),
-            contactNumber: contact?.trim() || '',
-            active: true,
+            supplierName: name.trim(),
+            phone: contact?.trim() || '',
+            contactPerson: '',
+            email: '',
+            address: '',
+            notes: '',
+            deleted: false,
             createdAt: new Date().toISOString(),
-            createdBy: window.currentUser.uid,
-            createdByName: window.currentUserData.displayName
+            createdBy: window.currentUserData.displayName
         });
 
         await loadSuppliers();
@@ -4683,7 +4686,12 @@ async function openAddSupplierFromReceive() {
         if (window.populateReceiveSupplierDropdown) {
             window.populateReceiveSupplierDropdown();
             const select = document.getElementById('receiveSupplier');
-            if (select) select.value = name.trim();
+            if (select) {
+                // Find option by supplier name
+                const options = Array.from(select.options);
+                const option = options.find(opt => opt.text === name.trim());
+                if (option) select.value = option.value;
+            }
         }
 
     } catch (error) {
@@ -4708,12 +4716,15 @@ async function openAddSupplierQuick() {
         // Add to Firebase suppliers
         const newSupplierRef = db.ref('suppliers').push();
         await newSupplierRef.set({
-            name: name.trim(),
-            contactNumber: contact?.trim() || '',
-            active: true,
+            supplierName: name.trim(),
+            phone: contact?.trim() || '',
+            contactPerson: '',
+            email: '',
+            address: '',
+            notes: '',
+            deleted: false,
             createdAt: new Date().toISOString(),
-            createdBy: window.currentUser.uid,
-            createdByName: window.currentUserData.displayName
+            createdBy: window.currentUserData.displayName
         });
 
         // Reload suppliers

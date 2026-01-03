@@ -400,6 +400,9 @@ function switchTab(tabId, dateFilter = null) {
         window.currentDateFilter = null;
     }
 
+    // Clear expanded repair state to prevent context leakage between tabs
+    window.expandedRepairId = null;
+
     // Remove active class from all navigation items
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -3195,10 +3198,11 @@ function buildMyRepairsTab(container) {
     console.log('🔧 Building My Repairs tab');
     window.currentTabRefresh = () => buildMyRepairsTab(document.getElementById('myTab'));
 
+    // Only show truly active repairs (In Progress and Waiting for Parts)
+    // Ready for Pickup devices belong in "Completed Today" tab
     const myRepairs = window.allRepairs.filter(r =>
         r.acceptedBy === window.currentUser.uid &&
-        r.status !== 'Claimed' &&
-        r.status !== 'Released'
+        (r.status === 'In Progress' || r.status === 'Waiting for Parts')
     );
 
     container.innerHTML = `
@@ -7512,6 +7516,9 @@ function editSupplierForm(supplierId) {
     }
 
     const container = document.getElementById('supplierFormContainer');
+    
+    // Handle both old and new data structures
+    const supplierName = supplier.supplierName || supplier.name || '';
 
     container.innerHTML = `
         <form onsubmit="submitEditSupplier(event, '${supplierId}')" id="editSupplierForm" style="padding:15px;background:var(--bg-hover);border-radius:8px;margin-bottom:20px;">
@@ -7519,7 +7526,7 @@ function editSupplierForm(supplierId) {
             
             <div class="form-group">
                 <label>Supplier Name *</label>
-                <input type="text" name="supplierName" required value="${supplier.supplierName}">
+                <input type="text" name="supplierName" required value="${supplierName}">
             </div>
             
             <div class="form-group">

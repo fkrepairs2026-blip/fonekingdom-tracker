@@ -83,12 +83,11 @@
     },
     "suppliers": {
       ".read": "auth != null",
-      "$supplierId": {
-        ".write": "auth != null && (
-          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
-          root.child('users').child(auth.uid).child('role').val() === 'manager'
-        )"
-      }
+      ".write": "auth != null && (
+        root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+        root.child('users').child(auth.uid).child('role').val() === 'manager' ||
+        root.child('users').child(auth.uid).child('role').val() === 'technician'
+      )"
     },
     "dailyCashCounts": {
       ".read": "auth != null",
