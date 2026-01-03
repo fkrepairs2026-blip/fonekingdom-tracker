@@ -267,11 +267,11 @@ function renderMobileBottomNav() {
         );
     } else if (role === 'admin' || role === 'manager') {
         quickTabs.push(
-            { id: 'dashboard', icon: '📊', label: 'Dashboard' },
-            { id: 'receive', icon: '➕', label: 'Receive' },
-            { id: 'inprogress', icon: '🔧', label: 'Progress' },
-            { id: 'all', icon: '📋', label: 'All' },
-            { id: 'cash', icon: '💵', label: 'Cash' }
+            { id: 'admin', icon: '⚙️', label: 'Admin' },
+            { id: 'analytics', icon: '📈', label: 'Profit' },
+            { id: 'dashboard', icon: '🏠', label: 'Home' },
+            { id: 'verify-remittance', icon: '✅', label: 'Verify' },
+            { id: 'inventory', icon: '📦', label: 'Inventory' }
         );
     }
 

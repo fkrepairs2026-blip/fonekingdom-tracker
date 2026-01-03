@@ -423,9 +423,7 @@ function buildAdminDashboard(userName, stats) {
             <!-- Recent Activity -->
             <div style="margin-top:30px;">
                 <h3 style="margin-bottom:15px;color:var(--text-primary);">📋 Recent Shop Activity</h3>
-                <div class="activity-feed">
-                    ${recentActivities.map(activity => renderActivityItem(activity)).join('')}
-                </div>
+                ${renderGroupedActivities(recentActivities)}
             </div>
         </div>
     `;
