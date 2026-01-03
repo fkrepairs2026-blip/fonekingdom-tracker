@@ -13560,14 +13560,13 @@ async function loadRefunds() {
             window.refunds = refunds;
             console.log(`✅ Loaded ${refunds.length} refunds`);
 
-            // Refresh refund requests tab if active
+            // Refresh refund requests tab when data changes (even if not visible)
             setTimeout(() => {
                 const refundContainer = document.getElementById('refund-requestsTab');
                 if (refundContainer && window.buildRefundRequestsTab) {
-                    if (refundContainer.classList.contains('active')) {
-                        window.buildRefundRequestsTab(refundContainer);
-                        console.log('🔄 Refund requests tab refreshed');
-                    }
+                    // Always rebuild the tab when data changes
+                    window.buildRefundRequestsTab(refundContainer);
+                    console.log('🔄 Refund requests tab refreshed with', refunds.length, 'refunds');
                 }
             }, 400);
         });
