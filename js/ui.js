@@ -267,7 +267,7 @@ function renderMobileBottomNav() {
         );
     } else if (role === 'admin' || role === 'manager') {
         quickTabs.push(
-            { id: 'admin', icon: '⚙️', label: 'Admin' },
+            { id: 'admin-tools', icon: '⚙️', label: 'Admin' },
             { id: 'analytics', icon: '📈', label: 'Profit' },
             { id: 'dashboard', icon: '🏠', label: 'Home' },
             { id: 'verify-remittance', icon: '✅', label: 'Verify' },
