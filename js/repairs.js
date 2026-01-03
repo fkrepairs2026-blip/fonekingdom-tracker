@@ -13794,7 +13794,10 @@ async function processRefund(refundId) {
         }
 
         // Mark payment as refunded
-        const updatedPayments = [...repair.payments];
+        const updatedPayments = Array.isArray(repair.payments) ? [...repair.payments] : [];
+        if (!updatedPayments[refund.paymentIndex]) {
+            throw new Error('Payment not found at specified index');
+        }
         updatedPayments[refund.paymentIndex].refunded = true;
         updatedPayments[refund.paymentIndex].refundedAmount = refund.refundAmount;
         updatedPayments[refund.paymentIndex].refundedAt = new Date().toISOString();
