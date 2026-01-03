@@ -3506,16 +3506,7 @@ function buildAdminToolsTab(container) {
                 <br><small>All resets are backed up and logged for audit purposes.</small>
             </div>
             
-            <!-- DATA HEALTH & CLEANUP -->
-            ${buildDataHealthSection()}
-            
-            <!-- UNPAID DEVICES BULK FIX -->
-            ${buildUnpaidDevicesFixSection()}
-            
-            <!-- SCHEDULED EXPORTS -->
-            ${buildExportSettingsSection()}
-            
-            <!-- TODAY'S STATUS -->
+            <!-- TODAY'S STATUS (Always Visible) -->
             <div class="form-group" style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:20px;">
                 <h4 style="margin:0 0 10px;">📊 Today's Cash Status</h4>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
@@ -3543,148 +3534,188 @@ function buildAdminToolsTab(container) {
                 </div>
             </div>
             
+            <!-- COLLAPSIBLE SECTIONS -->
+            
+            <!-- 1. DATA HEALTH & CLEANUP -->
+            <div class="collapsible-section" style="margin-bottom:15px;">
+                <div onclick="toggleAdminSection('dataHealth')" style="background:#f8f9fa;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #10b981;">
+                    <strong>🔍 Data Health & Cleanup</strong>
+                    <span id="dataHealth-icon">▼</span>
+                </div>
+                <div id="dataHealth-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
+                    ${buildDataHealthSection()}
+                </div>
+            </div>
+            
+            <!-- 2. UNPAID DEVICES -->
+            <div class="collapsible-section" style="margin-bottom:15px;">
+                <div onclick="toggleAdminSection('unpaidDevices')" style="background:#f8f9fa;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #ffc107;">
+                    <strong>💰 Unpaid Released Devices</strong>
+                    <span id="unpaidDevices-icon">▼</span>
+                </div>
+                <div id="unpaidDevices-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
+                    ${buildUnpaidDevicesFixSection()}
+                </div>
+            </div>
+            
+            <!-- 3. SCHEDULED EXPORTS -->
+            <div class="collapsible-section" style="margin-bottom:15px;">
+                <div onclick="toggleAdminSection('scheduledExports')" style="background:#f8f9fa;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #2196f3;">
+                    <strong>📤 Scheduled Exports</strong>
+                    <span id="scheduledExports-icon">▼</span>
+                </div>
+                <div id="scheduledExports-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
+                    ${buildExportSettingsSection()}
+                </div>
+            </div>
+            
+            <!-- 4. RESET FUNCTIONS -->
             ${isLocked ? `
-                <div style="background:#fff9c4;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #ffc107;">
+                <div style="background:#fff9c4;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
                     <strong>🔒 Today is Locked</strong>
                     <p style="margin:5px 0 0;">To make changes, go to the <strong>Cash Count</strong> tab and unlock today's date first.</p>
                 </div>
             ` : `
-                <!-- RESET BUTTONS -->
-                <div class="form-group">
-                    <h4 style="margin:0 0 10px;">🔄 Reset Functions</h4>
-                    
-                    <button 
-                        onclick="resetTodayPayments()" 
-                        class="btn btn-danger"
-                        style="width:100%;margin-bottom:10px;"
-                        ${cashData.payments.length === 0 ? 'disabled' : ''}>
-                        🗑️ Reset Today's Payments
-                        ${cashData.payments.length === 0 ? '<br><small>(No payments to reset)</small>' : `<br><small>${cashData.payments.length} payment(s) - ₱${cashData.totals.payments.toFixed(2)}</small>`}
-                    </button>
-                    
-                    <button 
-                        onclick="resetTodayExpenses()" 
-                        class="btn btn-danger"
-                        style="width:100%;margin-bottom:10px;"
-                        ${cashData.expenses.length === 0 ? 'disabled' : ''}>
-                        🗑️ Reset Today's Expenses
-                        ${cashData.expenses.length === 0 ? '<br><small>(No expenses to reset)</small>' : `<br><small>${cashData.expenses.length} expense(s) - ₱${cashData.totals.expenses.toFixed(2)}</small>`}
-                    </button>
-                    
-                    <button 
-                        onclick="fullResetToday()" 
-                        class="btn btn-danger"
-                        style="width:100%;background:#d32f2f;"
-                        ${(cashData.payments.length === 0 && cashData.expenses.length === 0) ? 'disabled' : ''}>
-                        ⚠️ FULL RESET - Today's All Data
-                        ${(cashData.payments.length === 0 && cashData.expenses.length === 0) ? '<br><small>(No transactions to reset)</small>' : `<br><small>Will delete ALL transactions (${cashData.payments.length + cashData.expenses.length} total)</small>`}
-                    </button>
+                <div class="collapsible-section" style="margin-bottom:15px;">
+                    <div onclick="toggleAdminSection('resetFunctions')" style="background:#ffe0e0;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #f44336;">
+                        <strong>🔄 Reset Functions (Today's Data)</strong>
+                        <span id="resetFunctions-icon">▼</span>
+                    </div>
+                    <div id="resetFunctions-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
+                        <button 
+                            onclick="resetTodayPayments()" 
+                            class="btn btn-danger"
+                            style="width:100%;margin-bottom:10px;"
+                            ${cashData.payments.length === 0 ? 'disabled' : ''}>
+                            🗑️ Reset Today's Payments
+                            ${cashData.payments.length === 0 ? '<br><small>(No payments to reset)</small>' : `<br><small>${cashData.payments.length} payment(s) - ₱${cashData.totals.payments.toFixed(2)}</small>`}
+                        </button>
+                        
+                        <button 
+                            onclick="resetTodayExpenses()" 
+                            class="btn btn-danger"
+                            style="width:100%;margin-bottom:10px;"
+                            ${cashData.expenses.length === 0 ? 'disabled' : ''}>
+                            🗑️ Reset Today's Expenses
+                            ${cashData.expenses.length === 0 ? '<br><small>(No expenses to reset)</small>' : `<br><small>${cashData.expenses.length} expense(s) - ₱${cashData.totals.expenses.toFixed(2)}</small>`}
+                        </button>
+                        
+                        <button 
+                            onclick="fullResetToday()" 
+                            class="btn btn-danger"
+                            style="width:100%;background:#d32f2f;"
+                            ${(cashData.payments.length === 0 && cashData.expenses.length === 0) ? 'disabled' : ''}>
+                            ⚠️ FULL RESET - Today's All Data
+                            ${(cashData.payments.length === 0 && cashData.expenses.length === 0) ? '<br><small>(No transactions to reset)</small>' : `<br><small>Will delete ALL transactions (${cashData.payments.length + cashData.expenses.length} total)</small>`}
+                        </button>
+                    </div>
                 </div>
             `}
             
-            <!-- MASTER RESET -->
-            <div class="form-group" style="border-top:2px solid #f44336;padding-top:20px;margin-top:20px;">
-                <h4 style="margin:0 0 10px;color:#d32f2f;">🗑️ Master Reset (Danger Zone)</h4>
-                <div style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
-                    <strong style="color:#d32f2f;">⚠️ EXTREME CAUTION REQUIRED</strong>
-                    <p style="margin:5px 0 0;font-size:13px;">
-                        Master Reset allows you to permanently delete ALL data from the system:
-                    </p>
-                    <ul style="margin:8px 0 0 20px;font-size:12px;">
-                        <li>All repair records and history</li>
-                        <li>All payment and remittance records</li>
-                        <li>All expense records</li>
-                        <li>All activity logs</li>
-                        <li>Daily cash count locks</li>
-                    </ul>
-                    <p style="margin:8px 0 0;font-size:12px;font-weight:bold;">
-                        This is useful when testing or starting fresh. User accounts will NOT be affected.
-                    </p>
+            <!-- 5. MASTER RESET (Danger Zone) -->
+            <div class="collapsible-section" style="margin-bottom:15px;">
+                <div onclick="toggleAdminSection('masterReset')" style="background:#ffebee;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #b71c1c;">
+                    <strong>🗑️ Master Reset (Danger Zone)</strong>
+                    <span id="masterReset-icon">▼</span>
                 </div>
-                
-                <button 
-                    onclick="openMasterResetModal()" 
-                    class="btn btn-danger"
-                    style="width:100%;background:#b71c1c;font-size:16px;padding:15px;">
-                    🗑️ MASTER RESET - Delete Selected Data
-                    <br><small style="font-weight:normal;">Click to select what to delete</small>
-                </button>
+                <div id="masterReset-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
+                    <div style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                        <strong style="color:#d32f2f;">⚠️ EXTREME CAUTION REQUIRED</strong>
+                        <p style="margin:5px 0 0;font-size:13px;">
+                            Master Reset allows you to permanently delete ALL data from the system:
+                        </p>
+                        <ul style="margin:8px 0 0 20px;font-size:12px;">
+                            <li>All repair records and history</li>
+                            <li>All payment and remittance records</li>
+                            <li>All expense records</li>
+                            <li>All activity logs</li>
+                            <li>Daily cash count locks</li>
+                        </ul>
+                        <p style="margin:8px 0 0;font-size:12px;font-weight:bold;">
+                            This is useful when testing or starting fresh. User accounts will NOT be affected.
+                        </p>
+                    </div>
+                    
+                    <button 
+                        onclick="openMasterResetModal()" 
+                        class="btn btn-danger"
+                        style="width:100%;background:#b71c1c;font-size:16px;padding:15px;">
+                        🗑️ MASTER RESET - Delete Selected Data
+                        <br><small style="font-weight:normal;">Click to select what to delete</small>
+                    </button>
+                </div>
             </div>
             
-            <!-- BACKUP INFO -->
+            <!-- 6. DEBUG PANEL -->
+            <div class="collapsible-section" style="margin-bottom:15px;">
+                <div onclick="toggleAdminSection('debugPanel')" style="background:#e1f5fe;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #2196f3;">
+                    <strong>🐛 Debug System</strong>
+                    <span id="debugPanel-icon">▼</span>
+                </div>
+                <div id="debugPanel-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
+                    <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                            <div>
+                                <small style="color:#666;">Debug Logs</small>
+                                <div style="font-size:20px;font-weight:bold;color:#2196f3;">
+                                    ${window.debugLogs ? window.debugLogs.length : 0}
+                                </div>
+                            </div>
+                            <div>
+                                <small style="color:#666;">Status</small>
+                                <div style="font-size:14px;font-weight:bold;color:${window.debugEnabled ? '#4caf50' : '#f44336'};">
+                                    ${window.debugEnabled ? '✅ Enabled' : '⏸️ Paused'}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+                        <button onclick="DebugLogger.showLogsModal()" class="btn btn-primary" style="font-size:13px;">
+                            📋 View Logs
+                        </button>
+                        <button onclick="DebugLogger.copyToClipboard('text')" class="btn btn-success" style="font-size:13px;">
+                            📄 Copy Text
+                        </button>
+                    </div>
+                    
+                    <div style="padding:10px;background:#fff9c4;border-radius:5px;font-size:12px;">
+                        <strong>💡 Tip:</strong> Press <kbd>Ctrl+Shift+D</kbd> to open logs anytime
+                    </div>
+                </div>
+            </div>
+            
+            <!-- BACKUP INFO (Always Visible) -->
             <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;">
                 <h4 style="margin:0 0 10px;">💾 Data Safety</h4>
-                <ul style="margin:5px 0;padding-left:20px;">
+                <ul style="margin:5px 0;padding-left:20px;font-size:13px;">
                     <li>All resets require your password</li>
                     <li>Deleted data is backed up to <code>resetBackups</code></li>
                     <li>All actions are logged with timestamp and reason</li>
                     <li>Locked dates cannot be modified</li>
                 </ul>
             </div>
-            
-            <!-- RECENTLY RELEASED DEVICES -->
-            ${buildRecentlyReleasedSection()}
-            
-            <!-- TODAY'S TRANSACTIONS (Individual Delete) -->
-            ${buildTodayTransactionsSection()}
-            
-            <!-- DEVICE MANAGEMENT -->
-            ${buildDeviceManagementSection()}
-            
-            <!-- PENDING REMITTANCES -->
-            ${buildPendingRemittancesSection()}
-            
-            <!-- DATA INTEGRITY CHECK -->
-            ${buildDataIntegritySection()}
-            
-            <!-- DEBUG PANEL -->
-            <div class="form-group" style="background:#e1f5fe;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #2196f3;">
-                <h4 style="margin:0 0 10px;">🐛 Debug System</h4>
-                
-                <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                        <div>
-                            <small style="color:#666;">Debug Logs</small>
-                            <div style="font-size:20px;font-weight:bold;color:#2196f3;">
-                                ${window.debugLogs ? window.debugLogs.length : 0}
-                            </div>
-                        </div>
-                        <div>
-                            <small style="color:#666;">Status</small>
-                            <div style="font-size:14px;font-weight:bold;color:${window.debugEnabled ? '#4caf50' : '#f44336'};">
-                                ${window.debugEnabled ? '✅ Enabled' : '⏸️ Paused'}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                    <button onclick="DebugLogger.showLogsModal()" class="btn btn-primary" style="font-size:13px;">
-                        📋 View Logs
-                    </button>
-                    <button onclick="DebugLogger.copyToClipboard('text')" class="btn btn-success" style="font-size:13px;">
-                        📄 Copy Text
-                    </button>
-                </div>
-                
-                <div style="padding:10px;background:#fff9c4;border-radius:5px;font-size:12px;">
-                    <strong>💡 Tip:</strong> Press <kbd>Ctrl+Shift+D</kbd> to open logs anytime
-                </div>
-            </div>
-            
-            <!-- QUICK ACTIONS -->
-            <div class="form-group" style="margin-top:20px;">
-                <h4 style="margin:0 0 10px;">⚡ Quick Actions</h4>
-                <button onclick="window.switchToTab('cash')" class="btn btn-primary" style="width:100%;margin-bottom:10px;">
-                    💵 Open Cash Count Tab
-                </button>
-                <button onclick="window.switchToTab('admin-logs')" class="btn btn-primary" style="width:100%;">
-                    📋 View Activity Logs
-                </button>
-            </div>
         </div>
     `;
 }
+
+/**
+ * Toggle collapsible admin section
+ */
+window.toggleAdminSection = function(sectionId) {
+    const content = document.getElementById(`${sectionId}-content`);
+    const icon = document.getElementById(`${sectionId}-icon`);
+    
+    if (content && icon) {
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            icon.textContent = '▲';
+        } else {
+            content.style.display = 'none';
+            icon.textContent = '▼';
+        }
+    }
+};
 
 /**
  * Build Unpaid Devices Fix Section for Admin Tools
