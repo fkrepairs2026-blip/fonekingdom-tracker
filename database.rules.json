@@ -1,92 +1,163 @@
 {
   "rules": {
+    ".read": false,
+    ".write": false,
+    
     "repairs": {
-      ".indexOn": [
-        "status",
-        "technicianId",
-        "createdAt"
-      ],
+      ".indexOn": ["status", "technicianId", "createdAt"],
       ".read": "auth != null",
       "$repairId": {
-        ".write": "auth != null",
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager' ||
+          root.child('users').child(auth.uid).child('role').val() === 'cashier' ||
+          root.child('users').child(auth.uid).child('role').val() === 'technician'
+        )",
         "deleted": {
-          ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+          ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
         }
       }
     },
+    
     "users": {
       ".read": "auth != null",
       "$userId": {
-        ".write": "auth != null && (auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+        ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
     },
+    
     "inventory": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$itemId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager'
+        )"
+      }
     },
+    
     "techExpenses": {
       ".read": "auth != null",
       "$expenseId": {
-        ".write": "auth != null"
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'technician'"
       }
     },
+    
     "techRemittances": {
       ".read": "auth != null",
       "$remittanceId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'technician' ||
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'cashier'
+        )"
+      }
+    },
+    
+    "modificationRequests": {
+      ".read": "auth != null",
+      "$requestId": {
         ".write": "auth != null"
       }
     },
-    "modificationRequests": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
+    
     "auditLogs": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
-      ".write": "auth != null"
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$logId": {
+        ".write": "auth != null"
+      }
     },
+    
     "deletedRepairs": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$repairId": {
+        ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
     },
+    
     "activityLogs": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$logId": {
+        ".write": "auth != null"
+      }
     },
+    
     "loginEvents": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
-      ".write": "auth != null"
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$eventId": {
+        ".write": "auth != null"
+      }
     },
+    
     "suppliers": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$supplierId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager'
+        )"
+      }
     },
+    
     "dailyCashCounts": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$countId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'cashier'
+        )"
+      }
     },
+    
     "stockMovements": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$movementId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager'
+        )"
+      }
     },
+    
     "dataCleanupHistory": {
-      ".read": "auth != null",
-      ".write": "auth != null"
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$historyId": {
+        ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
     },
+    
     "overheadExpenses": {
       ".read": "auth != null",
-      ".write": "auth != null && (root.child('users').child(auth.uid).child('role').val() === 'admin' || root.child('users').child(auth.uid).child('role').val() === 'manager')"
+      "$expenseId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager'
+        )"
+      }
     },
+    
     "refunds": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$refundId": {
+        ".write": "auth != null"
+      }
     },
+    
     "supplierPurchases": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      "$purchaseId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager'
+        )"
+      }
     },
+    
     "resetBackups": {
-      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
-      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$backupId": {
+        ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
     }
   }
 }
