@@ -1193,6 +1193,15 @@ function buildMyRequestsTab(container) {
             r.technicianId === window.currentUser.uid
         ) : [];
 
+    console.log('📊 My Requests breakdown:', {
+        myRefunds: myRefundRequests.length,
+        pendingAcks: pendingAcknowledgments.length,
+        myModRequests: myModRequests.length,
+        allRefunds: window.refunds.length,
+        myRefundStatuses: myRefundRequests.map(r => ({ id: r.id, status: r.status })),
+        pendingAckDetails: pendingAcknowledgments.map(r => ({ id: r.id, status: r.status, techId: r.technicianId, currentUserId: window.currentUser.uid }))
+    });
+
     const totalRequests = myModRequests.length + myRefundRequests.length + pendingAcknowledgments.length;
 
     container.innerHTML = `
@@ -1436,12 +1445,21 @@ function buildRefundRequestsTab(container) {
     const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
     const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
 
+    console.log('📊 Refund breakdown:', {
+        total: window.refunds.length,
+        pending: pendingRefunds.length,
+        awaitingTech: awaitingTechRefunds.length,
+        completed: completedRefunds.length,
+        rejected: rejectedRefunds.length,
+        statuses: window.refunds.map(r => ({ id: r.id, status: r.status }))
+    });
+
     container.innerHTML = `
         <div class="card">
             <h3>🔄 Refund Requests (${pendingRefunds.length} pending${awaitingTechRefunds.length > 0 ? `, ${awaitingTechRefunds.length} awaiting tech` : ''})</h3>
             <p style="color:#666;margin-bottom:15px;">Review and approve/reject refund requests</p>
             
-            ${pendingRefunds.length === 0 && completedRefunds.length === 0 ? `
+            ${pendingRefunds.length === 0 && completedRefunds.length === 0 && awaitingTechRefunds.length === 0 ? `
                 <div style="text-align:center;padding:40px;color:#999;">
                     <h2 style="font-size:48px;margin:0;">✅</h2>
                     <p>No refund requests</p>
