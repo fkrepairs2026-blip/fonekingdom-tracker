@@ -9651,21 +9651,42 @@ function performQuickSearch() {
         else if (r.status === 'Released') targetTab = 'mycompleted';
         else if (r.status === 'Claimed') targetTab = 'myclaimed';
         
+        // Get pricing info
+        const pricing = r.pricing || r.quotedPrice || 0;
+        const totalPaid = r.payments ? r.payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) : 0;
+        const displayPrice = totalPaid > 0 ? totalPaid : pricing;
+        
+        // Get job description
+        const jobDescription = r.problem || r.repairType || 'Not specified';
+        
         return `
             <div class="search-result-item" 
                  onclick="closeQuickSearchModal(); switchTab('${targetTab}'); setTimeout(() => toggleRepairDetails('${r.id}'), 500);"
-                 style="padding:12px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;cursor:pointer;transition:all 0.2s;">
-                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:5px;">
-                    <div>
-                        <strong style="font-size:15px;">${r.brand} ${r.model}</strong>
-                        <span style="margin-left:8px;font-size:13px;color:#666;">| ${r.customerName}</span>
+                 style="padding:15px;border:1px solid #e0e0e0;border-radius:8px;margin-bottom:10px;cursor:pointer;transition:all 0.2s;background:white;">
+                <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                    <div style="flex:1;">
+                        <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:4px;">
+                            ${r.brand} ${r.model}
+                        </div>
+                        <div style="font-size:13px;color:#666;margin-bottom:2px;">
+                            🔧 <strong>Job:</strong> ${jobDescription}
+                        </div>
+                        <div style="font-size:13px;color:#666;">
+                            📍 ${r.trackingNumber} • ${window.utils.formatDate(r.recordedDate)}
+                        </div>
                     </div>
-                    <span class="status-badge status-${statusClass}" style="font-size:11px;">${r.status}</span>
+                    <div style="text-align:right;margin-left:15px;">
+                        <div style="font-size:18px;font-weight:bold;color:#2e7d32;margin-bottom:4px;">
+                            ₱${displayPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </div>
+                        <span class="status-badge status-${statusClass}" style="font-size:11px;">${r.status}</span>
+                    </div>
                 </div>
-                <div style="font-size:12px;color:#666;">
-                    📍 ${r.trackingNumber} • ${window.utils.formatDate(r.recordedDate)}
-                </div>
-                ${r.shopName ? `<div style="font-size:12px;color:#999;">🏪 ${r.shopName}</div>` : ''}
+                ${r.customerName || r.shopName ? `
+                    <div style="font-size:12px;color:#999;border-top:1px solid #f0f0f0;padding-top:6px;margin-top:6px;">
+                        👤 ${r.customerName}${r.shopName ? ` • 🏪 ${r.shopName}` : ''}
+                    </div>
+                ` : ''}
             </div>
         `;
     }).join('');
