@@ -941,7 +941,7 @@ function openPaymentModal(repairId) {
     const isManager = userRole === 'manager';
     const isCashier = userRole === 'cashier';
     const canRefund = isAdmin || isManager || isCashier;
-    
+
     console.log('🔍 Payment Modal - User Role Check:', {
         userRole,
         isAdmin,
@@ -950,7 +950,7 @@ function openPaymentModal(repairId) {
         canRefund,
         currentUserData: window.currentUserData
     });
-    
+
     console.log('📋 Payment Data Check:', {
         repairId,
         totalPayments: repair.payments ? repair.payments.length : 0,
@@ -1082,7 +1082,7 @@ function openPaymentModal(repairId) {
                 advanceLabel = 'ADVANCE (Refunded)';
             }
         }
-        
+
         // Log payment refund eligibility
         console.log(`💳 Payment ${i}:`, {
             amount: p.amount,
@@ -1442,9 +1442,9 @@ function showRefundModal(repairId, paymentIndex) {
             <div style="background:#ffebee;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #f44336;">
                 <strong>⚠️ ${tier === 3 ? 'HIGH RISK REFUND' : 'ADMIN APPROVAL REQUIRED'}</strong>
                 <div style="font-size:13px;margin-top:8px;color:#666;">
-                    ${tier === 3 
-                        ? 'This refund requires admin approval because the device is claimed or commission already paid.'
-                        : 'This refund requires admin approval due to remittance status or device status.'}
+                    ${tier === 3
+                ? 'This refund requires admin approval because the device is claimed or commission already paid.'
+                : 'This refund requires admin approval due to remittance status or device status.'}
                 </div>
             </div>
         ` : ''}
@@ -1468,7 +1468,7 @@ function showRefundModal(repairId, paymentIndex) {
     `;
 
     // Show/hide partial amount field
-    window.toggleRefundAmount = function() {
+    window.toggleRefundAmount = function () {
         const type = document.getElementById('refundType').value;
         const div = document.getElementById('partialAmountDiv');
         div.style.display = type === 'partial' ? 'block' : 'none';
@@ -1488,8 +1488,8 @@ async function submitRefundRequest(repairId, paymentIndex) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     const payment = repair.payments[paymentIndex];
 
-    const refundAmount = type === 'full' 
-        ? payment.amount 
+    const refundAmount = type === 'full'
+        ? payment.amount
         : parseFloat(document.getElementById('refundAmount').value);
 
     // Validation
@@ -5167,7 +5167,7 @@ function getPendingGCashDates(techId) {
     // Calculate commission per date using custom tech rate
     const techUser = window.allUsers ? window.allUsers[techId] : null;
     let commissionRate = 0.40; // Default
-    
+
     if (techUser) {
         const compensationType = techUser.compensationType || 'commission';
         if (compensationType === 'salary') {
@@ -5179,13 +5179,13 @@ function getPendingGCashDates(techId) {
         } else {
             commissionRate = 0;
         }
-        
+
         // Admin/manager repairs get their custom rate
         if ((techUser.role === 'admin' || techUser.role === 'manager') && compensationType === 'commission') {
             commissionRate = techUser.commissionRate || 0.60;
         }
     }
-    
+
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
         dateData.totalCommission = dateData.totalNetAmount * commissionRate;
@@ -5292,7 +5292,7 @@ function getTechDailyExpenses(techId, date) {
 function getRepairPartsCost(repair) {
     // Priority: Use inventory system cost if available, otherwise use manual entry
     // Never add both together to avoid double-counting
-    
+
     // Get cost from inventory system (Phase 3 partsUsed)
     if (repair.partsUsed) {
         const inventoryCost = Object.values(repair.partsUsed).reduce((sum, part) => {
@@ -5334,10 +5334,10 @@ function calculateRepairCommission(repair, techId) {
     const techUser = window.allUsers ? window.allUsers[techId] : null;
     let commissionRate = 0.40; // Fallback default
     let compensationType = 'commission'; // Default type
-    
+
     if (techUser) {
         compensationType = techUser.compensationType || 'commission';
-        
+
         // Calculate rate based on compensation type
         if (compensationType === 'salary') {
             // Salary-only techs don't earn commission from repairs
@@ -5352,7 +5352,7 @@ function calculateRepairCommission(repair, techId) {
             // 'none' or unknown - no commission (cashiers, managers)
             commissionRate = 0;
         }
-        
+
         // Special case: Admin/manager repairs get higher rate if doing repairs themselves
         if ((techUser.role === 'admin' || techUser.role === 'manager') && compensationType === 'commission') {
             commissionRate = techUser.commissionRate || 0.60;
@@ -8330,7 +8330,7 @@ function openReleaseDeviceModal(repairId) {
     const paidYes = document.getElementById('customerPaidYes');
     const paidNo = document.getElementById('customerPaidNo');
     const paymentSection = document.getElementById('releasePaymentSection');
-    
+
     if (paidYes) {
         paidYes.checked = false;
         // Reset label styling
@@ -8430,7 +8430,7 @@ async function confirmReleaseDevice() {
     // VALIDATE PAYMENT STATUS RADIO BUTTON SELECTION (REQUIRED)
     const paidYes = document.getElementById('customerPaidYes');
     const paidNo = document.getElementById('customerPaidNo');
-    
+
     if (!paidYes.checked && !paidNo.checked) {
         alert('⚠️ Please select payment status:\n\n• Customer Paid Now\n• Not Paid Yet (Outstanding Balance)');
         DebugLogger.log('ERROR', 'Release Validation Failed', { reason: 'Payment status not selected' });
@@ -8821,14 +8821,14 @@ async function finalizeClaimDevice(repairId, isAutomatic = false) {
 
 function openFinalizeModal(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     // Default warranty: 0 days for software repairs, 30 days for hardware
     const isSoftwareRepair = repair && (repair.repairType === 'Software Issue' ||
-                                        repair.repairType === 'FRP Unlock' ||
-                                        repair.repairType === 'Password Unlock' ||
-                                        repair.repairType === 'Data Recovery');
+        repair.repairType === 'FRP Unlock' ||
+        repair.repairType === 'Password Unlock' ||
+        repair.repairType === 'Data Recovery');
     const defaultWarranty = isSoftwareRepair ? '0' : '30';
-    
+
     document.getElementById('finalizeRepairId').value = repairId;
     document.getElementById('finalizeWarrantyDays').value = defaultWarranty;
     document.getElementById('finalizeFinalNotes').value = '';
@@ -10772,7 +10772,7 @@ async function createUser(event) {
             createdByName: window.currentUserData.displayName,
             lastLogin: null,
             loginHistory: {},
-            
+
             // Compensation settings
             compensationType: role === 'technician' ? 'commission' : 'none',
             commissionRate: role === 'technician' ? 0.40 : (role === 'admin' || role === 'manager' ? 0.60 : 0),
@@ -11068,31 +11068,31 @@ function openCompensationModal(userId) {
         alert('User not found');
         return;
     }
-    
+
     // Populate user info
     document.getElementById('compensationUserId').value = userId;
     document.getElementById('compensationUserName').textContent = user.displayName;
     document.getElementById('compensationUserRole').textContent = user.role.toUpperCase();
-    
+
     // Populate current compensation settings
     const compensationType = user.compensationType || 'commission';
     document.getElementById('compensationType').value = compensationType;
-    
+
     // Set current values
     document.getElementById('commissionRate').value = user.commissionRate ? (user.commissionRate * 100).toFixed(0) : '';
     document.getElementById('monthlySalary').value = user.monthlySalary || '';
     document.getElementById('hybridCommissionRate').value = user.hybridCommissionRate ? (user.hybridCommissionRate * 100).toFixed(0) : '';
     document.getElementById('compensationReason').value = '';
-    
+
     // Show/hide fields based on type
     handleCompensationTypeChange();
-    
+
     // Show history if exists
     if (user.commissionRateHistory && user.commissionRateHistory.length > 0) {
         const historySection = document.getElementById('compensationHistorySection');
         const historyContainer = document.getElementById('compensationHistory');
         historySection.style.display = 'block';
-        
+
         historyContainer.innerHTML = user.commissionRateHistory
             .slice()
             .reverse() // Show newest first
@@ -11100,9 +11100,9 @@ function openCompensationModal(userId) {
                 <div style="padding:8px;border-bottom:1px solid #ddd;font-size:12px;">
                     <div style="font-weight:600;">
                         ${entry.compensationType === 'salary' ? `Salary: ₱${(entry.monthlySalary || 0).toLocaleString()}/mo` :
-                          entry.compensationType === 'hybrid' ? `Hybrid: ₱${(entry.monthlySalary || 0).toLocaleString()}/mo + ${(entry.rate * 100).toFixed(0)}%` :
-                          entry.compensationType === 'commission' ? `Commission: ${(entry.rate * 100).toFixed(0)}%` :
-                          'None'}
+                    entry.compensationType === 'hybrid' ? `Hybrid: ₱${(entry.monthlySalary || 0).toLocaleString()}/mo + ${(entry.rate * 100).toFixed(0)}%` :
+                        entry.compensationType === 'commission' ? `Commission: ${(entry.rate * 100).toFixed(0)}%` :
+                            'None'}
                     </div>
                     <div style="color:#666;margin-top:3px;">
                         ${utils.formatDateTime(entry.changedAt)} by ${entry.changedBy}
@@ -11113,7 +11113,7 @@ function openCompensationModal(userId) {
     } else {
         document.getElementById('compensationHistorySection').style.display = 'none';
     }
-    
+
     document.getElementById('compensationModal').style.display = 'flex';
 }
 
@@ -11130,17 +11130,17 @@ function closeCompensationModal() {
  */
 function handleCompensationTypeChange() {
     const type = document.getElementById('compensationType').value;
-    
+
     // Show/hide fields based on type
-    document.getElementById('commissionRateField').style.display = 
+    document.getElementById('commissionRateField').style.display =
         (type === 'commission') ? 'block' : 'none';
-    
-    document.getElementById('monthlySalaryField').style.display = 
+
+    document.getElementById('monthlySalaryField').style.display =
         (type === 'salary' || type === 'hybrid') ? 'block' : 'none';
-    
-    document.getElementById('hybridCommissionRateField').style.display = 
+
+    document.getElementById('hybridCommissionRateField').style.display =
         (type === 'hybrid') ? 'block' : 'none';
-    
+
     // Set required flags
     document.getElementById('commissionRate').required = (type === 'commission');
     document.getElementById('monthlySalary').required = (type === 'salary' || type === 'hybrid');
@@ -11152,39 +11152,39 @@ function handleCompensationTypeChange() {
  */
 async function saveCompensationSettings(event) {
     event.preventDefault();
-    
+
     const userId = document.getElementById('compensationUserId').value;
     const user = window.allUsers[userId];
     if (!user) {
         alert('User not found');
         return;
     }
-    
+
     const compensationType = document.getElementById('compensationType').value;
     const reason = document.getElementById('compensationReason').value.trim();
-    
+
     if (!compensationType) {
         alert('Please select a compensation type');
         return;
     }
-    
+
     if (!reason || reason.length < 10) {
         alert('Please provide a reason (minimum 10 characters)');
         return;
     }
-    
+
     // Build updates object
     const updates = {
         compensationType: compensationType,
         compensationChangedAt: new Date().toISOString(),
         compensationChangedBy: window.currentUserData.displayName
     };
-    
+
     // Get values based on type
     let rate = 0;
     let monthlySalary = 0;
     let hybridCommissionRate = 0;
-    
+
     if (compensationType === 'commission') {
         const ratePercent = parseFloat(document.getElementById('commissionRate').value);
         if (isNaN(ratePercent) || ratePercent < 0 || ratePercent > 100) {
@@ -11195,7 +11195,7 @@ async function saveCompensationSettings(event) {
         updates.commissionRate = rate;
         updates.monthlySalary = 0;
         updates.hybridCommissionRate = 0;
-        
+
     } else if (compensationType === 'salary') {
         monthlySalary = parseFloat(document.getElementById('monthlySalary').value);
         if (isNaN(monthlySalary) || monthlySalary < 0) {
@@ -11206,11 +11206,11 @@ async function saveCompensationSettings(event) {
         updates.commissionRate = 0;
         updates.monthlySalary = monthlySalary;
         updates.hybridCommissionRate = 0;
-        
+
     } else if (compensationType === 'hybrid') {
         monthlySalary = parseFloat(document.getElementById('monthlySalary').value);
         const hybridRatePercent = parseFloat(document.getElementById('hybridCommissionRate').value);
-        
+
         if (isNaN(monthlySalary) || monthlySalary < 0) {
             alert('Please enter a valid monthly salary');
             return;
@@ -11219,19 +11219,19 @@ async function saveCompensationSettings(event) {
             alert('Please enter a valid hybrid commission rate (0-100)');
             return;
         }
-        
+
         hybridCommissionRate = hybridRatePercent / 100;
         rate = hybridCommissionRate; // Store for history
         updates.commissionRate = 0; // Not used for hybrid (uses hybridCommissionRate)
         updates.monthlySalary = monthlySalary;
         updates.hybridCommissionRate = hybridCommissionRate;
-        
+
     } else { // 'none'
         updates.commissionRate = 0;
         updates.monthlySalary = 0;
         updates.hybridCommissionRate = 0;
     }
-    
+
     // Add to rate history
     const historyEntry = {
         compensationType: compensationType,
@@ -11242,10 +11242,10 @@ async function saveCompensationSettings(event) {
         changedAt: new Date().toISOString(),
         reason: reason
     };
-    
+
     const existingHistory = user.commissionRateHistory || [];
     updates.commissionRateHistory = [...existingHistory, historyEntry];
-    
+
     // Confirm before saving
     let confirmMsg = `💰 Update Compensation for ${user.displayName}?\n\n`;
     if (compensationType === 'salary') {
@@ -11259,14 +11259,14 @@ async function saveCompensationSettings(event) {
     }
     confirmMsg += `\n\nReason: ${reason}`;
     confirmMsg += `\n\n⚠️ This will apply to future repairs only.`;
-    
+
     if (!confirm(confirmMsg)) return;
-    
+
     try {
         utils.showLoading(true);
-        
+
         await db.ref(`users/${userId}`).update(updates);
-        
+
         // Log activity
         await logActivity('compensation_changed', {
             userId: userId,
@@ -11276,16 +11276,16 @@ async function saveCompensationSettings(event) {
             hybridCommissionRate: hybridCommissionRate,
             reason: reason
         }, `${window.currentUserData.displayName} updated compensation for ${user.displayName}`);
-        
+
         utils.showLoading(false);
         alert('✅ Compensation settings saved successfully!');
         closeCompensationModal();
-        
+
         // Refresh page
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error saving compensation:', error);
@@ -12350,7 +12350,7 @@ async function recordMissingPaymentForDevice(repairId) {
     }
 
     // Optional notes
-    const notes = prompt('Payment notes (optional):\n(e.g., "Payment recorded retrospectively by admin")', 
+    const notes = prompt('Payment notes (optional):\n(e.g., "Payment recorded retrospectively by admin")',
         'Missing payment recorded by ' + window.currentUserData.displayName);
 
     // Confirm before saving
@@ -12438,10 +12438,10 @@ function exportUnpaidDevicesList() {
     const unpaidDevices = window.allRepairs.filter(r => {
         if (r.deleted || !r.status) return false;
         if (r.status !== 'Released' && r.status !== 'Claimed') return false;
-        
+
         const totalPaid = (r.payments || []).reduce((sum, p) => sum + p.amount, 0);
         const balance = r.total - totalPaid;
-        
+
         return balance > 0 && (!r.payments || r.payments.length === 0);
     });
 
@@ -12452,12 +12452,12 @@ function exportUnpaidDevicesList() {
 
     // Generate CSV
     let csv = 'Repair ID,Customer Name,Contact Number,Brand,Model,Problem,Status,Released Date,Total,Paid,Balance\n';
-    
+
     unpaidDevices.forEach(r => {
         const totalPaid = (r.payments || []).reduce((sum, p) => sum + p.amount, 0);
         const balance = r.total - totalPaid;
         const releaseDate = r.releasedAt || r.completedAt || '';
-        
+
         csv += `"${r.id}","${r.customerName}","${r.contactNumber}","${r.brand}","${r.model}","${r.problem}","${r.status}","${utils.formatDate(releaseDate)}",${r.total.toFixed(2)},${totalPaid.toFixed(2)},${balance.toFixed(2)}\n`;
     });
 
@@ -12644,9 +12644,9 @@ function calculateDataHealthIssues() {
         // Check for missing parts cost on completed repairs
         // Exclude software repairs which legitimately have zero parts cost
         const isSoftwareRepair = repair.repairType === 'Software Issue' ||
-                                 repair.repairType === 'FRP Unlock' ||
-                                 repair.repairType === 'Password Unlock' ||
-                                 repair.repairType === 'Data Recovery';
+            repair.repairType === 'FRP Unlock' ||
+            repair.repairType === 'Password Unlock' ||
+            repair.repairType === 'Data Recovery';
 
         // Only flag if parts cost was never set (no partsCostRecordedBy field)
         // If partsCostRecordedBy exists, it means the value was explicitly set (even if 0)
@@ -12763,13 +12763,13 @@ async function performCleanup(category, affectedRecords) {
                 case 'missingPartsCost':
                     // Check if it's a software repair
                     const isSoftwareRepair = repair.repairType === 'Software Issue' ||
-                                           repair.repairType === 'FRP Unlock' ||
-                                           repair.repairType === 'Password Unlock' ||
-                                           repair.repairType === 'Data Recovery';
-                    
+                        repair.repairType === 'FRP Unlock' ||
+                        repair.repairType === 'Password Unlock' ||
+                        repair.repairType === 'Data Recovery';
+
                     let partsCostValue = 0;
                     let partsCostNote = '';
-                    
+
                     if (isSoftwareRepair) {
                         // Auto-set to 0 for software repairs
                         partsCostValue = 0;
@@ -13092,7 +13092,7 @@ async function loadOverheadExpenses() {
 
             window.overheadExpenses = expenses;
             console.log(`✅ Loaded ${expenses.length} overhead expenses`);
-            
+
             // Debug: Log first few expenses
             if (expenses.length > 0) {
                 console.log('📊 Sample overhead expenses:', expenses.slice(0, 3));
@@ -13100,15 +13100,13 @@ async function loadOverheadExpenses() {
                 console.warn('⚠️ No overhead expenses found in database');
             }
 
-            // Refresh overhead tab if it exists (in case it's currently active)
+            // Refresh overhead tab if it exists
             setTimeout(() => {
                 const overheadContainer = document.getElementById('overheadTab');
                 if (overheadContainer && window.buildOverheadExpensesTab) {
-                    // Check if overhead tab is currently active
-                    if (overheadContainer.classList.contains('active')) {
-                        window.buildOverheadExpensesTab(overheadContainer);
-                        console.log('🔄 Overhead tab refreshed');
-                    }
+                    // Always rebuild the tab when data changes (even if not currently visible)
+                    window.buildOverheadExpensesTab(overheadContainer);
+                    console.log('🔄 Overhead tab refreshed with', expenses.length, 'expenses');
                 }
             }, 400);
         });
@@ -13272,9 +13270,9 @@ function calculateOverheadForPeriod(startDate, endDate) {
         }
         return sum;
     }, 0);
-    
+
     console.log(`📊 Overhead for period ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}: ₱${total.toFixed(2)} from ${window.overheadExpenses.length} total expenses`);
-    
+
     return total;
 }
 
@@ -13550,7 +13548,7 @@ async function loadRefunds() {
  */
 async function requestRefund(repairId, paymentIndex, refundData) {
     const userRole = window.currentUserData?.role;
-    
+
     // Allow all roles to request, but technicians can only create requests
     if (!window.currentUserData) {
         alert('⚠️ You must be logged in to request a refund');
@@ -13558,7 +13556,7 @@ async function requestRefund(repairId, paymentIndex, refundData) {
     }
 
     const isTechnician = userRole === 'technician';
-    
+
     try {
         utils.showLoading(true);
 
@@ -13595,7 +13593,7 @@ async function requestRefund(repairId, paymentIndex, refundData) {
 
         // Determine refund tier and auto-approval
         const tier = determineRefundTier(repair, payment);
-        
+
         // Technicians always need approval, others follow tier rules
         const requiresApproval = isTechnician || tier >= 2 || userRole !== 'admin';
 
@@ -13981,7 +13979,7 @@ window.getOverduePurchases = getOverduePurchases;
  */
 async function setMonthlyBudget(year, month, amount) {
     const budgetKey = `${year}-${String(month).padStart(2, '0')}`;
-    
+
     try {
         await db.ref(`overheadBudgets/${budgetKey}`).set({
             year: year,
@@ -13991,9 +13989,9 @@ async function setMonthlyBudget(year, month, amount) {
             setByName: window.currentUserData.displayName,
             setAt: new Date().toISOString()
         });
-        
+
         console.log(`✅ Budget set for ${budgetKey}: ₱${amount}`);
-        
+
         // Log activity
         if (window.logActivity) {
             await window.logActivity('budget_set', null, {
@@ -14001,7 +13999,7 @@ async function setMonthlyBudget(year, month, amount) {
                 amount: amount
             });
         }
-        
+
         return true;
     } catch (error) {
         console.error('❌ Error setting budget:', error);
@@ -14016,7 +14014,7 @@ async function setMonthlyBudget(year, month, amount) {
  */
 async function getMonthlyBudget(year, month) {
     const budgetKey = `${year}-${String(month).padStart(2, '0')}`;
-    
+
     try {
         const snapshot = await db.ref(`overheadBudgets/${budgetKey}`).once('value');
         return snapshot.val();
@@ -14036,7 +14034,7 @@ function calculateBudgetVariance(startDate, endDate, budgetAmount) {
     const actualSpent = calculateOverheadForPeriod(startDate, endDate);
     const variance = budgetAmount - actualSpent;
     const percentVariance = budgetAmount > 0 ? (variance / budgetAmount) * 100 : 0;
-    
+
     return {
         budget: budgetAmount,
         actual: actualSpent,
@@ -14054,14 +14052,14 @@ async function getAllBudgets() {
     try {
         const snapshot = await db.ref('overheadBudgets').once('value');
         const budgets = [];
-        
+
         snapshot.forEach((child) => {
             budgets.push({
                 period: child.key,
                 ...child.val()
             });
         });
-        
+
         return budgets.sort((a, b) => b.period.localeCompare(a.period));
     } catch (error) {
         console.error('❌ Error getting all budgets:', error);
