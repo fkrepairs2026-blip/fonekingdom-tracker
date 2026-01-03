@@ -116,6 +116,7 @@ function buildTabs() {
                 { id: 'users', label: 'Users', icon: '👥', build: buildUsersTab },
                 { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
+                { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
                 { id: 'admin-tools', label: 'Admin Tools', icon: '🔧', build: buildAdminToolsTab },
                 { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab }
             );
@@ -123,7 +124,8 @@ function buildTabs() {
         // Refund Requests for Manager and Cashier (under Admin section)
         if (role === 'manager' || role === 'cashier') {
             sections.admin.tabs.push(
-                { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab }
+                { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
+                { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab }
             );
         }
     }
@@ -1650,6 +1652,159 @@ function rejectRefundRequest(refundId) {
     if (reason && reason.trim()) {
         window.rejectRefund(refundId, reason.trim());
     }
+}
+
+/**
+ * Build Refunded Devices Tab (Admin/Manager/Cashier)
+ */
+function buildRefundedDevicesTab(container) {
+    console.log('💸 Building Refunded Devices tab');
+    window.currentTabRefresh = () => buildRefundedDevicesTab(document.getElementById('refunded-devicesTab'));
+
+    const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed');
+    
+    // Sort by completion date (newest first)
+    completedRefunds.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+
+    // Calculate totals
+    const totalRefundAmount = completedRefunds.reduce((sum, r) => sum + r.refundAmount, 0);
+    const totalCommissionReversed = completedRefunds.reduce((sum, r) => sum + (r.commissionToReverse || 0), 0);
+
+    container.innerHTML = `
+        <div class="card">
+            <h3>💸 Refunded Devices (${completedRefunds.length})</h3>
+            <p style="color:#666;margin-bottom:15px;">Complete history of all processed refunds</p>
+            
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:20px;">
+                <div style="background:#e3f2fd;padding:15px;border-radius:8px;border-left:4px solid #2196f3;">
+                    <div style="font-size:14px;color:#666;">Total Refunds</div>
+                    <div style="font-size:24px;font-weight:bold;color:#2196f3;">${completedRefunds.length}</div>
+                </div>
+                <div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
+                    <div style="font-size:14px;color:#666;">Total Amount Refunded</div>
+                    <div style="font-size:24px;font-weight:bold;color:#ff9800;">₱${totalRefundAmount.toFixed(2)}</div>
+                </div>
+                <div style="background:#ffebee;padding:15px;border-radius:8px;border-left:4px solid #f44336;">
+                    <div style="font-size:14px;color:#666;">Commission Reversed</div>
+                    <div style="font-size:24px;font-weight:bold;color:#f44336;">₱${totalCommissionReversed.toFixed(2)}</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <input type="text" 
+                       id="refundSearch" 
+                       placeholder="🔍 Search by customer name, device, or reason..." 
+                       onkeyup="filterRefundedDevices()" 
+                       style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;font-size:14px;">
+            </div>
+            
+            ${completedRefunds.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">✅</h2>
+                    <p>No refunded devices yet</p>
+                </div>
+            ` : `
+                <div id="refundedDevicesList">
+                    ${completedRefunds.map(refund => {
+                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                        const tech = repair ? window.allUsers?.find(u => u.id === refund.technicianId) : null;
+                        
+                        return `
+                            <div class="refund-item" data-search="${repair?.customerName} ${repair?.brand} ${repair?.model} ${refund.refundReason}">
+                                <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                                    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                                        <div style="flex:1;">
+                                            <div style="font-weight:bold;font-size:16px;color:#333;margin-bottom:5px;">
+                                                ${repair ? repair.customerName : 'N/A'}
+                                            </div>
+                                            <div style="font-size:14px;color:#666;">
+                                                ${repair ? `${repair.brand} ${repair.model}` : 'Device not found'}
+                                            </div>
+                                            <div style="font-size:13px;color:#999;margin-top:3px;">
+                                                Repair ID: ${refund.repairId}
+                                            </div>
+                                        </div>
+                                        <div style="text-align:right;">
+                                            <div style="background:#4caf50;color:white;padding:5px 12px;border-radius:5px;font-size:13px;font-weight:bold;margin-bottom:5px;">
+                                                ✅ COMPLETED
+                                            </div>
+                                            <div style="font-size:12px;color:#666;">
+                                                ${utils.formatDate(refund.completedAt)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="background:white;padding:12px;border-radius:5px;margin-bottom:10px;">
+                                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px;">
+                                            <div>
+                                                <strong>Refund Amount:</strong>
+                                                <span style="color:#4caf50;font-weight:bold;">₱${refund.refundAmount.toFixed(2)}</span>
+                                            </div>
+                                            <div>
+                                                <strong>Original Payment:</strong> ₱${refund.originalPaymentAmount.toFixed(2)}
+                                            </div>
+                                            <div>
+                                                <strong>Type:</strong> ${refund.refundType === 'full' ? 'Full Refund' : 'Partial Refund'}
+                                            </div>
+                                            <div>
+                                                <strong>Method:</strong> ${refund.refundMethod}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div style="background:#fff3e0;padding:10px;border-radius:5px;margin-bottom:10px;border-left:3px solid #ff9800;">
+                                        <div style="font-size:13px;">
+                                            <strong>Reason:</strong> ${refund.refundReason.replace('_', ' ').toUpperCase()}
+                                        </div>
+                                        ${refund.refundReasonDetails ? `
+                                            <div style="font-size:13px;color:#666;margin-top:5px;">
+                                                ${refund.refundReasonDetails}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+
+                                    ${refund.commissionAffected ? `
+                                        <div style="background:#ffebee;padding:10px;border-radius:5px;margin-bottom:10px;border-left:3px solid #f44336;">
+                                            <div style="font-size:13px;color:#d32f2f;">
+                                                <strong>⚠️ Commission Impact:</strong> -₱${refund.commissionToReverse.toFixed(2)} deducted from ${tech ? tech.displayName : refund.technicianName || 'technician'}
+                                            </div>
+                                            ${refund.acknowledgedAt ? `
+                                                <div style="font-size:12px;color:#666;margin-top:3px;">
+                                                    Acknowledged: ${utils.formatDateTime(refund.acknowledgedAt)}
+                                                </div>
+                                            ` : ''}
+                                        </div>
+                                    ` : ''}
+
+                                    <div style="font-size:12px;color:#999;padding-top:10px;border-top:1px solid #ddd;">
+                                        <div><strong>Requested by:</strong> ${refund.requestedBy} (${refund.requestedByRole}) on ${utils.formatDateTime(refund.requestedAt)}</div>
+                                        <div><strong>Approved by:</strong> ${refund.approvedBy} on ${utils.formatDateTime(refund.approvedAt)}</div>
+                                        <div><strong>Completed by:</strong> ${refund.completedBy} on ${utils.formatDateTime(refund.completedAt)}</div>
+                                        ${refund.adminNotes ? `<div><strong>Admin Notes:</strong> ${refund.adminNotes}</div>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `}
+        </div>
+    `;
+}
+
+// Search filter for refunded devices
+function filterRefundedDevices() {
+    const searchTerm = document.getElementById('refundSearch')?.value.toLowerCase() || '';
+    const items = document.querySelectorAll('.refund-item');
+    
+    items.forEach(item => {
+        const searchData = item.getAttribute('data-search').toLowerCase();
+        if (searchData.includes(searchTerm)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
 }
 
 function buildUnpaidTab(container) {
@@ -5095,6 +5250,8 @@ window.populateReceiveSupplierDropdown = populateReceiveSupplierDropdown;
 window.buildMyRequestsTab = buildMyRequestsTab;
 window.buildModificationRequestsTab = buildModificationRequestsTab;
 window.buildRefundRequestsTab = buildRefundRequestsTab;
+window.buildRefundedDevicesTab = buildRefundedDevicesTab;
+window.filterRefundedDevices = filterRefundedDevices;
 window.approveRefundRequest = approveRefundRequest;
 window.rejectRefundRequest = rejectRefundRequest;
 window.buildUnpaidTab = buildUnpaidTab;
