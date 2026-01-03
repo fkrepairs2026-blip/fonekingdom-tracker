@@ -1755,7 +1755,8 @@ function buildRefundedDevicesTab(container) {
                 <div id="refundedDevicesList">
                     ${completedRefunds.map(refund => {
                         const repair = window.allRepairs.find(r => r.id === refund.repairId);
-                        const tech = repair ? window.allUsers?.find(u => u.id === refund.technicianId) : null;
+                        const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
+                        const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
                         
                         return `
                             <div class="refund-item" data-search="${repair?.customerName} ${repair?.brand} ${repair?.model} ${refund.refundReason}">
