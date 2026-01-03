@@ -41,35 +41,35 @@ function buildTechnicianDashboard(userName, stats) {
         '🎉'
     )}
                 ${(() => {
-        const commission = getCommissionForPeriod(stats);
-        return utils.createStatCard(
-            commission.label,
-            '₱' + commission.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
-            commission.breakdown + ' • Click to toggle',
-            'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-            'toggleCommissionPeriod',
-            '💰'
-        );
-    })()}
+            const commission = getCommissionForPeriod(stats);
+            return utils.createStatCard(
+                commission.label,
+                '₱' + commission.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+                commission.breakdown + ' • Click to toggle',
+                'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
+                'toggleCommissionPeriod',
+                '💰'
+            );
+        })()}
             </div>
             
             <!-- Alerts Section -->
             ${(stats.pendingRemittanceCount > 0 || stats.pendingApproval > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
-        'Pending Remittance',
-        stats.pendingRemittanceCount,
-        'high',
-        'remittance',
-        '📤'
-    )}
+            'Pending Remittance',
+            stats.pendingRemittanceCount,
+            'high',
+            'remittance',
+            '📤'
+        )}
                     ${utils.createAlertCard(
-        'Pending Customer Approval',
-        stats.pendingApproval,
-        'medium',
-        'inprogress',
-        '⏳'
-    )}
+            'Pending Customer Approval',
+            stats.pendingApproval,
+            'medium',
+            'inprogress',
+            '⏳'
+        )}
                 </div>
             ` : ''}
             
@@ -602,12 +602,12 @@ function renderGroupedActivities(activities) {
                 <!-- Date Groups within Type -->
                 <div class="activity-type-items" id="${typeId}" style="padding-left:15px;display:${typeIndex === 0 ? 'block' : 'none'};">
                     ${sortedDates.map((dateKey, dateIndex) => {
-                        const activitiesInDate = groupedByDate[dateKey];
-                        const isToday = dateKey === todayDateString;
-                        const groupId = `${typeId}-date-${dateKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
-                        const daysAgoText = window.utils.daysAgo(activitiesInDate[0].timestamp);
+            const activitiesInDate = groupedByDate[dateKey];
+            const isToday = dateKey === todayDateString;
+            const groupId = `${typeId}-date-${dateKey.replace(/[^a-zA-Z0-9]/g, '-')}`;
+            const daysAgoText = window.utils.daysAgo(activitiesInDate[0].timestamp);
 
-                        return `
+            return `
                             <div class="activity-date-group" style="margin-bottom:15px;">
                                 <div class="activity-date-header" 
                                      onclick="toggleActivityGroup('${groupId}')"
@@ -632,7 +632,7 @@ function renderGroupedActivities(activities) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -816,11 +816,11 @@ function openAdminToolsDataHealth() {
 function toggleActivityTypeGroup(groupId) {
     const itemsDiv = document.getElementById(groupId);
     const header = document.querySelector(`[onclick="toggleActivityTypeGroup('${groupId}')"]`);
-    
+
     if (itemsDiv && header) {
         const isHidden = itemsDiv.style.display === 'none';
         itemsDiv.style.display = isHidden ? 'block' : 'none';
-        
+
         // Update arrow icon
         const icon = header.querySelector('.activity-type-toggle-icon');
         if (icon) {
@@ -835,11 +835,11 @@ function toggleActivityTypeGroup(groupId) {
 function toggleActivityGroup(groupId) {
     const itemsDiv = document.getElementById(groupId);
     const header = document.querySelector(`[onclick="toggleActivityGroup('${groupId}')"]`);
-    
+
     if (itemsDiv && header) {
         const isHidden = itemsDiv.style.display === 'none';
         itemsDiv.style.display = isHidden ? 'block' : 'none';
-        
+
         // Update arrow icon
         const icon = header.querySelector('.activity-toggle-icon');
         if (icon) {
