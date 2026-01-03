@@ -1712,10 +1712,19 @@ function buildRefundedDevicesTab(container) {
     console.log('💸 Building Refunded Devices tab');
     window.currentTabRefresh = () => buildRefundedDevicesTab(document.getElementById('refunded-devicesTab'));
 
-    const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed');
+    // Show all refunds that are approved or completed (not pending/rejected)
+    const completedRefunds = (window.refunds || []).filter(r => 
+        r.status === 'completed' || 
+        r.status === 'approved' || 
+        r.status === 'approved_pending_tech'
+    );
     
-    // Sort by completion date (newest first)
-    completedRefunds.sort((a, b) => new Date(b.completedAt) - new Date(a.completedAt));
+    // Sort by completion date or approval date (newest first)
+    completedRefunds.sort((a, b) => {
+        const dateA = new Date(a.completedAt || a.approvedAt || a.createdAt);
+        const dateB = new Date(b.completedAt || b.approvedAt || b.createdAt);
+        return dateB - dateA;
+    });
 
     // Calculate totals
     const totalRefundAmount = completedRefunds.reduce((sum, r) => sum + r.refundAmount, 0);
@@ -1761,9 +1770,16 @@ function buildRefundedDevicesTab(container) {
                         const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
                         const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
                         
+                        // Determine status display
+                        const statusDisplay = refund.status === 'completed' 
+                            ? { bg: '#4caf50', text: '✅ COMPLETED', date: refund.completedAt }
+                            : refund.status === 'approved_pending_tech'
+                            ? { bg: '#ff9800', text: '⏳ PENDING TECH ACK', date: refund.approvedAt }
+                            : { bg: '#2196f3', text: '✅ APPROVED', date: refund.approvedAt };
+                        
                         return `
                             <div class="refund-item" data-search="${repair?.customerName} ${repair?.brand} ${repair?.model} ${refund.refundReason}">
-                                <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                                <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid ${statusDisplay.bg};">
                                     <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                         <div style="flex:1;">
                                             <div style="font-weight:bold;font-size:16px;color:#333;margin-bottom:5px;">
@@ -1777,11 +1793,11 @@ function buildRefundedDevicesTab(container) {
                                             </div>
                                         </div>
                                         <div style="text-align:right;">
-                                            <div style="background:#4caf50;color:white;padding:5px 12px;border-radius:5px;font-size:13px;font-weight:bold;margin-bottom:5px;">
-                                                ✅ COMPLETED
+                                            <div style="background:${statusDisplay.bg};color:white;padding:5px 12px;border-radius:5px;font-size:13px;font-weight:bold;margin-bottom:5px;">
+                                                ${statusDisplay.text}
                                             </div>
                                             <div style="font-size:12px;color:#666;">
-                                                ${utils.formatDate(refund.completedAt)}
+                                                ${statusDisplay.date ? utils.formatDate(statusDisplay.date) : 'N/A'}
                                             </div>
                                         </div>
                                     </div>
