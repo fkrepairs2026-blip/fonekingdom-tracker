@@ -1189,7 +1189,7 @@ function buildMyRequestsTab(container) {
     // Load pending refund acknowledgments (for technicians)
     const pendingAcknowledgments = window.refunds ?
         window.refunds.filter(r => 
-            r.status === 'approved_pending_tech' && 
+            (r.status === 'approved_pending_tech' || (r.status === 'approved' && r.commissionAffected && !r.acknowledgedByTech)) &&
             r.technicianId === window.currentUser.uid
         ) : [];
 
@@ -1441,10 +1441,10 @@ function buildRefundRequestsTab(container) {
     window.currentTabRefresh = () => buildRefundRequestsTab(document.getElementById('refund-requestsTab'));
 
     const pendingRefunds = (window.refunds || []).filter(r => r.status === 'pending_approval' || r.status === 'pending');
-    const awaitingTechRefunds = (window.refunds || []).filter(r => r.status === 'approved_pending_tech');
+    const awaitingTechRefunds = (window.refunds || []).filter(r => r.status === 'approved_pending_tech' || (r.status === 'approved' && r.commissionAffected && !r.acknowledgedByTech));
     const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
     const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
-    const approvedRefunds = (window.refunds || []).filter(r => r.status === 'approved');
+    const approvedRefunds = (window.refunds || []).filter(r => r.status === 'approved' && (!r.commissionAffected || r.acknowledgedByTech));
     const otherRefunds = (window.refunds || []).filter(r => 
         r.status !== 'pending_approval' && 
         r.status !== 'pending' && 
