@@ -35,9 +35,18 @@ async function loadRepairs() {
             window.allRepairs = [];
 
             snapshot.forEach((child) => {
+                const repairData = child.val();
+                
+                // Ensure payments is always an array (Firebase may return object)
+                if (repairData.payments && typeof repairData.payments === 'object' && !Array.isArray(repairData.payments)) {
+                    repairData.payments = Object.values(repairData.payments);
+                } else if (!repairData.payments) {
+                    repairData.payments = [];
+                }
+                
                 window.allRepairs.push({
                     id: child.key,
-                    ...child.val()
+                    ...repairData
                 });
             });
 
