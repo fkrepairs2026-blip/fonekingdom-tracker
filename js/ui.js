@@ -8515,6 +8515,9 @@ function exportCurrentProfitReport() {
 // ===== OVERHEAD EXPENSES TAB =====
 function buildOverheadExpensesTab(container) {
     console.log('💼 Building Overhead Expenses tab');
+    console.log('📊 window.overheadExpenses:', window.overheadExpenses);
+    console.log('📊 Total expenses:', window.overheadExpenses ? window.overheadExpenses.length : 0);
+    
     window.currentTabRefresh = () => buildOverheadExpensesTab(container);
 
     // Get current month expenses
@@ -8526,6 +8529,8 @@ function buildOverheadExpensesTab(container) {
         const expDate = new Date(exp.date);
         return expDate >= monthStart && expDate <= monthEnd && !exp.deleted;
     });
+    
+    console.log('📊 Month expenses:', monthExpenses.length, 'out of', (window.overheadExpenses || []).length);
 
     const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
 
