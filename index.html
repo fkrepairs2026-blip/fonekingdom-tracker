@@ -297,6 +297,55 @@
         console.log('✅ ESC cleanup shortcut ready');
     </script>
 
+    <!-- Edit Overhead Expense Modal -->
+    <div id="editOverheadModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditOverheadModal()">&times;</span>
+            <h3>✏️ Edit Overhead Expense</h3>
+            <input type="hidden" id="editOverheadId">
+            <div class="form-group">
+                <label>Category *</label>
+                <select id="editOverheadCategory" required>
+                    <option value="">Select Category</option>
+                    <option value="Rent">Rent</option>
+                    <option value="Utilities">Utilities (Electric, Water, Internet)</option>
+                    <option value="Salaries">Salaries & Wages</option>
+                    <option value="Insurance">Insurance</option>
+                    <option value="Marketing">Marketing & Advertising</option>
+                    <option value="Supplies">Office Supplies</option>
+                    <option value="Maintenance">Shop Maintenance</option>
+                    <option value="Transportation">Transportation</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Amount (₱) *</label>
+                <input type="number" id="editOverheadAmount" step="0.01" min="0" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label>Date *</label>
+                <input type="date" id="editOverheadDate" required>
+            </div>
+            <div class="form-group">
+                <label>Recurring Frequency</label>
+                <select id="editOverheadRecurring">
+                    <option value="">Not Recurring</option>
+                    <option value="Monthly">Monthly</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Yearly">Yearly</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Description / Notes</label>
+                <textarea id="editOverheadDescription" rows="3" placeholder="Additional details..."></textarea>
+            </div>
+            <div class="form-actions">
+                <button onclick="saveEditedOverheadExpense()" class="btn-primary">💾 Save Changes</button>
+                <button onclick="closeEditOverheadModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Parts Cost Modal -->
     <div id="partsCostModal" class="modal">
         <div class="modal-content">
@@ -554,7 +603,8 @@
                 <!-- Radio Button Options -->
                 <div style="display:flex;flex-direction:column;gap:12px;margin-top:15px;">
                     <!-- Option 1: Customer Paid Now -->
-                    <label style="display:flex;align-items:center;gap:15px;padding:15px;border:2px solid #ddd;border-radius:10px;cursor:pointer;transition:all 0.2s;background:#fff;"
+                    <label
+                        style="display:flex;align-items:center;gap:15px;padding:15px;border:2px solid #ddd;border-radius:10px;cursor:pointer;transition:all 0.2s;background:#fff;"
                         onmouseover="this.style.borderColor='#667eea';this.style.background='#f7fafc';"
                         onmouseout="if(!document.getElementById('customerPaidYes').checked){this.style.borderColor='#ddd';this.style.background='#fff';}">
                         <input type="radio" name="releasePaymentStatus" id="customerPaidYes" value="paid"
@@ -571,7 +621,8 @@
                     </label>
 
                     <!-- Option 2: Not Paid Yet -->
-                    <label style="display:flex;align-items:center;gap:15px;padding:15px;border:2px solid #ddd;border-radius:10px;cursor:pointer;transition:all 0.2s;background:#fff;"
+                    <label
+                        style="display:flex;align-items:center;gap:15px;padding:15px;border:2px solid #ddd;border-radius:10px;cursor:pointer;transition:all 0.2s;background:#fff;"
                         onmouseover="this.style.borderColor='#667eea';this.style.background='#f7fafc';"
                         onmouseout="if(!document.getElementById('customerPaidNo').checked){this.style.borderColor='#ddd';this.style.background='#fff';}">
                         <input type="radio" name="releasePaymentStatus" id="customerPaidNo" value="unpaid"
@@ -959,14 +1010,15 @@
         <div class="modal-content" style="max-width:700px;">
             <span class="close" onclick="closeCompensationModal()">&times;</span>
             <h3>💰 Manage Compensation Settings</h3>
-            
+
             <input type="hidden" id="compensationUserId">
-            
-            <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #2196f3;">
+
+            <div
+                style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #2196f3;">
                 <div style="font-weight:600;margin-bottom:5px;">👤 <span id="compensationUserName"></span></div>
                 <div style="font-size:13px;color:#666;">Role: <span id="compensationUserRole"></span></div>
             </div>
-            
+
             <form id="compensationForm" onsubmit="saveCompensationSettings(event)">
                 <div class="form-group">
                     <label>Compensation Type *</label>
@@ -979,43 +1031,44 @@
                     </select>
                     <small style="color:#666;">Commission applies to future repairs only</small>
                 </div>
-                
+
                 <!-- Commission Rate (shown for 'commission' type) -->
                 <div id="commissionRateField" class="form-group" style="display:none;">
                     <label>Commission Rate (%) *</label>
                     <input type="number" id="commissionRate" min="0" max="100" step="1" placeholder="40">
                     <small style="color:#666;">Default: 40% for technicians, 60% for admin/manager</small>
                 </div>
-                
+
                 <!-- Monthly Salary (shown for 'salary' and 'hybrid') -->
                 <div id="monthlySalaryField" class="form-group" style="display:none;">
                     <label>Monthly Salary (₱) *</label>
                     <input type="number" id="monthlySalary" min="0" step="100" placeholder="15000">
                     <small style="color:#666;">Base salary paid monthly regardless of repairs</small>
                 </div>
-                
+
                 <!-- Hybrid Commission Rate (shown for 'hybrid' only) -->
                 <div id="hybridCommissionRateField" class="form-group" style="display:none;">
                     <label>Hybrid Commission Rate (%) *</label>
                     <input type="number" id="hybridCommissionRate" min="0" max="100" step="1" placeholder="20">
                     <small style="color:#666;">Usually lower than pure commission (e.g., 20%)</small>
                 </div>
-                
+
                 <div class="form-group">
                     <label>Reason for Change *</label>
-                    <textarea id="compensationReason" required minlength="10" rows="3" 
+                    <textarea id="compensationReason" required minlength="10" rows="3"
                         placeholder="Explain why compensation is being changed (e.g., 'New hire', 'Promotion', 'Performance review')"></textarea>
                     <small style="color:#666;">Minimum 10 characters - all changes are logged</small>
                 </div>
-                
+
                 <!-- Rate Change History -->
                 <div id="compensationHistorySection" style="display:none;margin:20px 0;">
                     <h4 style="margin-bottom:10px;">📊 Change History</h4>
-                    <div id="compensationHistory" style="background:#f5f5f5;padding:10px;border-radius:5px;max-height:200px;overflow-y:auto;">
+                    <div id="compensationHistory"
+                        style="background:#f5f5f5;padding:10px;border-radius:5px;max-height:200px;overflow-y:auto;">
                         <!-- History items will be populated here -->
                     </div>
                 </div>
-                
+
                 <div style="display:flex;gap:10px;margin-top:20px;">
                     <button type="submit" class="btn-primary" style="flex:1;">
                         💾 Save Changes
@@ -1050,8 +1103,8 @@
             <h3>🔍 Search Device</h3>
             <div class="form-group">
                 <label>Search by Tracking Number, Customer Name, or Device</label>
-                <input type="text" id="quickSearchInput" placeholder="Type to search..." 
-                       oninput="performQuickSearch()" autocomplete="off" style="font-size:16px;padding:12px;">
+                <input type="text" id="quickSearchInput" placeholder="Type to search..." oninput="performQuickSearch()"
+                    autocomplete="off" style="font-size:16px;padding:12px;">
             </div>
             <div id="quickSearchResults" style="max-height:400px;overflow-y:auto;margin-top:15px;">
                 <!-- Search results will appear here -->

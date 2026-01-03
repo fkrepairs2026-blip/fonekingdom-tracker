@@ -13239,6 +13239,52 @@ async function deleteOverheadExpense(expenseId) {
         });
 
         utils.showLoading(false);
+        console.log('✅ Overhead expense deleted:', expenseId);
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error deleting overhead expense:', error);
+        utils.showLoading(false);
+        throw error;
+    }
+}
+
+async function updateOverheadExpense(expenseId, updates) {
+    if (!window.currentUserData || !['admin', 'manager'].includes(window.currentUserData.role)) {
+        alert('⚠️ Only administrators and managers can edit overhead expenses');
+        return { success: false };
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const expense = window.overheadExpenses.find(e => e.id === expenseId);
+        if (!expense) {
+            throw new Error('Expense not found');
+        }
+
+        // Log the changes for audit trail
+        await logActivity('overhead_expense_updated', {
+            expenseId: expenseId,
+            category: updates.category,
+            oldAmount: expense.amount,
+            newAmount: updates.amount,
+            changes: updates
+        });
+
+        // Update the expense in Firebase
+        await db.ref(`overheadExpenses/${expenseId}`).update(updates);
+
+        utils.showLoading(false);
+        console.log('✅ Overhead expense updated:', expenseId);
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error updating overhead expense:', error);
+        utils.showLoading(false);
+        throw error;
+    }
+}
+
+        utils.showLoading(false);
 
         if (window.utils && window.utils.showToast) {
             window.utils.showToast('✅ Overhead expense deleted', 'success', 3000);

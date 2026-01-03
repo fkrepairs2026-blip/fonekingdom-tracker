@@ -1173,11 +1173,11 @@ function buildMyRequestsTab(container) {
     // Load modification requests for this user
     const myModRequests = window.allModificationRequests ?
         window.allModificationRequests.filter(r => r.requestedBy === window.currentUser.uid) : [];
-    
+
     // Load refund requests for this user
     const myRefundRequests = window.refunds ?
         window.refunds.filter(r => r.requestedById === window.currentUser.uid) : [];
-    
+
     const totalRequests = myModRequests.length + myRefundRequests.length;
 
     container.innerHTML = `
@@ -1195,8 +1195,8 @@ function buildMyRequestsTab(container) {
                 ${myRefundRequests.length > 0 ? `
                     <h4 style="margin-top:20px;color:#e91e63;">🔄 My Refund Requests (${myRefundRequests.length})</h4>
                     ${myRefundRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).map(refund => {
-                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-                        return `
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        return `
                         <div style="background:${refund.status === 'completed' ? '#e8f5e9' : refund.status === 'rejected' ? '#ffebee' : '#fff3e0'};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${refund.status === 'completed' ? '#4caf50' : refund.status === 'rejected' ? '#f44336' : '#ff9800'};">
                             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                                 <strong>🔄 Refund Request - ₱${refund.refundAmount.toFixed(2)}</strong>
@@ -1393,15 +1393,15 @@ function buildRefundRequestsTab(container) {
                 ${pendingRefunds.length > 0 ? `
                     <h4 style="margin-top:20px;color:#e91e63;">⏳ PENDING REFUND REQUESTS (${pendingRefunds.length})</h4>
                     ${pendingRefunds.map(refund => {
-                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-                        const tierColors = {
-                            1: { bg: '#e8f5e9', border: '#4caf50', label: 'Low Risk' },
-                            2: { bg: '#fff3e0', border: '#ff9800', label: 'Medium Risk' },
-                            3: { bg: '#ffebee', border: '#f44336', label: 'High Risk' }
-                        };
-                        const tier = tierColors[refund.tier] || tierColors[2];
-                        
-                        return `
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        const tierColors = {
+            1: { bg: '#e8f5e9', border: '#4caf50', label: 'Low Risk' },
+            2: { bg: '#fff3e0', border: '#ff9800', label: 'Medium Risk' },
+            3: { bg: '#ffebee', border: '#f44336', label: 'High Risk' }
+        };
+        const tier = tierColors[refund.tier] || tierColors[2];
+
+        return `
                         <div style="background:${tier.bg};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${tier.border};">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                 <div>
@@ -1477,8 +1477,8 @@ function buildRefundRequestsTab(container) {
                 ${completedRefunds.length > 0 ? `
                     <h4 style="margin-top:30px;">✅ Recent Completed Refunds (Last 20)</h4>
                     ${completedRefunds.map(refund => {
-                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-                        return `
+            const repair = window.allRepairs.find(r => r.id === refund.repairId);
+            return `
                         <div style="background:#e8f5e9;padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid #4caf50;">
                             <div style="display:flex;justify-content:space-between;font-size:14px;">
                                 <div>
@@ -1495,8 +1495,8 @@ function buildRefundRequestsTab(container) {
                 ${rejectedRefunds.length > 0 ? `
                     <h4 style="margin-top:30px;">❌ Recent Rejected Refunds (Last 10)</h4>
                     ${rejectedRefunds.map(refund => {
-                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-                        return `
+                const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                return `
                         <div style="background:#ffebee;padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid #f44336;">
                             <div style="display:flex;justify-content:space-between;font-size:14px;">
                                 <div>
@@ -1516,7 +1516,7 @@ function buildRefundRequestsTab(container) {
 // Refund approval handlers
 function approveRefundRequest(refundId) {
     const adminNotes = document.getElementById(`adminNotes_${refundId}`)?.value || '';
-    
+
     if (confirm('Approve this refund request?\n\nThis will process the refund immediately.')) {
         window.approveRefund(refundId, adminNotes);
     }
@@ -1768,15 +1768,15 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
 
     // Group repairs by date
     const groupedByDate = {};
-    
+
     repairs.forEach(r => {
         // Use fallback dates if primary field doesn't exist
         let dateValue = r[dateField] || r.createdAt || r.recordedDate;
         if (!dateValue) return;
-        
+
         // Get date only (no time) - format as "Jan 02, 2026"
         const dateKey = utils.formatDate(dateValue);
-        
+
         if (!groupedByDate[dateKey]) {
             groupedByDate[dateKey] = [];
         }
@@ -1792,30 +1792,30 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
 
     // Render grouped repairs
     const role = window.currentUserData.role;
-    
+
     // Get today's date string for comparison
     const todayDateString = utils.formatDate(new Date());
-    
+
     container.innerHTML = sortedDates.map((dateKey, index) => {
         const repairsInDate = groupedByDate[dateKey];
-        
+
         // Sort repairs within each date group by most recent first
         repairsInDate.sort((a, b) => {
             const dateA = new Date(a[dateField] || a.createdAt || a.recordedDate);
             const dateB = new Date(b[dateField] || b.createdAt || b.recordedDate);
             return dateB - dateA;
         });
-        
+
         const count = repairsInDate.length;
-        
+
         // Calculate days ago for the date group
         const daysAgoText = utils.daysAgo(repairsInDate[0][dateField] || repairsInDate[0].createdAt);
-        
+
         // Check if this is today's date - show expanded by default
         const isToday = dateKey === todayDateString;
         // Create unique ID from date key (remove spaces and special chars)
         const groupId = `date-group-${dateKey.replace(/[^a-zA-Z0-9]/g, '-')}-${index}`;
-        
+
         return `
             <div class="date-group" style="margin-bottom:30px;">
                 <div class="date-group-header" 
@@ -1836,11 +1836,11 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
                 </div>
                 <div class="date-group-items" id="${groupId}" style="padding-left:10px;display:${isToday ? 'block' : 'none'};">
                     ${repairsInDate.map(r => {
-                        const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
-                        const isExpanded = window.expandedRepairId === r.id;
-                        const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
-                        
-                        return `
+            const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
+            const isExpanded = window.expandedRepairId === r.id;
+            const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
+
+            return `
                             <div class="repair-list-item-compact ${isExpanded ? 'expanded' : ''}" 
                                  id="repair-item-${r.id}"
                                  data-repair-id="${r.id}"
@@ -1871,7 +1871,7 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -1895,13 +1895,13 @@ function displaySearchableRepairsList(repairs, container) {
 
     // Group repairs by date
     const groupedByDate = {};
-    
+
     repairs.forEach(r => {
         const dateValue = r.recordedDate || r.createdAt;
         if (!dateValue) return;
-        
+
         const dateKey = utils.formatDate(dateValue);
-        
+
         if (!groupedByDate[dateKey]) {
             groupedByDate[dateKey] = [];
         }
@@ -1916,21 +1916,21 @@ function displaySearchableRepairsList(repairs, container) {
     });
 
     const todayDateString = utils.formatDate(new Date());
-    
+
     container.innerHTML = sortedDates.map((dateKey, index) => {
         const repairsInDate = groupedByDate[dateKey];
-        
+
         repairsInDate.sort((a, b) => {
             const dateA = new Date(a.recordedDate || a.createdAt);
             const dateB = new Date(b.recordedDate || b.createdAt);
             return dateB - dateA;
         });
-        
+
         const count = repairsInDate.length;
         const daysAgoText = utils.daysAgo(repairsInDate[0].recordedDate || repairsInDate[0].createdAt);
         const isToday = dateKey === todayDateString;
         const groupId = `date-group-${index}`;
-        
+
         return `
             <div class="date-group" style="margin-bottom:30px;">
                 <div class="date-group-header" 
@@ -1951,12 +1951,12 @@ function displaySearchableRepairsList(repairs, container) {
                 </div>
                 <div class="date-group-items" id="${groupId}" style="padding-left:10px;display:${isToday ? 'block' : 'none'};">
                     ${repairsInDate.map(r => {
-                        const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
-                        const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
-                        const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
-                        const balance = r.total - totalPaid;
-                        
-                        return `
+            const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
+            const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
+            const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
+            const balance = r.total - totalPaid;
+
+            return `
                             <div class="repair-list-item-compact searchable-repair-item" 
                                  data-repair-id="${r.id}"
                                  data-customer="${r.customerName.toLowerCase()}"
@@ -1987,7 +1987,7 @@ function displaySearchableRepairsList(repairs, container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -2002,12 +2002,12 @@ function filterAllRepairs(query) {
     const allItems = document.querySelectorAll('.searchable-repair-item');
     const statsDiv = document.getElementById('allRepairsStats');
     const statsSpan = document.getElementById('allRepairsSearchStats');
-    
+
     if (!searchLower) {
         // Show all items
         allItems.forEach(item => item.style.display = 'block');
         if (statsDiv) statsDiv.style.display = 'none';
-        
+
         // Show/hide empty date groups
         document.querySelectorAll('.date-group').forEach(group => {
             const visibleItems = group.querySelectorAll('.searchable-repair-item[style*="display: block"], .searchable-repair-item:not([style*="display"])');
@@ -2015,26 +2015,26 @@ function filterAllRepairs(query) {
         });
         return;
     }
-    
+
     let matchCount = 0;
-    
+
     allItems.forEach(item => {
         const customer = item.dataset.customer || '';
         const phone = item.dataset.phone || '';
         const model = item.dataset.model || '';
         const problem = item.dataset.problem || '';
         const repairId = item.dataset.repairId || '';
-        
+
         const matches = customer.includes(searchLower) ||
-                       phone.includes(searchLower) ||
-                       model.includes(searchLower) ||
-                       problem.includes(searchLower) ||
-                       repairId.includes(searchLower);
-        
+            phone.includes(searchLower) ||
+            model.includes(searchLower) ||
+            problem.includes(searchLower) ||
+            repairId.includes(searchLower);
+
         item.style.display = matches ? 'block' : 'none';
         if (matches) matchCount++;
     });
-    
+
     // Update stats
     if (statsDiv && statsSpan) {
         statsDiv.style.display = 'block';
@@ -2043,7 +2043,7 @@ function filterAllRepairs(query) {
             statsSpan.innerHTML = `<span style="color:#d32f2f;">No repairs found matching "${query}"</span>`;
         }
     }
-    
+
     // Show/hide empty date groups
     document.querySelectorAll('.date-group').forEach(group => {
         const visibleItems = group.querySelectorAll('.searchable-repair-item[style="display: block;"]');
@@ -2058,11 +2058,11 @@ function filterAllRepairs(query) {
 function toggleDateGroup(groupId) {
     const itemsDiv = document.getElementById(groupId);
     const header = document.querySelector(`[onclick="toggleDateGroup('${groupId}')"]`);
-    
+
     if (itemsDiv && header) {
         const isHidden = itemsDiv.style.display === 'none';
         itemsDiv.style.display = isHidden ? 'block' : 'none';
-        
+
         // Update arrow icon
         const icon = header.querySelector('.date-group-toggle-icon');
         if (icon) {
@@ -2564,7 +2564,7 @@ function renderClaimedButtons(r, role) {
             </button>
         `;
     }
-    
+
     // View Payments button - Show for ALL roles to view payment history and request refunds
     // Technicians can request refunds, others can directly refund
     // ALSO show if device has balance but no payments (to record missing payment)
@@ -2792,7 +2792,7 @@ function renderRTODeviceButtons(r, role) {
  */
 function toggleRepairDetails(repairId, context = 'default') {
     console.log('🔄 toggleRepairDetails called:', { repairId, context });
-    
+
     // Get the repair item
     const repairItem = document.getElementById(`repair-item-${repairId}`);
     if (!repairItem) {
@@ -2807,9 +2807,9 @@ function toggleRepairDetails(repairId, context = 'default') {
 
     // Check if this item is already expanded
     const isCurrentlyExpanded = window.expandedRepairId === repairId;
-    console.log('📊 Current state:', { 
-        isCurrentlyExpanded, 
-        windowExpandedId: window.expandedRepairId 
+    console.log('📊 Current state:', {
+        isCurrentlyExpanded,
+        windowExpandedId: window.expandedRepairId
     });
 
     // Collapse all items first
@@ -3441,9 +3441,9 @@ function buildUsersTab(container) {
                                                 <div><strong>💰 Compensation:</strong> 
                                                     <span style="font-weight:600;">
                                                         ${user.compensationType === 'salary' ? `Salary (₱${(user.monthlySalary || 0).toLocaleString()}/mo)` :
-            user.compensationType === 'hybrid' ? `Hybrid (₱${(user.monthlySalary || 0).toLocaleString()}/mo + ${(user.hybridCommissionRate * 100).toFixed(0)}%)` :
-                user.compensationType === 'commission' ? `Commission (${(user.commissionRate * 100).toFixed(0)}%)` :
-                    'Not Set'}
+                    user.compensationType === 'hybrid' ? `Hybrid (₱${(user.monthlySalary || 0).toLocaleString()}/mo + ${(user.hybridCommissionRate * 100).toFixed(0)}%)` :
+                        user.compensationType === 'commission' ? `Commission (${(user.commissionRate * 100).toFixed(0)}%)` :
+                            'Not Set'}
                                                     </span>
                                                 </div>
                                             ` : ''}
@@ -3702,10 +3702,10 @@ function buildAdminToolsTab(container) {
 /**
  * Toggle collapsible admin section
  */
-window.toggleAdminSection = function(sectionId) {
+window.toggleAdminSection = function (sectionId) {
     const content = document.getElementById(`${sectionId}-content`);
     const icon = document.getElementById(`${sectionId}-icon`);
-    
+
     if (content && icon) {
         if (content.style.display === 'none') {
             content.style.display = 'block';
@@ -3724,14 +3724,14 @@ function buildUnpaidDevicesFixSection() {
     // Find all devices that were released/claimed without payment records but have outstanding balance
     const unpaidDevices = window.allRepairs.filter(r => {
         if (r.deleted || !r.status) return false;
-        
+
         // Only check Released and Claimed devices
         if (r.status !== 'Released' && r.status !== 'Claimed') return false;
-        
+
         // Calculate payment info
         const totalPaid = (r.payments || []).reduce((sum, p) => sum + p.amount, 0);
         const balance = r.total - totalPaid;
-        
+
         // Flag if has balance but no payments array or empty
         return balance > 0 && (!r.payments || r.payments.length === 0);
     });
@@ -3774,9 +3774,9 @@ function buildUnpaidDevicesFixSection() {
                         </thead>
                         <tbody>
                             ${unpaidDevices.map(r => {
-                                const totalPaid = (r.payments || []).reduce((s, p) => s + p.amount, 0);
-                                const balance = r.total - totalPaid;
-                                return `
+        const totalPaid = (r.payments || []).reduce((s, p) => s + p.amount, 0);
+        const balance = r.total - totalPaid;
+        return `
                                     <tr style="border-bottom:1px solid #eee;">
                                         <td style="padding:10px;border-right:1px solid #eee;">
                                             <div style="font-weight:600;">${r.brand} ${r.model}</div>
@@ -3807,7 +3807,7 @@ function buildUnpaidDevicesFixSection() {
                                         </td>
                                     </tr>
                                 `;
-                            }).join('')}
+    }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -4147,7 +4147,7 @@ function buildTodayTransactionsSection() {
     const expensesHTML = cashData.expenses.length > 0 ? cashData.expenses.map(e => {
         // Check if expense is nested or direct
         const expense = e.expense || e;
-        
+
         return `
         <div style="background:#fff;padding:12px;border-radius:5px;margin-bottom:8px;border-left:4px solid #f44336;">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;">
@@ -8517,7 +8517,7 @@ function buildOverheadExpensesTab(container) {
     console.log('💼 Building Overhead Expenses tab');
     console.log('📊 window.overheadExpenses:', window.overheadExpenses);
     console.log('📊 Total expenses:', window.overheadExpenses ? window.overheadExpenses.length : 0);
-    
+
     window.currentTabRefresh = () => buildOverheadExpensesTab(container);
 
     // Get current month expenses
@@ -8529,7 +8529,7 @@ function buildOverheadExpensesTab(container) {
         const expDate = new Date(exp.date);
         return expDate >= monthStart && expDate <= monthEnd && !exp.deleted;
     });
-    
+
     console.log('📊 Month expenses:', monthExpenses.length, 'out of', (window.overheadExpenses || []).length);
 
     const monthTotal = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -8644,6 +8644,9 @@ function buildOverheadExpensesTab(container) {
                                             <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;">${exp.recurringFrequency}</span>` : '-'}</td>
                                             <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${exp.description || exp.notes || '-'}</td>
                                             <td>
+                                                <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="margin-right:5px;">
+                                                    ✏️ Edit
+                                                </button>
                                                 <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm">
                                                     🗑️ Delete
                                                 </button>
@@ -8720,6 +8723,75 @@ function deleteOverheadExpenseById(expenseId) {
         .catch(error => {
             utils.showLoading(false);
             alert('Error deleting overhead expense: ' + error.message);
+        });
+}
+
+function openEditOverheadModal(expenseId) {
+    const expense = (window.overheadExpenses || []).find(e => e.id === expenseId);
+    if (!expense) {
+        alert('Expense not found');
+        return;
+    }
+
+    // Populate modal fields
+    document.getElementById('editOverheadId').value = expense.id;
+    document.getElementById('editOverheadCategory').value = expense.category || '';
+    document.getElementById('editOverheadAmount').value = expense.amount || '';
+    
+    // Convert ISO date to YYYY-MM-DD format for input
+    const dateStr = expense.date ? expense.date.split('T')[0] : '';
+    document.getElementById('editOverheadDate').value = dateStr;
+    
+    document.getElementById('editOverheadRecurring').value = expense.recurringFrequency || '';
+    document.getElementById('editOverheadDescription').value = expense.description || expense.notes || '';
+
+    // Show modal
+    document.getElementById('editOverheadModal').style.display = 'flex';
+}
+
+function closeEditOverheadModal() {
+    document.getElementById('editOverheadModal').style.display = 'none';
+}
+
+function saveEditedOverheadExpense() {
+    const expenseId = document.getElementById('editOverheadId').value;
+    const category = document.getElementById('editOverheadCategory').value;
+    const amount = parseFloat(document.getElementById('editOverheadAmount').value);
+    const date = document.getElementById('editOverheadDate').value;
+    const recurring = document.getElementById('editOverheadRecurring').value;
+    const description = document.getElementById('editOverheadDescription').value.trim();
+
+    if (!category || !amount || amount <= 0 || !date) {
+        alert('Please fill in all required fields');
+        return;
+    }
+
+    const updates = {
+        category: category,
+        amount: amount,
+        date: date + 'T00:00:00.000Z',
+        isRecurring: recurring ? true : false,
+        recurringFrequency: recurring || null,
+        description: description,
+        notes: description,
+        lastModifiedBy: window.currentUser.uid,
+        lastModifiedByName: window.currentUserData.displayName,
+        lastModifiedAt: new Date().toISOString()
+    };
+
+    utils.showLoading(true);
+
+    window.updateOverheadExpense(expenseId, updates)
+        .then(() => {
+            utils.showLoading(false);
+            if (window.utils && window.utils.showToast) {
+                window.utils.showToast('✅ Overhead expense updated', 'success', 2000);
+            }
+            closeEditOverheadModal();
+        })
+        .catch(error => {
+            utils.showLoading(false);
+            alert('Error updating overhead expense: ' + error.message);
         });
 }
 
@@ -9226,6 +9298,9 @@ window.exportCurrentProfitReport = exportCurrentProfitReport;
 window.buildOverheadExpensesTab = buildOverheadExpensesTab;
 window.saveOverheadExpense = saveOverheadExpense;
 window.deleteOverheadExpenseById = deleteOverheadExpenseById;
+window.openEditOverheadModal = openEditOverheadModal;
+window.closeEditOverheadModal = closeEditOverheadModal;
+window.saveEditedOverheadExpense = saveEditedOverheadExpense;
 
 // Export supplier payables functions
 window.buildSupplierPayablesTab = buildSupplierPayablesTab;
@@ -9238,10 +9313,10 @@ window.viewPurchaseDetails = viewPurchaseDetails;
 function buildFinancialReportsTab(container) {
     console.log('📑 Building Financial Reports tab');
     window.currentTabRefresh = () => buildFinancialReportsTab(document.getElementById('financial-reportsTab'));
-    
+
     const currentYear = new Date().getFullYear();
     const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3);
-    
+
     container.innerHTML = `
         <div class="card">
             <h3>📑 Financial Reports</h3>
@@ -9273,17 +9348,17 @@ function buildFinancialReportsTab(container) {
                     <div>
                         <label>Year</label>
                         <select id="quarterYear" class="form-control">
-                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => 
-                                `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`
-                            ).join('')}
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y =>
+        `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`
+    ).join('')}
                         </select>
                     </div>
                     <div>
                         <label>Quarter</label>
                         <select id="quarter" class="form-control">
-                            ${[1, 2, 3, 4].map(q => 
-                                `<option value="${q}" ${q === currentQuarter ? 'selected' : ''}>Q${q}</option>`
-                            ).join('')}
+                            ${[1, 2, 3, 4].map(q =>
+        `<option value="${q}" ${q === currentQuarter ? 'selected' : ''}>Q${q}</option>`
+    ).join('')}
                         </select>
                     </div>
                     <div style="display:flex;align-items:end;gap:10px;">
@@ -9301,9 +9376,9 @@ function buildFinancialReportsTab(container) {
                     <div>
                         <label>Year</label>
                         <select id="annualYear" class="form-control">
-                            ${[currentYear, currentYear - 1, currentYear - 2].map(y => 
-                                `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`
-                            ).join('')}
+                            ${[currentYear, currentYear - 1, currentYear - 2].map(y =>
+        `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`
+    ).join('')}
                         </select>
                     </div>
                     <div style="display:flex;align-items:end;gap:10px;">
@@ -9319,23 +9394,23 @@ function generatePLStatement() {
     const startInput = document.getElementById('plStartDate');
     const endInput = document.getElementById('plEndDate');
     const container = document.getElementById('plStatementContent');
-    
+
     if (!startInput || !endInput || !container) return;
-    
+
     const startDate = new Date(startInput.value + 'T00:00:00');
     const endDate = new Date(endInput.value + 'T23:59:59');
-    
+
     utils.showLoading(true);
-    
+
     setTimeout(() => {
         const pl = window.generateProfitLossStatement(startDate, endDate);
-        
+
         if (!pl) {
             container.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No data available</p>';
             utils.showLoading(false);
             return;
         }
-        
+
         container.innerHTML = `
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-top:15px;">
                 <table style="width:100%;border-collapse:collapse;">
@@ -9418,7 +9493,7 @@ function generatePLStatement() {
                 </table>
             </div>
         `;
-        
+
         utils.showLoading(false);
     }, 300);
 }
@@ -9426,21 +9501,21 @@ function generatePLStatement() {
 function exportPLStatementCSV() {
     const startInput = document.getElementById('plStartDate');
     const endInput = document.getElementById('plEndDate');
-    
+
     if (!startInput || !endInput) return;
-    
+
     const startDate = new Date(startInput.value + 'T00:00:00');
     const endDate = new Date(endInput.value + 'T23:59:59');
-    
+
     const pl = window.generateProfitLossStatement(startDate, endDate);
-    
+
     if (!pl) {
         alert('No data to export');
         return;
     }
-    
+
     const exportData = [];
-    
+
     exportData.push({ 'PROFIT & LOSS STATEMENT': '', 'Period': `${utils.formatDate(startDate)} - ${utils.formatDate(endDate)}` });
     exportData.push({});
     exportData.push({ 'REVENUE': '' });
@@ -9462,10 +9537,10 @@ function exportPLStatementCSV() {
     exportData.push({});
     exportData.push({ 'NET INCOME': '', 'Amount': pl.netIncome.amount });
     exportData.push({ '  Net Margin': '', 'Amount': `${pl.netIncome.margin.toFixed(2)}%` });
-    
+
     const filename = `PL_Statement_${startInput.value}_to_${endInput.value}`;
     exportToCSV(exportData, filename);
-    
+
     if (window.utils && window.utils.showToast) {
         window.utils.showToast('✅ P&L statement exported', 'success', 2000);
     }
@@ -9475,22 +9550,22 @@ function generateQuarterlySummary() {
     const year = parseInt(document.getElementById('quarterYear').value);
     const quarter = parseInt(document.getElementById('quarter').value);
     const container = document.getElementById('quarterlySummaryContent');
-    
+
     if (!container) return;
-    
+
     utils.showLoading(true);
-    
+
     setTimeout(() => {
         const summary = window.getQuarterlySummary(year, quarter);
-        
+
         if (!summary || !summary.summary) {
             container.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No data available</p>';
             utils.showLoading(false);
             return;
         }
-        
+
         const pl = summary.summary;
-        
+
         container.innerHTML = `
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-top:15px;">
                 <h4 style="margin:0 0 15px;">${summary.quarterName} Summary</h4>
@@ -9546,7 +9621,7 @@ function generateQuarterlySummary() {
                 </div>
             </div>
         `;
-        
+
         utils.showLoading(false);
     }, 300);
 }
@@ -9554,9 +9629,9 @@ function generateQuarterlySummary() {
 function exportQuarterlySummaryCSV() {
     const year = parseInt(document.getElementById('quarterYear').value);
     const quarter = parseInt(document.getElementById('quarter').value);
-    
+
     window.exportQuarterlyReport(year, quarter);
-    
+
     if (window.utils && window.utils.showToast) {
         window.utils.showToast('✅ Quarterly summary exported', 'success', 2000);
     }
@@ -9564,9 +9639,9 @@ function exportQuarterlySummaryCSV() {
 
 function exportAnnualPLStatementCSV() {
     const year = parseInt(document.getElementById('annualYear').value);
-    
+
     window.exportAnnualPLStatement(year);
-    
+
     if (window.utils && window.utils.showToast) {
         window.utils.showToast('✅ Annual P&L statement exported', 'success', 2000);
     }
@@ -9595,19 +9670,19 @@ function openQuickExpenseModal() {
     if (window.currentExpenseRepairId) {
         window.currentExpenseRepairId = null;
     }
-    
+
     const display = document.getElementById('expenseRepairIdDisplay');
     if (display) {
         display.style.display = 'none';
     }
-    
+
     // Reset form
     document.getElementById('expenseType').value = 'general';
     document.getElementById('expenseCategory').value = 'delivery';
     document.getElementById('expenseAmount').value = '';
     document.getElementById('expenseDescription').value = '';
     document.getElementById('expenseNotes').value = '';
-    
+
     // Open modal
     document.getElementById('expenseModal').style.display = 'block';
 }
@@ -9619,14 +9694,14 @@ function openQuickSearchModal() {
     const modal = document.getElementById('quickSearchModal');
     const searchInput = document.getElementById('quickSearchInput');
     const resultsDiv = document.getElementById('quickSearchResults');
-    
+
     // Clear previous search
     searchInput.value = '';
     resultsDiv.innerHTML = '<p style="text-align:center;color:#999;padding:40px;">Type to search for devices...</p>';
-    
+
     // Open modal
     modal.style.display = 'block';
-    
+
     // Focus on search input
     setTimeout(() => searchInput.focus(), 100);
 }
@@ -9644,41 +9719,41 @@ function closeQuickSearchModal() {
 function performQuickSearch() {
     const searchTerm = document.getElementById('quickSearchInput').value.trim().toLowerCase();
     const resultsDiv = document.getElementById('quickSearchResults');
-    
+
     if (searchTerm.length < 2) {
         resultsDiv.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">Type at least 2 characters...</p>';
         return;
     }
-    
+
     // Search across all repairs
     const allRepairs = window.allRepairs || [];
     const results = allRepairs.filter(r => {
         if (r.deleted) return false;
-        
+
         const trackingNum = (r.trackingNumber || '').toLowerCase();
         const customerName = (r.customerName || '').toLowerCase();
         const shopName = (r.shopName || '').toLowerCase();
         const brand = (r.brand || '').toLowerCase();
         const model = (r.model || '').toLowerCase();
         const problem = (r.problem || '').toLowerCase();
-        
+
         return trackingNum.includes(searchTerm) ||
-               customerName.includes(searchTerm) ||
-               shopName.includes(searchTerm) ||
-               brand.includes(searchTerm) ||
-               model.includes(searchTerm) ||
-               problem.includes(searchTerm);
+            customerName.includes(searchTerm) ||
+            shopName.includes(searchTerm) ||
+            brand.includes(searchTerm) ||
+            model.includes(searchTerm) ||
+            problem.includes(searchTerm);
     }).slice(0, 20); // Limit to 20 results
-    
+
     if (results.length === 0) {
         resultsDiv.innerHTML = '<p style="text-align:center;color:#999;padding:20px;">No devices found matching your search.</p>';
         return;
     }
-    
+
     // Render results
     resultsDiv.innerHTML = results.map(r => {
         const statusClass = r.status.toLowerCase().replace(/\\s+/g, '-');
-        
+
         // Determine which tab to navigate to based on status
         let targetTab = 'my';
         if (r.status === 'Received') targetTab = 'received';
@@ -9686,15 +9761,15 @@ function performQuickSearch() {
         else if (r.status === 'Ready for Pickup') targetTab = 'forrelease';
         else if (r.status === 'Released') targetTab = 'mycompleted';
         else if (r.status === 'Claimed') targetTab = 'myclaimed';
-        
+
         // Get pricing info
         const pricing = r.pricing || r.quotedPrice || 0;
         const totalPaid = r.payments ? r.payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0) : 0;
         const displayPrice = totalPaid > 0 ? totalPaid : pricing;
-        
+
         // Get job description
         const jobDescription = r.problem || r.repairType || 'Not specified';
-        
+
         return `
             <div class="search-result-item" 
                  onclick="closeQuickSearchModal(); switchTab('${targetTab}'); setTimeout(() => toggleRepairDetails('${r.id}'), 500);"
@@ -9726,7 +9801,7 @@ function performQuickSearch() {
             </div>
         `;
     }).join('');
-    
+
     // Add hover effect via CSS
     document.querySelectorAll('.search-result-item').forEach(item => {
         item.addEventListener('mouseenter', () => {
