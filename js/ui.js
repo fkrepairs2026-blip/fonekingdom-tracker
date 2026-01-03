@@ -1570,7 +1570,8 @@ function buildRefundRequestsTab(container) {
                     <p style="color:#666;font-size:14px;margin-bottom:15px;">These refunds were acknowledged by tech but failed to complete. Click "Retry Processing" to complete them.</p>
                     ${stuckRefunds.map(refund => {
         const repair = window.allRepairs.find(r => r.id === refund.repairId);
-        const tech = repair ? window.allUsers?.find(u => u.id === refund.technicianId) : null;
+        const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
+        const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
         return `
                         <div style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
@@ -1613,7 +1614,8 @@ function buildRefundRequestsTab(container) {
                     <p style="color:#666;font-size:14px;margin-bottom:15px;">These refunds have been approved but are waiting for the technician to acknowledge the commission reversal.</p>
                     ${awaitingTechRefunds.map(refund => {
         const repair = window.allRepairs.find(r => r.id === refund.repairId);
-        const tech = repair ? window.allUsers?.find(u => u.id === refund.technicianId) : null;
+        const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
+        const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
         return `
                         <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">

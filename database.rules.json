@@ -2,9 +2,12 @@
   "rules": {
     ".read": false,
     ".write": false,
-    
     "repairs": {
-      ".indexOn": ["status", "technicianId", "createdAt"],
+      ".indexOn": [
+        "status",
+        "technicianId",
+        "createdAt"
+      ],
       ".read": "auth != null",
       "$repairId": {
         ".write": "auth != null && (
@@ -12,20 +15,17 @@
           root.child('users').child(auth.uid).child('role').val() === 'manager' ||
           root.child('users').child(auth.uid).child('role').val() === 'cashier' ||
           root.child('users').child(auth.uid).child('role').val() === 'technician'
-        )",
-        "deleted": {
+        )","deleted": {
           ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
         }
       }
     },
-    
     "users": {
       ".read": "auth != null",
       "$userId": {
         ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
     },
-    
     "inventory": {
       ".read": "auth != null",
       "$itemId": {
@@ -35,14 +35,12 @@
         )"
       }
     },
-    
     "techExpenses": {
       ".read": "auth != null",
       "$expenseId": {
         ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'technician'"
       }
     },
-    
     "techRemittances": {
       ".read": "auth != null",
       "$remittanceId": {
@@ -53,42 +51,36 @@
         )"
       }
     },
-    
     "modificationRequests": {
       ".read": "auth != null",
       "$requestId": {
         ".write": "auth != null"
       }
     },
-    
     "auditLogs": {
       ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$logId": {
         ".write": "auth != null"
       }
     },
-    
     "deletedRepairs": {
       ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$repairId": {
         ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
     },
-    
     "activityLogs": {
       ".read": "auth != null",
       "$logId": {
         ".write": "auth != null"
       }
     },
-    
     "loginEvents": {
       ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$eventId": {
         ".write": "auth != null"
       }
     },
-    
     "suppliers": {
       ".read": "auth != null",
       "$supplierId": {
@@ -98,7 +90,6 @@
         )"
       }
     },
-    
     "dailyCashCounts": {
       ".read": "auth != null",
       "$countId": {
@@ -108,7 +99,6 @@
         )"
       }
     },
-    
     "stockMovements": {
       ".read": "auth != null",
       "$movementId": {
@@ -118,14 +108,12 @@
         )"
       }
     },
-    
     "dataCleanupHistory": {
       ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$historyId": {
         ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
     },
-    
     "overheadExpenses": {
       ".read": "auth != null",
       "$expenseId": {
@@ -135,14 +123,12 @@
         )"
       }
     },
-    
     "refunds": {
       ".read": "auth != null",
       "$refundId": {
         ".write": "auth != null"
       }
     },
-    
     "supplierPurchases": {
       ".read": "auth != null",
       "$purchaseId": {
@@ -152,7 +138,6 @@
         )"
       }
     },
-    
     "resetBackups": {
       ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$backupId": {
