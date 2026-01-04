@@ -283,8 +283,9 @@ async function submitReceiveDevice(e) {
 
     console.log('📥 Receiving device...');
 
-    // Check if it's a back job
-    const isBackJob = document.getElementById('isBackJob').checked;
+    // Check if it's a back job (element removed, always false for normal receive)
+    const isBackJobCheckbox = document.getElementById('isBackJob');
+    const isBackJob = isBackJobCheckbox ? isBackJobCheckbox.checked : false;
 
     // DEBUG: Capture form inputs
     const formInputs = {
@@ -452,10 +453,13 @@ async function submitReceiveDevice(e) {
 
     repair.assignmentMethod = assignmentMethod;
 
-    // Add back job information if checked
+    // Add back job information if checked (legacy code - back jobs now use dedicated tab)
     if (isBackJob) {
-        const backJobTech = document.getElementById('backJobTech').value;
-        const backJobReason = document.getElementById('backJobReason').value.trim();
+        const backJobTechElement = document.getElementById('backJobTech');
+        const backJobReasonElement = document.getElementById('backJobReason');
+        
+        const backJobTech = backJobTechElement ? backJobTechElement.value : null;
+        const backJobReason = backJobReasonElement ? backJobReasonElement.value.trim() : '';
 
         if (!backJobTech) {
             alert('Please select the original technician for this back job');
