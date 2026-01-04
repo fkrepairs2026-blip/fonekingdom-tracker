@@ -55,6 +55,7 @@ function buildTabs() {
         // Operations
         sections.operations.tabs.push(
             { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
+            { id: 'backjob-reception', label: 'Back Job Reception', icon: '🔄', build: buildBackJobReceptionTab },
             { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
             { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
             { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
@@ -80,6 +81,7 @@ function buildTabs() {
         // Operations
         sections.operations.tabs.push(
             { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
+            { id: 'backjob-reception', label: 'Back Job Reception', icon: '🔄', build: buildBackJobReceptionTab },
             { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
             { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
             { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
@@ -133,6 +135,7 @@ function buildTabs() {
         // Operations
         sections.operations.tabs.push(
             { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
+            { id: 'backjob-reception', label: 'Back Job Reception', icon: '🔄', build: buildBackJobReceptionTab },
             { id: 'my', label: 'My Jobs', icon: '🔧', build: buildMyRepairsTab },
             { id: 'mycompleted', label: 'My Completed', icon: '✅', build: buildMyCompletedDevicesTab },
             { id: 'myclaimed', label: 'My Claimed', icon: '🎉', build: buildMyClaimedDevicesTab },
@@ -1079,27 +1082,11 @@ function buildReceiveDeviceTab(container) {
                     </div>
                 </div>
                 
-                <div class="form-group">
-                    <label style="display:flex;align-items:center;gap:10px;">
-                        <input type="checkbox" id="isBackJob" onchange="toggleBackJobFields()">
-                        <span style="color:#c62828;font-weight:bold;">🔄 This is a BACK JOB (returning for same issue)</span>
-                    </label>
-                </div>
-                
-                <div id="backJobFields" class="alert-danger" style="display:none;">
-                    <div class="form-group">
-                        <label>Assign to Original Technician *</label>
-                        <select id="backJobTech" name="backJobTech">
-                            <option value="">Select technician who worked on this before</option>
-                            ${Object.entries(techsWithJobs).map(([uid, name]) =>
-        `<option value="${uid}">${name}</option>`
-    ).join('')}
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Back Job Reason *</label>
-                        <textarea id="backJobReason" name="backJobReason" rows="2" placeholder="Why is this coming back? (English or Tagalog OK)"></textarea>
-                    </div>
+                <div style="background:#fff3e0;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #ff9800;">
+                    <p style="margin:0;font-size:14px;">
+                        🔄 <strong>Is this a returning repair for the same issue?</strong> 
+                        Use the <a href="#" onclick="buildTab('backjob-reception'); return false;" style="color:#ff6f00;text-decoration:underline;font-weight:bold;">Back Job Reception</a> tab instead.
+                    </p>
                 </div>
                 
                 <div class="alert-info" style="margin:15px 0;">
@@ -1153,6 +1140,255 @@ function buildReceiveDeviceTab(container) {
                 </button>
             </form>
         </div>
+    `;
+}
+
+/**
+ * Build Back Job Reception Tab
+ * Search for completed repairs and mark them as back jobs
+ */
+function buildBackJobReceptionTab(container) {
+    console.log('🔄 Building Back Job Reception tab');
+    window.currentTabRefresh = () => buildBackJobReceptionTab(document.getElementById('backjobReceptionTab'));
+
+    // Get all completed/claimed repairs from last 90 days
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    const eligibleRepairs = window.allRepairs.filter(r => 
+        (r.status === 'Claimed' || r.status === 'Completed') &&
+        r.claimedAt &&
+        new Date(r.claimedAt) >= ninetyDaysAgo &&
+        !r.deleted
+    ).sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
+
+    container.innerHTML = `
+        <div class="card">
+            <h3>🔄 Back Job Reception</h3>
+            <p style="color:#666;margin-bottom:20px;">Search for original repair to mark device as returning back job</p>
+            
+            <div style="background:#fff3e0;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+                <p style="margin:0;font-size:14px;">
+                    <strong>ℹ️ Instructions:</strong> Use this tab when a customer returns with the same issue. 
+                    Search for the original repair below, then click "Mark as Back Job" to receive the device.
+                </p>
+            </div>
+
+            <!-- Search Bar -->
+            <div class="form-group" style="margin-bottom:25px;">
+                <label>🔍 Search Original Repair</label>
+                <input type="text" 
+                       id="backJobSearch" 
+                       class="input" 
+                       placeholder="Search by phone number, customer name, or device model..."
+                       onkeyup="filterBackJobSearchResults()"
+                       style="font-size:16px;padding:12px;">
+                <small style="color:#666;display:block;margin-top:8px;">
+                    Shows completed/claimed repairs from last 90 days only
+                </small>
+            </div>
+
+            <!-- Search Results -->
+            <div id="backJobSearchResults">
+                ${eligibleRepairs.length === 0 ? `
+                    <div style="text-align:center;padding:40px;color:#999;">
+                        <h2 style="font-size:48px;margin:0;">📭</h2>
+                        <p>No eligible repairs found</p>
+                        <p style="font-size:14px;">Only repairs completed in last 90 days are shown</p>
+                    </div>
+                ` : `
+                    <div id="backJobResultsList">
+                        <p style="color:#666;font-size:14px;margin-bottom:15px;">
+                            Showing ${eligibleRepairs.length} eligible repair(s). Use search box to filter.
+                        </p>
+                        ${eligibleRepairs.slice(0, 20).map(r => {
+                            const daysAgo = Math.floor((Date.now() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
+                            const hasBackJob = r.hasBackJobId;
+                            const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
+                            
+                            return `
+                                <div class="repair-card" style="border-left-color:${hasBackJob ? '#f44336' : warrantyActive ? '#4caf50' : '#9e9e9e'};">
+                                    <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
+                                        <div style="flex:1;">
+                                            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+                                                <h4 style="margin:0;">${r.customerName}</h4>
+                                                ${hasBackJob ? '<span class="status-badge" style="background:#f44336;color:white;">⚠️ Has Back Job</span>' : ''}
+                                                ${warrantyActive ? '<span class="status-badge" style="background:#4caf50;color:white;">🛡️ Warranty Active</span>' : ''}
+                                            </div>
+                                            <p style="font-size:14px;margin:5px 0;">
+                                                📱 ${r.brand} ${r.model}<br>
+                                                📞 ${r.contactNumber}<br>
+                                                🔧 <strong>Issue:</strong> ${r.problemType || 'N/A'}<br>
+                                                💼 <strong>Repair:</strong> ${r.repairType || 'N/A'}<br>
+                                                👤 <strong>Tech:</strong> ${r.acceptedByName || 'N/A'}<br>
+                                                📅 <strong>Completed:</strong> ${utils.formatDate(r.claimedAt)} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)
+                                            </p>
+                                            ${r.warrantyPeriodDays ? `
+                                                <p style="font-size:13px;color:#666;margin-top:5px;">
+                                                    🛡️ Warranty: ${r.warrantyPeriodDays} days 
+                                                    ${warrantyActive ? 
+                                                        `(expires ${utils.formatDate(r.warrantyEndDate)})` : 
+                                                        `(expired ${utils.formatDate(r.warrantyEndDate)})`}
+                                                </p>
+                                            ` : ''}
+                                        </div>
+                                        <div style="text-align:right;">
+                                            ${daysAgo > 90 ? `
+                                                <div style="background:#f44336;color:white;padding:8px 12px;border-radius:5px;font-size:13px;margin-bottom:10px;">
+                                                    ❌ Outside 90-day limit
+                                                </div>
+                                            ` : hasBackJob ? `
+                                                <button onclick="viewRepairDetails('${r.id}')" 
+                                                        class="btn btn-secondary" 
+                                                        style="padding:8px 15px;font-size:13px;">
+                                                    📋 View Original
+                                                </button>
+                                                <button onclick="if('${r.hasBackJobId}') viewRepairDetails('${r.hasBackJobId}')" 
+                                                        class="btn btn-primary" 
+                                                        style="padding:8px 15px;font-size:13px;margin-top:5px;">
+                                                    🔄 View Back Job
+                                                </button>
+                                            ` : `
+                                                <button onclick="openMarkAsBackJobModal('${r.id}')" 
+                                                        class="btn btn-primary" 
+                                                        style="padding:8px 15px;font-size:13px;">
+                                                    🔄 Mark as Back Job
+                                                </button>
+                                            `}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                        ${eligibleRepairs.length > 20 ? `
+                            <p style="text-align:center;color:#666;margin-top:20px;">
+                                Showing first 20 results. Use search to filter more.
+                            </p>
+                        ` : ''}
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Filter back job search results based on search input
+ */
+function filterBackJobSearchResults() {
+    const searchTerm = document.getElementById('backJobSearch').value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        // Reset to show all
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        return;
+    }
+
+    // Get eligible repairs
+    const ninetyDaysAgo = new Date();
+    ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    
+    const eligibleRepairs = window.allRepairs.filter(r => 
+        (r.status === 'Claimed' || r.status === 'Completed') &&
+        r.claimedAt &&
+        new Date(r.claimedAt) >= ninetyDaysAgo &&
+        !r.deleted
+    );
+
+    // Filter by search term
+    const filteredRepairs = eligibleRepairs.filter(r => 
+        r.customerName?.toLowerCase().includes(searchTerm) ||
+        r.contactNumber?.includes(searchTerm) ||
+        r.brand?.toLowerCase().includes(searchTerm) ||
+        r.model?.toLowerCase().includes(searchTerm) ||
+        r.id?.toLowerCase().includes(searchTerm)
+    ).sort((a, b) => new Date(b.claimedAt) - new Date(a.claimedAt));
+
+    // Update results display
+    const resultsDiv = document.getElementById('backJobResultsList');
+    if (!resultsDiv) return;
+
+    if (filteredRepairs.length === 0) {
+        resultsDiv.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#999;">
+                <h2 style="font-size:48px;margin:0;">🔍</h2>
+                <p>No repairs found matching "${searchTerm}"</p>
+                <p style="font-size:14px;">Try searching by phone number or customer name</p>
+            </div>
+        `;
+        return;
+    }
+
+    resultsDiv.innerHTML = `
+        <p style="color:#666;font-size:14px;margin-bottom:15px;">
+            Found ${filteredRepairs.length} repair(s) matching "${searchTerm}"
+        </p>
+        ${filteredRepairs.slice(0, 20).map(r => {
+            const daysAgo = Math.floor((Date.now() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
+            const hasBackJob = r.hasBackJobId;
+            const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
+            
+            return `
+                <div class="repair-card" style="border-left-color:${hasBackJob ? '#f44336' : warrantyActive ? '#4caf50' : '#9e9e9e'};">
+                    <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
+                        <div style="flex:1;">
+                            <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+                                <h4 style="margin:0;">${r.customerName}</h4>
+                                ${hasBackJob ? '<span class="status-badge" style="background:#f44336;color:white;">⚠️ Has Back Job</span>' : ''}
+                                ${warrantyActive ? '<span class="status-badge" style="background:#4caf50;color:white;">🛡️ Warranty Active</span>' : ''}
+                            </div>
+                            <p style="font-size:14px;margin:5px 0;">
+                                📱 ${r.brand} ${r.model}<br>
+                                📞 ${r.contactNumber}<br>
+                                🔧 <strong>Issue:</strong> ${r.problemType || 'N/A'}<br>
+                                💼 <strong>Repair:</strong> ${r.repairType || 'N/A'}<br>
+                                👤 <strong>Tech:</strong> ${r.acceptedByName || 'N/A'}<br>
+                                📅 <strong>Completed:</strong> ${utils.formatDate(r.claimedAt)} (${daysAgo} day${daysAgo !== 1 ? 's' : ''} ago)
+                            </p>
+                            ${r.warrantyPeriodDays ? `
+                                <p style="font-size:13px;color:#666;margin-top:5px;">
+                                    🛡️ Warranty: ${r.warrantyPeriodDays} days 
+                                    ${warrantyActive ? 
+                                        `(expires ${utils.formatDate(r.warrantyEndDate)})` : 
+                                        `(expired ${utils.formatDate(r.warrantyEndDate)})`}
+                                </p>
+                            ` : ''}
+                        </div>
+                        <div style="text-align:right;">
+                            ${daysAgo > 90 ? `
+                                <div style="background:#f44336;color:white;padding:8px 12px;border-radius:5px;font-size:13px;margin-bottom:10px;">
+                                    ❌ Outside 90-day limit
+                                </div>
+                            ` : hasBackJob ? `
+                                <button onclick="viewRepairDetails('${r.id}')" 
+                                        class="btn btn-secondary" 
+                                        style="padding:8px 15px;font-size:13px;">
+                                    📋 View Original
+                                </button>
+                                <button onclick="if('${r.hasBackJobId}') viewRepairDetails('${r.hasBackJobId}')" 
+                                        class="btn btn-primary" 
+                                        style="padding:8px 15px;font-size:13px;margin-top:5px;">
+                                    🔄 View Back Job
+                                </button>
+                            ` : `
+                                <button onclick="openMarkAsBackJobModal('${r.id}')" 
+                                        class="btn btn-primary" 
+                                        style="padding:8px 15px;font-size:13px;">
+                                    🔄 Mark as Back Job
+                                </button>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('')}
+        ${filteredRepairs.length > 20 ? `
+            <p style="text-align:center;color:#666;margin-top:20px;">
+                Showing first 20 results. Refine your search for better results.
+            </p>
+        ` : ''}
     `;
 }
 
@@ -5315,6 +5551,8 @@ window.buildReceivedDevicesPage = buildReceivedDevicesPage;
 window.buildInProgressPage = buildInProgressPage;
 window.buildForReleasePage = buildForReleasePage;
 window.buildReceiveDeviceTab = buildReceiveDeviceTab;
+window.buildBackJobReceptionTab = buildBackJobReceptionTab;
+window.filterBackJobSearchResults = filterBackJobSearchResults;
 window.populateReceiveSupplierDropdown = populateReceiveSupplierDropdown;
 window.buildMyRequestsTab = buildMyRequestsTab;
 window.buildModificationRequestsTab = buildModificationRequestsTab;
@@ -8032,6 +8270,9 @@ function buildAnalyticsTab(container) {
             </div>
         </div>
         
+        <!-- Back Job Analytics Section -->
+        ${buildBackJobAnalyticsSection(startDate, endDate)}
+        
         <!-- Customer Analytics -->
         <h3 style="margin:25px 0 15px;">👥 Customer Analytics</h3>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:15px;margin-bottom:25px;">
@@ -8367,6 +8608,311 @@ function exportFinancialReport() {
     exportToCSV(data, 'financial_report');
 }
 
+/**
+ * Build Back Job Analytics Section
+ * Shows back job rate per technician, trends, and drill-down details
+ */
+function buildBackJobAnalyticsSection(startDate, endDate) {
+    // Get all back jobs in date range
+    const backJobs = window.allRepairs.filter(r => 
+        r.isBackJob &&
+        r.receivedAt &&
+        new Date(r.receivedAt) >= startDate &&
+        new Date(r.receivedAt) <= endDate &&
+        !r.deleted
+    );
+
+    // Get all completed repairs in date range (for rate calculation)
+    const completedRepairs = window.allRepairs.filter(r => 
+        (r.status === 'Claimed' || r.status === 'Completed') &&
+        r.claimedAt &&
+        new Date(r.claimedAt) >= startDate &&
+        new Date(r.claimedAt) <= endDate &&
+        !r.deleted &&
+        !r.isBackJob
+    );
+
+    // Calculate stats per technician
+    const techStats = {};
+    
+    // Count completed repairs per tech
+    completedRepairs.forEach(r => {
+        if (r.acceptedByName) {
+            if (!techStats[r.acceptedByName]) {
+                techStats[r.acceptedByName] = {
+                    name: r.acceptedByName,
+                    techId: r.acceptedBy,
+                    completedRepairs: 0,
+                    backJobs: 0,
+                    backJobRate: 0,
+                    backJobList: []
+                };
+            }
+            techStats[r.acceptedByName].completedRepairs++;
+        }
+    });
+
+    // Count back jobs per tech
+    backJobs.forEach(r => {
+        if (r.originalTechName) {
+            if (!techStats[r.originalTechName]) {
+                techStats[r.originalTechName] = {
+                    name: r.originalTechName,
+                    techId: r.originalTechId,
+                    completedRepairs: 0,
+                    backJobs: 0,
+                    backJobRate: 0,
+                    backJobList: []
+                };
+            }
+            techStats[r.originalTechName].backJobs++;
+            techStats[r.originalTechName].backJobList.push(r);
+        }
+    });
+
+    // Calculate back job rates
+    Object.values(techStats).forEach(tech => {
+        if (tech.completedRepairs > 0) {
+            tech.backJobRate = (tech.backJobs / tech.completedRepairs) * 100;
+        }
+    });
+
+    // Sort technicians by back job count (descending)
+    const sortedTechs = Object.values(techStats)
+        .filter(t => t.completedRepairs > 0 || t.backJobs > 0)
+        .sort((a, b) => b.backJobs - a.backJobs);
+
+    // Calculate monthly trend (last 6 months)
+    const monthlyTrend = {};
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    window.allRepairs.filter(r => 
+        r.isBackJob &&
+        r.receivedAt &&
+        new Date(r.receivedAt) >= sixMonthsAgo &&
+        !r.deleted
+    ).forEach(r => {
+        const monthKey = new Date(r.receivedAt).toLocaleString('default', { month: 'short', year: 'numeric' });
+        monthlyTrend[monthKey] = (monthlyTrend[monthKey] || 0) + 1;
+    });
+
+    const totalBackJobs = backJobs.length;
+    const totalCompleted = completedRepairs.length;
+    const overallRate = totalCompleted > 0 ? (totalBackJobs / totalCompleted * 100) : 0;
+
+    return `
+        <!-- Back Job Quality Metrics -->
+        <h3 style="margin:25px 0 15px;">🔄 Back Job Quality Metrics</h3>
+        
+        <!-- Summary Cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+            <div class="stat-card" style="background:${totalBackJobs > 0 ? 'linear-gradient(135deg,#ff9800 0%,#f44336 100%)' : 'linear-gradient(135deg,#4caf50 0%,#66bb6a 100%)'};color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Total Back Jobs</div>
+                <div style="font-size:32px;font-weight:bold;">${totalBackJobs}</div>
+                <div style="font-size:12px;opacity:0.8;margin-top:5px;">in date range</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#2196f3 0%,#1976d2 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Back Job Rate</div>
+                <div style="font-size:32px;font-weight:bold;">${overallRate.toFixed(1)}%</div>
+                <div style="font-size:12px;opacity:0.8;margin-top:5px;">${totalBackJobs} / ${totalCompleted} completed</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#9c27b0 0%,#7b1fa2 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Active Technicians</div>
+                <div style="font-size:32px;font-weight:bold;">${sortedTechs.length}</div>
+                <div style="font-size:12px;opacity:0.8;margin-top:5px;">with repairs tracked</div>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg,#00bcd4 0%,#0097a7 100%);color:white;padding:20px;border-radius:12px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size:14px;opacity:0.9;margin-bottom:5px;">Avg per Tech</div>
+                <div style="font-size:32px;font-weight:bold;">${sortedTechs.length > 0 ? (totalBackJobs / sortedTechs.length).toFixed(1) : 0}</div>
+                <div style="font-size:12px;opacity:0.8;margin-top:5px;">back jobs</div>
+            </div>
+        </div>
+        
+        ${totalBackJobs === 0 ? `
+            <div style="background:#e8f5e9;padding:20px;border-radius:12px;text-align:center;border-left:4px solid #4caf50;margin-bottom:25px;">
+                <h2 style="color:#4caf50;font-size:48px;margin:0;">✅</h2>
+                <h4 style="margin:10px 0;color:#2e7d32;">Excellent Quality!</h4>
+                <p style="color:#666;margin:5px 0;">No back jobs recorded in this period. Keep up the great work!</p>
+            </div>
+        ` : `
+            <!-- Back Job Rate per Technician -->
+            <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                    <h4 style="margin:0;">📊 Back Job Rate by Technician</h4>
+                    <button onclick="exportBackJobAnalytics()" class="btn-small">📥 Export CSV</button>
+                </div>
+                <p style="color:#666;font-size:14px;margin-bottom:15px;">
+                    Lower rates indicate better repair quality. Industry standard: <5% is excellent, 5-10% is acceptable, >10% needs attention.
+                </p>
+                <div class="analytics-table">
+                    <table class="repair-table">
+                        <thead>
+                            <tr>
+                                <th>Technician</th>
+                                <th>Completed Repairs</th>
+                                <th>Back Jobs</th>
+                                <th>Back Job Rate</th>
+                                <th>Quality Rating</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedTechs.map(tech => {
+                                const rateColor = tech.backJobRate < 5 ? '#4caf50' : 
+                                                 tech.backJobRate < 10 ? '#ff9800' : '#f44336';
+                                const rating = tech.backJobRate < 5 ? '⭐ Excellent' :
+                                              tech.backJobRate < 10 ? '⚠️ Acceptable' : '❌ Needs Attention';
+                                return `
+                                    <tr>
+                                        <td><strong>${tech.name}</strong></td>
+                                        <td>${tech.completedRepairs}</td>
+                                        <td>${tech.backJobs}</td>
+                                        <td><span style="color:${rateColor};font-weight:bold;font-size:16px;">${tech.backJobRate.toFixed(1)}%</span></td>
+                                        <td><span style="color:${rateColor};">${rating}</span></td>
+                                        <td>
+                                            ${tech.backJobs > 0 ? `
+                                                <button onclick="showBackJobDetails('${tech.techId}')" class="btn-small">
+                                                    📋 View Details (${tech.backJobs})
+                                                </button>
+                                            ` : '<span style="color:#4caf50;">✓ No back jobs</span>'}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Monthly Trend -->
+            ${Object.keys(monthlyTrend).length > 0 ? `
+                <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
+                    <h4 style="margin:0 0 15px;">📈 Back Job Trend (Last 6 Months)</h4>
+                    <div style="display:flex;gap:10px;align-items:end;height:200px;padding:20px;background:var(--bg-white);border-radius:8px;">
+                        ${Object.entries(monthlyTrend)
+                            .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+                            .map(([month, count]) => {
+                                const maxCount = Math.max(...Object.values(monthlyTrend));
+                                const height = (count / maxCount * 150);
+                                return `
+                                    <div style="flex:1;text-align:center;">
+                                        <div style="background:#ff9800;height:${height}px;border-radius:4px 4px 0 0;margin-bottom:5px;position:relative;">
+                                            <span style="position:absolute;top:-25px;left:50%;transform:translateX(-50%);font-weight:bold;color:#f44336;">${count}</span>
+                                        </div>
+                                        <div style="font-size:11px;color:#666;transform:rotate(-45deg);margin-top:20px;">${month}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `}
+    `;
+}
+
+/**
+ * Show back job details for specific technician
+ */
+function showBackJobDetails(techId) {
+    const tech = Object.values(window.allUsers || {}).find(u => u.uid === techId);
+    const techName = tech ? tech.displayName : 'Unknown';
+    
+    const backJobs = window.allRepairs.filter(r => 
+        r.isBackJob &&
+        r.originalTechId === techId &&
+        !r.deleted
+    ).sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt));
+
+    if (backJobs.length === 0) {
+        alert('No back jobs found for this technician.');
+        return;
+    }
+
+    const modalContent = `
+        <div style="max-height:70vh;overflow-y:auto;">
+            <h3 style="margin:0 0 20px;">🔄 Back Jobs - ${techName}</h3>
+            <p style="color:#666;margin-bottom:20px;">Total: ${backJobs.length} back job(s)</p>
+            
+            ${backJobs.map(r => {
+                const originalRepair = window.allRepairs.find(orig => orig.id === r.originalRepairId);
+                return `
+                    <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #f44336;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                            <div>
+                                <h4 style="margin:0 0 5px;">${r.customerName}</h4>
+                                <p style="margin:0;font-size:14px;color:#666;">
+                                    📱 ${r.brand} ${r.model}<br>
+                                    📅 Received: ${utils.formatDate(r.receivedAt)}<br>
+                                    ${originalRepair ? `🔧 Original Completed: ${utils.formatDate(originalRepair.claimedAt)}` : ''}
+                                </p>
+                            </div>
+                            <button onclick="viewRepairDetails('${r.id}')" class="btn-small">View Details</button>
+                        </div>
+                        <div style="background:white;padding:10px;border-radius:5px;margin-top:10px;">
+                            <strong>Reason for Return:</strong><br>
+                            <em style="color:#666;">${r.backJobReason || 'No reason provided'}</em>
+                        </div>
+                        ${originalRepair ? `
+                            <div style="margin-top:10px;font-size:13px;color:#666;">
+                                <strong>Original Repair:</strong> ${originalRepair.repairType || 'N/A'} • 
+                                ₱${(originalRepair.total || 0).toFixed(2)} • 
+                                <a href="#" onclick="viewRepairDetails('${originalRepair.id}'); return false;">View Original</a>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('')}
+        </div>
+        <div style="margin-top:20px;text-align:right;">
+            <button onclick="this.closest('.modal').style.display='none'" class="btn-secondary">Close</button>
+        </div>
+    `;
+
+    // Create temporary modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `<div class="modal-content" style="max-width:700px;">${modalContent}</div>`;
+    document.body.appendChild(modal);
+    
+    // Remove modal on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            document.body.removeChild(modal);
+        }
+    });
+}
+
+/**
+ * Export back job analytics to CSV
+ */
+function exportBackJobAnalytics() {
+    const startDate = window.analyticsDateRange?.start || new Date(new Date().setDate(new Date().getDate() - 30));
+    const endDate = window.analyticsDateRange?.end || new Date();
+
+    const backJobs = window.allRepairs.filter(r => 
+        r.isBackJob &&
+        r.receivedAt &&
+        new Date(r.receivedAt) >= startDate &&
+        new Date(r.receivedAt) <= endDate &&
+        !r.deleted
+    );
+
+    const data = backJobs.map(r => ({
+        'Repair ID': r.id,
+        'Customer': r.customerName,
+        'Device': `${r.brand} ${r.model}`,
+        'Original Tech': r.originalTechName || 'N/A',
+        'Received Date': utils.formatDate(r.receivedAt),
+        'Reason': r.backJobReason || 'N/A',
+        'Status': r.status,
+        'Original Repair ID': r.originalRepairId || 'N/A'
+    }));
+
+    exportToCSV(data, 'back_job_analytics');
+}
+
 window.buildAnalyticsTab = buildAnalyticsTab;
 window.updateAnalyticsDateRange = updateAnalyticsDateRange;
 window.setQuickDateRange = setQuickDateRange;
@@ -8376,6 +8922,8 @@ window.exportCustomerAnalytics = exportCustomerAnalytics;
 window.exportRepairTypeAnalytics = exportRepairTypeAnalytics;
 window.exportInventoryAnalytics = exportInventoryAnalytics;
 window.exportFinancialReport = exportFinancialReport;
+window.showBackJobDetails = showBackJobDetails;
+window.exportBackJobAnalytics = exportBackJobAnalytics;
 
 window.buildDailyRemittanceTab = buildDailyRemittanceTab;
 window.buildRemittanceVerificationTab = buildRemittanceVerificationTab;

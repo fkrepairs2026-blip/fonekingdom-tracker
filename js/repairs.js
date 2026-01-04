@@ -8925,12 +8925,15 @@ async function finalizeClaimDevice(repairId, isAutomatic = false) {
 function openFinalizeModal(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
 
-    // Default warranty: 0 days for software repairs, 30 days for hardware
+    // Default warranty: 0 days for software repairs, 7 days for hardware
     const isSoftwareRepair = repair && (repair.repairType === 'Software Issue' ||
         repair.repairType === 'FRP Unlock' ||
         repair.repairType === 'Password Unlock' ||
-        repair.repairType === 'Data Recovery');
-    const defaultWarranty = isSoftwareRepair ? '0' : '30';
+        repair.repairType === 'IC Bypass' ||
+        repair.repairType === 'Virus Removal' ||
+        repair.repairType === 'Data Recovery' ||
+        repair.repairType === 'Software Restore');
+    const defaultWarranty = isSoftwareRepair ? '0' : '7';
 
     document.getElementById('finalizeRepairId').value = repairId;
     document.getElementById('finalizeWarrantyDays').value = defaultWarranty;
@@ -9223,6 +9226,212 @@ function closeFinalizeModal() {
 }
 
 /**
+ * Open Mark as Back Job Modal
+ * Shows original repair details and prompts for back job reason
+ */
+async function openMarkAsBackJobModal(originalRepairId) {
+    const repair = window.allRepairs.find(r => r.id === originalRepairId);
+    if (!repair) {
+        alert('❌ Repair not found');
+        return;
+    }
+
+    // Validate 90-day limit
+    const claimedDate = new Date(repair.claimedAt);
+    const daysAgo = Math.floor((Date.now() - claimedDate) / (1000 * 60 * 60 * 24));
+    
+    if (daysAgo > 90) {
+        alert('❌ Cannot create back job: This repair was completed more than 90 days ago (outside warranty period).');
+        return;
+    }
+
+    // Check if already has back job
+    if (repair.hasBackJobId) {
+        alert('⚠️ This repair already has a back job registered. View the Back Job tab to see it.');
+        return;
+    }
+
+    // Populate original repair details
+    const warrantyActive = repair.warrantyEndDate && new Date(repair.warrantyEndDate) > new Date();
+    const detailsDiv = document.getElementById('backJobOriginalDetails');
+    detailsDiv.innerHTML = `
+        <h4 style="margin:0 0 10px 0;color:#2196f3;">📋 Original Repair Details</h4>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:14px;">
+            <div><strong>Customer:</strong> ${repair.customerName}</div>
+            <div><strong>Phone:</strong> ${repair.contactNumber}</div>
+            <div><strong>Device:</strong> ${repair.brand} ${repair.model}</div>
+            <div><strong>Completed:</strong> ${utils.formatDate(repair.claimedAt)} (${daysAgo} days ago)</div>
+            <div><strong>Original Issue:</strong> ${repair.problemType || 'N/A'}</div>
+            <div><strong>Repair Done:</strong> ${repair.repairType || 'N/A'}</div>
+            <div><strong>Technician:</strong> ${repair.acceptedByName || 'N/A'}</div>
+            <div><strong>Total Paid:</strong> ₱${(repair.total || 0).toFixed(2)}</div>
+        </div>
+        ${repair.warrantyPeriodDays ? `
+            <div style="margin-top:10px;padding:10px;background:${warrantyActive ? '#e8f5e9' : '#ffebee'};border-radius:5px;">
+                <strong>🛡️ Warranty:</strong> ${repair.warrantyPeriodDays} days 
+                ${warrantyActive ? 
+                    `(Active until ${utils.formatDate(repair.warrantyEndDate)})` : 
+                    `(Expired on ${utils.formatDate(repair.warrantyEndDate)})`}
+            </div>
+        ` : ''}
+        ${repair.technicianNotes ? `
+            <div style="margin-top:10px;">
+                <strong>Original Tech Notes:</strong><br>
+                <em style="color:#666;">${repair.technicianNotes}</em>
+            </div>
+        ` : ''}
+    `;
+
+    // Set repair ID and clear form
+    document.getElementById('backJobOriginalRepairId').value = originalRepairId;
+    document.getElementById('backJobReason').value = '';
+    document.getElementById('backJobAdditionalNotes').value = '';
+
+    // Show modal
+    document.getElementById('markBackJobModal').style.display = 'block';
+}
+
+/**
+ * Confirm and create back job repair
+ */
+async function confirmMarkAsBackJob() {
+    const originalRepairId = document.getElementById('backJobOriginalRepairId').value;
+    const backJobReason = document.getElementById('backJobReason').value.trim();
+    const additionalNotes = document.getElementById('backJobAdditionalNotes').value.trim();
+
+    // Validation
+    if (!backJobReason || backJobReason.length < 10) {
+        alert('⚠️ Please provide a detailed reason (minimum 10 characters)');
+        return;
+    }
+
+    const originalRepair = window.allRepairs.find(r => r.id === originalRepairId);
+    if (!originalRepair) {
+        alert('❌ Original repair not found');
+        return;
+    }
+
+    // Final 90-day check
+    const daysAgo = Math.floor((Date.now() - new Date(originalRepair.claimedAt)) / (1000 * 60 * 60 * 24));
+    if (daysAgo > 90) {
+        alert('❌ Cannot create back job: Outside 90-day warranty period');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        // Create new repair entry as back job
+        const now = new Date().toISOString();
+        const newRepairData = {
+            // Customer info (copied from original)
+            customerType: originalRepair.customerType || 'Walk-in',
+            shopName: originalRepair.shopName || null,
+            customerName: originalRepair.customerName,
+            contactNumber: originalRepair.contactNumber,
+            
+            // Device info (copied from original)
+            brand: originalRepair.brand,
+            model: originalRepair.model,
+            imei: originalRepair.imei || null,
+            serialNumber: originalRepair.serialNumber || null,
+            password: originalRepair.password || null,
+            
+            // Problem info
+            problemType: originalRepair.problemType,
+            problemDescription: `BACK JOB: ${backJobReason}${additionalNotes ? '\\n\\nAdditional: ' + additionalNotes : ''}`,
+            
+            // Back job specific fields
+            isBackJob: true,
+            backJobReason: backJobReason,
+            originalRepairId: originalRepairId,
+            originalTechId: originalRepair.acceptedBy,
+            originalTechName: originalRepair.acceptedByName,
+            
+            // Status and assignment
+            status: 'In Progress',
+            acceptedBy: originalRepair.acceptedBy,  // Auto-assign to original tech
+            acceptedByName: originalRepair.acceptedByName,
+            acceptedAt: now,
+            
+            // Warranty claim flags
+            isWarrantyClaim: true,
+            warrantyClaimType: 'same_issue',
+            linkedRepairId: originalRepairId,
+            
+            // Pricing (no charge for back jobs)
+            total: 0,
+            partsCost: 0,
+            laborCost: 0,
+            customerApproved: true,
+            approvedAt: now,
+            
+            // Tracking
+            receivedAt: now,
+            recordedDate: now,
+            receivedBy: window.currentUser.uid,
+            receivedByName: window.currentUserData.displayName,
+            createdBy: window.currentUser.uid,
+            lastUpdated: now,
+            lastUpdatedBy: window.currentUserData.displayName,
+            
+            // Metadata
+            deleted: false
+        };
+
+        // Create new repair
+        const newRepairRef = await db.ref('repairs').push(newRepairData);
+        const newRepairId = newRepairRef.key;
+
+        console.log('✅ Back job repair created:', newRepairId);
+
+        // Update original repair with back job link
+        await db.ref(`repairs/${originalRepairId}`).update({
+            hasBackJobId: newRepairId,
+            hasBackJobCreatedAt: now,
+            lastUpdated: now,
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+
+        console.log('✅ Original repair updated with back job link');
+
+        // Log activity
+        await logActivity('back_job_created', {
+            originalRepairId: originalRepairId,
+            newRepairId: newRepairId,
+            technicianId: originalRepair.acceptedBy,
+            technicianName: originalRepair.acceptedByName,
+            customerName: originalRepair.customerName,
+            device: `${originalRepair.brand} ${originalRepair.model}`,
+            reason: backJobReason
+        }, `Back job created for ${originalRepair.customerName} (${originalRepair.brand} ${originalRepair.model}) - assigned to ${originalRepair.acceptedByName}`);
+
+        utils.showLoading(false);
+        closeMarkBackJobModal();
+
+        // Success message
+        alert(`✅ Back job created successfully!\\n\\nRepair ID: ${newRepairId}\\nAssigned to: ${originalRepair.acceptedByName}\\n\\nThe technician will see this in their "My Jobs" tab.`);
+
+        // Refresh view
+        if (window.currentTabRefresh) {
+            setTimeout(() => window.currentTabRefresh(), 300);
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error creating back job:', error);
+        alert('Error creating back job: ' + error.message);
+    }
+}
+
+/**
+ * Close mark as back job modal
+ */
+function closeMarkBackJobModal() {
+    document.getElementById('markBackJobModal').style.display = 'none';
+}
+
+/**
  * Toggle finalize payment fields visibility
  */
 function toggleFinalizePaymentFields() {
@@ -9457,6 +9666,9 @@ window.finalizeClaimDevice = finalizeClaimDevice;
 window.openFinalizeModal = openFinalizeModal;
 window.confirmFinalizeDevice = confirmFinalizeDevice;
 window.closeFinalizeModal = closeFinalizeModal;
+window.openMarkAsBackJobModal = openMarkAsBackJobModal;
+window.confirmMarkAsBackJob = confirmMarkAsBackJob;
+window.closeMarkBackJobModal = closeMarkBackJobModal;
 window.toggleFinalizePaymentFields = toggleFinalizePaymentFields;
 window.toggleFinalizeGCashField = toggleFinalizeGCashField;
 window.viewClaimDetails = viewClaimDetails;
