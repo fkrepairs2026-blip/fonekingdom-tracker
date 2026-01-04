@@ -13,20 +13,12 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
-// Enable offline persistence
-firebase.database().enablePersistence()
-  .catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('⚠️ Offline persistence disabled: Multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      console.warn('⚠️ Offline persistence not supported by browser');
-    }
-  });
-
 // Firebase Services
 const auth = firebase.auth();
 const db = firebase.database();
 const storage = firebase.storage();
+
+// Note: Realtime Database has built-in offline support, no need to enable manually
 
 // Export for use in other files
 window.auth = auth;
