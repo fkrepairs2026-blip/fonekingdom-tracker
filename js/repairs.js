@@ -295,9 +295,6 @@ async function submitReceiveDevice(e) {
         contactNumber: data.get('contactNumber'),
         brand: data.get('brand'),
         model: data.get('model'),
-        imei: data.get('imei') || '',
-        deviceColor: data.get('deviceColor') || 'N/A',
-        storageCapacity: data.get('storageCapacity') || 'N/A',
         problemType: data.get('problemType') || 'Pending Diagnosis',
         problem: data.get('problem'),
         estimatedCost: data.get('estimatedCost'),
@@ -320,12 +317,6 @@ async function submitReceiveDevice(e) {
         contactNumber: data.get('contactNumber'),
         brand: data.get('brand'),
         model: data.get('model'),
-
-        // NEW: Device Details (Phase 2)
-        imei: data.get('imei') || '',
-        deviceColor: data.get('deviceColor') || 'N/A',
-        storageCapacity: data.get('storageCapacity') || 'N/A',
-        devicePasscode: data.get('devicePasscode') || '',
 
         // Pre-Repair Checklist - filled when technician accepts repair
         preRepairChecklist: null,
@@ -563,6 +554,17 @@ async function submitReceiveDevice(e) {
             } else {
                 successMsg += `📋 Next: Create diagnosis & get customer approval\n`;
             }
+        }
+
+        // Track form submission for analytics
+        if (window.trackFormSubmit) {
+            window.trackFormSubmit('receiveDevice', {
+                customerType: repair.customerType,
+                hasPricing: hasPricing,
+                isBackJob: isBackJob,
+                assignmentMethod: assignmentMethod,
+                problemType: repair.problemType
+            });
         }
 
         alert(successMsg);
@@ -14570,5 +14572,225 @@ if (window.allRepairs) {
     startAutoFinalizeChecker();
 }
 window.processDeletionRequest = processDeletionRequest;
+
+// ===== USAGE ANALYTICS TRACKING SYSTEM =====
+
+/**
+ * Track tab visits and form field interactions
+ * Stores in Firebase for admin analysis
+ */
+function trackUsage(eventType, data) {
+    if (!window.currentUser || !window.currentUserData) return;
+    
+    // Create usage event
+    const usageEvent = {
+        userId: window.currentUser.uid,
+        userName: window.currentUserData.displayName,
+        userRole: window.currentUserData.role,
+        eventType: eventType, // 'tab_switch', 'form_submit', 'field_interaction'
+        timestamp: new Date().toISOString(),
+        data: data
+    };
+    
+    // Store in Firebase under usageAnalytics collection
+    db.ref('usageAnalytics').push(usageEvent).catch(error => {
+        console.error('❌ Error tracking usage:', error);
+    });
+}
+
+/**
+ * Track tab switches
+ */
+function trackTabSwitch(fromTab, toTab) {
+    trackUsage('tab_switch', {
+        fromTab: fromTab,
+        toTab: toTab,
+        timestamp: new Date().toISOString()
+    });
+}
+
+/**
+ * Track form submissions
+ */
+function trackFormSubmit(formName, formData = {}) {
+    trackUsage('form_submit', {
+        formName: formName,
+        fields: Object.keys(formData),
+        timestamp: new Date().toISOString()
+    });
+}
+
+/**
+ * Track field interactions (focus events)
+ */
+function trackFieldInteraction(fieldName, fieldType) {
+    // Throttle to avoid excessive tracking - only track once per field per session
+    if (!window.trackedFields) {
+        window.trackedFields = new Set();
+    }
+    
+    const fieldKey = `${fieldName}_${fieldType}`;
+    if (window.trackedFields.has(fieldKey)) return;
+    
+    window.trackedFields.add(fieldKey);
+    
+    trackUsage('field_interaction', {
+        fieldName: fieldName,
+        fieldType: fieldType,
+        timestamp: new Date().toISOString()
+    });
+}
+
+/**
+ * Get usage analytics for admin (filtered by date range)
+ */
+async function getUsageAnalytics(startDate, endDate, eventType = null) {
+    try {
+        const snapshot = await db.ref('usageAnalytics')
+            .orderByChild('timestamp')
+            .startAt(startDate)
+            .endAt(endDate)
+            .once('value');
+        
+        const events = [];
+        snapshot.forEach(child => {
+            const event = child.val();
+            event.id = child.key;
+            
+            // Filter by event type if specified
+            if (!eventType || event.eventType === eventType) {
+                events.push(event);
+            }
+        });
+        
+        return events;
+    } catch (error) {
+        console.error('❌ Error getting usage analytics:', error);
+        return [];
+    }
+}
+
+/**
+ * Get aggregated tab usage statistics
+ */
+async function getTabUsageStats(startDate, endDate) {
+    const events = await getUsageAnalytics(startDate, endDate, 'tab_switch');
+    
+    // Aggregate by tab
+    const tabCounts = {};
+    const tabByUser = {};
+    const tabByRole = {};
+    
+    events.forEach(event => {
+        const tab = event.data.toTab;
+        if (!tab) return;
+        
+        // Overall counts
+        tabCounts[tab] = (tabCounts[tab] || 0) + 1;
+        
+        // By user
+        if (!tabByUser[event.userName]) {
+            tabByUser[event.userName] = {};
+        }
+        tabByUser[event.userName][tab] = (tabByUser[event.userName][tab] || 0) + 1;
+        
+        // By role
+        if (!tabByRole[event.userRole]) {
+            tabByRole[event.userRole] = {};
+        }
+        tabByRole[event.userRole][tab] = (tabByRole[event.userRole][tab] || 0) + 1;
+    });
+    
+    return {
+        totalEvents: events.length,
+        tabCounts: tabCounts,
+        tabByUser: tabByUser,
+        tabByRole: tabByRole,
+        mostUsedTabs: Object.entries(tabCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([tab, count]) => ({ tab, count }))
+    };
+}
+
+/**
+ * Get aggregated form usage statistics
+ */
+async function getFormUsageStats(startDate, endDate) {
+    const events = await getUsageAnalytics(startDate, endDate, 'form_submit');
+    
+    // Aggregate by form
+    const formCounts = {};
+    const formByUser = {};
+    
+    events.forEach(event => {
+        const form = event.data.formName;
+        if (!form) return;
+        
+        // Overall counts
+        formCounts[form] = (formCounts[form] || 0) + 1;
+        
+        // By user
+        if (!formByUser[event.userName]) {
+            formByUser[event.userName] = {};
+        }
+        formByUser[event.userName][form] = (formByUser[event.userName][form] || 0) + 1;
+    });
+    
+    return {
+        totalSubmissions: events.length,
+        formCounts: formCounts,
+        formByUser: formByUser,
+        mostUsedForms: Object.entries(formCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([form, count]) => ({ form, count }))
+    };
+}
+
+/**
+ * Get field interaction statistics
+ */
+async function getFieldUsageStats(startDate, endDate) {
+    const events = await getUsageAnalytics(startDate, endDate, 'field_interaction');
+    
+    // Aggregate by field
+    const fieldCounts = {};
+    const fieldByType = {};
+    
+    events.forEach(event => {
+        const field = event.data.fieldName;
+        const type = event.data.fieldType;
+        if (!field) return;
+        
+        // Overall counts
+        fieldCounts[field] = (fieldCounts[field] || 0) + 1;
+        
+        // By type
+        if (!fieldByType[type]) {
+            fieldByType[type] = {};
+        }
+        fieldByType[type][field] = (fieldByType[type][field] || 0) + 1;
+    });
+    
+    return {
+        totalInteractions: events.length,
+        fieldCounts: fieldCounts,
+        fieldByType: fieldByType,
+        mostUsedFields: Object.entries(fieldCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 20)
+            .map(([field, count]) => ({ field, count }))
+    };
+}
+
+// Export tracking functions
+window.trackUsage = trackUsage;
+window.trackTabSwitch = trackTabSwitch;
+window.trackFormSubmit = trackFormSubmit;
+window.trackFieldInteraction = trackFieldInteraction;
+window.getUsageAnalytics = getUsageAnalytics;
+window.getTabUsageStats = getTabUsageStats;
+window.getFormUsageStats = getFormUsageStats;
+window.getFieldUsageStats = getFieldUsageStats;
 
 console.log('✅ repairs.js loaded');

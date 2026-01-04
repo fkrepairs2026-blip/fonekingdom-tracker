@@ -119,6 +119,7 @@ function buildTabs() {
                 { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
                 { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
+                { id: 'usage-analytics', label: 'Usage Analytics', icon: '📈', build: buildUsageAnalyticsTab },
                 { id: 'admin-tools', label: 'Admin Tools', icon: '🔧', build: buildAdminToolsTab },
                 { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab }
             );
@@ -393,6 +394,11 @@ function switchTab(tabId, dateFilter = null) {
             to: tabId,
             dateFilter: dateFilter
         });
+    }
+    
+    // Track tab switch for analytics (if tracking function exists)
+    if (window.trackTabSwitch && activeTab !== tabId) {
+        window.trackTabSwitch(activeTab, tabId);
     }
 
     // Store or clear date filter for specific tabs
@@ -895,62 +901,6 @@ function buildReceiveDeviceTab(container) {
                     <div class="form-group">
                         <label>Model *</label>
                         <input type="text" name="model" required placeholder="e.g., Galaxy S21, iPhone 12">
-                    </div>
-                </div>
-                
-                <!-- NEW: DEVICE DETAILS SECTION -->
-                <div style="background:var(--bg-light);padding:20px;border-radius:var(--radius-md);margin:20px 0;border-left:4px solid var(--primary);">
-                    <h4 style="margin:0 0 15px 0;color:var(--primary);">📱 Device Details</h4>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>IMEI / Serial Number</label>
-                            <input type="text" name="imei" placeholder="Enter IMEI or Serial (if available)">
-                            <small>Optional - For warranty tracking & identification</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Device Passcode</label>
-                            <input type="text" name="devicePasscode" placeholder="Pattern, PIN, or Password">
-                            <small>Optional - For testing after repair</small>
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Device Color</label>
-                            <select name="deviceColor">
-                                <option value="N/A">N/A (Unknown/Dead device)</option>
-                                <option value="Black">Black</option>
-                                <option value="White">White</option>
-                                <option value="Silver">Silver</option>
-                                <option value="Gold">Gold</option>
-                                <option value="Rose Gold">Rose Gold</option>
-                                <option value="Space Gray">Space Gray</option>
-                                <option value="Blue">Blue</option>
-                                <option value="Red">Red</option>
-                                <option value="Green">Green</option>
-                                <option value="Purple">Purple</option>
-                                <option value="Pink">Pink</option>
-                                <option value="Yellow">Yellow</option>
-                                <option value="Orange">Orange</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Storage Capacity</label>
-                            <select name="storageCapacity">
-                                <option value="N/A">N/A (Unknown/Dead device)</option>
-                                <option value="8GB">8GB</option>
-                                <option value="16GB">16GB</option>
-                                <option value="32GB">32GB</option>
-                                <option value="64GB">64GB</option>
-                                <option value="128GB">128GB</option>
-                                <option value="256GB">256GB</option>
-                                <option value="512GB">512GB</option>
-                                <option value="1TB">1TB</option>
-                                <option value="2TB">2TB</option>
-                            </select>
-                        </div>
                     </div>
                 </div>
                 
@@ -5241,6 +5191,353 @@ function buildDataIntegritySection() {
             </div>
         </div>
     `;
+}
+
+/**
+ * Build Usage Analytics Tab (Admin only)
+ * Shows which tabs and features are most frequently used
+ */
+function buildUsageAnalyticsTab(container) {
+    console.log('📈 Building Usage Analytics tab');
+    window.currentTabRefresh = () => buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));
+
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    // Get current filter or default to 7 days
+    const currentRange = window.usageAnalyticsRange || '7days';
+    
+    let startDate, endDate;
+    switch(currentRange) {
+        case 'today':
+            startDate = today;
+            endDate = today + 'T23:59:59.999Z';
+            break;
+        case '7days':
+            startDate = sevenDaysAgo;
+            endDate = today + 'T23:59:59.999Z';
+            break;
+        case '30days':
+            startDate = thirtyDaysAgo;
+            endDate = today + 'T23:59:59.999Z';
+            break;
+        default:
+            startDate = sevenDaysAgo;
+            endDate = today + 'T23:59:59.999Z';
+    }
+
+    container.innerHTML = `
+        <div class="card">
+            <h3>📈 Usage Analytics</h3>
+            <p style="color:#666;margin-bottom:20px;">
+                Track which tabs and features are most frequently used. Use this data to optimize the UI and remove unused features.
+            </p>
+
+            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                <button class="btn-${currentRange === 'today' ? 'primary' : 'secondary'}" 
+                        onclick="window.usageAnalyticsRange='today'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
+                    Today
+                </button>
+                <button class="btn-${currentRange === '7days' ? 'primary' : 'secondary'}" 
+                        onclick="window.usageAnalyticsRange='7days'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
+                    Last 7 Days
+                </button>
+                <button class="btn-${currentRange === '30days' ? 'primary' : 'secondary'}" 
+                        onclick="window.usageAnalyticsRange='30days'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
+                    Last 30 Days
+                </button>
+                <button class="btn-secondary" onclick="exportUsageAnalytics()">
+                    📥 Export CSV
+                </button>
+            </div>
+
+            <div id="usageAnalyticsContent">
+                <div style="text-align:center;padding:40px;color:#999;">
+                    Loading analytics data...
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Load analytics data
+    loadUsageAnalyticsData(startDate, endDate);
+}
+
+/**
+ * Load and display usage analytics data
+ */
+async function loadUsageAnalyticsData(startDate, endDate) {
+    try {
+        utils.showLoading(true);
+
+        // Get all analytics stats in parallel
+        const [tabStats, formStats, fieldStats] = await Promise.all([
+            window.getTabUsageStats(startDate, endDate),
+            window.getFormUsageStats(startDate, endDate),
+            window.getFieldUsageStats(startDate, endDate)
+        ]);
+
+        utils.showLoading(false);
+
+        const contentDiv = document.getElementById('usageAnalyticsContent');
+        if (!contentDiv) return;
+
+        // Generate summary cards
+        const summaryCards = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:30px;">
+                <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                    <div class="stat-value">${tabStats.totalEvents.toLocaleString()}</div>
+                    <div class="stat-label">Tab Switches</div>
+                </div>
+                <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
+                    <div class="stat-value">${formStats.totalSubmissions.toLocaleString()}</div>
+                    <div class="stat-label">Form Submissions</div>
+                </div>
+                <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+                    <div class="stat-value">${fieldStats.totalInteractions.toLocaleString()}</div>
+                    <div class="stat-label">Field Interactions</div>
+                </div>
+            </div>
+        `;
+
+        // Most used tabs
+        const tabsTable = tabStats.mostUsedTabs.length > 0 ? `
+            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
+                <h4 style="margin:0 0 15px 0;color:#2196f3;">🔝 Most Used Tabs</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Tab Name</th>
+                            <th>Total Visits</th>
+                            <th>% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tabStats.mostUsedTabs.map((tab, index) => {
+                            const percentage = ((tab.count / tabStats.totalEvents) * 100).toFixed(1);
+                            return `
+                                <tr>
+                                    <td><strong>${index + 1}</strong></td>
+                                    <td>${tab.tab}</td>
+                                    <td>${tab.count.toLocaleString()}</td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <div style="flex:1;background:#e0e0e0;height:20px;border-radius:10px;overflow:hidden;">
+                                                <div style="width:${percentage}%;background:#2196f3;height:100%;"></div>
+                                            </div>
+                                            <span style="min-width:45px;text-align:right;">${percentage}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : '<p style="text-align:center;color:#999;padding:20px;">No tab data available</p>';
+
+        // Most used forms
+        const formsTable = formStats.mostUsedForms.length > 0 ? `
+            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
+                <h4 style="margin:0 0 15px 0;color:#9c27b0;">📝 Most Used Forms</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Form Name</th>
+                            <th>Total Submissions</th>
+                            <th>% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${formStats.mostUsedForms.map((form, index) => {
+                            const percentage = ((form.count / formStats.totalSubmissions) * 100).toFixed(1);
+                            return `
+                                <tr>
+                                    <td><strong>${index + 1}</strong></td>
+                                    <td>${form.form}</td>
+                                    <td>${form.count.toLocaleString()}</td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <div style="flex:1;background:#e0e0e0;height:20px;border-radius:10px;overflow:hidden;">
+                                                <div style="width:${percentage}%;background:#9c27b0;height:100%;"></div>
+                                            </div>
+                                            <span style="min-width:45px;text-align:right;">${percentage}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : '<p style="text-align:center;color:#999;padding:20px;">No form data available</p>';
+
+        // Most interacted fields
+        const fieldsTable = fieldStats.mostUsedFields.length > 0 ? `
+            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
+                <h4 style="margin:0 0 15px 0;color:#4caf50;">🔤 Most Used Form Fields</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Field Name</th>
+                            <th>Interactions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${fieldStats.mostUsedFields.map((field, index) => `
+                            <tr>
+                                <td><strong>${index + 1}</strong></td>
+                                <td>${field.field}</td>
+                                <td>${field.count.toLocaleString()}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : '<p style="text-align:center;color:#999;padding:20px;">No field interaction data available</p>';
+
+        // Usage by role
+        const roleBreakdown = Object.keys(tabStats.tabByRole).length > 0 ? `
+            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
+                <h4 style="margin:0 0 15px 0;color:#ff9800;">👥 Usage by Role</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Role</th>
+                            <th>Tab Switches</th>
+                            <th>Most Used Tab</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${Object.entries(tabStats.tabByRole).map(([role, tabs]) => {
+                            const totalSwitches = Object.values(tabs).reduce((sum, count) => sum + count, 0);
+                            const mostUsedTab = Object.entries(tabs).sort((a, b) => b[1] - a[1])[0];
+                            return `
+                                <tr>
+                                    <td><strong>${role}</strong></td>
+                                    <td>${totalSwitches.toLocaleString()}</td>
+                                    <td>${mostUsedTab[0]} (${mostUsedTab[1]}x)</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : '';
+
+        const insightsSection = `
+            <div class="alert-info" style="margin-top:20px;">
+                <h4 style="margin:0 0 10px 0;">💡 Insights & Recommendations</h4>
+                <ul style="margin:5px 0;padding-left:20px;">
+                    ${tabStats.mostUsedTabs.length > 0 ? `
+                        <li>Most popular tab: <strong>${tabStats.mostUsedTabs[0].tab}</strong> (${tabStats.mostUsedTabs[0].count} visits)</li>
+                    ` : ''}
+                    ${tabStats.mostUsedTabs.length > 5 ? `
+                        <li>Consider promoting frequently used tabs for easier access</li>
+                    ` : ''}
+                    ${fieldStats.mostUsedFields.length > 0 ? `
+                        <li>Most interacted field: <strong>${fieldStats.mostUsedFields[0].field}</strong></li>
+                    ` : ''}
+                    <li>Use this data to identify rarely used features that can be simplified or removed</li>
+                    <li>Track trends over time to understand changing user behavior</li>
+                </ul>
+            </div>
+        `;
+
+        contentDiv.innerHTML = summaryCards + tabsTable + formsTable + fieldsTable + roleBreakdown + insightsSection;
+
+    } catch (error) {
+        console.error('❌ Error loading usage analytics:', error);
+        utils.showLoading(false);
+        
+        const contentDiv = document.getElementById('usageAnalyticsContent');
+        if (contentDiv) {
+            contentDiv.innerHTML = `
+                <div class="alert-danger">
+                    <p style="margin:0;">Error loading analytics data: ${error.message}</p>
+                    <p style="margin:5px 0 0;font-size:14px;">This might be because no usage data has been collected yet. Start using the app to generate analytics.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+/**
+ * Export usage analytics to CSV
+ */
+async function exportUsageAnalytics() {
+    try {
+        utils.showLoading(true);
+
+        const currentRange = window.usageAnalyticsRange || '7days';
+        const today = new Date().toISOString().split('T')[0];
+        
+        let startDate, endDate;
+        switch(currentRange) {
+            case 'today':
+                startDate = today;
+                endDate = today + 'T23:59:59.999Z';
+                break;
+            case '7days':
+                startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                endDate = today + 'T23:59:59.999Z';
+                break;
+            case '30days':
+                startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                endDate = today + 'T23:59:59.999Z';
+                break;
+        }
+
+        // Get raw analytics events
+        const events = await window.getUsageAnalytics(startDate, endDate);
+
+        // Convert to CSV
+        const csvHeaders = ['Timestamp', 'User', 'Role', 'Event Type', 'Details'];
+        const csvRows = events.map(event => {
+            let details = '';
+            if (event.eventType === 'tab_switch') {
+                details = `${event.data.fromTab} → ${event.data.toTab}`;
+            } else if (event.eventType === 'form_submit') {
+                details = event.data.formName;
+            } else if (event.eventType === 'field_interaction') {
+                details = `${event.data.fieldName} (${event.data.fieldType})`;
+            }
+            
+            return [
+                event.timestamp,
+                event.userName,
+                event.userRole,
+                event.eventType,
+                details
+            ];
+        });
+
+        const csvContent = [
+            csvHeaders.join(','),
+            ...csvRows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        // Download CSV
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `usage_analytics_${currentRange}_${today}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+        utils.showLoading(false);
+        alert('✅ Usage analytics exported successfully!');
+
+    } catch (error) {
+        console.error('❌ Error exporting analytics:', error);
+        utils.showLoading(false);
+        alert('❌ Error exporting analytics: ' + error.message);
+    }
 }
 
 /**
@@ -10882,5 +11179,10 @@ function initTableView(tableId) {
 // Export table toggle functions
 window.toggleTableView = toggleTableView;
 window.initTableView = initTableView;
+
+// Export usage analytics functions
+window.buildUsageAnalyticsTab = buildUsageAnalyticsTab;
+window.loadUsageAnalyticsData = loadUsageAnalyticsData;
+window.exportUsageAnalytics = exportUsageAnalytics;
 
 console.log('✅ ui.js loaded');
