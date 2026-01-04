@@ -767,7 +767,7 @@ function renderUserActivitySection(userId, userData) {
         <div style="background:var(--bg-white);border:1px solid var(--border-color);border-radius:10px;overflow:hidden;">
             <!-- User Header (Collapsible) -->
             <div onclick="toggleUserActivitySection('${userId}')" 
-                 style="padding:15px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
+                 class="gradient-header-primary" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;">
                 <div>
                     <h4 style="margin:0;font-size:16px;">👤 ${userData.userName}</h4>
                     <p style="margin:5px 0 0 0;font-size:13px;opacity:0.9;">
@@ -1082,7 +1082,7 @@ function buildReceiveDeviceTab(container) {
                     </div>
                 </div>
                 
-                <div style="background:#fff3e0;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #ff9800;">
+                <div class="alert-card-warning">
                     <p style="margin:0;font-size:14px;">
                         🔄 <strong>Is this a returning repair for the same issue?</strong> 
                         Use the <a href="#" onclick="buildTab('backjob-reception'); return false;" style="color:#ff6f00;text-decoration:underline;font-weight:bold;">Back Job Reception</a> tab instead.
@@ -1167,7 +1167,7 @@ function buildBackJobReceptionTab(container) {
             <h3>🔄 Back Job Reception</h3>
             <p style="color:#666;margin-bottom:20px;">Search for original repair to mark device as returning back job</p>
             
-            <div style="background:#fff3e0;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+            <div class="alert-card-warning">
                 <p style="margin:0;font-size:14px;">
                     <strong>ℹ️ Instructions:</strong> Use this tab when a customer returns with the same issue. 
                     Search for the original repair below, then click "Mark as Back Job" to receive the device.
@@ -1212,8 +1212,8 @@ function buildBackJobReceptionTab(container) {
                                         <div style="flex:1;">
                                             <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
                                                 <h4 style="margin:0;">${r.customerName}</h4>
-                                                ${hasBackJob ? '<span class="status-badge" style="background:#f44336;color:white;">⚠️ Has Back Job</span>' : ''}
-                                                ${warrantyActive ? '<span class="status-badge" style="background:#4caf50;color:white;">🛡️ Warranty Active</span>' : ''}
+                                                ${hasBackJob ? '<span class="status-badge status-badge-danger">⚠️ Has Back Job</span>' : ''}
+                                                ${warrantyActive ? '<span class="status-badge status-badge-success">🛡️ Warranty Active</span>' : ''}
                                             </div>
                                             <p style="font-size:14px;margin:5px 0;">
                                                 📱 ${r.brand} ${r.model}<br>
@@ -1467,7 +1467,7 @@ function buildMyRequestsTab(container) {
                     ${pendingAcknowledgments.sort((a, b) => new Date(b.approvedAt) - new Date(a.approvedAt)).map(refund => {
         const repair = window.allRepairs.find(r => r.id === refund.repairId);
         return `
-                        <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <div class="alert-card-warning" style="box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                             <div style="display:flex;justify-content:space-between;margin-bottom:10px;align-items:center;">
                                 <strong style="color:#e65100;">⚠️ Refund Approved - Commission Reversal</strong>
                                 <span style="background:#ff9800;color:white;padding:4px 12px;border-radius:3px;font-size:12px;font-weight:bold;">
@@ -1595,7 +1595,7 @@ function buildModificationRequestsTab(container) {
                 ${pendingDeletionRequests.length > 0 ? `
                     <h4 style="margin-top:20px;color:#d32f2f;">🗑️ PENDING DELETION REQUESTS (${pendingDeletionRequests.length})</h4>
                     ${pendingDeletionRequests.map(req => `
-                        <div class="deletion-request-card" style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #d32f2f;">
+                        <div class="deletion-request-card alert-card-danger">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                 <strong style="color:#d32f2f;font-size:16px;">🗑️ DELETION REQUEST</strong>
                                 <span style="background:#d32f2f;color:white;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:bold;">
@@ -1614,15 +1614,15 @@ function buildModificationRequestsTab(container) {
                                     <div><strong>Problem:</strong> ${req.repairDetails.problem}</div>
                                 </div>
                             </div>
-                            <div style="background:#fff9c4;padding:10px;border-radius:5px;border-left:3px solid #f57c00;margin-bottom:12px;">
+                            <div class="bg-yellow-light p-10 rounded-sm" style="border-left:3px solid #f57c00;margin-bottom:12px;">
                                 <strong style="color:#e65100;">Deletion Reason:</strong>
                                 <div style="margin-top:5px;color:#333;">${req.reason}</div>
                             </div>
                             <div style="display:flex;gap:10px;">
-                                <button onclick="processDeletionRequest('${req.id}', 'approve')" style="background:#d32f2f;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;font-weight:bold;flex:1;">
+                                <button onclick="processDeletionRequest('${req.id}', 'approve')" class="btn btn-red-dark" style="flex:1;">
                                     ✅ Approve Delete
                                 </button>
-                                <button onclick="processDeletionRequest('${req.id}', 'reject')" style="background:#757575;color:white;padding:10px 20px;border:none;border-radius:5px;cursor:pointer;flex:1;">
+                                <button onclick="processDeletionRequest('${req.id}', 'reject')" class="btn btn-gray" style="flex:1;">
                                     ❌ Reject Request
                                 </button>
                             </div>
@@ -1633,7 +1633,7 @@ function buildModificationRequestsTab(container) {
                 ${pendingOtherRequests.length > 0 ? `
                     <h4 style="margin-top:20px;">⏳ Other Pending Requests (${pendingOtherRequests.length})</h4>
                     ${pendingOtherRequests.map(req => `
-                        <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                        <div class="alert-card-warning">
                             <div style="margin-bottom:10px;">
                                 <strong>${req.requestType === 'payment-date' ? '📅 Payment Date Change' : req.requestType === 'recorded-date' ? '🕒 Recorded Date Change' : '📝 Data Modification'}</strong>
                             </div>
@@ -1646,10 +1646,10 @@ function buildModificationRequestsTab(container) {
                                 <div><strong>Requested:</strong> ${utils.formatDateTime(req.requestedAt)}</div>
                             </div>
                             <div style="display:flex;gap:10px;">
-                                <button onclick="processModificationRequest('${req.id}', 'approve')" style="background:#4caf50;color:white;padding:8px 16px;border:none;border-radius:5px;cursor:pointer;">
+                                <button onclick="processModificationRequest('${req.id}', 'approve')" class="btn btn-success">
                                     ✅ Approve
                                 </button>
-                                <button onclick="processModificationRequest('${req.id}', 'reject')" style="background:#f44336;color:white;padding:8px 16px;border:none;border-radius:5px;cursor:pointer;">
+                                <button onclick="processModificationRequest('${req.id}', 'reject')" class="btn btn-danger">
                                     ❌ Reject
                                 </button>
                             </div>
@@ -1812,7 +1812,7 @@ function buildRefundRequestsTab(container) {
         const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
         const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
         return `
-                        <div style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                        <div class="alert-card-danger">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                 <div>
                                     <strong style="color:#c62828;font-size:16px;">⚠️ Processing Failed</strong>
@@ -1856,7 +1856,7 @@ function buildRefundRequestsTab(container) {
         const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
         const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
         return `
-                        <div style="background:#fff3e0;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                        <div class="alert-card-warning">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                 <div>
                                     <strong style="color:#e65100;font-size:16px;">✅ Approved - Awaiting Tech</strong>
@@ -1891,7 +1891,7 @@ function buildRefundRequestsTab(container) {
                     ${completedRefunds.map(refund => {
             const repair = window.allRepairs.find(r => r.id === refund.repairId);
             return `
-                        <div style="background:#e8f5e9;padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid #4caf50;">
+                        <div class="alert-card-success">
                             <div style="display:flex;justify-content:space-between;font-size:14px;">
                                 <div>
                                     <strong>₱${refund.refundAmount.toFixed(2)}</strong> - ${repair ? repair.customerName : 'N/A'} 
@@ -1909,7 +1909,7 @@ function buildRefundRequestsTab(container) {
                     ${rejectedRefunds.map(refund => {
                 const repair = window.allRepairs.find(r => r.id === refund.repairId);
                 return `
-                        <div style="background:#ffebee;padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid #f44336;">
+                        <div class="alert-card-danger">
                             <div style="display:flex;justify-content:space-between;font-size:14px;">
                                 <div>
                                     <strong>₱${refund.refundAmount.toFixed(2)}</strong> - ${repair ? repair.customerName : 'N/A'}
@@ -1972,15 +1972,15 @@ function buildRefundedDevicesTab(container) {
             <p style="color:#666;margin-bottom:15px;">Complete history of all processed refunds</p>
             
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:20px;">
-                <div style="background:#e3f2fd;padding:15px;border-radius:8px;border-left:4px solid #2196f3;">
+                <div class="alert-card-info">
                     <div style="font-size:14px;color:#666;">Total Refunds</div>
                     <div style="font-size:24px;font-weight:bold;color:#2196f3;">${completedRefunds.length}</div>
                 </div>
-                <div style="background:#fff3e0;padding:15px;border-radius:8px;border-left:4px solid #ff9800;">
+                <div class="alert-card-warning">
                     <div style="font-size:14px;color:#666;">Total Amount Refunded</div>
                     <div style="font-size:24px;font-weight:bold;color:#ff9800;">₱${totalRefundAmount.toFixed(2)}</div>
                 </div>
-                <div style="background:#ffebee;padding:15px;border-radius:8px;border-left:4px solid #f44336;">
+                <div class="alert-card-danger">
                     <div style="font-size:14px;color:#666;">Commission Reversed</div>
                     <div style="font-size:24px;font-weight:bold;color:#f44336;">₱${totalCommissionReversed.toFixed(2)}</div>
                 </div>
@@ -2056,7 +2056,7 @@ function buildRefundedDevicesTab(container) {
                                         </div>
                                     </div>
 
-                                    <div style="background:#fff3e0;padding:10px;border-radius:5px;margin-bottom:10px;border-left:3px solid #ff9800;">
+                                    <div class="alert-card-warning" style="padding:10px;border-left:3px solid #ff9800;">
                                         <div style="font-size:13px;">
                                             <strong>Reason:</strong> ${refund.refundReason.replace('_', ' ').toUpperCase()}
                                         </div>
@@ -2068,7 +2068,7 @@ function buildRefundedDevicesTab(container) {
                                     </div>
 
                                     ${refund.commissionAffected ? `
-                                        <div style="background:#ffebee;padding:10px;border-radius:5px;margin-bottom:10px;border-left:3px solid #f44336;">
+                                        <div class="alert-card-danger" style="padding:10px;border-left:3px solid #f44336;">
                                             <div style="font-size:13px;color:#d32f2f;">
                                                 <strong>⚠️ Commission Impact:</strong> -₱${refund.commissionToReverse.toFixed(2)} deducted from ${tech ? tech.displayName : refund.technicianName || 'technician'}
                                             </div>
@@ -2253,9 +2253,9 @@ function displayRepairsInContainer(repairs, container) {
             <div class="repair-card">
                 <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
                 <span class="status-badge status-${statusClass}">${r.status}</span>
-                ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
+                ${r.isBackJob ? '<span class="status-badge status-badge-danger">🔄 Back Job</span>' : ''}
                 ${!hidePaymentActions ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending' : 'Verified'}</span>` : ''}
-                ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : '<span class="status-badge" style="background:#c5e1a5;color:#33691e;">👤 Walk-in</span>'}
+                ${r.customerType === 'Dealer' ? '<span class="badge-pill badge-pill-warning">🏪 Dealer</span>' : '<span class="badge-pill badge-pill-success">👤 Walk-in</span>'}
                 
                 <div class="repair-info">
                     <div><strong>Contact:</strong> ${r.contactNumber}</div>
@@ -2436,9 +2436,9 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
                                         </div>
                                         <div class="repair-compact-badges">
                                             <span class="status-badge status-${statusClass}">${r.status}</span>
-                                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
-                                            ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="status-badge" style="background:#ff9800;color:white;">⭐ Your Previous Customer</span>' : ''}
-                                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
+                                            ${r.isBackJob ? '<span class="status-badge status-badge-danger">🔄 Back Job</span>' : ''}
+                                            ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="badge-pill badge-pill-warning">⭐ Your Previous Customer</span>' : ''}
+                                            ${r.customerType === 'Dealer' ? '<span class="badge-pill badge-pill-info">🏪 Dealer</span>' : ''}
                                             ${r.initialAssessment ? '<span class="status-badge" style="background:#e3f2fd;color:#1976d2;">📋 Initial Notes</span>' : ''}
                                         </div>
                                         <div class="repair-compact-problem">
@@ -2564,10 +2564,10 @@ function displaySearchableRepairsList(repairs, container) {
                                         </div>
                                         <div class="repair-compact-badges">
                                             <span class="status-badge status-${statusClass}">${r.status}</span>
-                                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
-                                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
-                                            ${r.initialAssessment ? '<span class="status-badge" style="background:#e3f2fd;color:#1976d2;">📋 Initial Notes</span>' : ''}
-                                            ${balance > 0 ? `<span class="status-badge" style="background:#fff3e0;color:#e65100;">₱${balance.toFixed(0)} balance</span>` : '<span class="status-badge" style="background:#e8f5e9;color:#2e7d32;">✓ Paid</span>'}
+                                            ${r.isBackJob ? '<span class="status-badge status-badge-danger">🔄 Back Job</span>' : ''}
+                                            ${r.customerType === 'Dealer' ? '<span class="badge-pill badge-pill-info">🏪 Dealer</span>' : ''}
+                                            ${r.initialAssessment ? '<span class="badge-pill badge-pill-info">📋 Initial Notes</span>' : ''}
+                                            ${balance > 0 ? `<span class="badge-pill badge-pill-warning">₱${balance.toFixed(0)} balance</span>` : '<span class="badge-pill badge-pill-success">✓ Paid</span>'}
                                         </div>
                                         <div class="repair-compact-problem">
                                             <strong>Problem:</strong> ${problemPreview}
@@ -2705,9 +2705,9 @@ function displayCompactRepairsList(repairs, container, context = 'default') {
                         </div>
                         <div class="repair-compact-badges">
                             <span class="status-badge status-${statusClass}">${r.status}</span>
-                            ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
-                            ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="status-badge" style="background:#ff9800;color:white;">⭐ Your Previous Customer</span>' : ''}
-                            ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
+                            ${r.isBackJob ? '<span class="status-badge status-badge-danger">🔄 Back Job</span>' : ''}
+                            ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="badge-pill badge-pill-warning">⭐ Your Previous Customer</span>' : ''}
+                            ${r.customerType === 'Dealer' ? '<span class="badge-pill badge-pill-info">🏪 Dealer</span>' : ''}
                         </div>
                         <div class="repair-compact-problem">
                             <strong>Problem:</strong> ${problemPreview}
@@ -3564,7 +3564,7 @@ function buildMyCompletedDevicesTab(container) {
                             ${myReadyDevices.length}
                         </span>
                     </h3>
-                    <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #2196f3;">
+                    <div class="alert-card-info">
                         <strong>📱 Status:</strong> Repair completed, waiting for customer to pick up
                     </div>
                     <div id="myReadyDevicesList"></div>
@@ -3580,7 +3580,7 @@ function buildMyCompletedDevicesTab(container) {
                             ${myReleasedDevices.length}
                         </span>
                     </h3>
-                    <div style="background:#fff3e0;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ff9800;">
+                    <div class="alert-card-warning">
                         <strong>⏰ Auto-Finalize:</strong> These devices will automatically move to "Claimed" at 6:00 PM Manila time.
                         <br><strong>💡 Tip:</strong> You can finalize now and optionally collect payment.
                     </div>
@@ -3679,7 +3679,7 @@ function buildMyClaimedDevicesTab(container) {
                         </p>
                     </div>
                 ` : `
-                    <div style="background:#e8f5e9;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #4caf50;">
+                    <div class="alert-card-success">
                         <strong>✅ Status:</strong> These repairs are fully completed, paid, and customer has picked up the device.
                     </div>
                     <div id="myClaimedDevicesList"></div>
@@ -3777,7 +3777,7 @@ function buildCashCountTab(container) {
             </div>
             
             <!-- Payments Section -->
-            <div class="card" style="background:#e8f5e9;margin-bottom:15px;">
+            <div class="card alert-card-success" style="margin-bottom:15px;">
                 <h4 style="margin:0 0 15px;color:#2e7d32;">💵 Payments Collected</h4>
                 <div style="font-size:24px;font-weight:bold;color:#2e7d32;margin-bottom:15px;">
                     ₱${cashData.totals.payments.toFixed(2)}
@@ -3802,7 +3802,7 @@ function buildCashCountTab(container) {
             </div>
             
             <!-- Expenses Section -->
-            <div class="card" style="background:#ffebee;margin-bottom:15px;">
+            <div class="card alert-card-danger" style="margin-bottom:15px;">
                 <h4 style="margin:0 0 15px;color:#c62828;">💸 Expenses</h4>
                 <div style="font-size:24px;font-weight:bold;color:#c62828;margin-bottom:15px;">
                     ₱${cashData.totals.expenses.toFixed(2)}
@@ -3894,31 +3894,39 @@ function renderHistoricalCashCounts() {
     return `
         <div class="card" style="margin-top:20px;">
             <h4 style="margin:0 0 15px;">📚 Recent Locked Days</h4>
-            <div style="overflow-x:auto;">
+            
+            <!-- Table/Card View Toggle -->
+            <div class="table-view-toggle">
+                <button onclick="toggleTableView('cash-count-table')" class="btn btn-small" id="cash-count-view-toggle">
+                    <span id="cash-count-toggle-text">📱 Card View</span>
+                </button>
+            </div>
+            
+            <!-- Desktop Table View -->
+            <div id="cash-count-table-view" class="table-responsive">
                 <table style="width:100%;border-collapse:collapse;">
                     <thead>
-                        <tr style="background:#f5f5f5;text-align:left;">
-                            <th style="padding:10px;border-bottom:2px solid #ddd;">Date</th>
-                            <th style="padding:10px;border-bottom:2px solid #ddd;">Payments</th>
-                            <th style="padding:10px;border-bottom:2px solid #ddd;">Expenses</th>
-                            <th style="padding:10px;border-bottom:2px solid #ddd;">Net</th>
-                            <th style="padding:10px;border-bottom:2px solid #ddd;">Locked By</th>
-                            <th style="padding:10px;border-bottom:2px solid #ddd;">Action</th>
+                        <tr class="bg-gray-50" style="text-align:left;">
+                            <th class="p-10" style="border-bottom:2px solid var(--border-color);">Date</th>
+                            <th class="p-10" style="border-bottom:2px solid var(--border-color);">Payments</th>
+                            <th class="p-10" style="border-bottom:2px solid var(--border-color);">Expenses</th>
+                            <th class="p-10" style="border-bottom:2px solid var(--border-color);">Net</th>
+                            <th class="p-10" style="border-bottom:2px solid var(--border-color);">Locked By</th>
+                            <th class="p-10" style="border-bottom:2px solid var(--border-color);">Action</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${lockedDays.map(([date, data]) => `
-                            <tr style="border-bottom:1px solid #eee;">
-                                <td style="padding:10px;">${utils.formatDate(date)}</td>
-                                <td style="padding:10px;color:#2e7d32;">₱${data.totalPayments.toFixed(0)}</td>
-                                <td style="padding:10px;color:#c62828;">₱${data.totalExpenses.toFixed(0)}</td>
-                                <td style="padding:10px;font-weight:bold;color:${data.netRevenue >= 0 ? '#1976d2' : '#f57c00'};">
+                            <tr style="border-bottom:1px solid var(--border-light);">
+                                <td class="p-10">${utils.formatDate(date)}</td>
+                                <td class="p-10" style="color:#2e7d32;">₱${data.totalPayments.toFixed(0)}</td>
+                                <td class="p-10" style="color:#c62828;">₱${data.totalExpenses.toFixed(0)}</td>
+                                <td class="p-10 text-bold" style="color:${data.netRevenue >= 0 ? '#1976d2' : '#f57c00'};">
                                     ₱${data.netRevenue.toFixed(0)}
                                 </td>
-                                <td style="padding:10px;font-size:13px;color:#666;">${data.lockedByName || 'Unknown'}</td>
-                                <td style="padding:10px;">
-                                    <button onclick="viewLockedDay('${date}')" 
-                                            style="padding:6px 12px;background:#2196f3;color:white;border:none;border-radius:4px;cursor:pointer;font-size:13px;">
+                                <td class="p-10 text-sm text-muted">${data.lockedByName || 'Unknown'}</td>
+                                <td class="p-10">
+                                    <button onclick="viewLockedDay('${date}')" class="btn btn-primary" style="font-size:13px;">
                                         View
                                     </button>
                                 </td>
@@ -3926,6 +3934,33 @@ function renderHistoricalCashCounts() {
                         `).join('')}
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- Mobile Card View -->
+            <div id="cash-count-card-view" class="mobile-card-view" style="display:none;">
+                ${lockedDays.map(([date, data]) => `
+                    <div class="cash-count-card">
+                        <div class="card-date-header">${utils.formatDate(date)}</div>
+                        <div class="card-row">
+                            <span class="label">Payments:</span>
+                            <span class="value" style="color:#2e7d32;">₱${data.totalPayments.toFixed(0)}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="label">Expenses:</span>
+                            <span class="value" style="color:#c62828;">₱${data.totalExpenses.toFixed(0)}</span>
+                        </div>
+                        <div class="card-row">
+                            <span class="label">Net:</span>
+                            <span class="value text-bold" style="color:${data.netRevenue >= 0 ? '#1976d2' : '#f57c00'};">
+                                ₱${data.netRevenue.toFixed(0)}
+                            </span>
+                        </div>
+                        <div class="card-footer">
+                            <span class="text-muted-sm">Locked by: ${data.lockedByName || 'Unknown'}</span>
+                            <button onclick="viewLockedDay('${date}')" class="btn btn-primary btn-small">View</button>
+                        </div>
+                    </div>
+                `).join('')}
             </div>
         </div>
     `;
@@ -3988,19 +4023,19 @@ function buildUsersTab(container) {
         
         <!-- Summary Stats -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:20px 0;">
-            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+            <div class="stat-card alert-card-info">
                 <h3>${users.length}</h3>
                 <p>Total Users</p>
             </div>
-            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+            <div class="stat-card alert-card-success">
                 <h3>${activeUsers.length}</h3>
                 <p>✅ Active</p>
             </div>
-            <div class="stat-card" style="background:#ffebee;border-left:4px solid #f44336;">
+            <div class="stat-card alert-card-danger">
                 <h3>${inactiveUsers.length}</h3>
                 <p>❌ Inactive</p>
             </div>
-            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+            <div class="stat-card alert-card-warning">
                 <h3>${technicians.length}</h3>
                 <p>🔧 Technicians</p>
             </div>
@@ -4173,7 +4208,7 @@ function buildAdminToolsTab(container) {
             
             <!-- 4. RESET FUNCTIONS -->
             ${isLocked ? `
-                <div style="background:#fff9c4;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+                <div class="bg-yellow-light" style="padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
                     <strong>🔒 Today is Locked</strong>
                     <p style="margin:5px 0 0;">To make changes, go to the <strong>Cash Count</strong> tab and unlock today's date first.</p>
                 </div>
@@ -4216,12 +4251,12 @@ function buildAdminToolsTab(container) {
             
             <!-- 5. MASTER RESET (Danger Zone) -->
             <div class="collapsible-section" style="margin-bottom:15px;">
-                <div onclick="toggleAdminSection('masterReset')" style="background:#ffebee;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #b71c1c;">
+                <div onclick="toggleAdminSection('masterReset')" class="alert-card-danger" style="padding:12px 15px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #b71c1c;">
                     <strong>🗑️ Master Reset (Danger Zone)</strong>
                     <span id="masterReset-icon">▼</span>
                 </div>
                 <div id="masterReset-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
-                    <div style="background:#ffebee;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #f44336;">
+                    <div class="alert-card-danger">
                         <strong style="color:#d32f2f;">⚠️ EXTREME CAUTION REQUIRED</strong>
                         <p style="margin:5px 0 0;font-size:13px;">
                             Master Reset allows you to permanently delete ALL data from the system:
@@ -4288,7 +4323,7 @@ function buildAdminToolsTab(container) {
             </div>
             
             <!-- BACKUP INFO (Always Visible) -->
-            <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;">
+            <div class="form-group alert-card-info">
                 <h4 style="margin:0 0 10px;">💾 Data Safety</h4>
                 <ul style="margin:5px 0;padding-left:20px;font-size:13px;">
                     <li>All resets require your password</li>
@@ -4358,20 +4393,28 @@ function buildUnpaidDevicesFixSection() {
                     </div>
                 </div>
             ` : `
-                <div style="background:#fff3cd;padding:15px;border-radius:8px;border-left:4px solid #ffc107;margin-bottom:15px;">
+                <div class="alert-card-warning" style="margin-bottom:15px;">
                     <strong style="color:#856404;">⚠️ ${unpaidDevices.length} Device${unpaidDevices.length !== 1 ? 's' : ''} Released Without Payment Records</strong>
                     <div style="font-size:13px;color:#856404;margin-top:4px;">Total outstanding balance: ₱${totalBalance.toFixed(2)}</div>
                 </div>
                 
-                <div style="max-height:400px;overflow-y:auto;background:white;border-radius:8px;border:1px solid #ddd;">
+                <!-- Table/Card View Toggle -->
+                <div class="table-view-toggle">
+                    <button onclick="toggleTableView('unpaid-devices-table')" class="btn btn-small" id="unpaid-devices-view-toggle">
+                        <span id="unpaid-devices-toggle-text">📱 Card View</span>
+                    </button>
+                </div>
+                
+                <!-- Desktop Table View -->
+                <div id="unpaid-devices-table-view" class="table-responsive" style="max-height:400px;overflow-y:auto;">
                     <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                        <thead style="position:sticky;top:0;background:#f8f9fa;border-bottom:2px solid #ddd;">
+                        <thead style="position:sticky;top:0;background:var(--bg-gray-100);border-bottom:2px solid var(--border-color);">
                             <tr>
-                                <th style="padding:10px;text-align:left;border-right:1px solid #ddd;">Device</th>
-                                <th style="padding:10px;text-align:left;border-right:1px solid #ddd;">Customer</th>
-                                <th style="padding:10px;text-align:right;border-right:1px solid #ddd;">Balance</th>
-                                <th style="padding:10px;text-align:center;border-right:1px solid #ddd;">Status</th>
-                                <th style="padding:10px;text-align:center;">Action</th>
+                                <th class="p-10" style="text-align:left;border-right:1px solid var(--border-color);">Device</th>
+                                <th class="p-10" style="text-align:left;border-right:1px solid var(--border-color);">Customer</th>
+                                <th class="p-10" style="text-align:right;border-right:1px solid var(--border-color);">Balance</th>
+                                <th class="p-10" style="text-align:center;border-right:1px solid var(--border-color);">Status</th>
+                                <th class="p-10" style="text-align:center;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -4379,31 +4422,29 @@ function buildUnpaidDevicesFixSection() {
         const totalPaid = (r.payments || []).reduce((s, p) => s + p.amount, 0);
         const balance = r.total - totalPaid;
         return `
-                                    <tr style="border-bottom:1px solid #eee;">
-                                        <td style="padding:10px;border-right:1px solid #eee;">
-                                            <div style="font-weight:600;">${r.brand} ${r.model}</div>
-                                            <div style="font-size:11px;color:#666;">${r.id}</div>
+                                    <tr style="border-bottom:1px solid var(--border-light);">
+                                        <td class="p-10" style="border-right:1px solid var(--border-light);">
+                                            <div class="text-bold">${r.brand} ${r.model}</div>
+                                            <div class="text-xs text-muted">${r.id}</div>
                                         </td>
-                                        <td style="padding:10px;border-right:1px solid #eee;">
+                                        <td class="p-10" style="border-right:1px solid var(--border-light);">
                                             <div>${r.customerName}</div>
-                                            <div style="font-size:11px;color:#666;">${r.contactNumber}</div>
+                                            <div class="text-xs text-muted">${r.contactNumber}</div>
                                         </td>
-                                        <td style="padding:10px;text-align:right;border-right:1px solid #eee;">
+                                        <td class="p-10" style="text-align:right;border-right:1px solid var(--border-light);">
                                             <strong style="color:#f44336;">₱${balance.toFixed(2)}</strong>
-                                            <div style="font-size:11px;color:#666;">Total: ₱${r.total.toFixed(2)}</div>
+                                            <div class="text-xs text-muted">Total: ₱${r.total.toFixed(2)}</div>
                                         </td>
-                                        <td style="padding:10px;text-align:center;border-right:1px solid #eee;">
-                                            <span style="background:${r.status === 'Released' ? '#ff9800' : '#4caf50'};color:white;padding:3px 8px;border-radius:3px;font-size:11px;">
+                                        <td class="p-10" style="text-align:center;border-right:1px solid var(--border-light);">
+                                            <span class="badge-pill ${r.status === 'Released' ? 'badge-pill-warning' : 'badge-pill-success'}">
                                                 ${r.status}
                                             </span>
-                                            <div style="font-size:10px;color:#666;margin-top:3px;">
+                                            <div class="text-xs text-muted" style="margin-top:3px;">
                                                 ${utils.formatDate(r.releasedAt || r.completedAt)}
                                             </div>
                                         </td>
-                                        <td style="padding:10px;text-align:center;">
-                                            <button onclick="recordMissingPaymentForDevice('${r.id}')" 
-                                                class="btn-small btn-primary" 
-                                                style="font-size:11px;padding:5px 10px;">
+                                        <td class="p-10" style="text-align:center;">
+                                            <button onclick="recordMissingPaymentForDevice('${r.id}')" class="btn btn-primary btn-small">
                                                 💳 Add Payment
                                             </button>
                                         </td>
@@ -4414,8 +4455,43 @@ function buildUnpaidDevicesFixSection() {
                     </table>
                 </div>
                 
-                <div style="margin-top:15px;padding:15px;background:#f8f9fa;border-radius:8px;">
-                    <p style="font-size:13px;color:#666;margin:0 0 10px;">
+                <!-- Mobile Card View -->
+                <div id="unpaid-devices-card-view" class="mobile-card-view" style="display:none;">
+                    ${unpaidDevices.map(r => {
+        const totalPaid = (r.payments || []).reduce((s, p) => s + p.amount, 0);
+        const balance = r.total - totalPaid;
+        return `
+                        <div class="collections-card">
+                            <div class="card-header-dual">
+                                <div class="device-info">
+                                    <strong>${r.brand} ${r.model}</strong>
+                                    <span class="text-muted-sm">${r.id}</span>
+                                </div>
+                                <span class="badge-pill ${r.status === 'Released' ? 'badge-pill-warning' : 'badge-pill-success'}">
+                                    ${r.status}
+                                </span>
+                            </div>
+                            <div class="customer-info">
+                                <span>${r.customerName}</span>
+                                <span class="text-muted-sm">${r.contactNumber}</span>
+                            </div>
+                            <div class="balance-section">
+                                <div class="balance-main" style="color:#f44336;">₱${balance.toFixed(2)} Balance</div>
+                                <div class="text-muted-sm">Total: ₱${r.total.toFixed(2)}</div>
+                            </div>
+                            <div class="card-footer">
+                                <span class="text-muted-sm">${utils.formatDate(r.releasedAt || r.completedAt)}</span>
+                                <button onclick="recordMissingPaymentForDevice('${r.id}')" class="btn btn-primary btn-small">
+                                    💳 Add Payment
+                                </button>
+                            </div>
+                        </div>
+                    `;
+    }).join('')}
+                </div>
+                
+                <div class="bg-gray-100 p-15 rounded-md" style="margin-top:15px;">
+                    <p class="text-sm text-muted" style="margin:0 0 10px;">
                         📝 <strong>Note:</strong> These devices were released without payment checkbox being marked. 
                         Use the "Add Payment" button to record missing payments for each device.
                     </p>
@@ -4698,7 +4774,7 @@ function buildTodayTransactionsSection() {
 
     if (totalTransactions === 0) {
         return `
-            <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
+            <div class="form-group alert-card-success">
                 <h4 style="margin:0 0 10px;">💳 Today's Transactions</h4>
                 <p style="color:#2e7d32;margin:0;">✅ No transactions recorded today</p>
             </div>
@@ -4774,7 +4850,7 @@ function buildTodayTransactionsSection() {
     }).join('') : '<p style="color:#999;font-size:13px;">No expenses today</p>';
 
     return `
-        <div class="form-group" style="background:#e3f2fd;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #2196f3;">
+        <div class="form-group alert-card-info">
             <h4 style="margin:0 0 10px;">💳 Today's Transactions (Individual Delete)</h4>
             
             <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
@@ -4961,7 +5037,7 @@ function buildPendingRemittancesSection() {
 
     if (pendingRemittances.length === 0) {
         return `
-            <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
+            <div class="form-group alert-card-success">
                 <h4 style="margin:0 0 10px;">💰 Pending Remittances</h4>
                 <p style="color:#2e7d32;margin:0;">✅ All remittances verified! No pending remittances.</p>
             </div>
@@ -5075,7 +5151,7 @@ function buildDataIntegritySection() {
 
     if (totalIssues === 0) {
         return `
-            <div class="form-group" style="background:#e8f5e9;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #4caf50;">
+            <div class="form-group alert-card-success">
                 <h4 style="margin:0 0 10px;">🔍 Data Integrity Check</h4>
                 <p style="color:#2e7d32;margin:0;">✅ All clear! No data integrity issues found.</p>
             </div>
@@ -5144,7 +5220,7 @@ function buildDataIntegritySection() {
         }).join('');
 
     return `
-        <div class="form-group" style="background:#ffebee;padding:15px;border-radius:5px;margin-top:20px;border-left:4px solid #f44336;">
+        <div class="form-group alert-card-danger">
             <h4 style="margin:0 0 10px;">🔍 Data Integrity Check</h4>
             
             <div style="background:#fff;padding:10px;border-radius:5px;margin-bottom:15px;">
@@ -5259,7 +5335,7 @@ function buildActivityLogsTab(container) {
         <div class="card">
             <h3>📋 Activity Logs</h3>
             
-            <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:20px;">
+            <div class="alert-card-info" style="margin-bottom:20px;">
                 <strong>Total Logs:</strong> ${sortedLogs.length} activities
                 ${filteredLogs.length !== sortedLogs.length ? `<span style="color:#2196f3;"> (${filteredLogs.length} shown after filters)</span>` : ''}
             </div>
@@ -5664,7 +5740,7 @@ function buildDailyRemittanceTab(container) {
         
         <!-- REJECTED REMITTANCES ALERT -->
         ${rejectedRemittances.length > 0 ? `
-            <div class="card" style="background:#ffebee;border-left:4px solid #f44336;margin:20px 0;">
+            <div class="card alert-card-danger" style="margin:20px 0;">
                 <h3 style="color:#c62828;">⚠️ Rejected Remittances (${rejectedRemittances.length})</h3>
                 <p style="color:#666;margin-bottom:15px;">These remittances were rejected and need to be resubmitted</p>
                 
@@ -5690,7 +5766,7 @@ function buildDailyRemittanceTab(container) {
                             </span>
                         </div>
                         
-                        <div style="background:#ffebee;padding:12px;border-radius:8px;margin:10px 0;">
+                        <div class="alert-card-danger" style="margin:10px 0;">
                             <strong style="color:#c62828;">Rejection Reason:</strong>
                             <p style="margin:8px 0 0 0;color:#666;">${r.verificationNotes || 'No reason provided'}</p>
                         </div>
@@ -5750,7 +5826,7 @@ function buildDailyRemittanceTab(container) {
                             </div>
                             
                             ${r.totalCommission > 0 ? `
-                                <div style="background:#e8f5e9;padding:10px;border-radius:6px;margin-top:10px;font-size:13px;">
+                                <div class="alert-card-success" style="padding:10px;margin-top:10px;font-size:13px;">
                                     💰 Commission: ₱${r.totalCommission.toFixed(2)} (${r.commissionPaymentPreference || 'Not specified'})
                                 </div>
                             ` : ''}
@@ -5762,7 +5838,7 @@ function buildDailyRemittanceTab(container) {
         
         <!-- APPROVED COMMISSIONS AWAITING PAYMENT -->
         ${approvedCommissions.length > 0 ? `
-            <div class="card" style="background:#e8f5e9;border-left:4px solid #4caf50;margin:20px 0;">
+            <div class="card alert-card-success" style="margin:20px 0;">
                 <h3 style="color:#2e7d32;">💰 Approved Commissions Awaiting Payment (${approvedCommissions.length})</h3>
                 <p style="color:#666;margin-bottom:15px;">These commissions have been approved. Mark as received when you get paid.</p>
                 
@@ -5833,7 +5909,7 @@ function buildDailyRemittanceTab(container) {
         ` : ''}
         
         <!-- Today's Summary -->
-        <div style="background:#e3f2fd;padding:20px;border-radius:10px;border-left:4px solid #2196f3;margin:20px 0;">
+        <div class="alert-card-info" style="padding:20px;margin:20px 0;">
             <h3 style="margin-top:0;">📅 Today - ${utils.formatDate(today)}</h3>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:15px 0;">
                 <div>
@@ -6195,7 +6271,7 @@ function buildDailyRemittanceTab(container) {
                                         
                                         <!-- Rejection Reason -->
                                         ${r.status === 'rejected' && r.verificationNotes ? `
-                                            <div style="background:#ffebee;padding:12px;border-radius:6px;margin-bottom:15px;">
+                                            <div class="alert-card-danger" style="margin-bottom:15px;">
                                                 <strong style="color:#c62828;">Rejection Reason:</strong>
                                                 <p style="margin:8px 0 0 0;color:#666;">${r.verificationNotes}</p>
                                             </div>
@@ -6213,7 +6289,7 @@ function buildDailyRemittanceTab(container) {
                                                         Confirmed: ${utils.formatDateTime(r.commissionPaidAt)}
                                                     </div>
                                                     ${r.hasCommissionDiscrepancy ? `
-                                                        <div style="background:#ffebee;padding:8px;border-radius:4px;margin-top:8px;">
+                                                        <div class="alert-card-danger" style="padding:8px;margin-top:8px;">
                                                             <strong style="color:#c62828;">⚠️ Discrepancy Reported</strong>
                                                         </div>
                                                     ` : ''}
@@ -6463,7 +6539,7 @@ function buildRemittanceVerificationTab(container) {
                 <small>GCash reports awaiting verification</small>
             </div>
             ${isAdmin ? `
-                <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                <div class="stat-card alert-card-info">
                     <h3>${cashForOthers.length}</h3>
                     <p>👥 For Others</p>
                     <small>Submitted to other staff</small>
@@ -6475,7 +6551,7 @@ function buildRemittanceVerificationTab(container) {
                     <small>Cannot verify these</small>
                 </div>
             ` : ''}
-            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+            <div class="stat-card alert-card-success">
                 <h3>₱${([...cashForMe, ...gcashForMe].reduce((sum, r) => sum + (r.actualAmount || r.totalPaymentsCollected || 0), 0)).toFixed(2)}</h3>
                 <p>💰 Total For Me</p>
                 <small>Combined amount awaiting verification</small>
@@ -6599,7 +6675,7 @@ function buildRemittanceVerificationTab(container) {
                 </div>
             </div>
         ` : `
-            <div class="card" style="background:#e8f5e9;margin:20px 0;">
+            <div class="card alert-card-success" style="margin:20px 0;">
                 <p style="text-align:center;color:#4caf50;padding:20px;">
                     ✅ No remittances submitted to you
                 </p>
@@ -6813,22 +6889,22 @@ function buildTechnicianLogsTab(container) {
         
         <!-- Summary Stats -->
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin:20px 0;">
-            <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+            <div class="stat-card alert-card-success">
                 <h3>₱${totalCollected.toFixed(2)}</h3>
                 <p>💰 Total Collected</p>
                 <small>${techPayments.length} payment(s)</small>
             </div>
-            <div class="stat-card" style="background:#ffebee;border-left:4px solid #f44336;">
+            <div class="stat-card alert-card-danger">
                 <h3>₱${totalExpenses.toFixed(2)}</h3>
                 <p>💸 Total Expenses</p>
                 <small>${techExpenses.length} expense(s)</small>
             </div>
-            <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+            <div class="stat-card alert-card-info">
                 <h3>₱${totalRemitted.toFixed(2)}</h3>
                 <p>✅ Total Remitted</p>
                 <small>${techRemittances.filter(r => r.status === 'approved').length} approved</small>
             </div>
-            <div class="stat-card" style="background:#fff3e0;border-left:4px solid #ff9800;">
+            <div class="stat-card alert-card-warning">
                 <h3>₱${pendingRemittance.toFixed(2)}</h3>
                 <p>⏳ Pending Remittance</p>
                 <small>Not yet submitted</small>
@@ -8749,7 +8825,7 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
         </div>
         
         ${totalBackJobs === 0 ? `
-            <div style="background:#e8f5e9;padding:20px;border-radius:12px;text-align:center;border-left:4px solid #4caf50;margin-bottom:25px;">
+            <div class="alert-card-success" style="padding:20px;text-align:center;margin-bottom:25px;">
                 <h2 style="color:#4caf50;font-size:48px;margin:0;">✅</h2>
                 <h4 style="margin:10px 0;color:#2e7d32;">Excellent Quality!</h4>
                 <p style="color:#666;margin:5px 0;">No back jobs recorded in this period. Keep up the great work!</p>
@@ -10497,7 +10573,7 @@ function generateQuarterlySummary() {
                 
                 <!-- Summary Cards -->
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
-                    <div style="background:#e3f2fd;padding:15px;border-radius:8px;">
+                    <div class="alert-card-info">
                         <div style="color:#666;font-size:12px;margin-bottom:5px;">Total Revenue</div>
                         <div style="font-size:24px;font-weight:bold;color:#2196f3;">₱${pl.revenue.totalRevenue.toFixed(2)}</div>
                         <div style="color:#999;font-size:11px;">${pl.revenue.repairCount} repairs</div>
@@ -10756,5 +10832,55 @@ window.fixDataIssues = fixDataIssues;
 window.showCleanupHistory = showCleanupHistory;
 window.undoCleanupById = undoCleanupById;
 window.updateExportSchedule = updateExportSchedule;
+
+/**
+ * Toggle between table and card view for responsive tables
+ * @param {string} tableId - The ID prefix of the table (e.g., 'cash-count-table')
+ */
+function toggleTableView(tableId) {
+    const tableView = document.getElementById(`${tableId}-view`);
+    const cardView = document.getElementById(`${tableId.replace('-table', '')}-card-view`);
+    const toggleButton = document.getElementById(`${tableId.replace('-table', '')}-view-toggle`);
+    const toggleText = document.getElementById(`${tableId.replace('-table', '')}-toggle-text`);
+    
+    if (!tableView || !cardView) return;
+    
+    // Check current state
+    const isCardView = cardView.style.display !== 'none';
+    
+    if (isCardView) {
+        // Switch to table view
+        tableView.style.display = 'block';
+        cardView.style.display = 'none';
+        if (toggleText) toggleText.textContent = '📱 Card View';
+        localStorage.setItem(`${tableId}-view-mode`, 'table');
+    } else {
+        // Switch to card view
+        tableView.style.display = 'none';
+        cardView.style.display = 'block';
+        if (toggleText) toggleText.textContent = '📊 Table View';
+        localStorage.setItem(`${tableId}-view-mode`, 'cards');
+    }
+}
+
+/**
+ * Initialize table view based on saved preference or screen size
+ * @param {string} tableId - The ID prefix of the table
+ */
+function initTableView(tableId) {
+    const savedMode = localStorage.getItem(`${tableId}-view-mode`);
+    const isMobile = window.innerWidth <= 768;
+    
+    // Auto-switch to card view on mobile if no preference saved
+    if (!savedMode && isMobile) {
+        toggleTableView(tableId);
+    } else if (savedMode === 'cards') {
+        toggleTableView(tableId);
+    }
+}
+
+// Export table toggle functions
+window.toggleTableView = toggleTableView;
+window.initTableView = initTableView;
 
 console.log('✅ ui.js loaded');

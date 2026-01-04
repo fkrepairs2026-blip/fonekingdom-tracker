@@ -433,8 +433,7 @@
             <div id="remittanceSummary" style="margin:20px 0;"></div>
 
             <!-- Recipient Selection -->
-            <div class="form-group"
-                style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+            <div class="form-group alert-card-warning">
                 <label style="font-weight:bold;color:#f57c00;">👤 Who are you giving this money to? *</label>
                 <select id="remittanceRecipient" required
                     style="width:100%;padding:10px;border:1px solid #ddd;border-radius:5px;margin-top:8px;font-size:15px;">
@@ -447,8 +446,7 @@
             </div>
 
             <!-- Manual Override Section -->
-            <div
-                style="background:#fff3cd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #ff9800;">
+            <div class="alert-card-warning">
                 <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
                     <input type="checkbox" id="hasManualCommission" onchange="toggleManualCommissionFields()">
                     <span style="font-weight:600;">⚠️ I believe the commission calculation is incorrect</span>
@@ -535,8 +533,7 @@
 
             <!-- WITH SERVICE SLIP Section -->
             <div id="withSlipSection">
-                <div
-                    style="background:#e8f5e9;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #4caf50;">
+                <div class="alert-card-success">
                     <strong>✅ Service Slip Verification</strong>
                     <p style="margin:10px 0 0 0;font-size:14px;">
                         Customer has physical service slip. Take photo for records.
@@ -577,7 +574,7 @@
             </div>
 
             <!-- Customer Confirmation (Always shown) -->
-            <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:20px 0;">
+            <div class="bg-gray-50 p-15 rounded-md" style="margin:20px 0;">
                 <h4 style="margin:0 0 15px 0;">Customer Confirmation</h4>
 
                 <div class="form-group">
@@ -701,8 +698,7 @@
 
             <input type="hidden" id="finalizeRepairId">
 
-            <div
-                style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #2196f3;">
+            <div class="alert-card-info">
                 <p style="margin:0;font-size:14px;">
                     📋 Device is currently in <strong style="color:#ff9800;">Released</strong> status.
                     Finalize to mark as <strong style="color:#4caf50;">Claimed</strong> and activate warranty.
@@ -779,7 +775,7 @@
                     placeholder="Any final notes or warranty conditions..."></textarea>
             </div>
 
-            <div style="background:#fff3cd;padding:12px;border-radius:6px;margin:15px 0;border-left:3px solid #ffc107;">
+            <div class="alert-card-warning" style="margin:15px 0;padding:12px;border-radius:6px;">
                 <small style="color:#856404;">
                     ⚠️ This will mark the device as Claimed and activate the warranty period.
                 </small>
@@ -803,11 +799,11 @@
 
             <input type="hidden" id="backJobOriginalRepairId">
 
-            <div id="backJobOriginalDetails" style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:20px;">
+            <div id="backJobOriginalDetails" class="bg-gray-50 p-15 rounded-md mb-20">
                 <!-- Original repair details will be populated here -->
             </div>
 
-            <div style="background:#ffebee;padding:15px;border-radius:8px;margin-bottom:20px;border-left:4px solid #f44336;">
+            <div class="alert-card-danger">
                 <p style="margin:0;font-size:14px;">
                     <strong>⚠️ Important:</strong> This will create a new repair entry for this returning device. 
                     The repair will be auto-assigned to the original technician and marked as warranty work (no customer payment).
@@ -831,7 +827,7 @@
                     placeholder="Any additional information about the device condition..."></textarea>
             </div>
 
-            <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin:15px 0;border-left:4px solid #2196f3;">
+            <div class="alert-card-info" style="margin:15px 0;">
                 <p style="margin:0;font-size:13px;">
                     <strong>📋 What happens next:</strong>
                 </p>
@@ -1003,7 +999,7 @@
             <form id="editUserForm" onsubmit="updateUser(event)">
                 <div class="form-group">
                     <label>Email Address</label>
-                    <input type="email" id="editUserEmail" disabled style="background:#f5f5f5;cursor:not-allowed;">
+                    <input type="email" id="editUserEmail" disabled class="bg-gray-50" style="cursor:not-allowed;">
                     <small style="color:#999;">Email cannot be changed (Firebase limitation)</small>
                 </div>
 
@@ -1071,8 +1067,7 @@
 
             <input type="hidden" id="compensationUserId">
 
-            <div
-                style="background:#e3f2fd;padding:15px;border-radius:5px;margin-bottom:20px;border-left:4px solid #2196f3;">
+            <div class="alert-card-info mb-20">
                 <div style="font-weight:600;margin-bottom:5px;">👤 <span id="compensationUserName"></span></div>
                 <div style="font-size:13px;color:#666;">Role: <span id="compensationUserRole"></span></div>
             </div>

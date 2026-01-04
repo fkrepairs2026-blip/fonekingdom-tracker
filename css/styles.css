@@ -171,6 +171,84 @@
     --shadow-card-hover: 0 8px 16px rgba(139, 154, 255, 0.2);
 }
 
+/* Dark Mode Utility Class Overrides */
+[data-theme="dark"] .bg-warning-light {
+    background: #7c2d12;
+}
+
+[data-theme="dark"] .bg-danger-light {
+    background: #742a2a;
+}
+
+[data-theme="dark"] .bg-success-light {
+    background: #276749;
+}
+
+[data-theme="dark"] .bg-info-light {
+    background: #2c5282;
+}
+
+[data-theme="dark"] .bg-purple-light {
+    background: #553c9a;
+}
+
+[data-theme="dark"] .bg-yellow-light {
+    background: #78350f;
+}
+
+[data-theme="dark"] .bg-amber-light {
+    background: #78350f;
+}
+
+[data-theme="dark"] .bg-gray-50 {
+    background: #2d3748;
+}
+
+[data-theme="dark"] .bg-gray-100 {
+    background: #4a5568;
+}
+
+[data-theme="dark"] .alert-card-warning {
+    background: #7c2d12;
+    border-left-color: #ed8936;
+}
+
+[data-theme="dark"] .alert-card-danger {
+    background: #742a2a;
+    border-left-color: #fc8181;
+}
+
+[data-theme="dark"] .alert-card-success {
+    background: #276749;
+    border-left-color: #48bb78;
+}
+
+[data-theme="dark"] .alert-card-info {
+    background: #2c5282;
+    border-left-color: #4299e1;
+}
+
+[data-theme="dark"] .alert-card-purple {
+    background: #553c9a;
+    border-left-color: #b794f6;
+}
+
+[data-theme="dark"] .inner-box-white {
+    background: #2d3748;
+}
+
+[data-theme="dark"] .detail-card {
+    background: #2d3748;
+}
+
+[data-theme="dark"] .text-muted {
+    color: #a0aec0;
+}
+
+[data-theme="dark"] .text-muted-sm {
+    color: #a0aec0;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--page-bg);
@@ -1787,6 +1865,485 @@ button:disabled {
     border-color: var(--primary);
 }
 
+/* ===== MOBILE-FIRST UTILITY CLASSES ===== */
+
+/* Background Color Utilities */
+.bg-warning-light {
+    background: #fff3e0;
+}
+
+.bg-danger-light {
+    background: #ffebee;
+}
+
+.bg-success-light {
+    background: #e8f5e9;
+}
+
+.bg-info-light {
+    background: #e3f2fd;
+}
+
+.bg-purple-light {
+    background: #f3e5f5;
+}
+
+.bg-yellow-light {
+    background: #fff9c4;
+}
+
+.bg-amber-light {
+    background: #fff8e1;
+}
+
+.bg-white {
+    background: var(--bg-white);
+}
+
+.bg-gray-50 {
+    background: #f5f5f5;
+}
+
+.bg-gray-100 {
+    background: #f8f9fa;
+}
+
+/* Border Accent Utilities */
+.border-accent-warning {
+    border-left: 4px solid #ff9800;
+}
+
+.border-accent-danger {
+    border-left: 4px solid #d32f2f;
+}
+
+.border-accent-success {
+    border-left: 4px solid #4caf50;
+}
+
+.border-accent-info {
+    border-left: 4px solid #2196f3;
+}
+
+.border-accent-purple {
+    border-left: 4px solid #9c27b0;
+}
+
+.border-accent-primary {
+    border-left: 4px solid var(--primary);
+}
+
+/* Alert Card Variants (with border + background) */
+.alert-card-warning {
+    background: #fff3e0;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #ff9800;
+    margin-bottom: 15px;
+}
+
+.alert-card-danger {
+    background: #ffebee;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #d32f2f;
+    margin-bottom: 15px;
+}
+
+.alert-card-success {
+    background: #e8f5e9;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #4caf50;
+    margin-bottom: 15px;
+}
+
+.alert-card-info {
+    background: #e3f2fd;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #2196f3;
+    margin-bottom: 15px;
+}
+
+.alert-card-purple {
+    background: #f3e5f5;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #9c27b0;
+    margin-bottom: 15px;
+}
+
+/* Badge Pill Utilities */
+.badge-pill {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.badge-pill-warning {
+    background: #ff9800;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.badge-pill-danger {
+    background: #d32f2f;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.badge-pill-info {
+    background: #2196f3;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+.badge-pill-success {
+    background: #4caf50;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    display: inline-block;
+    font-weight: 600;
+}
+
+/* Gradient Header Classes */
+.gradient-header-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+    margin-bottom: 15px;
+}
+
+.gradient-stat-purple {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.gradient-stat-pink {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+}
+
+.gradient-stat-cyan {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+}
+
+.gradient-stat-green {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+    color: white;
+}
+
+/* Inner Box Utilities */
+.inner-box-white {
+    background: var(--bg-white);
+    padding: 12px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+.detail-card {
+    background: var(--bg-white);
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    margin-bottom: 15px;
+}
+
+/* Text Size Utilities */
+.text-xs {
+    font-size: 11px;
+}
+
+.text-sm {
+    font-size: 13px;
+}
+
+.text-base {
+    font-size: 15px;
+}
+
+.text-lg {
+    font-size: 17px;
+}
+
+.text-muted {
+    color: #666;
+}
+
+.text-muted-sm {
+    color: #666;
+    font-size: 13px;
+}
+
+.text-bold {
+    font-weight: 600;
+}
+
+/* Button Color Variants */
+.btn-orange {
+    background: #ff9800;
+    color: white;
+    border: none;
+}
+
+.btn-orange:hover {
+    background: #f57c00;
+}
+
+.btn-purple {
+    background: #9c27b0;
+    color: white;
+    border: none;
+}
+
+.btn-purple:hover {
+    background: #7b1fa2;
+}
+
+.btn-gray {
+    background: #757575;
+    color: white;
+    border: none;
+}
+
+.btn-gray:hover {
+    background: #616161;
+}
+
+.btn-red-dark {
+    background: #d32f2f;
+    color: white;
+    border: none;
+}
+
+.btn-red-dark:hover {
+    background: #c62828;
+}
+
+.btn-green-dark {
+    background: #2e7d32;
+    color: white;
+    border: none;
+}
+
+.btn-green-dark:hover {
+    background: #1b5e20;
+}
+
+/* Spacing Utilities */
+.p-10 {
+    padding: 10px;
+}
+
+.p-12 {
+    padding: 12px;
+}
+
+.p-15 {
+    padding: 15px;
+}
+
+.p-20 {
+    padding: 20px;
+}
+
+.px-12 {
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
+.py-8 {
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+.py-10 {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.mb-15 {
+    margin-bottom: 15px;
+}
+
+.mt-15 {
+    margin-top: 15px;
+}
+
+.mt-5 {
+    margin-top: 5px;
+}
+
+.mb-5 {
+    margin-bottom: 5px;
+}
+
+/* Border Radius Utilities */
+.rounded-sm {
+    border-radius: 5px;
+}
+
+.rounded-md {
+    border-radius: 8px;
+}
+
+.rounded-lg {
+    border-radius: 12px;
+}
+
+.rounded-pill {
+    border-radius: 20px;
+}
+
+/* Table Responsive Wrapper */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.table-responsive::-webkit-scrollbar {
+    height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+    background: var(--bg-light);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+
+/* Table to Card Mobile View */
+.table-view-toggle {
+    display: none;
+    margin-bottom: 15px;
+    text-align: right;
+}
+
+.mobile-card-view {
+    display: none;
+}
+
+/* Card layouts for mobile table data */
+.cash-count-card,
+.collections-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+.card-date-header {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.card-row:last-of-type {
+    border-bottom: none;
+}
+
+.card-row .label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.card-row .value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-light);
+}
+
+.card-header-dual {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.device-info,
+.customer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.balance-section {
+    margin: 10px 0;
+    padding: 10px;
+    background: var(--bg-light);
+    border-radius: 6px;
+}
+
+.balance-main {
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* Display utilities */
+.hide-mobile {
+    display: block;
+}
+
+.show-mobile {
+    display: none;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     #app {
@@ -1962,6 +2519,89 @@ button:disabled {
     }
 }
 
+/* ===== NEW RESPONSIVE BREAKPOINTS ===== */
+
+/* Large Phones (iPhone 12/13, Galaxy S21) - 375px to 428px */
+@media (min-width: 375px) and (max-width: 428px) {
+    .stats-container {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .stat-card {
+        padding: 12px;
+    }
+    
+    .stat-card h3 {
+        font-size: 26px;
+    }
+    
+    .repair-card {
+        padding: 12px;
+    }
+    
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        font-size: 16px; /* Prevent iOS zoom on focus */
+    }
+}
+
+/* Tablet Portrait (768px to 1024px) */
+@media (min-width: 768px) and (max-width: 1024px) {
+    .stats-container {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .repair-card {
+        padding: 18px;
+    }
+    
+    .tab {
+        padding: 12px 20px;
+        font-size: 14px;
+    }
+    
+    /* Tables can show more columns */
+    .table-responsive {
+        overflow-x: visible;
+    }
+    
+    /* Show table view by default on tablets */
+    .table-view-toggle {
+        display: block;
+    }
+}
+
+/* Small Phones (< 375px) */
+@media (max-width: 374px) {
+    .stats-container {
+        grid-template-columns: 1fr;
+        gap: 6px;
+    }
+    
+    .stat-card {
+        padding: 10px;
+    }
+    
+    .stat-card h3 {
+        font-size: 24px;
+    }
+    
+    .stat-card p {
+        font-size: 10px;
+    }
+    
+    .btn {
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+    
+    .header-left h2 {
+        font-size: 14px;
+    }
+}
+
 @media (max-width: 480px) {
     .stats-container {
         grid-template-columns: 1fr;
@@ -1990,6 +2630,62 @@ button:disabled {
 
     .user-role {
         font-size: 11px;
+    }
+
+    /* ===== MOBILE TOUCH TARGET ENHANCEMENTS ===== */
+    /* Ensure all buttons meet 44px minimum */
+    button,
+    .btn,
+    .btn-small,
+    .btn-primary,
+    .btn-success,
+    .btn-danger,
+    .btn-warning {
+        min-height: 44px !important;
+        padding: 10px 16px !important;
+    }
+
+    /* Table action buttons */
+    table button {
+        min-height: 44px !important;
+        width: 100%;
+        padding: 10px 12px !important;
+    }
+
+    /* Clickable status badges */
+    .status-badge {
+        min-height: 36px;
+        padding: 8px 14px;
+    }
+
+    /* Clickable cards */
+    .repair-card,
+    .stat-card {
+        min-height: 48px;
+        padding: 15px;
+    }
+
+    /* ===== TABLE TO CARD VIEW TOGGLE ===== */
+    .table-view-toggle {
+        display: block !important;
+    }
+
+    /* Hide desktop tables, show card view on mobile */
+    .table-responsive.hide-on-mobile {
+        display: none !important;
+    }
+
+    .mobile-card-view {
+        display: block !important;
+    }
+
+    /* Display utilities */
+    .hide-mobile {
+        display: none !important;
+    }
+
+    .show-mobile {
+        display: block !important;
     }
 }
 

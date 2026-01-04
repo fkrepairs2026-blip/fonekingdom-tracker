@@ -584,7 +584,7 @@ function renderGroupedActivities(activities) {
                 <!-- Type Header -->
                 <div class="activity-type-header" 
                      onclick="toggleActivityTypeGroup('${typeId}')"
-                     style="background:linear-gradient(135deg, ${typeGroup.color} 0%, ${typeGroup.color}dd 100%);color:white;padding:15px 20px;border-radius:12px;margin-bottom:15px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;box-shadow:0 4px 12px ${typeGroup.color}40;">
+                     style="background:linear-gradient(135deg, ${typeGroup.color} 0%, ${typeGroup.color}dd 100%);color:white;border-radius:12px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;box-shadow:0 4px 12px ${typeGroup.color}40;" class="p-15 mb-15">
                     <div style="display:flex;align-items:center;gap:12px;">
                         <span style="font-size:24px;">${typeGroup.icon}</span>
                         <strong style="font-size:16px;">${typeGroup.label}</strong>
@@ -611,7 +611,7 @@ function renderGroupedActivities(activities) {
                             <div class="activity-date-group" style="margin-bottom:15px;">
                                 <div class="activity-date-header" 
                                      onclick="toggleActivityGroup('${groupId}')"
-                                     style="background:#f8f9fa;border-left:4px solid ${typeGroup.color};padding:10px 15px;border-radius:8px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;">
+                                     class="bg-gray-100 p-10 rounded-md mb-10" style="border-left:4px solid ${typeGroup.color};display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none;">
                                     <div>
                                         <strong style="font-size:14px;color:#333;">${dateKey}${isToday ? ' <span style="background:' + typeGroup.color + '20;color:' + typeGroup.color + ';padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;">Today</span>' : ''}</strong>
                                         <span style="font-size:12px;color:#666;margin-left:10px;">${daysAgoText}</span>
@@ -710,7 +710,7 @@ function buildDataHealthWidget() {
     }
 
     return `
-        <div class="stat-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); cursor: pointer;" 
+        <div class="stat-card gradient-stat-purple" style="cursor: pointer;" 
              onclick="openAdminToolsDataHealth()">
             <div class="stat-icon">🔍</div>
             <div class="stat-info">
