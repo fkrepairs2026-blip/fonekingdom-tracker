@@ -13,6 +13,16 @@ const firebaseConfig = {
 // Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 
+// Enable offline persistence
+firebase.database().enablePersistence()
+  .catch((err) => {
+    if (err.code === 'failed-precondition') {
+      console.warn('⚠️ Offline persistence disabled: Multiple tabs open');
+    } else if (err.code === 'unimplemented') {
+      console.warn('⚠️ Offline persistence not supported by browser');
+    }
+  });
+
 // Firebase Services
 const auth = firebase.auth();
 const db = firebase.database();
@@ -22,3 +32,27 @@ const storage = firebase.storage();
 window.auth = auth;
 window.db = db;
 window.storage = storage;
+
+// Initialize offline support
+window.isOnline = true;
+window.offlineQueue = [];
+
+// Monitor connection state
+db.ref('.info/connected').on('value', (snapshot) => {
+  const connected = snapshot.val();
+  window.isOnline = connected;
+  console.log(connected ? '✅ Online' : '📡 Offline');
+  
+  // Update UI indicator
+  if (typeof updateOfflineIndicator === 'function') {
+    updateOfflineIndicator();
+  }
+  
+  // Process offline queue when reconnecting
+  if (connected && window.offlineQueue.length > 0) {
+    console.log(`🔄 Processing ${window.offlineQueue.length} offline items...`);
+    if (typeof processOfflineQueue === 'function') {
+      processOfflineQueue();
+    }
+  }
+});

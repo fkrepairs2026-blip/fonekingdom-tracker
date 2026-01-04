@@ -14571,4 +14571,1473 @@ if (window.allRepairs) {
 }
 window.processDeletionRequest = processDeletionRequest;
 
+// ============================================
+// PERSONAL FINANCE SYSTEM
+// ============================================
+
+// Global arrays for personal finance data
+window.allPersonalExpenses = [];
+window.allRecurringTemplates = [];
+window.allCreditCards = [];
+window.allPersonalBudgets = [];
+window.allSavingsGoals = [];
+
+// Offline queue management
+function saveOfflineQueueToStorage() {
+    try {
+        localStorage.setItem('personalFinanceOfflineQueue', JSON.stringify(window.offlineQueue || []));
+        console.log('💾 Offline queue saved to storage:', window.offlineQueue.length, 'items');
+    } catch (error) {
+        console.error('❌ Error saving offline queue:', error);
+    }
+}
+
+function loadOfflineQueueFromStorage() {
+    try {
+        const stored = localStorage.getItem('personalFinanceOfflineQueue');
+        if (stored) {
+            window.offlineQueue = JSON.parse(stored);
+            console.log('📂 Loaded offline queue:', window.offlineQueue.length, 'items');
+        }
+    } catch (error) {
+        console.error('❌ Error loading offline queue:', error);
+        window.offlineQueue = [];
+    }
+}
+
+async function processOfflineQueue() {
+    if (!window.offlineQueue || window.offlineQueue.length === 0) return;
+    
+    console.log('🔄 Processing offline queue:', window.offlineQueue.length, 'items');
+    const syncIndicator = document.getElementById('syncIndicator');
+    if (syncIndicator) {
+        syncIndicator.textContent = `⏳ Syncing ${window.offlineQueue.length} items...`;
+        syncIndicator.style.display = 'block';
+    }
+    
+    const queue = [...window.offlineQueue];
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const item of queue) {
+        try {
+            const { operationType, collection, data, offlineId } = item;
+            
+            if (operationType === 'add') {
+                // Add lastModified timestamp for conflict resolution
+                data.lastModified = new Date().toISOString();
+                data.syncStatus = 'synced';
+                delete data.offlineId;
+                
+                await db.ref(collection).push(data);
+                
+                // Remove from queue
+                window.offlineQueue = window.offlineQueue.filter(q => q.offlineId !== offlineId);
+                successCount++;
+                
+                if (syncIndicator) {
+                    syncIndicator.textContent = `⏳ Syncing ${queue.length - successCount - failCount} items...`;
+                }
+            }
+        } catch (error) {
+            console.error('❌ Error syncing item:', error);
+            failCount++;
+        }
+    }
+    
+    // Save updated queue
+    saveOfflineQueueToStorage();
+    
+    if (syncIndicator) {
+        if (failCount === 0) {
+            syncIndicator.textContent = `✅ Synced ${successCount} items`;
+            setTimeout(() => {
+                syncIndicator.style.display = 'none';
+            }, 3000);
+        } else {
+            syncIndicator.textContent = `⚠️ Synced ${successCount}, ${failCount} failed`;
+        }
+    }
+    
+    console.log(`✅ Sync complete: ${successCount} success, ${failCount} failed`);
+    
+    // Refresh current tab
+    if (window.currentTabRefresh) {
+        setTimeout(() => window.currentTabRefresh(), 500);
+    }
+}
+
+function updateOfflineIndicator() {
+    const indicator = document.getElementById('offlineIndicator');
+    const expenseBanner = document.getElementById('offlineExpenseBanner');
+    
+    if (indicator) {
+        indicator.style.display = window.isOnline ? 'none' : 'block';
+    }
+    
+    if (expenseBanner) {
+        expenseBanner.style.display = window.isOnline ? 'none' : 'block';
+    }
+}
+
+// Load Personal Expenses
+async function loadPersonalExpenses() {
+    try {
+        db.ref('personalExpenses').on('value', (snapshot) => {
+            const expenses = [];
+            snapshot.forEach(child => {
+                expenses.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Filter by current user
+            window.allPersonalExpenses = expenses.filter(e => 
+                e.userId === window.currentUser?.uid
+            );
+            
+            console.log('✅ Personal expenses loaded:', window.allPersonalExpenses.length);
+            
+            // Auto-refresh tab if visible
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+            }, 400);
+        });
+    } catch (error) {
+        console.error('❌ Error loading personal expenses:', error);
+    }
+}
+
+// Load Recurring Templates
+async function loadRecurringTemplates() {
+    try {
+        db.ref('personalRecurringTemplates').on('value', (snapshot) => {
+            const templates = [];
+            snapshot.forEach(child => {
+                templates.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Filter by current user
+            window.allRecurringTemplates = templates.filter(t => 
+                t.userId === window.currentUser?.uid
+            );
+            
+            console.log('✅ Recurring templates loaded:', window.allRecurringTemplates.length);
+            
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+            }, 400);
+        });
+    } catch (error) {
+        console.error('❌ Error loading recurring templates:', error);
+    }
+}
+
+// Load Credit Cards
+async function loadCreditCards() {
+    try {
+        db.ref('personalCreditCards').on('value', (snapshot) => {
+            const cards = [];
+            snapshot.forEach(child => {
+                cards.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Filter by current user
+            window.allCreditCards = cards.filter(c => 
+                c.userId === window.currentUser?.uid
+            );
+            
+            console.log('✅ Credit cards loaded:', window.allCreditCards.length);
+            
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+            }, 400);
+        });
+    } catch (error) {
+        console.error('❌ Error loading credit cards:', error);
+    }
+}
+
+// Load Personal Budgets
+async function loadPersonalBudgets() {
+    try {
+        db.ref('personalBudgets').on('value', (snapshot) => {
+            const budgets = [];
+            snapshot.forEach(child => {
+                budgets.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Filter by current user
+            window.allPersonalBudgets = budgets.filter(b => 
+                b.userId === window.currentUser?.uid
+            );
+            
+            console.log('✅ Personal budgets loaded:', window.allPersonalBudgets.length);
+            
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+            }, 400);
+        });
+    } catch (error) {
+        console.error('❌ Error loading personal budgets:', error);
+    }
+}
+
+// Load Savings Goals
+async function loadSavingsGoals() {
+    try {
+        db.ref('savingsGoals').on('value', (snapshot) => {
+            const goals = [];
+            snapshot.forEach(child => {
+                goals.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+            
+            // Filter by current user
+            window.allSavingsGoals = goals.filter(g => 
+                g.userId === window.currentUser?.uid
+            );
+            
+            console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);
+            
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+            }, 400);
+        });
+    } catch (error) {
+        console.error('❌ Error loading savings goals:', error);
+    }
+}
+
+// Add Personal Expense (with offline support)
+async function addPersonalExpense(expenseData) {
+    try {
+        // Validation
+        if (!expenseData.category || !expenseData.amount || expenseData.amount <= 0) {
+            alert('⚠️ Please fill in all required fields');
+            return { success: false };
+        }
+        
+        if (expenseData.currency === 'USD' && (!expenseData.phpConversionRate || expenseData.phpConversionRate <= 0)) {
+            alert('⚠️ Please enter the PHP conversion rate for USD expenses');
+            return { success: false };
+        }
+        
+        // Check if date is locked
+        const dateString = new Date(expenseData.date).toISOString().split('T')[0];
+        if (!preventBackdating(dateString)) {
+            alert('⚠️ Cannot add expense on locked date!');
+            return { success: false };
+        }
+        
+        const expense = {
+            userId: window.currentUser.uid,
+            userName: window.currentUserData.displayName,
+            date: expenseData.date,
+            category: expenseData.category,
+            amount: parseFloat(expenseData.amount),
+            currency: expenseData.currency || 'PHP',
+            phpConversionRate: expenseData.currency === 'USD' ? parseFloat(expenseData.phpConversionRate) : 1.0,
+            description: expenseData.description || '',
+            notes: expenseData.notes || '',
+            isAutoGenerated: expenseData.isAutoGenerated || false,
+            recurringTemplateId: expenseData.recurringTemplateId || null,
+            creditCardPayment: expenseData.creditCardPayment || null,
+            createdAt: new Date().toISOString(),
+            createdBy: window.currentUserData.displayName,
+            lastModified: new Date().toISOString(),
+            syncStatus: window.isOnline ? 'synced' : 'pending'
+        };
+        
+        if (window.isOnline) {
+            // Online: Save directly to Firebase
+            utils.showLoading(true);
+            const newRef = await db.ref('personalExpenses').push(expense);
+            
+            // Log activity
+            await logActivity('personal_expense_added', 'personal_finance', {
+                expenseId: newRef.key,
+                category: expense.category,
+                amount: expense.amount,
+                currency: expense.currency
+            });
+            
+            utils.showLoading(false);
+            
+            const displayAmount = expense.currency === 'USD' 
+                ? `$${expense.amount.toFixed(2)} (₱${(expense.amount * expense.phpConversionRate).toFixed(2)})`
+                : `₱${expense.amount.toFixed(2)}`;
+            
+            alert(`✅ Expense recorded!\n\n💰 ${expense.category}: ${displayAmount}`);
+            
+            return { success: true, expenseId: newRef.key };
+        } else {
+            // Offline: Add to queue
+            const offlineId = 'offline_' + Date.now() + '_' + Math.random();
+            expense.offlineId = offlineId;
+            
+            window.offlineQueue.push({
+                operationType: 'add',
+                collection: 'personalExpenses',
+                data: expense,
+                offlineId: offlineId,
+                timestamp: new Date().toISOString()
+            });
+            
+            saveOfflineQueueToStorage();
+            
+            // Add to local array for immediate UI update
+            window.allPersonalExpenses.push({ id: offlineId, ...expense });
+            
+            alert('✅ Expense saved offline!\n\n📡 Will sync when you reconnect to internet.');
+            
+            return { success: true, expenseId: offlineId, offline: true };
+        }
+    } catch (error) {
+        console.error('❌ Error adding expense:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Record Credit Card Payment (auto-updates balance)
+async function recordCreditCardPayment(cardId, amount, date) {
+    if (!window.isOnline) {
+        alert('⚠️ Credit card payments require internet connection');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const card = window.allCreditCards.find(c => c.id === cardId);
+        if (!card) {
+            throw new Error('Card not found');
+        }
+        
+        const paymentAmount = parseFloat(amount);
+        if (paymentAmount <= 0 || paymentAmount > card.currentBalance) {
+            throw new Error('Invalid payment amount');
+        }
+        
+        const newBalance = card.currentBalance - paymentAmount;
+        
+        // Create expense record
+        const expenseResult = await addPersonalExpense({
+            category: 'Credit Card Payment',
+            amount: paymentAmount,
+            currency: 'PHP',
+            date: date,
+            description: `Payment to ${card.cardName}`,
+            creditCardPayment: {
+                cardId: cardId,
+                cardName: card.cardName,
+                newBalance: newBalance
+            }
+        });
+        
+        if (!expenseResult.success) {
+            throw new Error('Failed to create expense record');
+        }
+        
+        // Update card balance and add to payment history
+        const paymentHistory = card.paymentHistory || [];
+        paymentHistory.push({
+            date: date,
+            amount: paymentAmount,
+            newBalance: newBalance,
+            paidBy: window.currentUserData.displayName,
+            expenseId: expenseResult.expenseId
+        });
+        
+        await db.ref(`personalCreditCards/${cardId}`).update({
+            currentBalance: newBalance,
+            paymentHistory: paymentHistory,
+            lastModified: new Date().toISOString()
+        });
+        
+        // Log activity
+        await logActivity('credit_card_payment', 'personal_finance', {
+            cardId: cardId,
+            cardName: card.cardName,
+            amount: paymentAmount,
+            newBalance: newBalance
+        });
+        
+        utils.showLoading(false);
+        
+        alert(`✅ Payment recorded!\n\n💳 ${card.cardName}\n💰 Amount: ₱${paymentAmount.toFixed(2)}\n📊 New Balance: ₱${newBalance.toFixed(2)}`);
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error recording payment:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Generate Recurring Expenses for a month
+async function generateRecurringExpenses(month, year) {
+    try {
+        const activeTemplates = window.allRecurringTemplates.filter(t => t.isActive);
+        
+        if (activeTemplates.length === 0) {
+            alert('ℹ️ No active recurring templates found');
+            return { success: false };
+        }
+        
+        // Check if already generated for this month
+        const monthStart = new Date(year, month - 1, 1);
+        const monthEnd = new Date(year, month, 0, 23, 59, 59);
+        
+        const existingAutoExpenses = window.allPersonalExpenses.filter(e =>
+            e.isAutoGenerated &&
+            new Date(e.date) >= monthStart &&
+            new Date(e.date) <= monthEnd
+        );
+        
+        if (existingAutoExpenses.length > 0) {
+            const confirm = window.confirm(`⚠️ Found ${existingAutoExpenses.length} auto-generated expenses for this month.\n\nGenerate again anyway?`);
+            if (!confirm) return { success: false };
+        }
+        
+        utils.showLoading(true);
+        let generatedCount = 0;
+        
+        for (const template of activeTemplates) {
+            const expenseDate = new Date(year, month - 1, template.dayOfMonth);
+            
+            // Skip if day doesn't exist in month (e.g., Feb 30)
+            if (expenseDate.getMonth() !== month - 1) {
+                console.log(`⚠️ Skipping template "${template.name}" - day ${template.dayOfMonth} doesn't exist in this month`);
+                continue;
+            }
+            
+            const result = await addPersonalExpense({
+                category: template.category,
+                amount: template.amount,
+                currency: template.currency,
+                date: expenseDate.toISOString(),
+                description: template.name,
+                notes: 'Auto-generated from recurring template',
+                isAutoGenerated: true,
+                recurringTemplateId: template.id
+            });
+            
+            if (result.success) {
+                generatedCount++;
+            }
+        }
+        
+        utils.showLoading(false);
+        
+        alert(`✅ Generated ${generatedCount} recurring expenses for ${getMonthName(month)} ${year}!`);
+        
+        return { success: true, count: generatedCount };
+    } catch (error) {
+        console.error('❌ Error generating recurring expenses:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Save Recurring Template
+async function saveRecurringTemplate(templateData) {
+    if (!window.isOnline) {
+        alert('⚠️ Editing templates requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const template = {
+            userId: window.currentUser.uid,
+            name: templateData.name,
+            category: templateData.category,
+            amount: parseFloat(templateData.amount),
+            currency: templateData.currency,
+            dayOfMonth: parseInt(templateData.dayOfMonth),
+            isActive: templateData.isActive !== false,
+            createdAt: templateData.id ? undefined : new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        if (templateData.id) {
+            // Update existing
+            await db.ref(`personalRecurringTemplates/${templateData.id}`).update(template);
+        } else {
+            // Create new
+            await db.ref('personalRecurringTemplates').push(template);
+        }
+        
+        utils.showLoading(false);
+        alert('✅ Template saved!');
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error saving template:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Delete Recurring Template
+async function deleteRecurringTemplate(templateId) {
+    if (!window.isOnline) {
+        alert('⚠️ Deleting templates requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        const template = window.allRecurringTemplates.find(t => t.id === templateId);
+        if (!template) {
+            throw new Error('Template not found');
+        }
+        
+        const confirm = window.confirm(`Delete template "${template.name}"?\n\nThis will not delete previously generated expenses.`);
+        if (!confirm) return { success: false };
+        
+        utils.showLoading(true);
+        await db.ref(`personalRecurringTemplates/${templateId}`).remove();
+        utils.showLoading(false);
+        
+        alert('✅ Template deleted!');
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error deleting template:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Save Credit Card
+async function saveCreditCard(cardData) {
+    if (!window.isOnline) {
+        alert('⚠️ Editing credit cards requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const card = {
+            userId: window.currentUser.uid,
+            cardName: cardData.cardName,
+            cardHolder: cardData.cardHolder,
+            bank: cardData.bank,
+            creditLimit: parseFloat(cardData.creditLimit),
+            currentBalance: parseFloat(cardData.currentBalance),
+            interestRate: parseFloat(cardData.interestRate),
+            monthlyDueDate: parseInt(cardData.monthlyDueDate),
+            minimumPaymentPercent: parseFloat(cardData.minimumPaymentPercent) || 3.0,
+            paymentHistory: cardData.paymentHistory || [],
+            isActive: cardData.isActive !== false,
+            createdAt: cardData.id ? undefined : new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        if (cardData.id) {
+            // Update existing
+            await db.ref(`personalCreditCards/${cardData.id}`).update(card);
+        } else {
+            // Create new
+            await db.ref('personalCreditCards').push(card);
+        }
+        
+        utils.showLoading(false);
+        alert('✅ Credit card saved!');
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error saving credit card:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Delete Credit Card
+async function deleteCreditCard(cardId) {
+    if (!window.isOnline) {
+        alert('⚠️ Deleting credit cards requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        const card = window.allCreditCards.find(c => c.id === cardId);
+        if (!card) {
+            throw new Error('Card not found');
+        }
+        
+        if (card.currentBalance > 0) {
+            const confirm = window.confirm(`⚠️ This card has a balance of ₱${card.currentBalance.toFixed(2)}.\n\nDelete anyway?`);
+            if (!confirm) return { success: false };
+        }
+        
+        const confirm2 = window.confirm(`Delete credit card "${card.cardName}"?`);
+        if (!confirm2) return { success: false };
+        
+        utils.showLoading(true);
+        await db.ref(`personalCreditCards/${cardId}`).remove();
+        utils.showLoading(false);
+        
+        alert('✅ Credit card deleted!');
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error deleting credit card:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Add Manual Contribution to Savings Goal
+async function addManualContribution(goalId, amount, notes) {
+    if (!window.isOnline) {
+        alert('⚠️ Adding contributions requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const goal = window.allSavingsGoals.find(g => g.id === goalId);
+        if (!goal) {
+            throw new Error('Goal not found');
+        }
+        
+        const contributionAmount = parseFloat(amount);
+        if (contributionAmount <= 0) {
+            throw new Error('Amount must be greater than zero');
+        }
+        
+        const newCurrentAmount = (goal.currentAmount || 0) + contributionAmount;
+        
+        const contributions = goal.contributions || [];
+        contributions.push({
+            date: new Date().toISOString(),
+            amount: contributionAmount,
+            source: 'manual',
+            addedBy: window.currentUserData.displayName,
+            notes: notes || ''
+        });
+        
+        await db.ref(`savingsGoals/${goalId}`).update({
+            currentAmount: newCurrentAmount,
+            contributions: contributions,
+            lastModified: new Date().toISOString()
+        });
+        
+        // Check if goal is now complete
+        await checkGoalCompletion(goalId);
+        
+        utils.showLoading(false);
+        alert(`✅ Contribution added!\n\n🎯 ${goal.goalName}\n💰 +₱${contributionAmount.toFixed(2)}\n📊 New Total: ₱${newCurrentAmount.toFixed(2)}`);
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error adding contribution:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Record Withdrawal from Savings Goal
+async function recordWithdrawal(goalId, amount, reason) {
+    if (!window.isOnline) {
+        alert('⚠️ Recording withdrawals requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const goal = window.allSavingsGoals.find(g => g.id === goalId);
+        if (!goal) {
+            throw new Error('Goal not found');
+        }
+        
+        const withdrawalAmount = parseFloat(amount);
+        if (withdrawalAmount <= 0) {
+            throw new Error('Amount must be greater than zero');
+        }
+        
+        if (withdrawalAmount > goal.currentAmount) {
+            throw new Error('Withdrawal amount exceeds current savings');
+        }
+        
+        if (!reason || reason.trim() === '') {
+            throw new Error('Please provide a reason for withdrawal');
+        }
+        
+        const newCurrentAmount = goal.currentAmount - withdrawalAmount;
+        
+        const withdrawals = goal.withdrawals || [];
+        withdrawals.push({
+            date: new Date().toISOString(),
+            amount: withdrawalAmount,
+            reason: reason.trim(),
+            withdrawnBy: window.currentUserData.displayName
+        });
+        
+        // If goal was completed, mark as incomplete if needed
+        const updates = {
+            currentAmount: newCurrentAmount,
+            withdrawals: withdrawals,
+            lastModified: new Date().toISOString()
+        };
+        
+        if (goal.isCompleted && newCurrentAmount < goal.targetAmount) {
+            updates.isCompleted = false;
+            updates.completedAt = null;
+        }
+        
+        await db.ref(`savingsGoals/${goalId}`).update(updates);
+        
+        utils.showLoading(false);
+        alert(`✅ Withdrawal recorded!\n\n🎯 ${goal.goalName}\n💸 -₱${withdrawalAmount.toFixed(2)}\n📊 Remaining: ₱${newCurrentAmount.toFixed(2)}`);
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error recording withdrawal:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Check if goal is completed
+async function checkGoalCompletion(goalId) {
+    try {
+        const goal = window.allSavingsGoals.find(g => g.id === goalId);
+        if (!goal) return;
+        
+        if (!goal.isCompleted && goal.currentAmount >= goal.targetAmount) {
+            // Goal just completed!
+            await db.ref(`savingsGoals/${goalId}`).update({
+                isCompleted: true,
+                completedAt: new Date().toISOString(),
+                autoAllocate: false // Stop auto-allocation
+            });
+            
+            // Show completion modal
+            if (typeof openGoalCompletionModal === 'function') {
+                openGoalCompletionModal(goal);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Error checking goal completion:', error);
+    }
+}
+
+// Save Savings Goal
+async function saveSavingsGoal(goalData) {
+    if (!window.isOnline) {
+        alert('⚠️ Editing savings goals requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const goal = {
+            userId: window.currentUser.uid,
+            goalName: goalData.goalName,
+            category: goalData.category,
+            targetAmount: parseFloat(goalData.targetAmount),
+            currentAmount: parseFloat(goalData.currentAmount) || 0,
+            priority: parseInt(goalData.priority),
+            deadline: goalData.deadline || null,
+            autoAllocate: goalData.autoAllocate !== false,
+            isCompleted: false,
+            contributions: goalData.contributions || [],
+            withdrawals: goalData.withdrawals || [],
+            createdAt: goalData.id ? undefined : new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        if (goalData.id) {
+            // Update existing
+            await db.ref(`savingsGoals/${goalData.id}`).update(goal);
+        } else {
+            // Create new
+            const newRef = await db.ref('savingsGoals').push(goal);
+            
+            // Check if already complete
+            if (goal.currentAmount >= goal.targetAmount) {
+                await checkGoalCompletion(newRef.key);
+            }
+        }
+        
+        utils.showLoading(false);
+        alert('✅ Savings goal saved!');
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error saving savings goal:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Delete Savings Goal
+async function deleteSavingsGoal(goalId) {
+    if (!window.isOnline) {
+        alert('⚠️ Deleting savings goals requires internet connection');
+        return { success: false };
+    }
+    
+    try {
+        const goal = window.allSavingsGoals.find(g => g.id === goalId);
+        if (!goal) {
+            throw new Error('Goal not found');
+        }
+        
+        if (goal.currentAmount > 0) {
+            const confirm = window.confirm(`⚠️ This goal has ₱${goal.currentAmount.toFixed(2)} saved.\n\nDelete anyway? (This won't delete your actual money)`);
+            if (!confirm) return { success: false };
+        }
+        
+        const confirm2 = window.confirm(`Delete savings goal "${goal.goalName}"?`);
+        if (!confirm2) return { success: false };
+        
+        utils.showLoading(true);
+        await db.ref(`savingsGoals/${goalId}`).remove();
+        utils.showLoading(false);
+        
+        alert('✅ Savings goal deleted!');
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error deleting savings goal:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// Helper function to get month name
+function getMonthName(month) {
+    const names = ['January', 'February', 'March', 'April', 'May', 'June',
+                   'July', 'August', 'September', 'October', 'November', 'December'];
+    return names[month - 1] || '';
+}
+
+// Export personal finance functions
+window.loadOfflineQueueFromStorage = loadOfflineQueueFromStorage;
+window.saveOfflineQueueToStorage = saveOfflineQueueToStorage;
+window.processOfflineQueue = processOfflineQueue;
+window.updateOfflineIndicator = updateOfflineIndicator;
+window.loadPersonalExpenses = loadPersonalExpenses;
+window.loadRecurringTemplates = loadRecurringTemplates;
+window.loadCreditCards = loadCreditCards;
+window.loadPersonalBudgets = loadPersonalBudgets;
+window.loadSavingsGoals = loadSavingsGoals;
+window.addPersonalExpense = addPersonalExpense;
+window.recordCreditCardPayment = recordCreditCardPayment;
+window.generateRecurringExpenses = generateRecurringExpenses;
+window.saveRecurringTemplate = saveRecurringTemplate;
+window.deleteRecurringTemplate = deleteRecurringTemplate;
+window.saveCreditCard = saveCreditCard;
+window.deleteCreditCard = deleteCreditCard;
+window.addManualContribution = addManualContribution;
+window.recordWithdrawal = recordWithdrawal;
+window.checkGoalCompletion = checkGoalCompletion;
+window.saveSavingsGoal = saveSavingsGoal;
+window.deleteSavingsGoal = deleteSavingsGoal;
+
+// ============================================
+// BUDGET CALCULATION & ANALYSIS
+// ============================================
+
+// Calculate net personal budget (60% spending + 40% savings)
+function calculateNetPersonalBudget(month, year) {
+    try {
+        const monthStart = new Date(year, month - 1, 1);
+        const monthEnd = new Date(year, month, 0, 23, 59, 59);
+        
+        // Filter claimed repairs for the month
+        const claimedRepairs = (window.allRepairs || []).filter(r =>
+            r.status === 'Claimed' &&
+            r.releasedAt &&
+            new Date(r.releasedAt) >= monthStart &&
+            new Date(r.releasedAt) <= monthEnd
+        );
+        
+        // Check if current user is a technician
+        const userRepairs = claimedRepairs.filter(r => r.technicianId === window.currentUser?.uid);
+        const isTechnician = userRepairs.length > 0;
+        
+        let spendingBudget = 0;
+        let savingsPool = 0;
+        let breakdown = {};
+        
+        if (isTechnician) {
+            // Calculate user's commission
+            const userCommission = userRepairs.reduce((sum, r) => {
+                const commission = r.commission || 0;
+                return sum + commission;
+            }, 0);
+            
+            // Calculate all technicians' commissions for proportion
+            const allTechCommissions = claimedRepairs.reduce((sum, r) => {
+                const commission = r.commission || 0;
+                return sum + commission;
+            }, 0);
+            
+            const userProportion = allTechCommissions > 0 ? userCommission / allTechCommissions : 0;
+            
+            // Get overhead expenses for the month
+            const overheadExpenses = (window.allOverheadExpenses || []).filter(e => {
+                if (e.deleted) return false;
+                const expenseDate = new Date(e.date);
+                return expenseDate >= monthStart && expenseDate <= monthEnd;
+            });
+            
+            const totalOverhead = overheadExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+            const overheadShare = totalOverhead * userProportion;
+            
+            // Net after overhead
+            const netAfterOverhead = userCommission - overheadShare;
+            
+            // Split: 60% spending, 40% savings
+            spendingBudget = netAfterOverhead * 0.6;
+            savingsPool = netAfterOverhead * 0.4;
+            
+            breakdown = {
+                grossCommission: userCommission,
+                overheadShare: overheadShare,
+                userProportion: userProportion,
+                totalOverhead: totalOverhead,
+                netAfterOverhead: netAfterOverhead,
+                sixtyPercentSpending: spendingBudget,
+                fortyPercentSavings: savingsPool
+            };
+        } else {
+            // Non-technician: Get manual budget
+            const manualBudget = window.allPersonalBudgets.find(b =>
+                b.month === month && b.year === year
+            );
+            
+            spendingBudget = manualBudget ? manualBudget.manualBudgetAmount : 0;
+            savingsPool = 0;
+            
+            breakdown = {
+                manual: true,
+                manualBudgetAmount: spendingBudget
+            };
+        }
+        
+        // Calculate spending for the month
+        const expenses = (window.allPersonalExpenses || []).filter(e => {
+            const expenseDate = new Date(e.date);
+            return expenseDate >= monthStart && expenseDate <= monthEnd;
+        });
+        
+        let totalSpent = 0;
+        const spentByCategory = {};
+        
+        expenses.forEach(e => {
+            const phpAmount = e.currency === 'USD' 
+                ? e.amount * e.phpConversionRate 
+                : e.amount;
+            
+            totalSpent += phpAmount;
+            spentByCategory[e.category] = (spentByCategory[e.category] || 0) + phpAmount;
+        });
+        
+        const remaining = spendingBudget - totalSpent;
+        const utilizationPercent = spendingBudget > 0 ? (totalSpent / spendingBudget) * 100 : 0;
+        
+        return {
+            spendingBudget: spendingBudget,
+            savingsPool: savingsPool,
+            spent: totalSpent,
+            remaining: remaining,
+            utilizationPercent: utilizationPercent,
+            isTechnician: isTechnician,
+            breakdown: breakdown,
+            spentByCategory: spentByCategory
+        };
+    } catch (error) {
+        console.error('❌ Error calculating budget:', error);
+        return {
+            spendingBudget: 0,
+            savingsPool: 0,
+            spent: 0,
+            remaining: 0,
+            utilizationPercent: 0,
+            isTechnician: false,
+            breakdown: {},
+            spentByCategory: {}
+        };
+    }
+}
+
+// Calculate average monthly expenses (last 3 months)
+function calculateAverageMonthlyExpenses() {
+    try {
+        const today = new Date();
+        const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+        
+        const recentExpenses = (window.allPersonalExpenses || []).filter(e => {
+            const expenseDate = new Date(e.date);
+            return expenseDate >= threeMonthsAgo;
+        });
+        
+        let totalSpent = 0;
+        
+        recentExpenses.forEach(e => {
+            const phpAmount = e.currency === 'USD' 
+                ? e.amount * e.phpConversionRate 
+                : e.amount;
+            
+            totalSpent += phpAmount;
+        });
+        
+        // Average over 3 months
+        const average = totalSpent / 3;
+        
+        return average;
+    } catch (error) {
+        console.error('❌ Error calculating average expenses:', error);
+        return 0;
+    }
+}
+
+// Recommend goal allocation based on emergency fund and priorities
+function recommendGoalAllocation(savingsPoolAmount) {
+    try {
+        const activeGoals = (window.allSavingsGoals || []).filter(g =>
+            !g.isCompleted && g.autoAllocate
+        );
+        
+        if (activeGoals.length === 0) {
+            return {
+                recommendations: [],
+                allocationStrategy: 'No Active Goals',
+                emergencyFundStatus: null
+            };
+        }
+        
+        // Calculate recommended emergency fund (6 months expenses)
+        const averageMonthlyExpenses = calculateAverageMonthlyExpenses();
+        const recommendedEmergencyFund = averageMonthlyExpenses * 6;
+        
+        // Find emergency fund goal
+        const emergencyGoal = activeGoals.find(g => g.category === 'Emergency Fund');
+        
+        let recommendations = [];
+        let allocationStrategy = '';
+        
+        if (emergencyGoal && emergencyGoal.currentAmount < emergencyGoal.targetAmount) {
+            // Emergency fund not complete - prioritize it
+            const emergencyAllocation = savingsPoolAmount * 0.7;
+            const remainingPool = savingsPoolAmount * 0.3;
+            
+            recommendations.push({
+                goalId: emergencyGoal.id,
+                goalName: emergencyGoal.goalName,
+                suggestedAmount: emergencyAllocation,
+                suggestedPercent: 70,
+                reasoning: '70% allocated to Emergency Fund (priority)'
+            });
+            
+            // Distribute remaining 30% to other goals
+            const otherGoals = activeGoals.filter(g => g.id !== emergencyGoal.id);
+            
+            if (otherGoals.length > 0) {
+                const weightedDistribution = calculateWeightedDistribution(otherGoals, remainingPool);
+                recommendations.push(...weightedDistribution);
+            }
+            
+            allocationStrategy = 'Emergency First';
+        } else {
+            // Emergency fund complete or doesn't exist - distribute by priority/deadline
+            const weightedDistribution = calculateWeightedDistribution(activeGoals, savingsPoolAmount);
+            recommendations = weightedDistribution;
+            
+            allocationStrategy = 'Balanced Priority';
+        }
+        
+        const emergencyFundStatus = emergencyGoal ? {
+            current: emergencyGoal.currentAmount,
+            target: emergencyGoal.targetAmount,
+            recommended: recommendedEmergencyFund,
+            monthsOfExpensesCovered: averageMonthlyExpenses > 0 
+                ? emergencyGoal.currentAmount / averageMonthlyExpenses 
+                : 0,
+            percentComplete: (emergencyGoal.currentAmount / emergencyGoal.targetAmount) * 100
+        } : null;
+        
+        return {
+            recommendations: recommendations,
+            allocationStrategy: allocationStrategy,
+            emergencyFundStatus: emergencyFundStatus
+        };
+    } catch (error) {
+        console.error('❌ Error recommending allocation:', error);
+        return {
+            recommendations: [],
+            allocationStrategy: 'Error',
+            emergencyFundStatus: null
+        };
+    }
+}
+
+// Calculate weighted distribution based on priority and deadline
+function calculateWeightedDistribution(goals, poolAmount) {
+    const today = new Date();
+    
+    // Calculate weights for each goal
+    const goalsWithWeights = goals.map(g => {
+        // Priority weight (Priority 1 = 2.0, Priority 5 = 0.5)
+        let priorityWeight = 0;
+        switch(g.priority) {
+            case 1: priorityWeight = 2.0; break;
+            case 2: priorityWeight = 1.5; break;
+            case 3: priorityWeight = 1.0; break;
+            case 4: priorityWeight = 0.7; break;
+            case 5: priorityWeight = 0.5; break;
+            default: priorityWeight = 1.0;
+        }
+        
+        // Deadline urgency multiplier
+        let deadlineMultiplier = 1.0;
+        if (g.deadline) {
+            const deadline = new Date(g.deadline);
+            const monthsUntilDeadline = (deadline - today) / (1000 * 60 * 60 * 24 * 30);
+            
+            if (monthsUntilDeadline <= 6) {
+                deadlineMultiplier = 1.5;
+            } else if (monthsUntilDeadline <= 12) {
+                deadlineMultiplier = 1.2;
+            }
+        }
+        
+        const totalWeight = priorityWeight * deadlineMultiplier;
+        
+        return {
+            ...g,
+            weight: totalWeight
+        };
+    });
+    
+    // Calculate total weight
+    const totalWeight = goalsWithWeights.reduce((sum, g) => sum + g.weight, 0);
+    
+    // Distribute based on weight
+    const recommendations = goalsWithWeights.map(g => {
+        const percent = (g.weight / totalWeight) * 100;
+        const amount = poolAmount * (g.weight / totalWeight);
+        
+        let reasoning = `${percent.toFixed(1)}% - Priority ${g.priority}`;
+        if (g.deadline) {
+            const deadline = new Date(g.deadline);
+            const monthsUntil = Math.round((deadline - today) / (1000 * 60 * 60 * 24 * 30));
+            reasoning += ` (${monthsUntil} months until deadline)`;
+        }
+        
+        return {
+            goalId: g.id,
+            goalName: g.goalName,
+            suggestedAmount: amount,
+            suggestedPercent: percent,
+            reasoning: reasoning
+        };
+    });
+    
+    return recommendations;
+}
+
+// Allocate savings from commission to goals
+async function allocateSavingsFromCommission(month, year) {
+    try {
+        const budget = calculateNetPersonalBudget(month, year);
+        
+        if (!budget.isTechnician || budget.savingsPool <= 0) {
+            console.log('ℹ️ No savings pool to allocate');
+            return { success: false, message: 'No savings pool available' };
+        }
+        
+        const allocation = recommendGoalAllocation(budget.savingsPool);
+        
+        if (allocation.recommendations.length === 0) {
+            console.log('ℹ️ No active goals to allocate to');
+            return { success: false, message: 'No active goals' };
+        }
+        
+        utils.showLoading(true);
+        
+        for (const rec of allocation.recommendations) {
+            const goal = window.allSavingsGoals.find(g => g.id === rec.goalId);
+            if (!goal) continue;
+            
+            const newCurrentAmount = (goal.currentAmount || 0) + rec.suggestedAmount;
+            
+            const contributions = goal.contributions || [];
+            contributions.push({
+                date: new Date().toISOString(),
+                amount: rec.suggestedAmount,
+                source: 'commission',
+                addedBy: window.currentUserData.displayName,
+                notes: `Auto-allocated from ${getMonthName(month)} ${year} commission`
+            });
+            
+            await db.ref(`savingsGoals/${rec.goalId}`).update({
+                currentAmount: newCurrentAmount,
+                contributions: contributions,
+                monthlyAllocation: rec.suggestedAmount,
+                allocationPercent: rec.suggestedPercent,
+                lastModified: new Date().toISOString()
+            });
+            
+            // Check if goal completed
+            await checkGoalCompletion(rec.goalId);
+        }
+        
+        utils.showLoading(false);
+        
+        alert(`✅ Allocated ₱${budget.savingsPool.toFixed(2)} to ${allocation.recommendations.length} goals!`);
+        
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error allocating savings:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+        return { success: false };
+    }
+}
+
+// ============================================
+// LOAN AFFORDABILITY ANALYZER
+// ============================================
+
+function analyzeLoanAffordability(proposedAmount, termMonths, annualRate) {
+    try {
+        const loanAmount = parseFloat(proposedAmount);
+        const term = parseInt(termMonths);
+        const rate = parseFloat(annualRate);
+        
+        if (loanAmount <= 0 || term <= 0 || rate < 0) {
+            throw new Error('Invalid input values');
+        }
+        
+        // Calculate monthly payment using amortization formula
+        const monthlyRate = rate / 12 / 100;
+        let monthlyPayment = 0;
+        
+        if (monthlyRate === 0) {
+            monthlyPayment = loanAmount / term;
+        } else {
+            monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, term)) / 
+                            (Math.pow(1 + monthlyRate, term) - 1);
+        }
+        
+        // Get active credit cards
+        const activeCards = (window.allCreditCards || []).filter(c => c.isActive);
+        
+        // Calculate total debt and monthly minimums
+        let totalCurrentDebt = 0;
+        let monthlyMinimums = 0;
+        
+        activeCards.forEach(card => {
+            const balance = card.currentBalance || 0;
+            const minimumPercent = card.minimumPaymentPercent || 3;
+            
+            totalCurrentDebt += balance;
+            monthlyMinimums += balance * (minimumPercent / 100);
+        });
+        
+        // Get current month budget (60% spending portion only)
+        const today = new Date();
+        const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
+        const monthlyBudget = budget.spendingBudget;
+        
+        // Calculate debt-to-income ratio
+        const totalMonthlyObligations = monthlyMinimums + monthlyPayment;
+        const debtToIncomeRatio = monthlyBudget > 0 
+            ? (totalMonthlyObligations / monthlyBudget) * 100 
+            : 999;
+        
+        // Calculate remaining cash flow
+        const remainingCashFlow = monthlyBudget - budget.spent - monthlyPayment - monthlyMinimums;
+        
+        // Determine recommendation
+        let recommendation = '';
+        let recommendationColor = '';
+        
+        if (debtToIncomeRatio < 40) {
+            recommendation = '✅ Approved';
+            recommendationColor = '#4CAF50';
+        } else if (debtToIncomeRatio >= 40 && debtToIncomeRatio < 50) {
+            recommendation = '⚠️ Proceed with Caution';
+            recommendationColor = '#FF9800';
+        } else {
+            recommendation = '❌ Not Recommended';
+            recommendationColor = '#F44336';
+        }
+        
+        const detailedMessage = `Your debt-to-income ratio would be ${debtToIncomeRatio.toFixed(1)}%. ` +
+            (debtToIncomeRatio < 40 
+                ? `This is healthy and manageable. You would have ₱${remainingCashFlow.toFixed(2)} remaining each month.`
+                : debtToIncomeRatio < 50
+                    ? `This is getting high. You would have ₱${remainingCashFlow.toFixed(2)} remaining each month. Consider paying down existing debt first.`
+                    : `This is too high and risky. You would only have ₱${remainingCashFlow.toFixed(2)} remaining each month. Not recommended.`);
+        
+        return {
+            success: true,
+            recommendation: recommendation,
+            recommendationColor: recommendationColor,
+            monthlyPayment: monthlyPayment,
+            totalCurrentDebt: totalCurrentDebt,
+            monthlyMinimums: monthlyMinimums,
+            monthlyObligations: totalMonthlyObligations,
+            debtToIncomeRatio: debtToIncomeRatio,
+            monthlyBudget: monthlyBudget,
+            currentSpent: budget.spent,
+            remainingCashFlow: remainingCashFlow,
+            detailedMessage: detailedMessage
+        };
+    } catch (error) {
+        console.error('❌ Error analyzing loan:', error);
+        return {
+            success: false,
+            error: error.message
+        };
+    }
+}
+
+// ============================================
+// TREND & ANALYTICS
+// ============================================
+
+function getSpendingTrendData(months = 6) {
+    try {
+        const today = new Date();
+        const trendData = [];
+        
+        for (let i = months - 1; i >= 0; i--) {
+            const targetMonth = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const month = targetMonth.getMonth() + 1;
+            const year = targetMonth.getFullYear();
+            
+            const monthStart = new Date(year, month - 1, 1);
+            const monthEnd = new Date(year, month, 0, 23, 59, 59);
+            
+            const expenses = (window.allPersonalExpenses || []).filter(e => {
+                const expenseDate = new Date(e.date);
+                return expenseDate >= monthStart && expenseDate <= monthEnd;
+            });
+            
+            let total = 0;
+            const byCategory = {};
+            
+            expenses.forEach(e => {
+                const phpAmount = e.currency === 'USD' 
+                    ? e.amount * e.phpConversionRate 
+                    : e.amount;
+                
+                total += phpAmount;
+                byCategory[e.category] = (byCategory[e.category] || 0) + phpAmount;
+            });
+            
+            trendData.push({
+                month: month,
+                year: year,
+                monthName: getMonthName(month),
+                total: total,
+                byCategory: byCategory
+            });
+        }
+        
+        return trendData;
+    } catch (error) {
+        console.error('❌ Error getting trend data:', error);
+        return [];
+    }
+}
+
+function getSavingsProgressData() {
+    try {
+        return (window.allSavingsGoals || []).map(g => ({
+            goalName: g.goalName,
+            category: g.category,
+            current: g.currentAmount || 0,
+            target: g.targetAmount,
+            percentComplete: ((g.currentAmount || 0) / g.targetAmount) * 100,
+            isCompleted: g.isCompleted || false
+        }));
+    } catch (error) {
+        console.error('❌ Error getting savings progress:', error);
+        return [];
+    }
+}
+
+function getCategoryBreakdown(month, year) {
+    try {
+        const monthStart = new Date(year, month - 1, 1);
+        const monthEnd = new Date(year, month, 0, 23, 59, 59);
+        
+        const expenses = (window.allPersonalExpenses || []).filter(e => {
+            const expenseDate = new Date(e.date);
+            return expenseDate >= monthStart && expenseDate <= monthEnd;
+        });
+        
+        const byCategory = {};
+        
+        expenses.forEach(e => {
+            const phpAmount = e.currency === 'USD' 
+                ? e.amount * e.phpConversionRate 
+                : e.amount;
+            
+            byCategory[e.category] = (byCategory[e.category] || 0) + phpAmount;
+        });
+        
+        return byCategory;
+    } catch (error) {
+        console.error('❌ Error getting category breakdown:', error);
+        return {};
+    }
+}
+
+// Export budget and analysis functions
+window.calculateNetPersonalBudget = calculateNetPersonalBudget;
+window.calculateAverageMonthlyExpenses = calculateAverageMonthlyExpenses;
+window.recommendGoalAllocation = recommendGoalAllocation;
+window.allocateSavingsFromCommission = allocateSavingsFromCommission;
+window.analyzeLoanAffordability = analyzeLoanAffordability;
+window.getSpendingTrendData = getSpendingTrendData;
+window.getSavingsProgressData = getSavingsProgressData;
+window.getCategoryBreakdown = getCategoryBreakdown;
+
 console.log('✅ repairs.js loaded');
