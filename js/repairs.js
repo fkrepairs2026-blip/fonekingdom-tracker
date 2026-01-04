@@ -36,14 +36,14 @@ async function loadRepairs() {
 
             snapshot.forEach((child) => {
                 const repairData = child.val();
-                
+
                 // Ensure payments is always an array (Firebase may return object)
                 if (repairData.payments && typeof repairData.payments === 'object' && !Array.isArray(repairData.payments)) {
                     repairData.payments = Object.values(repairData.payments);
                 } else if (!repairData.payments) {
                     repairData.payments = [];
                 }
-                
+
                 window.allRepairs.push({
                     id: child.key,
                     ...repairData
@@ -332,7 +332,7 @@ async function submitReceiveDevice(e) {
 
         problemType: data.get('problemType') || 'Pending Diagnosis',
         problem: data.get('problem'),
-        estimatedCost: parseFloat(data.get('estimatedCost')) || null,
+        initialAssessment: data.get('initialAssessment')?.trim() || null,
         repairType: 'Pending Diagnosis',
         partType: '',
         partSource: '',
@@ -457,7 +457,7 @@ async function submitReceiveDevice(e) {
     if (isBackJob) {
         const backJobTechElement = document.getElementById('backJobTech');
         const backJobReasonElement = document.getElementById('backJobReason');
-        
+
         const backJobTech = backJobTechElement ? backJobTechElement.value : null;
         const backJobReason = backJobReasonElement ? backJobReasonElement.value.trim() : '';
 
@@ -5123,11 +5123,11 @@ function getPendingRemittanceDates(techId) {
     // Calculate commission and unremitted balance per date (40% of net after parts and expenses)
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
-        
+
         // Get parts costs for this date
         const { total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
         dateData.totalPartsCosts = partsCostsTotal;
-        
+
         // Calculate net revenue (payments - parts - expenses)
         const netRevenue = dateData.totalPayments - partsCostsTotal - dateData.totalExpenses;
         dateData.totalCommission = netRevenue > 0 ? netRevenue * 0.40 : 0;
@@ -5687,7 +5687,7 @@ function getTechDailyPartsCosts(techId, date) {
             const hasPaymentOnDate = repair.payments.some(payment => {
                 // Only count verified payments collected by tech
                 if (!payment.verified || payment.collectedByTech !== true) return false;
-                
+
                 const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                 const paymentDateString = getLocalDateString(paymentDate);
                 return paymentDateString === targetDateString;
@@ -9243,7 +9243,7 @@ async function openMarkAsBackJobModal(originalRepairId) {
     // Validate 90-day limit
     const claimedDate = new Date(repair.claimedAt);
     const daysAgo = Math.floor((Date.now() - claimedDate) / (1000 * 60 * 60 * 24));
-    
+
     if (daysAgo > 90) {
         alert('❌ Cannot create back job: This repair was completed more than 90 days ago (outside warranty period).');
         return;
@@ -9273,9 +9273,9 @@ async function openMarkAsBackJobModal(originalRepairId) {
         ${repair.warrantyPeriodDays ? `
             <div style="margin-top:10px;padding:10px;background:${warrantyActive ? '#e8f5e9' : '#ffebee'};border-radius:5px;">
                 <strong>🛡️ Warranty:</strong> ${repair.warrantyPeriodDays} days 
-                ${warrantyActive ? 
-                    `(Active until ${utils.formatDate(repair.warrantyEndDate)})` : 
-                    `(Expired on ${utils.formatDate(repair.warrantyEndDate)})`}
+                ${warrantyActive ?
+                `(Active until ${utils.formatDate(repair.warrantyEndDate)})` :
+                `(Expired on ${utils.formatDate(repair.warrantyEndDate)})`}
             </div>
         ` : ''}
         ${repair.technicianNotes ? `
@@ -9333,43 +9333,43 @@ async function confirmMarkAsBackJob() {
             shopName: originalRepair.shopName || null,
             customerName: originalRepair.customerName,
             contactNumber: originalRepair.contactNumber,
-            
+
             // Device info (copied from original)
             brand: originalRepair.brand,
             model: originalRepair.model,
             imei: originalRepair.imei || null,
             serialNumber: originalRepair.serialNumber || null,
             password: originalRepair.password || null,
-            
+
             // Problem info
             problemType: originalRepair.problemType,
             problemDescription: `BACK JOB: ${backJobReason}${additionalNotes ? '\\n\\nAdditional: ' + additionalNotes : ''}`,
-            
+
             // Back job specific fields
             isBackJob: true,
             backJobReason: backJobReason,
             originalRepairId: originalRepairId,
             originalTechId: originalRepair.acceptedBy,
             originalTechName: originalRepair.acceptedByName,
-            
+
             // Status and assignment
             status: 'In Progress',
             acceptedBy: originalRepair.acceptedBy,  // Auto-assign to original tech
             acceptedByName: originalRepair.acceptedByName,
             acceptedAt: now,
-            
+
             // Warranty claim flags
             isWarrantyClaim: true,
             warrantyClaimType: 'same_issue',
             linkedRepairId: originalRepairId,
-            
+
             // Pricing (no charge for back jobs)
             total: 0,
             partsCost: 0,
             laborCost: 0,
             customerApproved: true,
             approvedAt: now,
-            
+
             // Tracking
             receivedAt: now,
             recordedDate: now,
@@ -9378,7 +9378,7 @@ async function confirmMarkAsBackJob() {
             createdBy: window.currentUser.uid,
             lastUpdated: now,
             lastUpdatedBy: window.currentUserData.displayName,
-            
+
             // Metadata
             deleted: false
         };
@@ -13621,11 +13621,11 @@ function calculateOverheadForPeriod(startDate, endDate) {
         .reduce((sum, expense) => {
             const expenseDate = new Date(expense.date);
             const isInRange = expenseDate >= startDate && expenseDate <= endDate;
-            
+
             if (isInRange) {
                 console.log(`  ✅ Including: ${expense.category} - ₱${expense.amount} on ${expense.date.split('T')[0]}`);
             }
-            
+
             return isInRange ? sum + expense.amount : sum;
         }, 0);
 
@@ -14205,7 +14205,7 @@ async function approveRefund(refundId, adminNotes = '') {
 
         // Check if commission reversal is needed
         const needsTechAck = refund.commissionAffected && refund.commissionToReverse > 0;
-        
+
         if (needsTechAck) {
             // Require technician acknowledgment before commission deduction
             await db.ref(`refunds/${refundId}`).update({
@@ -14216,9 +14216,9 @@ async function approveRefund(refundId, adminNotes = '') {
                 adminNotes: adminNotes,
                 lastUpdated: new Date().toISOString()
             });
-            
+
             utils.showLoading(false);
-            
+
             if (window.utils && window.utils.showToast) {
                 window.utils.showToast(
                     `✅ Refund approved. Waiting for technician (${refund.technicianName}) to acknowledge commission reversal.`,
@@ -14226,7 +14226,7 @@ async function approveRefund(refundId, adminNotes = '') {
                     4000
                 );
             }
-            
+
             // Log activity
             await logActivity('refund_approved_pending_tech', {
                 refundId: refundId,
@@ -14235,7 +14235,7 @@ async function approveRefund(refundId, adminNotes = '') {
                 technicianId: refund.technicianId,
                 commissionToReverse: refund.commissionToReverse
             });
-            
+
             return { success: true, pendingTech: true };
         } else {
             // No commission impact, process immediately

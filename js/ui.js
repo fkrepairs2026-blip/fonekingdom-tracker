@@ -1007,9 +1007,9 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <div class="form-group">
-                    <label>Estimated Repair Cost (₱) (Optional)</label>
-                    <input type="number" id="estimatedCost" name="estimatedCost" min="0" step="0.01" value="" placeholder="e.g., 2000">
-                    <small style="color:#666;">💡 If you know approximate cost, enter it here. This will cap advance payments customers can make.</small>
+                    <label>Initial Observations/Recommendations (Optional)</label>
+                    <textarea id="initialAssessment" name="initialAssessment" rows="3" placeholder="Document any initial observations, visible damage, or repair recommendations..."></textarea>
+                    <small style="color:#666;">📋 Professional assessment at reception - helps assigned technician understand context</small>
                 </div>
                 
                 <div class="form-group">
@@ -2421,6 +2421,7 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
             const statusClass = r.status.toLowerCase().replace(/\s+/g, '-');
             const isExpanded = window.expandedRepairId === r.id;
             const problemPreview = r.problem.length > 60 ? r.problem.substring(0, 60) + '...' : r.problem;
+            const assessmentPreview = r.initialAssessment ? (r.initialAssessment.length > 50 ? r.initialAssessment.substring(0, 50) + '...' : r.initialAssessment) : null;
 
             return `
                             <div class="repair-list-item-compact ${isExpanded ? 'expanded' : ''}" 
@@ -2438,10 +2439,16 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
                                             ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
                                             ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="status-badge" style="background:#ff9800;color:white;">⭐ Your Previous Customer</span>' : ''}
                                             ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
+                                            ${r.initialAssessment ? '<span class="status-badge" style="background:#e3f2fd;color:#1976d2;">📋 Initial Notes</span>' : ''}
                                         </div>
                                         <div class="repair-compact-problem">
                                             <strong>Problem:</strong> ${problemPreview}
                                         </div>
+                                        ${assessmentPreview ? `
+                                            <div class="repair-compact-assessment" style="margin-top:5px;padding:8px;background:#e3f2fd;border-radius:5px;font-size:13px;">
+                                                <strong style="color:#1976d2;">📋 Assessment:</strong> ${assessmentPreview}
+                                            </div>
+                                        ` : ''}
                                     </div>
                                     <div class="expand-indicator">
                                         ${isExpanded ? '▲' : '▼'}
@@ -2545,6 +2552,7 @@ function displaySearchableRepairsList(repairs, container) {
                                  data-phone="${r.contactNumber}"
                                  data-model="${(r.brand + ' ' + r.model).toLowerCase()}"
                                  data-problem="${r.problem.toLowerCase()}"
+                                 data-assessment="${(r.initialAssessment || '').toLowerCase()}"
                                  onclick="showRepairDetailsModal('${r.id}')"
                                  style="cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;">
                                 <div class="repair-compact-header">
@@ -2558,6 +2566,7 @@ function displaySearchableRepairsList(repairs, container) {
                                             <span class="status-badge status-${statusClass}">${r.status}</span>
                                             ${r.isBackJob ? '<span class="status-badge" style="background:#ffebee;color:#c62828;">🔄 Back Job</span>' : ''}
                                             ${r.customerType === 'Dealer' ? '<span class="status-badge" style="background:#e1bee7;color:#6a1b9a;">🏪 Dealer</span>' : ''}
+                                            ${r.initialAssessment ? '<span class="status-badge" style="background:#e3f2fd;color:#1976d2;">📋 Initial Notes</span>' : ''}
                                             ${balance > 0 ? `<span class="status-badge" style="background:#fff3e0;color:#e65100;">₱${balance.toFixed(0)} balance</span>` : '<span class="status-badge" style="background:#e8f5e9;color:#2e7d32;">✓ Paid</span>'}
                                         </div>
                                         <div class="repair-compact-problem">
@@ -2605,12 +2614,14 @@ function filterAllRepairs(query) {
         const phone = item.dataset.phone || '';
         const model = item.dataset.model || '';
         const problem = item.dataset.problem || '';
+        const assessment = item.dataset.assessment || '';
         const repairId = item.dataset.repairId || '';
 
         const matches = customer.includes(searchLower) ||
             phone.includes(searchLower) ||
             model.includes(searchLower) ||
             problem.includes(searchLower) ||
+            assessment.includes(searchLower) ||
             repairId.includes(searchLower);
 
         item.style.display = matches ? 'block' : 'none';
@@ -2757,6 +2768,14 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             </div>
             
             <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem || r.problemDescription || 'N/A'}</div>
+            
+            ${r.initialAssessment ? `
+                <div style="margin-top:15px;background:#e3f2fd;padding:12px;border-radius:8px;border-left:4px solid #2196f3;">
+                    <strong style="color:#1976d2;">📋 Initial Assessment:</strong><br>
+                    <div style="margin-top:8px;color:#333;white-space:pre-wrap;">${r.initialAssessment}</div>
+                    <small style="color:#666;margin-top:8px;display:block;">Documented at reception</small>
+                </div>
+            ` : ''}
             
             ${r.diagnosisUpdates && r.diagnosisUpdates.length > 0 ? `
                 <details class="alert-warning-compact" style="margin-top:15px;">
