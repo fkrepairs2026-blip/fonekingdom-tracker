@@ -6215,3 +6215,118 @@ input:checked+.toggle-slider:before {
         font-size: 24px;
     }
 }
+
+/* Personal Finance Styles - Mobile-First Design */
+.personal-finance-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+@media (min-width: 768px) {
+    .personal-finance-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .personal-finance-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* Budget cards responsive */
+.budget-card {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+@media (max-width: 767px) {
+    .budget-card {
+        padding: 12px;
+    }
+    
+    .budget-card h4 {
+        font-size: 16px;
+        margin: 0 0 10px 0;
+    }
+    
+    .budget-card .stat-value {
+        font-size: 20px !important;
+    }
+}
+
+/* Expense table mobile responsive */
+#expenseTableContainer {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 767px) {
+    #expenseTableContainer table {
+        font-size: 12px;
+    }
+    
+    #expenseTableContainer th,
+    #expenseTableContainer td {
+        padding: 8px 4px;
+        white-space: nowrap;
+    }
+}
+
+/* Modal mobile improvements */
+@media (max-width: 767px) {
+    .modal-content {
+        width: 95%;
+        max-width: 95%;
+        margin: 20px auto;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .modal-content h3 {
+        font-size: 18px;
+    }
+    
+    .form-group label {
+        font-size: 14px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        font-size: 16px; /* Prevents zoom on iOS */
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .form-actions button {
+        width: 100%;
+    }
+}
+
+/* Admin section mobile tweaks */
+@media (max-width: 767px) {
+    .admin-section-header h3 {
+        font-size: 16px;
+    }
+    
+    .admin-section-content {
+        padding: 10px;
+    }
+}
+
+/* Touch-friendly buttons */
+@media (max-width: 767px) {
+    .btn-primary,
+    .btn-secondary {
+        min-height: 44px; /* Apple HIG recommendation */
+        padding: 12px 20px;
+        font-size: 16px;
+    }
+}

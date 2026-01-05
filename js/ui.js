@@ -11331,21 +11331,21 @@ function buildBudgetDashboard(budget, month, year) {
         return `
             <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;">
                 <h4 style="margin-top:0;">💼 Commission-Based Budget (${getMonthName(month)} ${year})</h4>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
                     <div>
                         <small style="color:#666;">Gross Commission</small>
-                        <div style="font-size:20px;font-weight:bold;color:#4CAF50;">₱${budget.breakdown.grossCommission.toFixed(2)}</div>
+                        <div style="font-size:18px;font-weight:bold;color:#4CAF50;">₱${budget.breakdown.grossCommission.toFixed(2)}</div>
                     </div>
                     <div>
                         <small style="color:#666;">Overhead Share (${(budget.breakdown.userProportion * 100).toFixed(1)}%)</small>
-                        <div style="font-size:20px;font-weight:bold;color:#F44336;">-₱${budget.breakdown.overheadShare.toFixed(2)}</div>
+                        <div style="font-size:18px;font-weight:bold;color:#F44336;">-₱${budget.breakdown.overheadShare.toFixed(2)}</div>
                     </div>
                     <div>
                         <small style="color:#666;">Net After Overhead</small>
-                        <div style="font-size:20px;font-weight:bold;color:#2196F3;">₱${budget.breakdown.netAfterOverhead.toFixed(2)}</div>
+                        <div style="font-size:18px;font-weight:bold;color:#2196F3;">₱${budget.breakdown.netAfterOverhead.toFixed(2)}</div>
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;">
                     <div style="background:#E3F2FD;padding:15px;border-radius:8px;">
                         <h4 style="margin-top:0;">60% Spending Budget</h4>
                         <div style="font-size:24px;font-weight:bold;color:#2196F3;">₱${budget.spendingBudget.toFixed(2)}</div>
@@ -11677,7 +11677,7 @@ function buildExpenseHistorySection(month, year) {
 function buildTrendChartsSection() {
     const trendData = getSpendingTrendData(6);
     
-    let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+    let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">';
     
     // Spending trend chart (simple visualization)
     html += '<div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">';
@@ -11798,6 +11798,12 @@ async function savePersonalExpense() {
     const currency = document.getElementById('expenseCurrency').value;
     const date = document.getElementById('expenseDate').value;
     
+    // Validate required fields
+    if (!date || !category || !amount || parseFloat(amount) <= 0) {
+        alert('⚠️ Please fill in all required fields (Date, Category, and Amount)');
+        return;
+    }
+    
     if (category === 'Credit Card Payment') {
         // Handle as credit card payment
         const cardId = document.getElementById('expenseCreditCard').value;
@@ -11814,9 +11820,9 @@ async function savePersonalExpense() {
         // Handle as regular expense
         const expenseData = {
             category: category,
-            amount: amount,
+            amount: parseFloat(amount),
             currency: currency,
-            phpConversionRate: currency === 'USD' ? document.getElementById('expenseConversionRate').value : 1.0,
+            phpConversionRate: currency === 'USD' ? parseFloat(document.getElementById('expenseConversionRate').value) || 0 : 1.0,
             date: date,
             description: document.getElementById('expenseDescription').value,
             notes: document.getElementById('expenseNotes').value
