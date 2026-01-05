@@ -11255,7 +11255,15 @@ function buildPersonalFinanceTab(container) {
     
     container.innerHTML = `
         <div class="card">
-            <h2 style="margin-bottom:20px;">💰 My Personal Finance</h2>
+            <h2 style="margin-bottom:10px;">💰 My Personal Finance</h2>
+            <div style="background:#E3F2FD;padding:12px;border-radius:6px;margin-bottom:20px;border-left:4px solid #2196F3;">
+                <p style="margin:0;font-size:14px;color:#1976D2;">
+                    <strong>💡 How it works:</strong><br>
+                    • Your <strong>Spending Budget (60%)</strong> is for personal expenses (food, bills, etc.)<br>
+                    • <strong>Savings Goals (40%)</strong> are funded from technician commissions pool<br>
+                    • Credit cards and expense tracking use your spending budget
+                </p>
+            </div>
             
             <!-- Budget Dashboard -->
             <div class="admin-section">
@@ -11381,13 +11389,24 @@ function buildBudgetDashboard(budget, month, year) {
         `;
     } else {
         return `
-            <div style="background:#FFF3E0;padding:15px;border-radius:8px;margin-bottom:15px;">
-                <h4 style="margin-top:0;">💼 Manual Budget (${getMonthName(month)} ${year})</h4>
-                <p style="color:#666;margin-bottom:10px;">You don't have technician commissions. Set a manual monthly budget:</p>
-                <div style="display:flex;gap:10px;">
+            <div style="background:#E8F5E9;padding:15px;border-radius:8px;margin-bottom:15px;">
+                <h4 style="margin-top:0;">💼 Admin/Staff Budget (${getMonthName(month)} ${year})</h4>
+                <p style="color:#666;margin-bottom:10px;">💰 Set your monthly spending budget (from 60% admin allocation):</p>
+                <div style="display:flex;gap:10px;margin-bottom:15px;">
                     <input type="number" id="manualBudgetInput" value="${budget.spendingBudget}" placeholder="0.00" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:4px;">
                     <button onclick="saveManualBudget(${month}, ${year})" class="btn-primary">💾 Save</button>
                 </div>
+                ${budget.savingsPool > 0 ? `
+                    <div style="background:#E3F2FD;padding:12px;border-radius:6px;border-left:3px solid #2196F3;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <small style="color:#666;">🏦 Shared Savings Pool (Tech 40%)</small>
+                                <div style="font-size:20px;font-weight:bold;color:#2196F3;">₱${budget.savingsPool.toFixed(2)}</div>
+                            </div>
+                            <small style="color:#666;text-align:right;">Available for<br/>savings goals</small>
+                        </div>
+                    </div>
+                ` : ''}
             </div>
             ${budget.spendingBudget > 0 ? `
                 <div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">
@@ -11430,14 +11449,15 @@ function buildSavingsGoalsSection() {
     const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
     
     let html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
             <div>
                 <h4 style="margin:0;">Total Savings: ₱${totalSavings.toFixed(2)}</h4>
                 <small style="color:#666;">${activeGoals.length} active, ${completedGoals.length} completed</small>
+                ${budget.savingsPool > 0 ? `<br><small style="color:#2196F3;font-weight:bold;">💰 ₱${budget.savingsPool.toFixed(2)} available from tech pool (40%)</small>` : ''}
             </div>
-            <div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
                 <button onclick="openSavingsGoalModal()" class="btn-primary">➕ Add Goal</button>
-                ${budget.isTechnician && budget.savingsPool > 0 ? `
+                ${budget.savingsPool > 0 ? `
                     <button onclick="showAllocationRecommendation()" class="btn-secondary">💡 Optimize Allocation</button>
                 ` : ''}
             </div>

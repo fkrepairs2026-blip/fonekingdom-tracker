@@ -15759,17 +15759,36 @@ function calculateNetPersonalBudget(month, year) {
                 fortyPercentSavings: savingsPool
             };
         } else {
-            // Non-technician: Get manual budget
+            // Non-technician: Get manual budget for spending, but calculate shared savings pool
             const manualBudget = window.allPersonalBudgets.find(b =>
                 b.month === month && b.year === year
             );
             
             spendingBudget = manualBudget ? manualBudget.manualBudgetAmount : 0;
-            savingsPool = 0;
+            
+            // Calculate total savings pool from ALL technicians' 40%
+            const allTechSavings = claimedRepairs.reduce((sum, r) => {
+                const commission = r.commission || 0;
+                return sum + commission;
+            }, 0);
+            
+            // Get overhead for all techs
+            const overheadExpenses = (window.allOverheadExpenses || []).filter(e => {
+                if (e.deleted) return false;
+                const expenseDate = new Date(e.date);
+                return expenseDate >= monthStart && expenseDate <= monthEnd;
+            });
+            const totalOverhead = overheadExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+            
+            const netAfterOverhead = allTechSavings - totalOverhead;
+            savingsPool = netAfterOverhead * 0.4; // 40% of all techs' net goes to savings
             
             breakdown = {
                 manual: true,
-                manualBudgetAmount: spendingBudget
+                manualBudgetAmount: spendingBudget,
+                sharedSavingsPool: savingsPool,
+                allTechCommissions: allTechSavings,
+                sharedOverhead: totalOverhead
             };
         }
         
@@ -16000,8 +16019,9 @@ async function allocateSavingsFromCommission(month, year) {
     try {
         const budget = calculateNetPersonalBudget(month, year);
         
-        if (!budget.isTechnician || budget.savingsPool <= 0) {
+        if (budget.savingsPool <= 0) {
             console.log('ℹ️ No savings pool to allocate');
+            alert('ℹ️ No savings pool available for this month');
             return { success: false, message: 'No savings pool available' };
         }
         
