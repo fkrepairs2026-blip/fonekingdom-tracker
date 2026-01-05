@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculation Verification Tool</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 3px solid #4CAF50;
+            padding-bottom: 10px;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9f9f9;
+            border-left: 4px solid #2196F3;
+            border-radius: 4px;
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+        .input-group {
+            margin: 15px 0;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        input[type="number"] {
+            width: 300px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #4CAF50;
+        }
+        .btn {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            font-size: 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #45a049;
+        }
+        .btn-secondary {
+            background: #2196F3;
+        }
+        .btn-secondary:hover {
+            background: #0b7dda;
+        }
+        .results {
+            margin-top: 20px;
+            padding: 20px;
+            background: #e8f5e9;
+            border-radius: 4px;
+            border: 2px solid #4CAF50;
+        }
+        .results h3 {
+            margin-top: 0;
+            color: #2e7d32;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #c8e6c9;
+        }
+        .result-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 18px;
+            color: #2e7d32;
+        }
+        .error {
+            background: #ffebee;
+            border-color: #f44336;
+            color: #c62828;
+        }
+        .warning {
+            background: #fff3e0;
+            border-color: #ff9800;
+            color: #e65100;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .comparison-card {
+            padding: 15px;
+            border-radius: 4px;
+            border: 2px solid;
+        }
+        .old-formula {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+        .new-formula {
+            background: #e8f5e9;
+            border-color: #4CAF50;
+        }
+        .difference {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .formula-display {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            margin: 10px 0;
+        }
+        .export-section {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 20px;
+            margin-top: 30px;
+            border-radius: 4px;
+        }
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            font-family: monospace;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .test-scenario {
+            background: white;
+            border: 2px solid #9c27b0;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .test-scenario h4 {
+            margin-top: 0;
+            color: #9c27b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧮 Remittance Calculation Verification Tool</h1>
+        <p><strong>Purpose:</strong> Verify the corrected commission calculation formula</p>
+
+        <!-- Formula Comparison -->
+        <div class="section">
+            <h2>📐 Formula Comparison</h2>
+            <div class="comparison">
+                <div class="comparison-card old-formula">
+                    <h3>❌ OLD (WRONG) Formula</h3>
+                    <div class="formula-display">
+                        commission = payments × 0.40<br>
+                        expected = (payments - expenses) - commission<br>
+                        expected = payments - expenses - (payments × 0.40)
+                    </div>
+                    <p><strong>Problem:</strong> Charges 40% on gross, not net</p>
+                </div>
+                <div class="comparison-card new-formula">
+                    <h3>✅ NEW (CORRECT) Formula</h3>
+                    <div class="formula-display">
+                        net = payments - expenses<br>
+                        commission = net × 0.40<br>
+                        expected = net × 0.60
+                    </div>
+                    <p><strong>Result:</strong> Charges 40% on net after expenses</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calculator -->
+        <div class="section">
+            <h2>🧮 Calculate Remittance</h2>
+            <div class="input-group">
+                <label for="payments">Total Payments Collected (Cash):</label>
+                <input type="number" id="payments" placeholder="₱10000" step="0.01" min="0">
+            </div>
+            <div class="input-group">
+                <label for="expenses">Total Expenses (Parts, Delivery, etc.):</label>
+                <input type="number" id="expenses" placeholder="₱3000" step="0.01" min="0">
+            </div>
+            <button class="btn" onclick="calculate()">Calculate</button>
+            <button class="btn btn-secondary" onclick="loadTestScenario1()">Test Scenario 1</button>
+            <button class="btn btn-secondary" onclick="loadTestScenario2()">Test Scenario 2</button>
+            
+            <div id="results" style="display: none;">
+                <!-- Results will be inserted here -->
+            </div>
+        </div>
+
+        <!-- Test Scenarios -->
+        <div class="section">
+            <h2>🧪 Predefined Test Scenarios</h2>
+            
+            <div class="test-scenario">
+                <h4>Scenario 1: Standard Repair with Parts</h4>
+                <p>
+                    <strong>Payments:</strong> ₱10,000<br>
+                    <strong>Expenses:</strong> ₱3,000 (parts from COD supplier)<br>
+                    <strong>Expected Result:</strong> ₱4,200 remitted to technician
+                </p>
+            </div>
+
+            <div class="test-scenario">
+                <h4>Scenario 2: High Expenses</h4>
+                <p>
+                    <strong>Payments:</strong> ₱5,000<br>
+                    <strong>Expenses:</strong> ₱2,500 (parts + delivery)<br>
+                    <strong>Expected Result:</strong> ₱1,500 remitted to technician
+                </p>
+            </div>
+
+            <div class="test-scenario">
+                <h4>Scenario 3: No Expenses</h4>
+                <p>
+                    <strong>Payments:</strong> ₱8,000<br>
+                    <strong>Expenses:</strong> ₱0<br>
+                    <strong>Expected Result:</strong> ₱4,800 remitted to technician
+                </p>
+            </div>
+        </div>
+
+        <!-- Export Section -->
+        <div class="export-section">
+            <h2>📤 Export Test Data</h2>
+            <p>Use this section to prepare test data for verification in the live system.</p>
+            <button class="btn" onclick="generateTestData()">Generate Test Data JSON</button>
+            <textarea id="testDataOutput" readonly placeholder="Test data will appear here..."></textarea>
+            <button class="btn btn-secondary" onclick="copyTestData()" style="margin-top: 10px;">Copy to Clipboard</button>
+        </div>
+
+        <!-- Instructions -->
+        <div class="section">
+            <h2>📋 Verification Steps</h2>
+            <ol>
+                <li><strong>Run Calculations:</strong> Use the calculator above with your actual data</li>
+                <li><strong>Compare Results:</strong> Check if OLD and NEW formulas show different amounts</li>
+                <li><strong>Test in Live System:</strong> Submit a remittance and verify the expected amount matches</li>
+                <li><strong>Check Expenses:</strong> Verify auto-generated expenses from parts costs are included</li>
+                <li><strong>Verify No Duplicates:</strong> Edit parts cost and confirm only one expense exists</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        function calculate() {
+            const payments = parseFloat(document.getElementById('payments').value) || 0;
+            const expenses = parseFloat(document.getElementById('expenses').value) || 0;
+
+            if (payments === 0) {
+                alert('Please enter payment amount');
+                return;
+            }
+
+            // OLD (WRONG) Formula
+            const oldCommission = payments * 0.40;
+            const oldExpected = (payments - expenses) - oldCommission;
+
+            // NEW (CORRECT) Formula
+            const net = payments - expenses;
+            const newCommission = net * 0.40;
+            const newExpected = net * 0.60;
+
+            // Difference
+            const difference = newExpected - oldExpected;
+            const percentDiff = oldExpected > 0 ? ((difference / oldExpected) * 100).toFixed(2) : 0;
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = `
+                <div class="results">
+                    <h3>💰 Calculation Results</h3>
+                    <div class="result-row">
+                        <span>Total Payments:</span>
+                        <span>₱${payments.toFixed(2)}</span>
+                    </div>
+                    <div class="result-row">
+                        <span>Total Expenses:</span>
+                        <span>₱${expenses.toFixed(2)}</span>
+                    </div>
+                    <div class="result-row">
+                        <span>Net (Payments - Expenses):</span>
+                        <span>₱${net.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <div class="comparison">
+                    <div class="comparison-card old-formula">
+                        <h4>❌ OLD Formula Result</h4>
+                        <div class="result-row">
+                            <span>Commission (40% of gross):</span>
+                            <span>₱${oldCommission.toFixed(2)}</span>
+                        </div>
+                        <div class="result-row">
+                            <span>Expected Remittance:</span>
+                            <span>₱${oldExpected.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    <div class="comparison-card new-formula">
+                        <h4>✅ NEW Formula Result</h4>
+                        <div class="result-row">
+                            <span>Commission (40% of net):</span>
+                            <span>₱${newCommission.toFixed(2)}</span>
+                        </div>
+                        <div class="result-row">
+                            <span>Expected Remittance:</span>
+                            <span>₱${newExpected.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="difference">
+                    <strong>💡 Difference:</strong> ₱${difference.toFixed(2)} (${percentDiff}% ${difference > 0 ? 'MORE' : 'LESS'} for technician)<br>
+                    ${difference > 0 ? 
+                        '<strong style="color:#4CAF50;">✅ Technician receives MORE with the corrected formula</strong>' : 
+                        '<strong style="color:#f44336;">⚠️ Old formula was overpaying (unlikely scenario)</strong>'
+                    }
+                </div>
+            `;
+        }
+
+        function loadTestScenario1() {
+            document.getElementById('payments').value = '10000';
+            document.getElementById('expenses').value = '3000';
+            calculate();
+        }
+
+        function loadTestScenario2() {
+            document.getElementById('payments').value = '5000';
+            document.getElementById('expenses').value = '2500';
+            calculate();
+        }
+
+        function generateTestData() {
+            const payments = parseFloat(document.getElementById('payments').value) || 10000;
+            const expenses = parseFloat(document.getElementById('expenses').value) || 3000;
+            
+            const testData = {
+                timestamp: new Date().toISOString(),
+                scenario: 'Remittance Verification Test',
+                inputs: {
+                    totalPayments: payments,
+                    totalExpenses: expenses
+                },
+                expected: {
+                    netAfterExpenses: payments - expenses,
+                    commissionRate: 0.40,
+                    commission: (payments - expenses) * 0.40,
+                    expectedRemittance: (payments - expenses) * 0.60,
+                    technicianShare: '60%',
+                    shopShare: '40%'
+                },
+                verification: {
+                    formula: 'expectedRemittance = (payments - expenses) × 0.60',
+                    oldFormula: 'OLD (WRONG): (payments - expenses) - (payments × 0.40)',
+                    newFormula: 'NEW (CORRECT): (payments - expenses) × 0.60'
+                },
+                sampleExpenses: [
+                    {
+                        category: 'parts',
+                        amount: 2000,
+                        description: 'LCD screen from COD supplier',
+                        autoGenerated: true,
+                        linkedPartsCostId: 'repair123_partsCost_1234567890'
+                    },
+                    {
+                        category: 'delivery',
+                        amount: 1000,
+                        description: 'Lalamove delivery to customer',
+                        autoGenerated: false
+                    }
+                ],
+                samplePayments: [
+                    {
+                        amount: 5000,
+                        method: 'Cash',
+                        collectedByTech: true,
+                        remittanceStatus: 'pending'
+                    },
+                    {
+                        amount: 5000,
+                        method: 'Cash',
+                        collectedByTech: true,
+                        remittanceStatus: 'pending'
+                    }
+                ]
+            };
+
+            document.getElementById('testDataOutput').value = JSON.stringify(testData, null, 2);
+        }
+
+        function copyTestData() {
+            const textarea = document.getElementById('testDataOutput');
+            if (textarea.value) {
+                textarea.select();
+                document.execCommand('copy');
+                alert('Test data copied to clipboard!');
+            } else {
+                alert('Generate test data first');
+            }
+        }
+
+        // Auto-load scenario 1 on page load
+        window.onload = function() {
+            loadTestScenario1();
+        };
+    </script>
+</body>
+</html>
