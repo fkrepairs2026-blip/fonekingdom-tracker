@@ -154,6 +154,36 @@
       "$eventId": {
         ".write": "auth != null"
       }
+    },
+    "personalExpenses": {
+      ".read": "auth != null",
+      "$expenseId": {
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
+      }
+    },
+    "personalRecurringTemplates": {
+      ".read": "auth != null",
+      "$templateId": {
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
+      }
+    },
+    "personalCreditCards": {
+      ".read": "auth != null",
+      "$cardId": {
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
+      }
+    },
+    "personalBudgets": {
+      ".read": "auth != null",
+      "$budgetId": {
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
+      }
+    },
+    "savingsGoals": {
+      ".read": "auth != null",
+      "$goalId": {
+        ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
+      }
     }
   }
 }

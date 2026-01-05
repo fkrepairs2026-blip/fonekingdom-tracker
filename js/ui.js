@@ -121,14 +121,16 @@ function buildTabs() {
                 { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
                 { id: 'usage-analytics', label: 'Usage Analytics', icon: '📈', build: buildUsageAnalyticsTab },
                 { id: 'admin-tools', label: 'Admin Tools', icon: '🔧', build: buildAdminToolsTab },
-                { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab }
+                { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab },
+                { id: 'personal-finance', label: 'My Finances', icon: '💰', build: buildPersonalFinanceTab }
             );
         }
         // Refund Requests for Manager and Cashier (under Admin section)
         if (role === 'manager' || role === 'cashier') {
             sections.admin.tabs.push(
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
-                { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab }
+                { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
+                { id: 'personal-finance', label: 'My Finances', icon: '💰', build: buildPersonalFinanceTab }
             );
         }
     }
@@ -155,7 +157,8 @@ function buildTabs() {
         sections.inventory.tabs.push(
             { id: 'inventory', label: 'Inventory', icon: '📦', build: buildInventoryTab },
             { id: 'historical-review', label: 'Historical Review', icon: '📅', build: buildHistoricalReviewTab },
-            { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab }
+            { id: 'requests', label: 'My Requests', icon: '📝', build: buildMyRequestsTab },
+            { id: 'personal-finance', label: 'My Finances', icon: '💰', build: buildPersonalFinanceTab }
         );
     }
 
@@ -394,11 +397,6 @@ function switchTab(tabId, dateFilter = null) {
             to: tabId,
             dateFilter: dateFilter
         });
-    }
-    
-    // Track tab switch for analytics (if tracking function exists)
-    if (window.trackTabSwitch && activeTab !== tabId) {
-        window.trackTabSwitch(activeTab, tabId);
     }
 
     // Store or clear date filter for specific tabs
@@ -901,6 +899,62 @@ function buildReceiveDeviceTab(container) {
                     <div class="form-group">
                         <label>Model *</label>
                         <input type="text" name="model" required placeholder="e.g., Galaxy S21, iPhone 12">
+                    </div>
+                </div>
+                
+                <!-- NEW: DEVICE DETAILS SECTION -->
+                <div style="background:var(--bg-light);padding:20px;border-radius:var(--radius-md);margin:20px 0;border-left:4px solid var(--primary);">
+                    <h4 style="margin:0 0 15px 0;color:var(--primary);">📱 Device Details</h4>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>IMEI / Serial Number</label>
+                            <input type="text" name="imei" placeholder="Enter IMEI or Serial (if available)">
+                            <small>Optional - For warranty tracking & identification</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Device Passcode</label>
+                            <input type="text" name="devicePasscode" placeholder="Pattern, PIN, or Password">
+                            <small>Optional - For testing after repair</small>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Device Color</label>
+                            <select name="deviceColor">
+                                <option value="N/A">N/A (Unknown/Dead device)</option>
+                                <option value="Black">Black</option>
+                                <option value="White">White</option>
+                                <option value="Silver">Silver</option>
+                                <option value="Gold">Gold</option>
+                                <option value="Rose Gold">Rose Gold</option>
+                                <option value="Space Gray">Space Gray</option>
+                                <option value="Blue">Blue</option>
+                                <option value="Red">Red</option>
+                                <option value="Green">Green</option>
+                                <option value="Purple">Purple</option>
+                                <option value="Pink">Pink</option>
+                                <option value="Yellow">Yellow</option>
+                                <option value="Orange">Orange</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Storage Capacity</label>
+                            <select name="storageCapacity">
+                                <option value="N/A">N/A (Unknown/Dead device)</option>
+                                <option value="8GB">8GB</option>
+                                <option value="16GB">16GB</option>
+                                <option value="32GB">32GB</option>
+                                <option value="64GB">64GB</option>
+                                <option value="128GB">128GB</option>
+                                <option value="256GB">256GB</option>
+                                <option value="512GB">512GB</option>
+                                <option value="1TB">1TB</option>
+                                <option value="2TB">2TB</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 
@@ -2273,6 +2327,10 @@ function displayRepairsInContainer(repairs, container) {
                     ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
                     ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
                     ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
+                    ${(() => {
+                        const repairExpenses = (window.techExpenses || []).filter(e => e.repairId === r.id);
+                        return repairExpenses.length > 0 ? `<button class="btn-small" onclick="viewRepairExpenses('${r.id}')" style="background:#7b1fa2;color:white;">📋 View Expenses (${repairExpenses.length})</button>` : '';
+                    })()}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
                 </div>
             </div>
@@ -5194,353 +5252,6 @@ function buildDataIntegritySection() {
 }
 
 /**
- * Build Usage Analytics Tab (Admin only)
- * Shows which tabs and features are most frequently used
- */
-function buildUsageAnalyticsTab(container) {
-    console.log('📈 Building Usage Analytics tab');
-    window.currentTabRefresh = () => buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));
-
-    const today = new Date().toISOString().split('T')[0];
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-    // Get current filter or default to 7 days
-    const currentRange = window.usageAnalyticsRange || '7days';
-    
-    let startDate, endDate;
-    switch(currentRange) {
-        case 'today':
-            startDate = today;
-            endDate = today + 'T23:59:59.999Z';
-            break;
-        case '7days':
-            startDate = sevenDaysAgo;
-            endDate = today + 'T23:59:59.999Z';
-            break;
-        case '30days':
-            startDate = thirtyDaysAgo;
-            endDate = today + 'T23:59:59.999Z';
-            break;
-        default:
-            startDate = sevenDaysAgo;
-            endDate = today + 'T23:59:59.999Z';
-    }
-
-    container.innerHTML = `
-        <div class="card">
-            <h3>📈 Usage Analytics</h3>
-            <p style="color:#666;margin-bottom:20px;">
-                Track which tabs and features are most frequently used. Use this data to optimize the UI and remove unused features.
-            </p>
-
-            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
-                <button class="btn-${currentRange === 'today' ? 'primary' : 'secondary'}" 
-                        onclick="window.usageAnalyticsRange='today'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
-                    Today
-                </button>
-                <button class="btn-${currentRange === '7days' ? 'primary' : 'secondary'}" 
-                        onclick="window.usageAnalyticsRange='7days'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
-                    Last 7 Days
-                </button>
-                <button class="btn-${currentRange === '30days' ? 'primary' : 'secondary'}" 
-                        onclick="window.usageAnalyticsRange='30days'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
-                    Last 30 Days
-                </button>
-                <button class="btn-secondary" onclick="exportUsageAnalytics()">
-                    📥 Export CSV
-                </button>
-            </div>
-
-            <div id="usageAnalyticsContent">
-                <div style="text-align:center;padding:40px;color:#999;">
-                    Loading analytics data...
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Load analytics data
-    loadUsageAnalyticsData(startDate, endDate);
-}
-
-/**
- * Load and display usage analytics data
- */
-async function loadUsageAnalyticsData(startDate, endDate) {
-    try {
-        utils.showLoading(true);
-
-        // Get all analytics stats in parallel
-        const [tabStats, formStats, fieldStats] = await Promise.all([
-            window.getTabUsageStats(startDate, endDate),
-            window.getFormUsageStats(startDate, endDate),
-            window.getFieldUsageStats(startDate, endDate)
-        ]);
-
-        utils.showLoading(false);
-
-        const contentDiv = document.getElementById('usageAnalyticsContent');
-        if (!contentDiv) return;
-
-        // Generate summary cards
-        const summaryCards = `
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:30px;">
-                <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
-                    <div class="stat-value">${tabStats.totalEvents.toLocaleString()}</div>
-                    <div class="stat-label">Tab Switches</div>
-                </div>
-                <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
-                    <div class="stat-value">${formStats.totalSubmissions.toLocaleString()}</div>
-                    <div class="stat-label">Form Submissions</div>
-                </div>
-                <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
-                    <div class="stat-value">${fieldStats.totalInteractions.toLocaleString()}</div>
-                    <div class="stat-label">Field Interactions</div>
-                </div>
-            </div>
-        `;
-
-        // Most used tabs
-        const tabsTable = tabStats.mostUsedTabs.length > 0 ? `
-            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
-                <h4 style="margin:0 0 15px 0;color:#2196f3;">🔝 Most Used Tabs</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Tab Name</th>
-                            <th>Total Visits</th>
-                            <th>% of Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${tabStats.mostUsedTabs.map((tab, index) => {
-                            const percentage = ((tab.count / tabStats.totalEvents) * 100).toFixed(1);
-                            return `
-                                <tr>
-                                    <td><strong>${index + 1}</strong></td>
-                                    <td>${tab.tab}</td>
-                                    <td>${tab.count.toLocaleString()}</td>
-                                    <td>
-                                        <div style="display:flex;align-items:center;gap:10px;">
-                                            <div style="flex:1;background:#e0e0e0;height:20px;border-radius:10px;overflow:hidden;">
-                                                <div style="width:${percentage}%;background:#2196f3;height:100%;"></div>
-                                            </div>
-                                            <span style="min-width:45px;text-align:right;">${percentage}%</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
-        ` : '<p style="text-align:center;color:#999;padding:20px;">No tab data available</p>';
-
-        // Most used forms
-        const formsTable = formStats.mostUsedForms.length > 0 ? `
-            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
-                <h4 style="margin:0 0 15px 0;color:#9c27b0;">📝 Most Used Forms</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Form Name</th>
-                            <th>Total Submissions</th>
-                            <th>% of Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${formStats.mostUsedForms.map((form, index) => {
-                            const percentage = ((form.count / formStats.totalSubmissions) * 100).toFixed(1);
-                            return `
-                                <tr>
-                                    <td><strong>${index + 1}</strong></td>
-                                    <td>${form.form}</td>
-                                    <td>${form.count.toLocaleString()}</td>
-                                    <td>
-                                        <div style="display:flex;align-items:center;gap:10px;">
-                                            <div style="flex:1;background:#e0e0e0;height:20px;border-radius:10px;overflow:hidden;">
-                                                <div style="width:${percentage}%;background:#9c27b0;height:100%;"></div>
-                                            </div>
-                                            <span style="min-width:45px;text-align:right;">${percentage}%</span>
-                                        </div>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
-        ` : '<p style="text-align:center;color:#999;padding:20px;">No form data available</p>';
-
-        // Most interacted fields
-        const fieldsTable = fieldStats.mostUsedFields.length > 0 ? `
-            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
-                <h4 style="margin:0 0 15px 0;color:#4caf50;">🔤 Most Used Form Fields</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Field Name</th>
-                            <th>Interactions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${fieldStats.mostUsedFields.map((field, index) => `
-                            <tr>
-                                <td><strong>${index + 1}</strong></td>
-                                <td>${field.field}</td>
-                                <td>${field.count.toLocaleString()}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        ` : '<p style="text-align:center;color:#999;padding:20px;">No field interaction data available</p>';
-
-        // Usage by role
-        const roleBreakdown = Object.keys(tabStats.tabByRole).length > 0 ? `
-            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
-                <h4 style="margin:0 0 15px 0;color:#ff9800;">👥 Usage by Role</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Role</th>
-                            <th>Tab Switches</th>
-                            <th>Most Used Tab</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${Object.entries(tabStats.tabByRole).map(([role, tabs]) => {
-                            const totalSwitches = Object.values(tabs).reduce((sum, count) => sum + count, 0);
-                            const mostUsedTab = Object.entries(tabs).sort((a, b) => b[1] - a[1])[0];
-                            return `
-                                <tr>
-                                    <td><strong>${role}</strong></td>
-                                    <td>${totalSwitches.toLocaleString()}</td>
-                                    <td>${mostUsedTab[0]} (${mostUsedTab[1]}x)</td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
-        ` : '';
-
-        const insightsSection = `
-            <div class="alert-info" style="margin-top:20px;">
-                <h4 style="margin:0 0 10px 0;">💡 Insights & Recommendations</h4>
-                <ul style="margin:5px 0;padding-left:20px;">
-                    ${tabStats.mostUsedTabs.length > 0 ? `
-                        <li>Most popular tab: <strong>${tabStats.mostUsedTabs[0].tab}</strong> (${tabStats.mostUsedTabs[0].count} visits)</li>
-                    ` : ''}
-                    ${tabStats.mostUsedTabs.length > 5 ? `
-                        <li>Consider promoting frequently used tabs for easier access</li>
-                    ` : ''}
-                    ${fieldStats.mostUsedFields.length > 0 ? `
-                        <li>Most interacted field: <strong>${fieldStats.mostUsedFields[0].field}</strong></li>
-                    ` : ''}
-                    <li>Use this data to identify rarely used features that can be simplified or removed</li>
-                    <li>Track trends over time to understand changing user behavior</li>
-                </ul>
-            </div>
-        `;
-
-        contentDiv.innerHTML = summaryCards + tabsTable + formsTable + fieldsTable + roleBreakdown + insightsSection;
-
-    } catch (error) {
-        console.error('❌ Error loading usage analytics:', error);
-        utils.showLoading(false);
-        
-        const contentDiv = document.getElementById('usageAnalyticsContent');
-        if (contentDiv) {
-            contentDiv.innerHTML = `
-                <div class="alert-danger">
-                    <p style="margin:0;">Error loading analytics data: ${error.message}</p>
-                    <p style="margin:5px 0 0;font-size:14px;">This might be because no usage data has been collected yet. Start using the app to generate analytics.</p>
-                </div>
-            `;
-        }
-    }
-}
-
-/**
- * Export usage analytics to CSV
- */
-async function exportUsageAnalytics() {
-    try {
-        utils.showLoading(true);
-
-        const currentRange = window.usageAnalyticsRange || '7days';
-        const today = new Date().toISOString().split('T')[0];
-        
-        let startDate, endDate;
-        switch(currentRange) {
-            case 'today':
-                startDate = today;
-                endDate = today + 'T23:59:59.999Z';
-                break;
-            case '7days':
-                startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                endDate = today + 'T23:59:59.999Z';
-                break;
-            case '30days':
-                startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-                endDate = today + 'T23:59:59.999Z';
-                break;
-        }
-
-        // Get raw analytics events
-        const events = await window.getUsageAnalytics(startDate, endDate);
-
-        // Convert to CSV
-        const csvHeaders = ['Timestamp', 'User', 'Role', 'Event Type', 'Details'];
-        const csvRows = events.map(event => {
-            let details = '';
-            if (event.eventType === 'tab_switch') {
-                details = `${event.data.fromTab} → ${event.data.toTab}`;
-            } else if (event.eventType === 'form_submit') {
-                details = event.data.formName;
-            } else if (event.eventType === 'field_interaction') {
-                details = `${event.data.fieldName} (${event.data.fieldType})`;
-            }
-            
-            return [
-                event.timestamp,
-                event.userName,
-                event.userRole,
-                event.eventType,
-                details
-            ];
-        });
-
-        const csvContent = [
-            csvHeaders.join(','),
-            ...csvRows.map(row => row.map(cell => `"${cell}"`).join(','))
-        ].join('\n');
-
-        // Download CSV
-        const blob = new Blob([csvContent], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `usage_analytics_${currentRange}_${today}.csv`;
-        a.click();
-        window.URL.revokeObjectURL(url);
-
-        utils.showLoading(false);
-        alert('✅ Usage analytics exported successfully!');
-
-    } catch (error) {
-        console.error('❌ Error exporting analytics:', error);
-        utils.showLoading(false);
-        alert('❌ Error exporting analytics: ' + error.message);
-    }
-}
-
-/**
  * Build Activity Logs Tab (Admin only)
  */
 function buildActivityLogsTab(container) {
@@ -8050,7 +7761,22 @@ function openAddSupplierModal() {
             ${activeSuppliers.length === 0 ? '<p class="text-secondary">No suppliers added yet</p>' : ''}
             ${activeSuppliers.map(supplier => `
                 <div style="padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:10px;">
-                    <h4 style="margin:0 0 10px;">${supplier.supplierName}</h4>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                        <h4 style="margin:0;flex:1;">${supplier.supplierName}</h4>
+                        ${supplier.paymentType ? `
+                            <span style="background:${
+                                supplier.paymentType === 'shop_inventory' ? '#4caf50' :
+                                supplier.paymentType === 'tech_pays_cod' ? '#ff9800' :
+                                '#2196f3'
+                            };color:white;padding:4px 10px;border-radius:4px;font-size:0.85em;font-weight:500;">
+                                ${
+                                    supplier.paymentType === 'shop_inventory' ? '💰 Shop' :
+                                    supplier.paymentType === 'tech_pays_cod' ? '💵 COD' :
+                                    '📅 Later'
+                                }
+                            </span>
+                        ` : '<span style="color:#f44336;font-size:0.85em;font-weight:500;">⚠️ Unclassified</span>'}
+                    </div>
                     ${supplier.contactPerson ? `<p style="margin:5px 0;"><strong>Contact:</strong> ${supplier.contactPerson}</p>` : ''}
                     ${supplier.phone ? `<p style="margin:5px 0;"><strong>Phone:</strong> ${supplier.phone}</p>` : ''}
                     ${supplier.email ? `<p style="margin:5px 0;"><strong>Email:</strong> ${supplier.email}</p>` : ''}
@@ -8111,6 +7837,19 @@ function showAddSupplierForm() {
                 <textarea name="notes" rows="2"></textarea>
             </div>
             
+            ${window.currentUserData.role === 'admin' ? `
+                <div class="form-group">
+                    <label>Payment Type <span style="color:red;">*</span></label>
+                    <select name="paymentType" required>
+                        <option value="">Select payment type</option>
+                        <option value="shop_inventory">💰 Shop Inventory (Boss Nado) - Payment to shop/admin</option>
+                        <option value="tech_pays_cod">💵 Technician Pays COD - Auto-deducts from remittance</option>
+                        <option value="shop_pays_later">📅 Shop Pays Later - Accounts payable</option>
+                    </select>
+                    <small style="color:#666;">How should parts purchases from this supplier be handled?</small>
+                </div>
+            ` : ''}
+            
             <div style="display:flex;gap:10px;">
                 <button type="submit" class="btn-primary" style="flex:1;">✅ Add Supplier</button>
                 <button type="button" onclick="hideSupplierForm()" class="btn-secondary" style="flex:1;">Cancel</button>
@@ -8144,7 +7883,8 @@ async function submitAddSupplier(e) {
         phone: formData.get('phone'),
         email: formData.get('email'),
         address: formData.get('address'),
-        notes: formData.get('notes')
+        notes: formData.get('notes'),
+        paymentType: formData.get('paymentType') || ''
     };
 
     try {
@@ -8205,6 +7945,20 @@ function editSupplierForm(supplierId) {
                 <label>Notes</label>
                 <textarea name="notes" rows="2">${supplier.notes || ''}</textarea>
             </div>
+            
+            ${window.currentUserData.role === 'admin' ? `
+                <div class="form-group">
+                    <label>Payment Type <span style="color:red;">*</span></label>
+                    <select name="paymentType" required>
+                        <option value="">Select payment type</option>
+                        <option value="shop_inventory" ${supplier.paymentType === 'shop_inventory' ? 'selected' : ''}>💰 Shop Inventory (Boss Nado) - Payment to shop/admin</option>
+                        <option value="tech_pays_cod" ${supplier.paymentType === 'tech_pays_cod' ? 'selected' : ''}>💵 Technician Pays COD - Auto-deducts from remittance</option>
+                        <option value="shop_pays_later" ${supplier.paymentType === 'shop_pays_later' ? 'selected' : ''}>📅 Shop Pays Later - Accounts payable</option>
+                    </select>
+                    <small style="color:#666;">How should parts purchases from this supplier be handled?</small>
+                    <small style="color:#ff9800;display:block;margin-top:5px;">⚠️ Payment type changes only affect future repairs. Existing repairs remain unchanged.</small>
+                </div>
+            ` : ''}
             
             <div style="display:flex;gap:10px;">
                 <button type="submit" class="btn-primary" style="flex:1;">✅ Save Changes</button>
@@ -10157,6 +9911,16 @@ function buildSupplierPayablesTab(container) {
                     <label>Description</label>
                     <textarea id="purchaseDescription" class="form-control" rows="2" placeholder="Items purchased..."></textarea>
                 </div>
+                
+                <!-- PARTS DETAILS (OPTIONAL) -->
+                <div style="background:white;padding:15px;border-radius:4px;margin-bottom:15px;">
+                    <h5 style="margin:0 0 10px;">📦 Parts Details (Optional)</h5>
+                    <div id="partsDetailsContainer"></div>
+                    <button type="button" onclick="addPartsRow()" class="btn-secondary" style="font-size:0.9em;">
+                        ➕ Add Part
+                    </button>
+                </div>
+                
                 <button onclick="saveSupplierPurchase()" class="btn btn-primary">
                     ✅ Record Purchase
                 </button>
@@ -10298,6 +10062,24 @@ function saveSupplierPurchase() {
     const purchaseDate = document.getElementById('purchaseDate').value;
     const dueDate = document.getElementById('purchaseDueDate').value;
     const description = document.getElementById('purchaseDescription').value.trim();
+    
+    // Get parts details if entered
+    const partsRows = document.querySelectorAll('.parts-row');
+    const partsPurchased = [];
+    partsRows.forEach(row => {
+        const partName = row.querySelector('.part-name')?.value.trim();
+        const quantity = parseFloat(row.querySelector('.part-quantity')?.value);
+        const unitPrice = parseFloat(row.querySelector('.part-price')?.value);
+        
+        if (partName && quantity && unitPrice) {
+            partsPurchased.push({
+                partName: partName,
+                quantity: quantity,
+                unitPrice: unitPrice,
+                totalCost: quantity * unitPrice
+            });
+        }
+    });
 
     if (!supplier || !invoice || !amount || amount <= 0 || !purchaseDate) {
         alert('Please fill in all required fields');
@@ -10311,6 +10093,7 @@ function saveSupplierPurchase() {
         purchaseDate: purchaseDate + 'T00:00:00.000Z',
         dueDate: dueDate ? dueDate + 'T00:00:00.000Z' : null,
         description: description || null,
+        partsPurchased: partsPurchased.length > 0 ? partsPurchased : [],
         paymentStatus: 'unpaid',
         totalPaid: 0,
         outstandingBalance: amount,
@@ -10335,11 +10118,44 @@ function saveSupplierPurchase() {
             document.getElementById('purchaseAmount').value = '';
             document.getElementById('purchaseDueDate').value = '';
             document.getElementById('purchaseDescription').value = '';
+            
+            // Clear parts rows
+            document.getElementById('partsDetailsContainer').innerHTML = '';
         })
         .catch(error => {
             utils.showLoading(false);
             alert('Error recording purchase: ' + error.message);
         });
+}
+
+function addPartsRow() {
+    const container = document.getElementById('partsDetailsContainer');
+    const rowId = 'partRow_' + Date.now();
+    
+    const row = document.createElement('div');
+    row.className = 'parts-row';
+    row.id = rowId;
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+    
+    row.innerHTML = `
+        <div>
+            <label style="font-size:0.9em;">Part Name</label>
+            <input type="text" class="part-name form-control" placeholder="LCD Screen">
+        </div>
+        <div>
+            <label style="font-size:0.9em;">Quantity</label>
+            <input type="number" class="part-quantity form-control" placeholder="1" min="1" step="1">
+        </div>
+        <div>
+            <label style="font-size:0.9em;">Unit Price</label>
+            <input type="number" class="part-price form-control" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" class="btn-danger" style="padding:8px 12px;">
+            🗑️
+        </button>
+    `;
+    
+    container.appendChild(row);
 }
 
 function showRecordPaymentModal(purchaseId) {
@@ -10603,6 +10419,7 @@ window.saveEditedOverheadExpense = saveEditedOverheadExpense;
 // Export supplier payables functions
 window.buildSupplierPayablesTab = buildSupplierPayablesTab;
 window.saveSupplierPurchase = saveSupplierPurchase;
+window.addPartsRow = addPartsRow;
 window.showRecordPaymentModal = showRecordPaymentModal;
 window.confirmSupplierPayment = confirmSupplierPayment;
 window.viewPurchaseDetails = viewPurchaseDetails;
@@ -11180,9 +10997,1415 @@ function initTableView(tableId) {
 window.toggleTableView = toggleTableView;
 window.initTableView = initTableView;
 
+// ============================================
+// USAGE ANALYTICS TAB
+// ============================================
+
+function buildUsageAnalyticsTab(container) {
+    console.log('📈 Building Usage Analytics tab');
+    window.currentTabRefresh = () => buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));
+    
+    const today = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    // Get current filter or default to 7 days
+    const currentRange = window.usageAnalyticsRange || '7days';
+    
+    let startDate, endDate;
+    switch(currentRange) {
+        case 'today':
+            startDate = today;
+            endDate = today + 'T23:59:59.999Z';
+            break;
+        case '7days':
+            startDate = sevenDaysAgo;
+            endDate = today + 'T23:59:59.999Z';
+            break;
+        case '30days':
+            startDate = thirtyDaysAgo;
+            endDate = today + 'T23:59:59.999Z';
+            break;
+        default:
+            startDate = sevenDaysAgo;
+            endDate = today + 'T23:59:59.999Z';
+    }
+
+    container.innerHTML = `
+        <div class="card">
+            <h3>📈 Usage Analytics</h3>
+            <p style="color:#666;margin-bottom:20px;">
+                Track which tabs and features are most frequently used. Use this data to optimize the UI and remove unused features.
+            </p>
+
+            <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;">
+                <button class="btn-${currentRange === 'today' ? 'primary' : 'secondary'}"
+                        onclick="window.usageAnalyticsRange='today'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
+                    Today
+                </button>
+                <button class="btn-${currentRange === '7days' ? 'primary' : 'secondary'}"
+                        onclick="window.usageAnalyticsRange='7days'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
+                    Last 7 Days
+                </button>
+                <button class="btn-${currentRange === '30days' ? 'primary' : 'secondary'}"
+                        onclick="window.usageAnalyticsRange='30days'; buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));">
+                    Last 30 Days
+                </button>
+                <button class="btn-secondary" onclick="exportUsageAnalytics()">
+                    📥 Export CSV
+                </button>
+            </div>
+
+            <div id="usageAnalyticsContent">
+                <div style="text-align:center;padding:40px;color:#999;">
+                    Loading analytics data...
+                </div>
+            </div>
+        </div>
+    `;
+
+    // Load analytics data
+    loadUsageAnalyticsData(startDate, endDate);
+}
+
+async function loadUsageAnalyticsData(startDate, endDate) {
+    try {
+        utils.showLoading(true);
+
+        const [tabStats, formStats, fieldStats] = await Promise.all([
+            window.getTabUsageStats(startDate, endDate),
+            window.getFormUsageStats(startDate, endDate),
+            window.getFieldUsageStats(startDate, endDate)
+        ]);
+
+        utils.showLoading(false);
+
+        const contentDiv = document.getElementById('usageAnalyticsContent');
+        if (!contentDiv) return;
+
+        const summaryCards = `
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:30px;">
+                <div class="stat-card" style="background:#e3f2fd;border-left:4px solid #2196f3;">
+                    <div class="stat-value">${tabStats.totalEvents.toLocaleString()}</div>
+                    <div class="stat-label">Tab Switches</div>
+                </div>
+                <div class="stat-card" style="background:#f3e5f5;border-left:4px solid #9c27b0;">
+                    <div class="stat-value">${formStats.totalSubmissions.toLocaleString()}</div>
+                    <div class="stat-label">Form Submissions</div>
+                </div>
+                <div class="stat-card" style="background:#e8f5e9;border-left:4px solid #4caf50;">
+                    <div class="stat-value">${fieldStats.totalInteractions.toLocaleString()}</div>
+                    <div class="stat-label">Field Interactions</div>
+                </div>
+            </div>
+        `;
+
+        const tabsTable = tabStats.mostUsedTabs.length > 0 ? `
+            <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
+                <h4 style="margin:0 0 15px 0;color:#2196f3;">🔝 Most Used Tabs</h4>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Tab Name</th>
+                            <th>Total Visits</th>
+                            <th>% of Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tabStats.mostUsedTabs.map((tab, index) => {
+                            const percentage = ((tab.count / tabStats.totalEvents) * 100).toFixed(1);
+                            return `
+                                <tr>
+                                    <td><strong>${index + 1}</strong></td>
+                                    <td>${tab.tab}</td>
+                                    <td>${tab.count.toLocaleString()}</td>
+                                    <td>
+                                        <div style="display:flex;align-items:center;gap:10px;">
+                                            <div style="flex:1;background:#e0e0e0;height:20px;border-radius:10px;overflow:hidden;">
+                                                <div style="width:${percentage}%;background:#2196f3;height:100%;"></div>
+                                            </div>
+                                            <span style="min-width:45px;text-align:right;">${percentage}%</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        ` : '<p style="text-align:center;color:#999;padding:20px;">No tab data available</p>';
+
+        contentDiv.innerHTML = summaryCards + tabsTable;
+
+    } catch (error) {
+        console.error('❌ Error loading usage analytics:', error);
+        utils.showLoading(false);
+        
+        const contentDiv = document.getElementById('usageAnalyticsContent');
+        if (contentDiv) {
+            contentDiv.innerHTML = `
+                <div class="alert-danger">
+                    <p style="margin:0;">Error loading analytics data: ${error.message}</p>
+                    <p style="margin:5px 0 0;font-size:14px;">This might be because no usage data has been collected yet. Start using the app to generate analytics.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+async function exportUsageAnalytics() {
+    try {
+        utils.showLoading(true);
+
+        const currentRange = window.usageAnalyticsRange || '7days';
+        const today = new Date().toISOString().split('T')[0];
+        
+        let startDate, endDate;
+        switch(currentRange) {
+            case 'today':
+                startDate = today;
+                endDate = today + 'T23:59:59.999Z';
+                break;
+            case '7days':
+                startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                endDate = today + 'T23:59:59.999Z';
+                break;
+            case '30days':
+                startDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                endDate = today + 'T23:59:59.999Z';
+                break;
+        }
+
+        const events = await window.getUsageAnalytics(startDate, endDate);
+        
+        const csvHeaders = ['Timestamp', 'User', 'Role', 'Event Type', 'Details'];
+        const csvRows = events.map(event => {
+            let details = '';
+            if (event.eventType === 'tab_switch') {
+                details = `${event.data.fromTab} → ${event.data.toTab}`;
+            } else if (event.eventType === 'form_submit') {
+                details = event.data.formName;
+            } else if (event.eventType === 'field_interaction') {
+                details = `${event.data.fieldName} (${event.data.fieldType})`;
+            }
+            
+            return [
+                event.timestamp,
+                event.userName,
+                event.userRole,
+                event.eventType,
+                details
+            ];
+        });
+
+        const csvContent = [
+            csvHeaders.join(','),
+            ...csvRows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `usage_analytics_${currentRange}_${today}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+
+        utils.showLoading(false);
+        alert('✅ Usage analytics exported successfully!');
+
+    } catch (error) {
+        console.error('❌ Error exporting analytics:', error);
+        utils.showLoading(false);
+        alert('❌ Error exporting analytics: ' + error.message);
+    }
+}
+
 // Export usage analytics functions
 window.buildUsageAnalyticsTab = buildUsageAnalyticsTab;
 window.loadUsageAnalyticsData = loadUsageAnalyticsData;
 window.exportUsageAnalytics = exportUsageAnalytics;
+
+// ============================================
+// PERSONAL FINANCE TAB
+// ============================================
+
+function buildPersonalFinanceTab(container) {
+    console.log('💰 Building Personal Finance tab');
+    
+    // Set refresh callback
+    window.currentTabRefresh = () => buildPersonalFinanceTab(
+        document.getElementById('personal-financeTab')
+    );
+    
+    const today = new Date();
+    const currentMonth = today.getMonth() + 1;
+    const currentYear = today.getFullYear();
+    
+    // Get current budget
+    const budget = calculateNetPersonalBudget(currentMonth, currentYear);
+    
+    // Check if recurring generated for current month
+    const recurringGenerated = (window.allPersonalExpenses || []).some(e =>
+        e.isAutoGenerated &&
+        new Date(e.date).getMonth() + 1 === currentMonth &&
+        new Date(e.date).getFullYear() === currentYear
+    );
+    
+    container.innerHTML = `
+        <div class="card">
+            <h2 style="margin-bottom:20px;">💰 My Personal Finance</h2>
+            
+            <!-- Budget Dashboard -->
+            <div class="admin-section">
+                <div class="admin-section-header" onclick="toggleAdminSection('budget-dashboard')">
+                    <h3>📊 Budget Dashboard</h3>
+                    <span class="toggle-icon" id="budget-dashboard-icon">▼</span>
+                </div>
+                <div id="budget-dashboard-section" class="admin-section-content" style="display:block;">
+                    ${buildBudgetDashboard(budget, currentMonth, currentYear)}
+                </div>
+            </div>
+            
+            <!-- Savings Goals -->
+            <div class="admin-section">
+                <div class="admin-section-header" onclick="toggleAdminSection('savings-goals')">
+                    <h3>🎯 Savings Goals</h3>
+                    <span class="toggle-icon" id="savings-goals-icon">▼</span>
+                </div>
+                <div id="savings-goals-section" class="admin-section-content">
+                    ${buildSavingsGoalsSection()}
+                </div>
+            </div>
+            
+            <!-- Credit Cards -->
+            <div class="admin-section">
+                <div class="admin-section-header" onclick="toggleAdminSection('credit-cards')">
+                    <h3>💳 Credit Cards</h3>
+                    <span class="toggle-icon" id="credit-cards-icon">▼</span>
+                </div>
+                <div id="credit-cards-section" class="admin-section-content">
+                    ${buildCreditCardsSection()}
+                </div>
+            </div>
+            
+            <!-- Recurring Templates -->
+            <div class="admin-section">
+                <div class="admin-section-header" onclick="toggleAdminSection('recurring-templates')">
+                    <h3>🔄 Recurring Templates ${!recurringGenerated ? '<span style="background:#F44336;color:white;padding:2px 8px;border-radius:12px;font-size:12px;margin-left:10px;">!</span>' : ''}</h3>
+                    <span class="toggle-icon" id="recurring-templates-icon">▼</span>
+                </div>
+                <div id="recurring-templates-section" class="admin-section-content">
+                    ${buildRecurringTemplatesSection(recurringGenerated, currentMonth, currentYear)}
+                </div>
+            </div>
+            
+            <!-- Expense History -->
+            <div class="admin-section">
+                <div class="admin-section-header" onclick="toggleAdminSection('expense-history')">
+                    <h3>📋 Expense History</h3>
+                    <span class="toggle-icon" id="expense-history-icon">▼</span>
+                </div>
+                <div id="expense-history-section" class="admin-section-content">
+                    ${buildExpenseHistorySection(currentMonth, currentYear)}
+                </div>
+            </div>
+            
+            <!-- Trend Charts -->
+            <div class="admin-section">
+                <div class="admin-section-header" onclick="toggleAdminSection('trend-charts')">
+                    <h3>📈 Spending Trends</h3>
+                    <span class="toggle-icon" id="trend-charts-icon">▼</span>
+                </div>
+                <div id="trend-charts-section" class="admin-section-content">
+                    ${buildTrendChartsSection()}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function buildBudgetDashboard(budget, month, year) {
+    if (budget.isTechnician) {
+        return `
+            <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;">
+                <h4 style="margin-top:0;">💼 Commission-Based Budget (${getMonthName(month)} ${year})</h4>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:15px;">
+                    <div>
+                        <small style="color:#666;">Gross Commission</small>
+                        <div style="font-size:20px;font-weight:bold;color:#4CAF50;">₱${budget.breakdown.grossCommission.toFixed(2)}</div>
+                    </div>
+                    <div>
+                        <small style="color:#666;">Overhead Share (${(budget.breakdown.userProportion * 100).toFixed(1)}%)</small>
+                        <div style="font-size:20px;font-weight:bold;color:#F44336;">-₱${budget.breakdown.overheadShare.toFixed(2)}</div>
+                    </div>
+                    <div>
+                        <small style="color:#666;">Net After Overhead</small>
+                        <div style="font-size:20px;font-weight:bold;color:#2196F3;">₱${budget.breakdown.netAfterOverhead.toFixed(2)}</div>
+                    </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+                    <div style="background:#E3F2FD;padding:15px;border-radius:8px;">
+                        <h4 style="margin-top:0;">60% Spending Budget</h4>
+                        <div style="font-size:24px;font-weight:bold;color:#2196F3;">₱${budget.spendingBudget.toFixed(2)}</div>
+                        <small style="color:#666;">For personal expenses</small>
+                    </div>
+                    <div style="background:#E8F5E9;padding:15px;border-radius:8px;">
+                        <h4 style="margin-top:0;">40% Savings Pool</h4>
+                        <div style="font-size:24px;font-weight:bold;color:#4CAF50;">₱${budget.savingsPool.toFixed(2)}</div>
+                        <small style="color:#666;">Auto-allocated to goals</small>
+                    </div>
+                </div>
+            </div>
+            <div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">
+                <h4 style="margin-top:0;">💰 Spending Status</h4>
+                <div style="margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                        <span>Spent</span>
+                        <span style="font-weight:bold;">₱${budget.spent.toFixed(2)}</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                        <span>Remaining</span>
+                        <span style="font-weight:bold;color:${budget.remaining >= 0 ? '#4CAF50' : '#F44336'};">₱${budget.remaining.toFixed(2)}</span>
+                    </div>
+                    <div style="background:#f0f0f0;height:20px;border-radius:10px;overflow:hidden;">
+                        <div style="background:${budget.utilizationPercent < 70 ? '#4CAF50' : budget.utilizationPercent < 90 ? '#FF9800' : '#F44336'};height:100%;width:${Math.min(budget.utilizationPercent, 100)}%;transition:width 0.3s;"></div>
+                    </div>
+                    <div style="text-align:center;margin-top:5px;font-size:14px;color:#666;">
+                        ${budget.utilizationPercent.toFixed(1)}% used
+                    </div>
+                </div>
+                <button onclick="openPersonalExpenseModal()" class="btn-primary" style="width:100%;">➕ Add Expense</button>
+            </div>
+        `;
+    } else {
+        return `
+            <div style="background:#FFF3E0;padding:15px;border-radius:8px;margin-bottom:15px;">
+                <h4 style="margin-top:0;">💼 Manual Budget (${getMonthName(month)} ${year})</h4>
+                <p style="color:#666;margin-bottom:10px;">You don't have technician commissions. Set a manual monthly budget:</p>
+                <div style="display:flex;gap:10px;">
+                    <input type="number" id="manualBudgetInput" value="${budget.spendingBudget}" placeholder="0.00" style="flex:1;padding:10px;border:1px solid #ddd;border-radius:4px;">
+                    <button onclick="saveManualBudget(${month}, ${year})" class="btn-primary">💾 Save</button>
+                </div>
+            </div>
+            ${budget.spendingBudget > 0 ? `
+                <div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">
+                    <h4 style="margin-top:0;">💰 Spending Status</h4>
+                    <div style="margin-bottom:10px;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                            <span>Budget</span>
+                            <span style="font-weight:bold;">₱${budget.spendingBudget.toFixed(2)}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                            <span>Spent</span>
+                            <span style="font-weight:bold;">₱${budget.spent.toFixed(2)}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                            <span>Remaining</span>
+                            <span style="font-weight:bold;color:${budget.remaining >= 0 ? '#4CAF50' : '#F44336'};">₱${budget.remaining.toFixed(2)}</span>
+                        </div>
+                        <div style="background:#f0f0f0;height:20px;border-radius:10px;overflow:hidden;">
+                            <div style="background:${budget.utilizationPercent < 70 ? '#4CAF50' : budget.utilizationPercent < 90 ? '#FF9800' : '#F44336'};height:100%;width:${Math.min(budget.utilizationPercent, 100)}%;transition:width 0.3s;"></div>
+                        </div>
+                        <div style="text-align:center;margin-top:5px;font-size:14px;color:#666;">
+                            ${budget.utilizationPercent.toFixed(1)}% used
+                        </div>
+                    </div>
+                    <button onclick="openPersonalExpenseModal()" class="btn-primary" style="width:100%;">➕ Add Expense</button>
+                </div>
+            ` : ''}
+        `;
+    }
+}
+
+function buildSavingsGoalsSection() {
+    const goals = window.allSavingsGoals || [];
+    const activeGoals = goals.filter(g => !g.isCompleted);
+    const completedGoals = goals.filter(g => g.isCompleted);
+    
+    const totalSavings = goals.reduce((sum, g) => sum + (g.currentAmount || 0), 0);
+    
+    const today = new Date();
+    const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
+    
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <div>
+                <h4 style="margin:0;">Total Savings: ₱${totalSavings.toFixed(2)}</h4>
+                <small style="color:#666;">${activeGoals.length} active, ${completedGoals.length} completed</small>
+            </div>
+            <div>
+                <button onclick="openSavingsGoalModal()" class="btn-primary">➕ Add Goal</button>
+                ${budget.isTechnician && budget.savingsPool > 0 ? `
+                    <button onclick="showAllocationRecommendation()" class="btn-secondary">💡 Optimize Allocation</button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    if (activeGoals.length === 0 && completedGoals.length === 0) {
+        html += '<p style="text-align:center;color:#666;padding:40px;">No savings goals yet. Create one to start saving!</p>';
+    } else {
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px;">';
+        
+        activeGoals.forEach(goal => {
+            html += buildGoalCard(goal);
+        });
+        
+        completedGoals.forEach(goal => {
+            html += buildGoalCard(goal);
+        });
+        
+        html += '</div>';
+    }
+    
+    return html;
+}
+
+function buildGoalCard(goal) {
+    const percentComplete = ((goal.currentAmount || 0) / goal.targetAmount) * 100;
+    const isCompleted = goal.isCompleted || false;
+    
+    return `
+        <div style="background:${isCompleted ? '#E8F5E9' : 'white'};border:1px solid ${isCompleted ? '#4CAF50' : '#ddd'};border-radius:8px;padding:15px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
+                <div>
+                    <h4 style="margin:0 0 5px 0;">${isCompleted ? '✅ ' : ''}${goal.goalName}</h4>
+                    <span style="background:#E3F2FD;color:#2196F3;padding:2px 8px;border-radius:4px;font-size:12px;">${goal.category}</span>
+                </div>
+                <span style="font-size:12px;color:#666;">Priority ${goal.priority}</span>
+            </div>
+            <div style="margin:15px 0;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                    <span style="font-size:14px;color:#666;">₱${(goal.currentAmount || 0).toFixed(2)}</span>
+                    <span style="font-size:14px;color:#666;">₱${goal.targetAmount.toFixed(2)}</span>
+                </div>
+                <div style="background:#f0f0f0;height:12px;border-radius:6px;overflow:hidden;">
+                    <div style="background:${isCompleted ? '#4CAF50' : '#2196F3'};height:100%;width:${Math.min(percentComplete, 100)}%;transition:width 0.3s;"></div>
+                </div>
+                <div style="text-align:center;margin-top:5px;font-size:12px;color:#666;">
+                    ${percentComplete.toFixed(1)}% complete
+                </div>
+            </div>
+            ${goal.deadline ? `
+                <div style="font-size:12px;color:#666;margin-bottom:10px;">
+                    📅 Target: ${new Date(goal.deadline).toLocaleDateString()}
+                </div>
+            ` : ''}
+            ${!isCompleted ? `
+                <div style="display:flex;gap:5px;">
+                    <button onclick="openContributionModal('${goal.id}')" class="btn-secondary" style="flex:1;font-size:12px;padding:6px;">➕ Add</button>
+                    <button onclick="openWithdrawalModal('${goal.id}')" class="btn-secondary" style="flex:1;font-size:12px;padding:6px;">💸 Withdraw</button>
+                    <button onclick="editSavingsGoal('${goal.id}')" class="btn-secondary" style="font-size:12px;padding:6px;">✏️</button>
+                    <button onclick="deleteSavingsGoal('${goal.id}')" class="btn-secondary" style="font-size:12px;padding:6px;">🗑️</button>
+                </div>
+            ` : `
+                <div style="text-align:center;color:#4CAF50;font-weight:bold;">🎉 Goal Completed!</div>
+            `}
+        </div>
+    `;
+}
+
+function buildCreditCardsSection() {
+    const cards = (window.allCreditCards || []).filter(c => c.isActive);
+    
+    const totalDebt = cards.reduce((sum, c) => sum + (c.currentBalance || 0), 0);
+    const totalLimit = cards.reduce((sum, c) => sum + (c.creditLimit || 0), 0);
+    const totalMinimums = cards.reduce((sum, c) => {
+        const balance = c.currentBalance || 0;
+        const percent = c.minimumPaymentPercent || 3;
+        return sum + (balance * percent / 100);
+    }, 0);
+    
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <div>
+                <h4 style="margin:0;">Total Debt: ₱${totalDebt.toFixed(2)}</h4>
+                <small style="color:#666;">Monthly Minimums: ₱${totalMinimums.toFixed(2)}</small>
+            </div>
+            <div>
+                <button onclick="openCreditCardModal()" class="btn-primary">➕ Add Card</button>
+                <button onclick="openLoanCalculatorModal()" class="btn-secondary">🏦 Check Loan</button>
+            </div>
+        </div>
+    `;
+    
+    if (cards.length === 0) {
+        html += '<p style="text-align:center;color:#666;padding:40px;">No credit cards tracked yet.</p>';
+    } else {
+        html += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+        html += '<th>Card Name</th><th>Holder</th><th>Bank</th><th>Limit</th><th>Balance</th><th>Utilization</th><th>Due Date</th><th>Actions</th>';
+        html += '</tr></thead><tbody>';
+        
+        cards.forEach(card => {
+            const utilization = (card.currentBalance / card.creditLimit) * 100;
+            const holderColors = { 'Mine': '#4CAF50', 'Spouse': '#2196F3', 'Shared': '#FF9800' };
+            
+            html += '<tr>';
+            html += `<td><strong>${card.cardName}</strong></td>`;
+            html += `<td><span style="background:${holderColors[card.cardHolder]};color:white;padding:2px 8px;border-radius:4px;font-size:12px;">${card.cardHolder}</span></td>`;
+            html += `<td>${card.bank}</td>`;
+            html += `<td>₱${card.creditLimit.toFixed(2)}</td>`;
+            html += `<td style="color:${card.currentBalance > 0 ? '#F44336' : '#4CAF50'};">₱${card.currentBalance.toFixed(2)}</td>`;
+            html += `<td><div style="display:flex;align-items:center;gap:5px;">`;
+            html += `<div style="flex:1;background:#f0f0f0;height:12px;border-radius:6px;overflow:hidden;min-width:80px;">`;
+            html += `<div style="background:${utilization < 30 ? '#4CAF50' : utilization < 70 ? '#FF9800' : '#F44336'};height:100%;width:${Math.min(utilization, 100)}%;"></div>`;
+            html += `</div><span style="font-size:12px;white-space:nowrap;">${utilization.toFixed(0)}%</span></div></td>`;
+            html += `<td>Day ${card.monthlyDueDate}</td>`;
+            html += `<td>`;
+            html += `<button onclick="recordCardPayment('${card.id}')" class="btn-secondary" style="font-size:12px;padding:4px 8px;margin-right:5px;">💳 Pay</button>`;
+            html += `<button onclick="editCreditCard('${card.id}')" class="btn-secondary" style="font-size:12px;padding:4px 8px;margin-right:5px;">✏️</button>`;
+            html += `<button onclick="deleteCreditCard('${card.id}')" class="btn-secondary" style="font-size:12px;padding:4px 8px;">🗑️</button>`;
+            html += `</td></tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+    }
+    
+    return html;
+}
+
+function buildRecurringTemplatesSection(generated, month, year) {
+    const templates = window.allRecurringTemplates || [];
+    
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <div>
+                <h4 style="margin:0;">${templates.length} Templates</h4>
+                <small style="color:#666;">${templates.filter(t => t.isActive).length} active</small>
+            </div>
+            <div>
+                <button onclick="openRecurringTemplateModal()" class="btn-primary">➕ Add Template</button>
+                <button onclick="generateRecurringExpenses(${month}, ${year})" class="btn-secondary" ${!window.isOnline ? 'disabled' : ''}>
+                    🔄 Generate This Month ${!generated ? '⚠️' : ''}
+                </button>
+            </div>
+        </div>
+    `;
+    
+    if (templates.length === 0) {
+        html += '<p style="text-align:center;color:#666;padding:40px;">No recurring templates. Add one to automate monthly bills!</p>';
+    } else {
+        html += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+        html += '<th>Name</th><th>Category</th><th>Amount</th><th>Day of Month</th><th>Status</th><th>Actions</th>';
+        html += '</tr></thead><tbody>';
+        
+        templates.forEach(template => {
+            html += '<tr>';
+            html += `<td><strong>${template.name}</strong></td>`;
+            html += `<td>${template.category}</td>`;
+            html += `<td>${template.currency === 'USD' ? '$' : '₱'}${template.amount.toFixed(2)}</td>`;
+            html += `<td>Day ${template.dayOfMonth}</td>`;
+            html += `<td><span style="color:${template.isActive ? '#4CAF50' : '#999'};">${template.isActive ? '✅ Active' : '⏸️ Inactive'}</span></td>`;
+            html += `<td>`;
+            html += `<button onclick="editRecurringTemplate('${template.id}')" class="btn-secondary" style="font-size:12px;padding:4px 8px;margin-right:5px;" ${!window.isOnline ? 'disabled' : ''}>✏️</button>`;
+            html += `<button onclick="deleteRecurringTemplate('${template.id}')" class="btn-secondary" style="font-size:12px;padding:4px 8px;" ${!window.isOnline ? 'disabled' : ''}>🗑️</button>`;
+            html += `</td></tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+    }
+    
+    return html;
+}
+
+function buildExpenseHistorySection(month, year) {
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0, 23, 59, 59);
+    
+    const expenses = (window.allPersonalExpenses || []).filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate >= monthStart && expenseDate <= monthEnd;
+    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+            <div style="display:flex;gap:10px;flex:1;">
+                <input type="text" id="expenseSearch" placeholder="🔍 Search expenses..." style="flex:1;padding:8px;border:1px solid #ddd;border-radius:4px;" onkeyup="filterExpenses()">
+                <select id="categoryFilter" onchange="filterExpenses()" style="padding:8px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="">All Categories</option>
+                    <option value="Bills">💡 Bills</option>
+                    <option value="Loans">🏦 Loans</option>
+                    <option value="Food">🍽️ Food</option>
+                    <option value="Transportation">🚗 Transportation</option>
+                    <option value="Medical">🏥 Medical</option>
+                    <option value="Entertainment">🎮 Entertainment</option>
+                    <option value="Shopping">🛒 Shopping</option>
+                    <option value="Allowance">💵 Allowance</option>
+                    <option value="Credit Card Payment">💳 Credit Card Payment</option>
+                    <option value="Other">📦 Other</option>
+                </select>
+            </div>
+            <div>
+                <button onclick="openPersonalExpenseModal()" class="btn-primary">➕ Add Expense</button>
+                <button onclick="exportPersonalFinancesCSV(${month}, ${year})" class="btn-secondary">📊 Export CSV</button>
+            </div>
+        </div>
+    `;
+    
+    if (expenses.length === 0) {
+        html += '<p style="text-align:center;color:#666;padding:40px;">No expenses for this month.</p>';
+    } else {
+        html += '<div id="expenseTableContainer" style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+        html += '<th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Currency</th><th>PHP Equivalent</th><th>Status</th><th>Actions</th>';
+        html += '</tr></thead><tbody id="expenseTableBody">';
+        
+        expenses.forEach(expense => {
+            const phpAmount = expense.currency === 'USD' ? expense.amount * expense.phpConversionRate : expense.amount;
+            const isPending = expense.syncStatus === 'pending';
+            const isCCPayment = expense.category === 'Credit Card Payment';
+            
+            html += `<tr style="${isPending ? 'background:#FFF9C4;' : ''}${isCCPayment ? 'background:#E1F5FE;' : ''}">`;
+            html += `<td>${new Date(expense.date).toLocaleDateString()}</td>`;
+            html += `<td>${expense.category}</td>`;
+            html += `<td>${expense.description || '-'}</td>`;
+            html += `<td>${expense.currency === 'USD' ? '$' : '₱'}${expense.amount.toFixed(2)}</td>`;
+            html += `<td>${expense.currency}</td>`;
+            html += `<td>₱${phpAmount.toFixed(2)}${expense.currency === 'USD' ? ` <small>(rate: ${expense.phpConversionRate})</small>` : ''}</td>`;
+            html += `<td>${isPending ? '⏳ Pending' : '✅ Synced'}</td>`;
+            html += `<td><button class="btn-secondary" style="font-size:12px;padding:4px 8px;" onclick="alert('Edit/delete requires online connection')" ${!window.isOnline || isPending ? 'disabled' : ''}>🗑️</button></td>`;
+            html += `</tr>`;
+        });
+        
+        html += '</tbody></table></div>';
+    }
+    
+    return html;
+}
+
+function buildTrendChartsSection() {
+    const trendData = getSpendingTrendData(6);
+    
+    let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">';
+    
+    // Spending trend chart (simple visualization)
+    html += '<div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">';
+    html += '<h4 style="margin-top:0;">📈 6-Month Spending Trend</h4>';
+    
+    if (trendData.length > 0) {
+        const maxAmount = Math.max(...trendData.map(d => d.total));
+        
+        html += '<div style="display:flex;align-items:flex-end;justify-content:space-around;height:200px;gap:10px;">';
+        trendData.forEach(d => {
+            const height = maxAmount > 0 ? (d.total / maxAmount) * 100 : 0;
+            html += `<div style="flex:1;text-align:center;">`;
+            html += `<div style="background:#2196F3;height:${height}%;min-height:10px;border-radius:4px 4px 0 0;"></div>`;
+            html += `<div style="font-size:10px;margin-top:5px;color:#666;">${d.monthName.substring(0,3)}</div>`;
+            html += `<div style="font-size:11px;font-weight:bold;">₱${(d.total/1000).toFixed(1)}k</div>`;
+            html += `</div>`;
+        });
+        html += '</div>';
+    } else {
+        html += '<p style="text-align:center;color:#666;padding:40px;">No data yet</p>';
+    }
+    
+    html += '</div>';
+    
+    // Current month category breakdown
+    const today = new Date();
+    const categoryData = getCategoryBreakdown(today.getMonth() + 1, today.getFullYear());
+    const categories = Object.keys(categoryData);
+    
+    html += '<div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">';
+    html += '<h4 style="margin-top:0;">🥧 This Month by Category</h4>';
+    
+    if (categories.length > 0) {
+        const total = Object.values(categoryData).reduce((sum, v) => sum + v, 0);
+        
+        html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+        categories.forEach(cat => {
+            const amount = categoryData[cat];
+            const percent = (amount / total) * 100;
+            
+            html += `<div>`;
+            html += `<div style="display:flex;justify-content:space-between;margin-bottom:5px;">`;
+            html += `<span style="font-size:14px;">${cat}</span>`;
+            html += `<span style="font-weight:bold;">₱${amount.toFixed(2)} (${percent.toFixed(1)}%)</span>`;
+            html += `</div>`;
+            html += `<div style="background:#f0f0f0;height:8px;border-radius:4px;overflow:hidden;">`;
+            html += `<div style="background:#4CAF50;height:100%;width:${percent}%;"></div>`;
+            html += `</div>`;
+            html += `</div>`;
+        });
+        html += '</div>';
+    } else {
+        html += '<p style="text-align:center;color:#666;padding:40px;">No expenses this month</p>';
+    }
+    
+    html += '</div>';
+    html += '</div>';
+    
+    return html;
+}
+
+// Modal handlers
+
+function openPersonalExpenseModal() {
+    document.getElementById('expenseDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('expenseCategory').value = '';
+    document.getElementById('expenseCreditCard').value = '';
+    document.getElementById('expenseAmount').value = '';
+    document.getElementById('expenseCurrency').value = 'PHP';
+    document.getElementById('expenseConversionRate').value = '';
+    document.getElementById('expenseDescription').value = '';
+    document.getElementById('expenseNotes').value = '';
+    document.getElementById('expenseRecurring').checked = false;
+    document.getElementById('creditCardSelector').style.display = 'none';
+    document.getElementById('conversionRateGroup').style.display = 'none';
+    
+    // Populate credit card selector
+    const cards = (window.allCreditCards || []).filter(c => c.isActive);
+    const select = document.getElementById('expenseCreditCard');
+    select.innerHTML = '<option value="">Select Card</option>';
+    cards.forEach(c => {
+        select.innerHTML += `<option value="${c.id}">${c.cardName} (₱${c.currentBalance.toFixed(2)})</option>`;
+    });
+    
+    updateOfflineIndicator();
+    document.getElementById('personalExpenseModal').style.display = 'block';
+}
+
+function closePersonalExpenseModal() {
+    document.getElementById('personalExpenseModal').style.display = 'none';
+}
+
+function handleExpenseCategoryChange() {
+    const category = document.getElementById('expenseCategory').value;
+    const cardSelector = document.getElementById('creditCardSelector');
+    
+    if (category === 'Credit Card Payment') {
+        cardSelector.style.display = 'block';
+    } else {
+        cardSelector.style.display = 'none';
+    }
+}
+
+function handleCurrencyChange() {
+    const currency = document.getElementById('expenseCurrency').value;
+    const rateGroup = document.getElementById('conversionRateGroup');
+    
+    if (currency === 'USD') {
+        rateGroup.style.display = 'block';
+    } else {
+        rateGroup.style.display = 'none';
+    }
+}
+
+async function savePersonalExpense() {
+    const category = document.getElementById('expenseCategory').value;
+    const amount = document.getElementById('expenseAmount').value;
+    const currency = document.getElementById('expenseCurrency').value;
+    const date = document.getElementById('expenseDate').value;
+    
+    if (category === 'Credit Card Payment') {
+        // Handle as credit card payment
+        const cardId = document.getElementById('expenseCreditCard').value;
+        if (!cardId) {
+            alert('⚠️ Please select a credit card');
+            return;
+        }
+        
+        const result = await recordCreditCardPayment(cardId, amount, date);
+        if (result.success) {
+            closePersonalExpenseModal();
+        }
+    } else {
+        // Handle as regular expense
+        const expenseData = {
+            category: category,
+            amount: amount,
+            currency: currency,
+            phpConversionRate: currency === 'USD' ? document.getElementById('expenseConversionRate').value : 1.0,
+            date: date,
+            description: document.getElementById('expenseDescription').value,
+            notes: document.getElementById('expenseNotes').value
+        };
+        
+        const result = await addPersonalExpense(expenseData);
+        
+        if (result.success) {
+            closePersonalExpenseModal();
+            
+            // Create recurring template if checked
+            if (document.getElementById('expenseRecurring').checked) {
+                const templateData = {
+                    name: expenseData.description || expenseData.category,
+                    category: expenseData.category,
+                    amount: expenseData.amount,
+                    currency: expenseData.currency,
+                    dayOfMonth: new Date(date).getDate(),
+                    isActive: true
+                };
+                
+                await saveRecurringTemplate(templateData);
+            }
+        }
+    }
+}
+
+// Additional modal functions - continuing in next part due to length...
+
+// Export Personal Finance functions
+window.buildPersonalFinanceTab = buildPersonalFinanceTab;
+window.openPersonalExpenseModal = openPersonalExpenseModal;
+window.closePersonalExpenseModal = closePersonalExpenseModal;
+window.handleExpenseCategoryChange = handleExpenseCategoryChange;
+window.handleCurrencyChange = handleCurrencyChange;
+window.savePersonalExpense = savePersonalExpense;
+
+// Recurring Template Modal
+function openRecurringTemplateModal(templateId = null) {
+    // Populate day selector (1-31)
+    const daySelect = document.getElementById('templateDayOfMonth');
+    daySelect.innerHTML = '<option value="">Select Day</option>';
+    for (let i = 1; i <= 31; i++) {
+        daySelect.innerHTML += `<option value="${i}">Day ${i}</option>`;
+    }
+    
+    if (templateId) {
+        const template = window.allRecurringTemplates.find(t => t.id === templateId);
+        if (template) {
+            document.getElementById('templateName').value = template.name;
+            document.getElementById('templateCategory').value = template.category;
+            document.getElementById('templateAmount').value = template.amount;
+            document.getElementById('templateCurrency').value = template.currency;
+            document.getElementById('templateDayOfMonth').value = template.dayOfMonth;
+            document.getElementById('templateActive').checked = template.isActive;
+        }
+    } else {
+        document.getElementById('templateName').value = '';
+        document.getElementById('templateCategory').value = '';
+        document.getElementById('templateAmount').value = '';
+        document.getElementById('templateCurrency').value = 'PHP';
+        document.getElementById('templateDayOfMonth').value = '';
+        document.getElementById('templateActive').checked = true;
+    }
+    
+    document.getElementById('recurringTemplateModal').style.display = 'block';
+}
+
+function closeRecurringTemplateModal() {
+    document.getElementById('recurringTemplateModal').style.display = 'none';
+}
+
+async function saveRecurringTemplate() {
+    const templateData = {
+        id: null,
+        name: document.getElementById('templateName').value,
+        category: document.getElementById('templateCategory').value,
+        amount: document.getElementById('templateAmount').value,
+        currency: document.getElementById('templateCurrency').value,
+        dayOfMonth: document.getElementById('templateDayOfMonth').value,
+        isActive: document.getElementById('templateActive').checked
+    };
+    
+    const result = await window.saveRecurringTemplate(templateData);
+    if (result.success) {
+        closeRecurringTemplateModal();
+    }
+}
+
+function editRecurringTemplate(templateId) {
+    openRecurringTemplateModal(templateId);
+}
+
+// Credit Card Modal
+function openCreditCardModal(cardId = null) {
+    // Populate day selector (1-31)
+    const daySelect = document.getElementById('cardDueDate');
+    daySelect.innerHTML = '<option value="">Select Day</option>';
+    for (let i = 1; i <= 31; i++) {
+        daySelect.innerHTML += `<option value="${i}">Day ${i}</option>`;
+    }
+    
+    if (cardId) {
+        const card = window.allCreditCards.find(c => c.id === cardId);
+        if (card) {
+            document.getElementById('cardName').value = card.cardName;
+            document.getElementById('cardHolder').value = card.cardHolder;
+            document.getElementById('cardBank').value = card.bank;
+            document.getElementById('cardLimit').value = card.creditLimit;
+            document.getElementById('cardBalance').value = card.currentBalance;
+            document.getElementById('cardInterestRate').value = card.interestRate;
+            document.getElementById('cardDueDate').value = card.monthlyDueDate;
+            document.getElementById('cardMinimumPercent').value = card.minimumPaymentPercent;
+            document.getElementById('cardActive').checked = card.isActive;
+        }
+    } else {
+        document.getElementById('cardName').value = '';
+        document.getElementById('cardHolder').value = 'Mine';
+        document.getElementById('cardBank').value = '';
+        document.getElementById('cardLimit').value = '';
+        document.getElementById('cardBalance').value = '';
+        document.getElementById('cardInterestRate').value = '';
+        document.getElementById('cardDueDate').value = '';
+        document.getElementById('cardMinimumPercent').value = '3';
+        document.getElementById('cardActive').checked = true;
+    }
+    
+    document.getElementById('creditCardModal').style.display = 'block';
+}
+
+function closeCreditCardModal() {
+    document.getElementById('creditCardModal').style.display = 'none';
+}
+
+async function saveCreditCard() {
+    const cardData = {
+        id: null,
+        cardName: document.getElementById('cardName').value,
+        cardHolder: document.getElementById('cardHolder').value,
+        bank: document.getElementById('cardBank').value,
+        creditLimit: document.getElementById('cardLimit').value,
+        currentBalance: document.getElementById('cardBalance').value,
+        interestRate: document.getElementById('cardInterestRate').value,
+        monthlyDueDate: document.getElementById('cardDueDate').value,
+        minimumPaymentPercent: document.getElementById('cardMinimumPercent').value,
+        isActive: document.getElementById('cardActive').checked
+    };
+    
+    const result = await window.saveCreditCard(cardData);
+    if (result.success) {
+        closeCreditCardModal();
+    }
+}
+
+function editCreditCard(cardId) {
+    openCreditCardModal(cardId);
+}
+
+function recordCardPayment(cardId) {
+    openPersonalExpenseModal();
+    document.getElementById('expenseCategory').value = 'Credit Card Payment';
+    document.getElementById('expenseCreditCard').value = cardId;
+    document.getElementById('creditCardSelector').style.display = 'block';
+}
+
+// Loan Calculator Modal
+function openLoanCalculatorModal() {
+    document.getElementById('loanAmount').value = '';
+    document.getElementById('loanTermMonths').value = '';
+    document.getElementById('loanInterestRate').value = '';
+    document.getElementById('loanResultsSection').style.display = 'none';
+    document.getElementById('loanCalculatorModal').style.display = 'block';
+}
+
+function closeLoanCalculatorModal() {
+    document.getElementById('loanCalculatorModal').style.display = 'none';
+}
+
+function calculateLoanAffordability() {
+    const amount = document.getElementById('loanAmount').value;
+    const term = document.getElementById('loanTermMonths').value;
+    const rate = document.getElementById('loanInterestRate').value;
+    
+    if (!amount || !term || !rate) {
+        alert('⚠️ Please fill in all fields');
+        return;
+    }
+    
+    const analysis = window.analyzeLoanAffordability(amount, term, rate);
+    
+    if (!analysis.success) {
+        alert(`Error: ${analysis.error}`);
+        return;
+    }
+    
+    const resultsSection = document.getElementById('loanResultsSection');
+    resultsSection.style.display = 'block';
+    resultsSection.style.background = analysis.recommendationColor + '22';
+    resultsSection.style.border = `2px solid ${analysis.recommendationColor}`;
+    
+    resultsSection.innerHTML = `
+        <h3 style="color:${analysis.recommendationColor};margin-top:0;">${analysis.recommendation}</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+            <div>
+                <small style="color:#666;">Monthly Payment</small>
+                <div style="font-size:20px;font-weight:bold;">₱${analysis.monthlyPayment.toFixed(2)}</div>
+            </div>
+            <div>
+                <small style="color:#666;">Debt-to-Income Ratio</small>
+                <div style="font-size:20px;font-weight:bold;">${analysis.debtToIncomeRatio.toFixed(1)}%</div>
+            </div>
+        </div>
+        <div style="background:white;padding:10px;border-radius:4px;margin-bottom:10px;">
+            <h4 style="margin:5px 0;">Financial Breakdown</h4>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Current Credit Card Debt:</span>
+                <span style="font-weight:bold;">₱${analysis.totalCurrentDebt.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Monthly CC Minimums:</span>
+                <span style="font-weight:bold;">₱${analysis.monthlyMinimums.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Proposed Loan Payment:</span>
+                <span style="font-weight:bold;">₱${analysis.monthlyPayment.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;border-top:1px solid #ddd;padding-top:5px;">
+                <span>Total Monthly Obligations:</span>
+                <span style="font-weight:bold;">₱${analysis.monthlyObligations.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Your Monthly Budget:</span>
+                <span style="font-weight:bold;">₱${analysis.monthlyBudget.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;">
+                <span>Current Spending:</span>
+                <span style="font-weight:bold;">₱${analysis.currentSpent.toFixed(2)}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;margin:5px 0;border-top:1px solid #ddd;padding-top:5px;">
+                <span>Remaining Cash Flow:</span>
+                <span style="font-weight:bold;color:${analysis.remainingCashFlow >= 0 ? '#4CAF50' : '#F44336'};">₱${analysis.remainingCashFlow.toFixed(2)}</span>
+            </div>
+        </div>
+        <p style="margin:10px 0;line-height:1.6;">${analysis.detailedMessage}</p>
+    `;
+}
+
+// Savings Goal Modal
+function openSavingsGoalModal(goalId = null) {
+    if (goalId) {
+        const goal = window.allSavingsGoals.find(g => g.id === goalId);
+        if (goal) {
+            document.getElementById('savingsGoalModalTitle').textContent = '✏️ Edit Savings Goal';
+            document.getElementById('goalName').value = goal.goalName;
+            document.getElementById('goalCategory').value = goal.category;
+            document.getElementById('goalTarget').value = goal.targetAmount;
+            document.getElementById('goalCurrent').value = goal.currentAmount || 0;
+            document.getElementById('goalPriority').value = goal.priority;
+            document.getElementById('goalDeadline').value = goal.deadline || '';
+            document.getElementById('goalAutoAllocate').checked = goal.autoAllocate;
+        }
+    } else {
+        document.getElementById('savingsGoalModalTitle').textContent = '🎯 New Savings Goal';
+        document.getElementById('goalName').value = '';
+        document.getElementById('goalCategory').value = '';
+        document.getElementById('goalTarget').value = '';
+        document.getElementById('goalCurrent').value = '0';
+        document.getElementById('goalPriority').value = '3';
+        document.getElementById('goalDeadline').value = '';
+        document.getElementById('goalAutoAllocate').checked = true;
+    }
+    
+    document.getElementById('savingsGoalModal').style.display = 'block';
+}
+
+function closeSavingsGoalModal() {
+    document.getElementById('savingsGoalModal').style.display = 'none';
+}
+
+async function saveSavingsGoal() {
+    const goalData = {
+        id: null,
+        goalName: document.getElementById('goalName').value,
+        category: document.getElementById('goalCategory').value,
+        targetAmount: document.getElementById('goalTarget').value,
+        currentAmount: document.getElementById('goalCurrent').value,
+        priority: document.getElementById('goalPriority').value,
+        deadline: document.getElementById('goalDeadline').value,
+        autoAllocate: document.getElementById('goalAutoAllocate').checked
+    };
+    
+    const result = await window.saveSavingsGoal(goalData);
+    if (result.success) {
+        closeSavingsGoalModal();
+    }
+}
+
+function editSavingsGoal(goalId) {
+    openSavingsGoalModal(goalId);
+}
+
+// Contribution Modal
+function openContributionModal(goalId) {
+    const goal = window.allSavingsGoals.find(g => g.id === goalId);
+    if (!goal) return;
+    
+    const html = `
+        <div class="modal" id="contributionModal" style="display:block;">
+            <div class="modal-content">
+                <h3>➕ Add Contribution</h3>
+                <div class="form-group">
+                    <label>Goal</label>
+                    <input type="text" value="${goal.goalName}" readonly style="background:#f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>Amount *</label>
+                    <input type="number" id="contributionAmount" step="0.01" min="0" required placeholder="0.00">
+                    <small style="color:#666;">Current: ₱${(goal.currentAmount || 0).toFixed(2)} / Target: ₱${goal.targetAmount.toFixed(2)}</small>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="contributionNotes" rows="2" placeholder="Optional notes"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button onclick="saveContribution('${goalId}')" class="btn-primary">💾 Add Contribution</button>
+                    <button onclick="closeContributionModal()" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+function closeContributionModal() {
+    const modal = document.getElementById('contributionModal');
+    if (modal) modal.remove();
+}
+
+async function saveContribution(goalId) {
+    const amount = document.getElementById('contributionAmount').value;
+    const notes = document.getElementById('contributionNotes').value;
+    
+    const result = await addManualContribution(goalId, amount, notes);
+    if (result.success) {
+        closeContributionModal();
+    }
+}
+
+// Withdrawal Modal
+let currentWithdrawalGoalId = null;
+
+function openWithdrawalModal(goalId) {
+    const goal = window.allSavingsGoals.find(g => g.id === goalId);
+    if (!goal) return;
+    
+    currentWithdrawalGoalId = goalId;
+    document.getElementById('withdrawalGoalName').value = goal.goalName;
+    document.getElementById('withdrawalMaxAmount').textContent = `Maximum: ₱${(goal.currentAmount || 0).toFixed(2)}`;
+    document.getElementById('withdrawalAmount').value = '';
+    document.getElementById('withdrawalReason').value = '';
+    document.getElementById('withdrawalModal').style.display = 'block';
+}
+
+function closeWithdrawalModal() {
+    currentWithdrawalGoalId = null;
+    document.getElementById('withdrawalModal').style.display = 'none';
+}
+
+async function saveWithdrawal() {
+    const amount = document.getElementById('withdrawalAmount').value;
+    const reason = document.getElementById('withdrawalReason').value;
+    
+    const result = await recordWithdrawal(currentWithdrawalGoalId, amount, reason);
+    if (result.success) {
+        closeWithdrawalModal();
+    }
+}
+
+// Goal Completion Modal
+function openGoalCompletionModal(goal) {
+    const content = document.getElementById('goalCompletionContent');
+    content.innerHTML = `
+        <div style="font-size:80px;margin:20px 0;">🎉</div>
+        <h2 style="margin:10px 0;">Congratulations!</h2>
+        <p style="font-size:18px;margin:15px 0;">You've completed your goal:<br><strong>${goal.goalName}</strong></p>
+        <div style="background:#E8F5E9;padding:15px;border-radius:8px;margin:20px 0;">
+            <div style="font-size:32px;font-weight:bold;color:#4CAF50;">₱${goal.currentAmount.toFixed(2)}</div>
+            <small style="color:#666;">Target: ₱${goal.targetAmount.toFixed(2)}</small>
+        </div>
+        <p style="color:#666;margin:15px 0;">Your monthly allocation for this goal will be redistributed to other active goals.</p>
+    `;
+    
+    document.getElementById('goalCompletionModal').style.display = 'block';
+}
+
+function closeGoalCompletionModal() {
+    document.getElementById('goalCompletionModal').style.display = 'none';
+}
+
+function redistributeGoalAllocation() {
+    closeGoalCompletionModal();
+    alert('✅ Allocation will be automatically redistributed next month!');
+}
+
+// Allocation Recommendation
+function showAllocationRecommendation() {
+    const today = new Date();
+    const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
+    
+    if (!budget.isTechnician || budget.savingsPool <= 0) {
+        alert('ℹ️ No savings pool available to allocate');
+        return;
+    }
+    
+    const allocation = recommendGoalAllocation(budget.savingsPool);
+    
+    if (allocation.recommendations.length === 0) {
+        alert('ℹ️ No active goals to allocate to. Create goals first!');
+        return;
+    }
+    
+    let message = `💰 Savings Pool: ₱${budget.savingsPool.toFixed(2)}\n`;
+    message += `📊 Strategy: ${allocation.allocationStrategy}\n\n`;
+    
+    if (allocation.emergencyFundStatus) {
+        const status = allocation.emergencyFundStatus;
+        message += `🚨 Emergency Fund Status:\n`;
+        message += `   Current: ₱${status.current.toFixed(2)}\n`;
+        message += `   Target: ₱${status.target.toFixed(2)}\n`;
+        message += `   Coverage: ${status.monthsOfExpensesCovered.toFixed(1)} months\n`;
+        message += `   Progress: ${status.percentComplete.toFixed(1)}%\n\n`;
+    }
+    
+    message += `Recommended Allocation:\n\n`;
+    
+    allocation.recommendations.forEach(rec => {
+        message += `${rec.goalName}:\n`;
+        message += `   Amount: ₱${rec.suggestedAmount.toFixed(2)}\n`;
+        message += `   Percentage: ${rec.suggestedPercent.toFixed(1)}%\n`;
+        message += `   ${rec.reasoning}\n\n`;
+    });
+    
+    const confirm = window.confirm(message + '\nApply this allocation?');
+    
+    if (confirm) {
+        allocateSavingsFromCommission(today.getMonth() + 1, today.getFullYear());
+    }
+}
+
+// Manual Budget Save
+async function saveManualBudget(month, year) {
+    const amount = parseFloat(document.getElementById('manualBudgetInput').value);
+    
+    if (isNaN(amount) || amount < 0) {
+        alert('⚠️ Please enter a valid amount');
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Find existing budget or create new
+        const existingBudget = window.allPersonalBudgets.find(b => 
+            b.month === month && b.year === year
+        );
+        
+        if (existingBudget) {
+            await db.ref(`personalBudgets/${existingBudget.id}`).update({
+                manualBudgetAmount: amount,
+                updatedAt: new Date().toISOString()
+            });
+        } else {
+            await db.ref('personalBudgets').push({
+                userId: window.currentUser.uid,
+                month: month,
+                year: year,
+                manualBudgetAmount: amount,
+                createdAt: new Date().toISOString()
+            });
+        }
+        
+        utils.showLoading(false);
+        alert(`✅ Budget saved: ₱${amount.toFixed(2)}`);
+        
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    } catch (error) {
+        console.error('❌ Error saving budget:', error);
+        utils.showLoading(false);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+// Export Personal Finances to CSV
+function exportPersonalFinancesCSV(month, year) {
+    const monthStart = new Date(year, month - 1, 1);
+    const monthEnd = new Date(year, month, 0, 23, 59, 59);
+    
+    const expenses = (window.allPersonalExpenses || []).filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate >= monthStart && expenseDate <= monthEnd;
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    if (expenses.length === 0) {
+        alert('ℹ️ No expenses to export for this month');
+        return;
+    }
+    
+    let csv = 'Date,Category,Description,Amount,Currency,Conversion Rate,PHP Equivalent,Notes,Sync Status\n';
+    
+    expenses.forEach(e => {
+        const phpAmount = e.currency === 'USD' ? e.amount * e.phpConversionRate : e.amount;
+        const row = [
+            new Date(e.date).toLocaleDateString(),
+            e.category,
+            `"${(e.description || '').replace(/"/g, '""')}"`,
+            e.amount.toFixed(2),
+            e.currency,
+            e.phpConversionRate || 1,
+            phpAmount.toFixed(2),
+            `"${(e.notes || '').replace(/"/g, '""')}"`,
+            e.syncStatus || 'synced'
+        ];
+        csv += row.join(',') + '\n';
+    });
+    
+    // Create download
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `personal-expenses-${year}-${String(month).padStart(2, '0')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+    
+    alert(`✅ Exported ${expenses.length} expenses to CSV`);
+}
+
+// Filter expenses in table
+function filterExpenses() {
+    const searchTerm = document.getElementById('expenseSearch').value.toLowerCase();
+    const categoryFilter = document.getElementById('categoryFilter').value;
+    
+    const rows = document.querySelectorAll('#expenseTableBody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        const category = row.cells[1].textContent;
+        
+        const matchesSearch = text.includes(searchTerm);
+        const matchesCategory = !categoryFilter || category === categoryFilter;
+        
+        row.style.display = (matchesSearch && matchesCategory) ? '' : 'none';
+    });
+}
+
+// Export all modal and helper functions
+window.openRecurringTemplateModal = openRecurringTemplateModal;
+window.closeRecurringTemplateModal = closeRecurringTemplateModal;
+window.saveRecurringTemplate = saveRecurringTemplate;
+window.editRecurringTemplate = editRecurringTemplate;
+window.openCreditCardModal = openCreditCardModal;
+window.closeCreditCardModal = closeCreditCardModal;
+window.saveCreditCard = saveCreditCard;
+window.editCreditCard = editCreditCard;
+window.recordCardPayment = recordCardPayment;
+window.openLoanCalculatorModal = openLoanCalculatorModal;
+window.closeLoanCalculatorModal = closeLoanCalculatorModal;
+window.calculateLoanAffordability = calculateLoanAffordability;
+window.openSavingsGoalModal = openSavingsGoalModal;
+window.closeSavingsGoalModal = closeSavingsGoalModal;
+window.saveSavingsGoal = saveSavingsGoal;
+window.editSavingsGoal = editSavingsGoal;
+window.openContributionModal = openContributionModal;
+window.closeContributionModal = closeContributionModal;
+window.saveContribution = saveContribution;
+window.openWithdrawalModal = openWithdrawalModal;
+window.closeWithdrawalModal = closeWithdrawalModal;
+window.saveWithdrawal = saveWithdrawal;
+window.openGoalCompletionModal = openGoalCompletionModal;
+window.closeGoalCompletionModal = closeGoalCompletionModal;
+window.redistributeGoalAllocation = redistributeGoalAllocation;
+window.showAllocationRecommendation = showAllocationRecommendation;
+window.saveManualBudget = saveManualBudget;
+window.exportPersonalFinancesCSV = exportPersonalFinancesCSV;
+window.filterExpenses = filterExpenses;
 
 console.log('✅ ui.js loaded');

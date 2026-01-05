@@ -918,4 +918,40 @@ window.openAdminToolsDataHealth = openAdminToolsDataHealth;
 window.toggleCommissionPeriod = toggleCommissionPeriod;
 window.getCommissionForPeriod = getCommissionForPeriod;
 
+/**
+ * Show unclassified suppliers banner
+ */
+function showUnclassifiedSuppliersBanner(count) {
+    // Only show on admin dashboard
+    const dashboardContainer = document.getElementById('main-content');
+    if (!dashboardContainer) return;
+    
+    // Check if banner already exists
+    let banner = document.getElementById('unclassifiedSuppliersBanner');
+    if (banner) {
+        banner.remove();
+    }
+    
+    // Create new banner
+    banner = document.createElement('div');
+    banner.id = 'unclassifiedSuppliersBanner';
+    banner.style.cssText = 'background:#fff3cd;border-left:4px solid #ff9800;padding:15px;border-radius:4px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;';
+    banner.innerHTML = `
+        <div>
+            <strong style="color:#856404;">⚠️ ${count} Supplier${count > 1 ? 's' : ''} Need${count === 1 ? 's' : ''} Payment Type Classification</strong>
+            <p style="margin:5px 0 0;color:#856404;font-size:0.9em;">Payment type determines how parts costs are tracked and who collects the payment.</p>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button onclick="openAddSupplierModal()" class="btn-primary" style="white-space:nowrap;">Classify Now</button>
+            <button onclick="dismissUnclassifiedWarning()" class="btn-secondary" style="white-space:nowrap;">Dismiss</button>
+        </div>
+    `;
+    
+    // Insert at top of dashboard
+    const firstChild = dashboardContainer.firstChild;
+    dashboardContainer.insertBefore(banner, firstChild);
+}
+
+window.showUnclassifiedSuppliersBanner = showUnclassifiedSuppliersBanner;
+
 console.log('✅ dashboard-helpers.js loaded');

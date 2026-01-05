@@ -1168,6 +1168,313 @@
         </div>
     </div>
 
+    <!-- Personal Finance Modals -->
+    <div id="personalExpenseModal" class="modal">
+        <div class="modal-content">
+            <h3>💰 Add Personal Expense</h3>
+            <div id="offlineExpenseBanner" style="display:none;background:#fff3cd;padding:10px;border-radius:4px;margin-bottom:15px;">
+                📡 Offline Mode - Will sync when online
+            </div>
+            <div class="form-group">
+                <label>Date *</label>
+                <input type="date" id="expenseDate" required>
+            </div>
+            <div class="form-group">
+                <label>Category *</label>
+                <select id="expenseCategory" required onchange="handleExpenseCategoryChange()">
+                    <option value="">Select Category</option>
+                    <option value="Bills">💡 Bills</option>
+                    <option value="Loans">🏦 Loans</option>
+                    <option value="Food">🍽️ Food</option>
+                    <option value="Transportation">🚗 Transportation</option>
+                    <option value="Medical">🏥 Medical</option>
+                    <option value="Entertainment">🎮 Entertainment</option>
+                    <option value="Shopping">🛒 Shopping</option>
+                    <option value="Allowance">💵 Allowance</option>
+                    <option value="Credit Card Payment">💳 Credit Card Payment</option>
+                    <option value="Other">📦 Other</option>
+                </select>
+            </div>
+            <div id="creditCardSelector" class="form-group" style="display:none;">
+                <label>Credit Card *</label>
+                <select id="expenseCreditCard">
+                    <!-- Populated dynamically -->
+                </select>
+                <small style="color:#666;">Current balance will be updated</small>
+            </div>
+            <div class="form-group">
+                <label>Amount *</label>
+                <input type="number" id="expenseAmount" step="0.01" min="0" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Currency *</label>
+                <select id="expenseCurrency" required onchange="handleCurrencyChange()">
+                    <option value="PHP">PHP (₱)</option>
+                    <option value="USD">USD ($)</option>
+                </select>
+            </div>
+            <div id="conversionRateGroup" class="form-group" style="display:none;">
+                <label>PHP Conversion Rate *</label>
+                <input type="number" id="expenseConversionRate" step="0.01" min="0" placeholder="56.00">
+                <small style="color:#666;">Current exchange rate (1 USD = X PHP)</small>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="expenseDescription" placeholder="Brief description">
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="expenseNotes" rows="2" placeholder="Additional details"></textarea>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="expenseRecurring"> Make this recurring monthly
+                </label>
+            </div>
+            <div class="form-actions">
+                <button onclick="savePersonalExpense()" class="btn-primary">💰 Save Expense</button>
+                <button onclick="closePersonalExpenseModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="recurringTemplateModal" class="modal">
+        <div class="modal-content">
+            <h3>🔄 Recurring Template</h3>
+            <div class="form-group">
+                <label>Template Name *</label>
+                <input type="text" id="templateName" required placeholder="e.g., Monthly Rent">
+            </div>
+            <div class="form-group">
+                <label>Category *</label>
+                <select id="templateCategory" required>
+                    <option value="">Select Category</option>
+                    <option value="Bills">💡 Bills</option>
+                    <option value="Loans">🏦 Loans</option>
+                    <option value="Food">🍽️ Food</option>
+                    <option value="Transportation">🚗 Transportation</option>
+                    <option value="Medical">🏥 Medical</option>
+                    <option value="Entertainment">🎮 Entertainment</option>
+                    <option value="Shopping">🛒 Shopping</option>
+                    <option value="Allowance">💵 Allowance</option>
+                    <option value="Other">📦 Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Amount *</label>
+                <input type="number" id="templateAmount" step="0.01" min="0" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Currency *</label>
+                <select id="templateCurrency" required>
+                    <option value="PHP">PHP (₱)</option>
+                    <option value="USD">USD ($)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Day of Month *</label>
+                <select id="templateDayOfMonth" required>
+                    <option value="">Select Day</option>
+                    <!-- Days 1-31 populated by JS -->
+                </select>
+                <small style="color:#666;">When should this expense be generated each month?</small>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="templateActive" checked> Active
+                </label>
+                <small style="color:#666;">Uncheck to temporarily disable</small>
+            </div>
+            <div class="form-actions">
+                <button onclick="saveRecurringTemplate()" class="btn-primary">💾 Save Template</button>
+                <button onclick="closeRecurringTemplateModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="creditCardModal" class="modal">
+        <div class="modal-content">
+            <h3>💳 Credit Card</h3>
+            <div class="form-group">
+                <label>Card Name *</label>
+                <input type="text" id="cardName" required placeholder="e.g., BDO Gold Mastercard">
+            </div>
+            <div class="form-group">
+                <label>Card Holder *</label>
+                <select id="cardHolder" required>
+                    <option value="Mine">👤 Mine</option>
+                    <option value="Spouse">💑 Spouse</option>
+                    <option value="Shared">🤝 Shared</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Bank *</label>
+                <input type="text" id="cardBank" required placeholder="e.g., BDO, BPI, Metrobank">
+            </div>
+            <div class="form-group">
+                <label>Credit Limit *</label>
+                <input type="number" id="cardLimit" step="0.01" min="0" required placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label>Current Balance *</label>
+                <input type="number" id="cardBalance" step="0.01" min="0" required placeholder="0.00">
+                <small style="color:#666;">How much do you currently owe?</small>
+            </div>
+            <div class="form-group">
+                <label>Annual Interest Rate (APR) *</label>
+                <input type="number" id="cardInterestRate" step="0.01" min="0" max="100" required placeholder="36.00">
+                <small style="color:#666;">Percentage (e.g., 36 for 36% per year)</small>
+            </div>
+            <div class="form-group">
+                <label>Monthly Due Date *</label>
+                <select id="cardDueDate" required>
+                    <option value="">Select Day</option>
+                    <!-- Days 1-31 populated by JS -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Minimum Payment Percentage</label>
+                <input type="number" id="cardMinimumPercent" step="0.01" min="0" max="100" value="3" placeholder="3.00">
+                <small style="color:#666;">% of balance (default 3%)</small>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="cardActive" checked> Active
+                </label>
+            </div>
+            <div class="form-actions">
+                <button onclick="saveCreditCard()" class="btn-primary">💾 Save Card</button>
+                <button onclick="closeCreditCardModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loanCalculatorModal" class="modal">
+        <div class="modal-content">
+            <h3>🏦 Loan Affordability Calculator</h3>
+            <div class="form-group">
+                <label>Proposed Loan Amount *</label>
+                <input type="number" id="loanAmount" step="0.01" min="0" required placeholder="100000.00">
+            </div>
+            <div class="form-group">
+                <label>Term (Months) *</label>
+                <input type="number" id="loanTermMonths" min="1" required placeholder="12">
+            </div>
+            <div class="form-group">
+                <label>Annual Interest Rate *</label>
+                <input type="number" id="loanInterestRate" step="0.01" min="0" max="100" required placeholder="12.00">
+                <small style="color:#666;">% per year</small>
+            </div>
+            <div class="form-actions">
+                <button onclick="calculateLoanAffordability()" class="btn-primary">📊 Calculate</button>
+                <button onclick="closeLoanCalculatorModal()" class="btn-secondary">Cancel</button>
+            </div>
+            <div id="loanResultsSection" style="display:none;margin-top:20px;padding:15px;border-radius:8px;">
+                <!-- Results populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <div id="savingsGoalModal" class="modal">
+        <div class="modal-content">
+            <h3 id="savingsGoalModalTitle">🎯 Savings Goal</h3>
+            <div class="form-group">
+                <label>Goal Name *</label>
+                <input type="text" id="goalName" required placeholder="e.g., Emergency Fund">
+            </div>
+            <div class="form-group">
+                <label>Category *</label>
+                <select id="goalCategory" required>
+                    <option value="">Select Category</option>
+                    <option value="Emergency Fund">🚨 Emergency Fund</option>
+                    <option value="Vacation">✈️ Vacation</option>
+                    <option value="Down Payment">🏠 Down Payment</option>
+                    <option value="Investment">📈 Investment</option>
+                    <option value="Education">🎓 Education</option>
+                    <option value="Other">🎯 Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Target Amount *</label>
+                <input type="number" id="goalTarget" step="0.01" min="0" required placeholder="50000.00">
+            </div>
+            <div class="form-group">
+                <label>Current Amount</label>
+                <input type="number" id="goalCurrent" step="0.01" min="0" value="0" placeholder="0.00">
+                <small style="color:#666;">If you already have savings for this goal</small>
+            </div>
+            <div class="form-group">
+                <label>Priority *</label>
+                <select id="goalPriority" required>
+                    <option value="1">🔥 Priority 1 (Highest)</option>
+                    <option value="2">⚡ Priority 2</option>
+                    <option value="3">⭐ Priority 3 (Medium)</option>
+                    <option value="4">📌 Priority 4</option>
+                    <option value="5">📍 Priority 5 (Lowest)</option>
+                </select>
+                <small style="color:#666;">Used for savings allocation</small>
+            </div>
+            <div class="form-group">
+                <label>Target Date (Optional)</label>
+                <input type="date" id="goalDeadline" placeholder="Optional deadline">
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="goalAutoAllocate" checked> Auto-allocate from commission
+                </label>
+                <small style="color:#666;">Automatically receive share of 40% savings pool</small>
+            </div>
+            <div class="form-actions">
+                <button onclick="saveSavingsGoal()" class="btn-primary">💾 Save Goal</button>
+                <button onclick="closeSavingsGoalModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="withdrawalModal" class="modal">
+        <div class="modal-content">
+            <h3>💸 Record Withdrawal</h3>
+            <div class="form-group">
+                <label>Goal</label>
+                <input type="text" id="withdrawalGoalName" readonly style="background:#f5f5f5;">
+            </div>
+            <div class="form-group">
+                <label>Amount *</label>
+                <input type="number" id="withdrawalAmount" step="0.01" min="0" required placeholder="0.00">
+                <small style="color:#666;" id="withdrawalMaxAmount"></small>
+            </div>
+            <div class="form-group">
+                <label>Reason *</label>
+                <textarea id="withdrawalReason" rows="3" required placeholder="Why are you withdrawing from this goal?"></textarea>
+            </div>
+            <div class="form-actions">
+                <button onclick="saveWithdrawal()" class="btn-primary">💸 Record Withdrawal</button>
+                <button onclick="closeWithdrawalModal()" class="btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="goalCompletionModal" class="modal">
+        <div class="modal-content" style="text-align:center;">
+            <h3>🎉 Goal Completed!</h3>
+            <div id="goalCompletionContent"></div>
+            <div class="form-actions" style="justify-content:center;">
+                <button onclick="redistributeGoalAllocation()" class="btn-primary">♻️ Redistribute Allocation</button>
+                <button onclick="closeGoalCompletionModal()" class="btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Offline Indicator -->
+    <div id="offlineIndicator" style="display:none;position:fixed;top:70px;right:20px;background:#ff9800;color:white;padding:8px 15px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10000;font-size:14px;">
+        📡 Offline - Add-only mode
+    </div>
+
+    <!-- Sync Indicator -->
+    <div id="syncIndicator" style="display:none;position:fixed;top:70px;right:20px;background:#2196F3;color:white;padding:8px 15px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10000;font-size:14px;">
+        ⏳ Syncing...
+    </div>
+
     <!-- Scripts -->
     <!-- Firebase SDK (Version 8) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>

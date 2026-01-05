@@ -18,7 +18,33 @@ const auth = firebase.auth();
 const db = firebase.database();
 const storage = firebase.storage();
 
+// Note: Realtime Database has built-in offline support, no need to enable manually
+
 // Export for use in other files
 window.auth = auth;
 window.db = db;
 window.storage = storage;
+
+// Initialize offline support
+window.isOnline = true;
+window.offlineQueue = [];
+
+// Monitor connection state
+db.ref('.info/connected').on('value', (snapshot) => {
+  const connected = snapshot.val();
+  window.isOnline = connected;
+  console.log(connected ? '✅ Online' : '📡 Offline');
+  
+  // Update UI indicator
+  if (typeof updateOfflineIndicator === 'function') {
+    updateOfflineIndicator();
+  }
+  
+  // Process offline queue when reconnecting
+  if (connected && window.offlineQueue.length > 0) {
+    console.log(`🔄 Processing ${window.offlineQueue.length} offline items...`);
+    if (typeof processOfflineQueue === 'function') {
+      processOfflineQueue();
+    }
+  }
+});

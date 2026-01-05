@@ -91,7 +91,31 @@ async function initializeApp() {
         console.log('📦 Loading supplier purchases...');
         await loadSupplierPurchases();
         console.log('✅ Supplier purchases loaded:', window.supplierPurchases.length);
+        // Load offline queue from storage
+        console.log('📂 Loading offline queue...');
+        loadOfflineQueueFromStorage();
+        console.log('✅ Offline queue loaded:', window.offlineQueue.length, 'items');
 
+        // Load personal finance data
+        console.log('💰 Loading personal expenses...');
+        await loadPersonalExpenses();
+        console.log('✅ Personal expenses loaded:', window.allPersonalExpenses.length);
+
+        console.log('🔄 Loading recurring templates...');
+        await loadRecurringTemplates();
+        console.log('✅ Recurring templates loaded:', window.allRecurringTemplates.length);
+
+        console.log('💳 Loading credit cards...');
+        await loadCreditCards();
+        console.log('✅ Credit cards loaded:', window.allCreditCards.length);
+
+        console.log('📊 Loading personal budgets...');
+        await loadPersonalBudgets();
+        console.log('✅ Personal budgets loaded:', window.allPersonalBudgets.length);
+
+        console.log('🎯 Loading savings goals...');
+        await loadSavingsGoals();
+        console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);
         console.log('�🔖 Building tabs...');
         buildTabs();
 
@@ -114,6 +138,12 @@ async function initializeApp() {
         if (window.currentUserData.role === 'admin' && window.startDataHealthMonitor) {
             console.log('🔍 Starting data health monitor...');
             window.startDataHealthMonitor();
+        }
+
+        // Check for unclassified suppliers
+        if (window.currentUserData.role === 'admin' && window.checkUnclassifiedSuppliers) {
+            console.log('🏷️ Checking for unclassified suppliers...');
+            window.checkUnclassifiedSuppliers();
         }
 
         // Check for expired cleanups to archive (once per month)
