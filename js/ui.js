@@ -2326,6 +2326,10 @@ function displayRepairsInContainer(repairs, container) {
                     ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
                     ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
                     ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
+                    ${(() => {
+                        const repairExpenses = (window.techExpenses || []).filter(e => e.repairId === r.id);
+                        return repairExpenses.length > 0 ? `<button class="btn-small" onclick="viewRepairExpenses('${r.id}')" style="background:#7b1fa2;color:white;">📋 View Expenses (${repairExpenses.length})</button>` : '';
+                    })()}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
                 </div>
             </div>
@@ -7756,7 +7760,22 @@ function openAddSupplierModal() {
             ${activeSuppliers.length === 0 ? '<p class="text-secondary">No suppliers added yet</p>' : ''}
             ${activeSuppliers.map(supplier => `
                 <div style="padding:15px;background:var(--bg-secondary);border-radius:8px;margin-bottom:10px;">
-                    <h4 style="margin:0 0 10px;">${supplier.supplierName}</h4>
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                        <h4 style="margin:0;flex:1;">${supplier.supplierName}</h4>
+                        ${supplier.paymentType ? `
+                            <span style="background:${
+                                supplier.paymentType === 'shop_inventory' ? '#4caf50' :
+                                supplier.paymentType === 'tech_pays_cod' ? '#ff9800' :
+                                '#2196f3'
+                            };color:white;padding:4px 10px;border-radius:4px;font-size:0.85em;font-weight:500;">
+                                ${
+                                    supplier.paymentType === 'shop_inventory' ? '💰 Shop' :
+                                    supplier.paymentType === 'tech_pays_cod' ? '💵 COD' :
+                                    '📅 Later'
+                                }
+                            </span>
+                        ` : '<span style="color:#f44336;font-size:0.85em;font-weight:500;">⚠️ Unclassified</span>'}
+                    </div>
                     ${supplier.contactPerson ? `<p style="margin:5px 0;"><strong>Contact:</strong> ${supplier.contactPerson}</p>` : ''}
                     ${supplier.phone ? `<p style="margin:5px 0;"><strong>Phone:</strong> ${supplier.phone}</p>` : ''}
                     ${supplier.email ? `<p style="margin:5px 0;"><strong>Email:</strong> ${supplier.email}</p>` : ''}
@@ -7817,6 +7836,19 @@ function showAddSupplierForm() {
                 <textarea name="notes" rows="2"></textarea>
             </div>
             
+            ${window.currentUserData.role === 'admin' ? `
+                <div class="form-group">
+                    <label>Payment Type <span style="color:red;">*</span></label>
+                    <select name="paymentType" required>
+                        <option value="">Select payment type</option>
+                        <option value="shop_inventory">💰 Shop Inventory (Boss Nado) - Payment to shop/admin</option>
+                        <option value="tech_pays_cod">💵 Technician Pays COD - Auto-deducts from remittance</option>
+                        <option value="shop_pays_later">📅 Shop Pays Later - Accounts payable</option>
+                    </select>
+                    <small style="color:#666;">How should parts purchases from this supplier be handled?</small>
+                </div>
+            ` : ''}
+            
             <div style="display:flex;gap:10px;">
                 <button type="submit" class="btn-primary" style="flex:1;">✅ Add Supplier</button>
                 <button type="button" onclick="hideSupplierForm()" class="btn-secondary" style="flex:1;">Cancel</button>
@@ -7850,7 +7882,8 @@ async function submitAddSupplier(e) {
         phone: formData.get('phone'),
         email: formData.get('email'),
         address: formData.get('address'),
-        notes: formData.get('notes')
+        notes: formData.get('notes'),
+        paymentType: formData.get('paymentType') || ''
     };
 
     try {
@@ -7911,6 +7944,20 @@ function editSupplierForm(supplierId) {
                 <label>Notes</label>
                 <textarea name="notes" rows="2">${supplier.notes || ''}</textarea>
             </div>
+            
+            ${window.currentUserData.role === 'admin' ? `
+                <div class="form-group">
+                    <label>Payment Type <span style="color:red;">*</span></label>
+                    <select name="paymentType" required>
+                        <option value="">Select payment type</option>
+                        <option value="shop_inventory" ${supplier.paymentType === 'shop_inventory' ? 'selected' : ''}>💰 Shop Inventory (Boss Nado) - Payment to shop/admin</option>
+                        <option value="tech_pays_cod" ${supplier.paymentType === 'tech_pays_cod' ? 'selected' : ''}>💵 Technician Pays COD - Auto-deducts from remittance</option>
+                        <option value="shop_pays_later" ${supplier.paymentType === 'shop_pays_later' ? 'selected' : ''}>📅 Shop Pays Later - Accounts payable</option>
+                    </select>
+                    <small style="color:#666;">How should parts purchases from this supplier be handled?</small>
+                    <small style="color:#ff9800;display:block;margin-top:5px;">⚠️ Payment type changes only affect future repairs. Existing repairs remain unchanged.</small>
+                </div>
+            ` : ''}
             
             <div style="display:flex;gap:10px;">
                 <button type="submit" class="btn-primary" style="flex:1;">✅ Save Changes</button>
@@ -9863,6 +9910,16 @@ function buildSupplierPayablesTab(container) {
                     <label>Description</label>
                     <textarea id="purchaseDescription" class="form-control" rows="2" placeholder="Items purchased..."></textarea>
                 </div>
+                
+                <!-- PARTS DETAILS (OPTIONAL) -->
+                <div style="background:white;padding:15px;border-radius:4px;margin-bottom:15px;">
+                    <h5 style="margin:0 0 10px;">📦 Parts Details (Optional)</h5>
+                    <div id="partsDetailsContainer"></div>
+                    <button type="button" onclick="addPartsRow()" class="btn-secondary" style="font-size:0.9em;">
+                        ➕ Add Part
+                    </button>
+                </div>
+                
                 <button onclick="saveSupplierPurchase()" class="btn btn-primary">
                     ✅ Record Purchase
                 </button>
@@ -10004,6 +10061,24 @@ function saveSupplierPurchase() {
     const purchaseDate = document.getElementById('purchaseDate').value;
     const dueDate = document.getElementById('purchaseDueDate').value;
     const description = document.getElementById('purchaseDescription').value.trim();
+    
+    // Get parts details if entered
+    const partsRows = document.querySelectorAll('.parts-row');
+    const partsPurchased = [];
+    partsRows.forEach(row => {
+        const partName = row.querySelector('.part-name')?.value.trim();
+        const quantity = parseFloat(row.querySelector('.part-quantity')?.value);
+        const unitPrice = parseFloat(row.querySelector('.part-price')?.value);
+        
+        if (partName && quantity && unitPrice) {
+            partsPurchased.push({
+                partName: partName,
+                quantity: quantity,
+                unitPrice: unitPrice,
+                totalCost: quantity * unitPrice
+            });
+        }
+    });
 
     if (!supplier || !invoice || !amount || amount <= 0 || !purchaseDate) {
         alert('Please fill in all required fields');
@@ -10017,6 +10092,7 @@ function saveSupplierPurchase() {
         purchaseDate: purchaseDate + 'T00:00:00.000Z',
         dueDate: dueDate ? dueDate + 'T00:00:00.000Z' : null,
         description: description || null,
+        partsPurchased: partsPurchased.length > 0 ? partsPurchased : [],
         paymentStatus: 'unpaid',
         totalPaid: 0,
         outstandingBalance: amount,
@@ -10041,11 +10117,44 @@ function saveSupplierPurchase() {
             document.getElementById('purchaseAmount').value = '';
             document.getElementById('purchaseDueDate').value = '';
             document.getElementById('purchaseDescription').value = '';
+            
+            // Clear parts rows
+            document.getElementById('partsDetailsContainer').innerHTML = '';
         })
         .catch(error => {
             utils.showLoading(false);
             alert('Error recording purchase: ' + error.message);
         });
+}
+
+function addPartsRow() {
+    const container = document.getElementById('partsDetailsContainer');
+    const rowId = 'partRow_' + Date.now();
+    
+    const row = document.createElement('div');
+    row.className = 'parts-row';
+    row.id = rowId;
+    row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end;';
+    
+    row.innerHTML = `
+        <div>
+            <label style="font-size:0.9em;">Part Name</label>
+            <input type="text" class="part-name form-control" placeholder="LCD Screen">
+        </div>
+        <div>
+            <label style="font-size:0.9em;">Quantity</label>
+            <input type="number" class="part-quantity form-control" placeholder="1" min="1" step="1">
+        </div>
+        <div>
+            <label style="font-size:0.9em;">Unit Price</label>
+            <input type="number" class="part-price form-control" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <button type="button" onclick="document.getElementById('${rowId}').remove()" class="btn-danger" style="padding:8px 12px;">
+            🗑️
+        </button>
+    `;
+    
+    container.appendChild(row);
 }
 
 function showRecordPaymentModal(purchaseId) {
@@ -10309,6 +10418,7 @@ window.saveEditedOverheadExpense = saveEditedOverheadExpense;
 // Export supplier payables functions
 window.buildSupplierPayablesTab = buildSupplierPayablesTab;
 window.saveSupplierPurchase = saveSupplierPurchase;
+window.addPartsRow = addPartsRow;
 window.showRecordPaymentModal = showRecordPaymentModal;
 window.confirmSupplierPayment = confirmSupplierPayment;
 window.viewPurchaseDetails = viewPurchaseDetails;

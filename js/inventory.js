@@ -373,6 +373,12 @@ async function addSupplier(supplierData) {
             throw new Error('Supplier name is required');
         }
         
+        // Only admins can set payment type
+        let paymentType = '';
+        if (window.currentUserData.role === 'admin' && supplierData.paymentType) {
+            paymentType = supplierData.paymentType;
+        }
+        
         const newSupplier = {
             supplierName: supplierData.supplierName,
             contactPerson: supplierData.contactPerson || '',
@@ -380,6 +386,7 @@ async function addSupplier(supplierData) {
             email: supplierData.email || '',
             address: supplierData.address || '',
             notes: supplierData.notes || '',
+            paymentType: paymentType,
             createdAt: new Date().toISOString(),
             createdBy: window.currentUserData.displayName,
             deleted: false
@@ -414,6 +421,11 @@ async function addSupplier(supplierData) {
 async function updateSupplier(supplierId, updates) {
     try {
         utils.showLoading(true);
+        
+        // Only admins can modify payment type
+        if (window.currentUserData.role !== 'admin') {
+            delete updates.paymentType;
+        }
         
         updates.lastUpdated = new Date().toISOString();
         updates.lastUpdatedBy = window.currentUserData.displayName;
@@ -476,6 +488,51 @@ async function deleteSupplier(supplierId) {
     }
 }
 
+/**
+ * Check for unclassified suppliers and show warning banner
+ */
+function checkUnclassifiedSuppliers() {
+    if (window.currentUserData.role !== 'admin') return;
+    
+    const unclassified = (window.allSuppliers || []).filter(s => 
+        !s.deleted && !s.paymentType
+    );
+    
+    if (unclassified.length > 0) {
+        console.log(`⚠️ Found ${unclassified.length} unclassified supplier(s)`);
+        
+        // Check if warning was dismissed this month
+        const now = new Date();
+        const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
+        const dismissKey = 'dismissedSupplierWarning_' + currentMonth;
+        const dismissed = localStorage.getItem(dismissKey);
+        
+        if (!dismissed) {
+            if (window.showUnclassifiedSuppliersBanner) {
+                window.showUnclassifiedSuppliersBanner(unclassified.length);
+            }
+        }
+    }
+    
+    return unclassified.length;
+}
+
+/**
+ * Dismiss unclassified suppliers warning
+ */
+function dismissUnclassifiedWarning() {
+    const now = new Date();
+    const currentMonth = now.getFullYear() + '-' + (now.getMonth() + 1);
+    const dismissKey = 'dismissedSupplierWarning_' + currentMonth;
+    localStorage.setItem(dismissKey, 'true');
+    
+    // Hide banner
+    const banner = document.getElementById('unclassifiedSuppliersBanner');
+    if (banner) {
+        banner.style.display = 'none';
+    }
+}
+
 // Export functions to window
 window.loadInventory = loadInventory;
 window.loadSuppliers = loadSuppliers;
@@ -490,4 +547,6 @@ window.getOutOfStockItems = getOutOfStockItems;
 window.addSupplier = addSupplier;
 window.updateSupplier = updateSupplier;
 window.deleteSupplier = deleteSupplier;
+window.checkUnclassifiedSuppliers = checkUnclassifiedSuppliers;
+window.dismissUnclassifiedWarning = dismissUnclassifiedWarning;
 

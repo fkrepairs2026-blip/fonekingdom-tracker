@@ -140,6 +140,12 @@ async function initializeApp() {
             window.startDataHealthMonitor();
         }
 
+        // Check for unclassified suppliers
+        if (window.currentUserData.role === 'admin' && window.checkUnclassifiedSuppliers) {
+            console.log('🏷️ Checking for unclassified suppliers...');
+            window.checkUnclassifiedSuppliers();
+        }
+
         // Check for expired cleanups to archive (once per month)
         if (window.currentUserData.role === 'admin' && window.archiveExpiredCleanups) {
             const lastArchiveCheck = localStorage.getItem('lastCleanupArchiveCheck');
