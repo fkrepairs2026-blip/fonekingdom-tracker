@@ -11337,43 +11337,43 @@ function buildPersonalFinanceTab(container) {
 function buildBudgetDashboard(budget, month, year) {
     if (budget.isTechnician) {
         return `
-            <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;">
-                <h4 style="margin-top:0;">💼 Commission-Based Budget (${getMonthName(month)} ${year})</h4>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
-                    <div>
-                        <small style="color:#666;">Gross Commission</small>
+            <div style="background:#f5f5f5;padding:12px;border-radius:8px;margin-bottom:15px;">
+                <h4 style="margin-top:0;font-size:15px;">💼 Commission Budget (${getMonthName(month)} ${year})</h4>
+                <div class="budget-breakdown-grid" style="display:flex;flex-direction:column;gap:10px;margin-bottom:15px;">
+                    <div style="padding:10px;background:white;border-radius:6px;">
+                        <small style="color:#666;display:block;margin-bottom:4px;">Gross Commission</small>
                         <div style="font-size:18px;font-weight:bold;color:#4CAF50;">₱${budget.breakdown.grossCommission.toFixed(2)}</div>
                     </div>
-                    <div>
-                        <small style="color:#666;">Overhead Share (${(budget.breakdown.userProportion * 100).toFixed(1)}%)</small>
+                    <div style="padding:10px;background:white;border-radius:6px;">
+                        <small style="color:#666;display:block;margin-bottom:4px;">Overhead Share (${(budget.breakdown.userProportion * 100).toFixed(1)}%)</small>
                         <div style="font-size:18px;font-weight:bold;color:#F44336;">-₱${budget.breakdown.overheadShare.toFixed(2)}</div>
                     </div>
-                    <div>
-                        <small style="color:#666;">Net After Overhead</small>
+                    <div style="padding:10px;background:white;border-radius:6px;">
+                        <small style="color:#666;display:block;margin-bottom:4px;">Net After Overhead</small>
                         <div style="font-size:18px;font-weight:bold;color:#2196F3;">₱${budget.breakdown.netAfterOverhead.toFixed(2)}</div>
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;">
-                    <div style="background:#E3F2FD;padding:15px;border-radius:8px;">
-                        <h4 style="margin-top:0;">60% Spending Budget</h4>
-                        <div style="font-size:24px;font-weight:bold;color:#2196F3;">₱${budget.spendingBudget.toFixed(2)}</div>
+                <div class="budget-split-grid" style="display:flex;flex-direction:column;gap:12px;">
+                    <div style="background:#E3F2FD;padding:12px;border-radius:8px;">
+                        <h4 style="margin:0 0 8px 0;font-size:14px;">60% Spending Budget</h4>
+                        <div style="font-size:22px;font-weight:bold;color:#2196F3;">₱${budget.spendingBudget.toFixed(2)}</div>
                         <small style="color:#666;">For personal expenses</small>
                     </div>
-                    <div style="background:#E8F5E9;padding:15px;border-radius:8px;">
-                        <h4 style="margin-top:0;">40% Savings Pool</h4>
-                        <div style="font-size:24px;font-weight:bold;color:#4CAF50;">₱${budget.savingsPool.toFixed(2)}</div>
+                    <div style="background:#E8F5E9;padding:12px;border-radius:8px;">
+                        <h4 style="margin:0 0 8px 0;font-size:14px;">40% Savings Pool</h4>
+                        <div style="font-size:22px;font-weight:bold;color:#4CAF50;">₱${budget.savingsPool.toFixed(2)}</div>
                         <small style="color:#666;">Auto-allocated to goals</small>
                     </div>
                 </div>
             </div>
-            <div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">
-                <h4 style="margin-top:0;">💰 Spending Status</h4>
-                <div style="margin-bottom:10px;">
-                    <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <div style="background:white;padding:12px;border-radius:8px;border:1px solid #ddd;">
+                <h4 style="margin-top:0;font-size:15px;">💰 Spending Status</h4>
+                <div style="margin-bottom:12px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:14px;">
                         <span>Spent</span>
                         <span style="font-weight:bold;">₱${budget.spent.toFixed(2)}</span>
                     </div>
-                    <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:14px;">
                         <span>Remaining</span>
                         <span style="font-weight:bold;color:${budget.remaining >= 0 ? '#4CAF50' : '#F44336'};">₱${budget.remaining.toFixed(2)}</span>
                     </div>
@@ -11384,7 +11384,7 @@ function buildBudgetDashboard(budget, month, year) {
                         ${budget.utilizationPercent.toFixed(1)}% used
                     </div>
                 </div>
-                <button onclick="openPersonalExpenseModal()" class="btn-primary" style="width:100%;">➕ Add Expense</button>
+                <button onclick="openPersonalExpenseModal()" class="btn-primary" style="width:100%;min-height:44px;">➕ Add Expense</button>
             </div>
         `;
     } else {
@@ -11449,25 +11449,25 @@ function buildSavingsGoalsSection() {
     const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
     
     let html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
-            <div>
-                <h4 style="margin:0;">Total Savings: ₱${totalSavings.toFixed(2)}</h4>
-                <small style="color:#666;">${activeGoals.length} active, ${completedGoals.length} completed</small>
-                ${budget.savingsPool > 0 ? `<br><small style="color:#2196F3;font-weight:bold;">💰 ₱${budget.savingsPool.toFixed(2)} available from tech pool (40%)</small>` : ''}
+        <div class="finance-section-header" style="margin-bottom:15px;">
+            <div style="margin-bottom:10px;">
+                <h4 style="margin:0;font-size:16px;">Total Savings: ₱${totalSavings.toFixed(2)}</h4>
+                <small style="color:#666;display:block;margin-top:4px;">${activeGoals.length} active, ${completedGoals.length} completed</small>
+                ${budget.savingsPool > 0 ? `<small style="color:#2196F3;font-weight:bold;display:block;margin-top:4px;">💰 ₱${budget.savingsPool.toFixed(2)} available from tech pool (40%)</small>` : ''}
             </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
-                <button onclick="openSavingsGoalModal()" class="btn-primary">➕ Add Goal</button>
+            <div style="display:flex;flex-direction:column;gap:8px;width:100%;">
+                <button onclick="openSavingsGoalModal()" class="btn-primary" style="width:100%;min-height:44px;">➕ Add Goal</button>
                 ${budget.savingsPool > 0 ? `
-                    <button onclick="showAllocationRecommendation()" class="btn-secondary">💡 Optimize Allocation</button>
+                    <button onclick="showAllocationRecommendation()" class="btn-secondary" style="width:100%;min-height:44px;">💡 Optimize Allocation</button>
                 ` : ''}
             </div>
         </div>
     `;
     
     if (activeGoals.length === 0 && completedGoals.length === 0) {
-        html += '<p style="text-align:center;color:#666;padding:40px;">No savings goals yet. Create one to start saving!</p>';
+        html += '<p style="text-align:center;color:#666;padding:40px 20px;font-size:14px;">No savings goals yet. Create one to start saving!</p>';
     } else {
-        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:15px;">';
+        html += '<div class="goals-grid" style="display:flex;flex-direction:column;gap:12px;">';
         
         activeGoals.forEach(goal => {
             html += buildGoalCard(goal);
@@ -11488,18 +11488,18 @@ function buildGoalCard(goal) {
     const isCompleted = goal.isCompleted || false;
     
     return `
-        <div style="background:${isCompleted ? '#E8F5E9' : 'white'};border:1px solid ${isCompleted ? '#4CAF50' : '#ddd'};border-radius:8px;padding:15px;">
-            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
-                <div>
-                    <h4 style="margin:0 0 5px 0;">${isCompleted ? '✅ ' : ''}${goal.goalName}</h4>
-                    <span style="background:#E3F2FD;color:#2196F3;padding:2px 8px;border-radius:4px;font-size:12px;">${goal.category}</span>
+        <div class="goal-card" style="background:${isCompleted ? '#E8F5E9' : 'white'};border:1px solid ${isCompleted ? '#4CAF50' : '#ddd'};border-radius:8px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <div style="flex:1;min-width:0;">
+                    <h4 style="margin:0 0 5px 0;font-size:15px;word-break:break-word;">${isCompleted ? '✅ ' : ''}${goal.goalName}</h4>
+                    <span style="background:#E3F2FD;color:#2196F3;padding:2px 8px;border-radius:4px;font-size:11px;display:inline-block;">${goal.category}</span>
                 </div>
-                <span style="font-size:12px;color:#666;">Priority ${goal.priority}</span>
+                <span style="font-size:12px;color:#666;white-space:nowrap;">Priority ${goal.priority}</span>
             </div>
-            <div style="margin:15px 0;">
-                <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-                    <span style="font-size:14px;color:#666;">₱${(goal.currentAmount || 0).toFixed(2)}</span>
-                    <span style="font-size:14px;color:#666;">₱${goal.targetAmount.toFixed(2)}</span>
+            <div style="margin:12px 0;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:13px;">
+                    <span style="color:#666;">₱${(goal.currentAmount || 0).toFixed(2)}</span>
+                    <span style="color:#666;">₱${goal.targetAmount.toFixed(2)}</span>
                 </div>
                 <div style="background:#f0f0f0;height:12px;border-radius:6px;overflow:hidden;">
                     <div style="background:${isCompleted ? '#4CAF50' : '#2196F3'};height:100%;width:${Math.min(percentComplete, 100)}%;transition:width 0.3s;"></div>
@@ -11514,14 +11514,14 @@ function buildGoalCard(goal) {
                 </div>
             ` : ''}
             ${!isCompleted ? `
-                <div style="display:flex;gap:5px;">
-                    <button onclick="openContributionModal('${goal.id}')" class="btn-secondary" style="flex:1;font-size:12px;padding:6px;">➕ Add</button>
-                    <button onclick="openWithdrawalModal('${goal.id}')" class="btn-secondary" style="flex:1;font-size:12px;padding:6px;">💸 Withdraw</button>
-                    <button onclick="editSavingsGoal('${goal.id}')" class="btn-secondary" style="font-size:12px;padding:6px;">✏️</button>
-                    <button onclick="deleteSavingsGoal('${goal.id}')" class="btn-secondary" style="font-size:12px;padding:6px;">🗑️</button>
+                <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                    <button onclick="openContributionModal('${goal.id}')" class="btn-secondary" style="flex:1;min-width:70px;font-size:11px;padding:8px 4px;min-height:40px;">➕ Add</button>
+                    <button onclick="openWithdrawalModal('${goal.id}')" class="btn-secondary" style="flex:1;min-width:70px;font-size:11px;padding:8px 4px;min-height:40px;">💸 Withdraw</button>
+                    <button onclick="editSavingsGoal('${goal.id}')" class="btn-secondary" style="font-size:11px;padding:8px 10px;min-height:40px;">✏️</button>
+                    <button onclick="deleteSavingsGoal('${goal.id}')" class="btn-secondary" style="font-size:11px;padding:8px 10px;min-height:40px;">🗑️</button>
                 </div>
             ` : `
-                <div style="text-align:center;color:#4CAF50;font-weight:bold;">🎉 Goal Completed!</div>
+                <div style="text-align:center;color:#4CAF50;font-weight:bold;font-size:14px;">🎉 Goal Completed!</div>
             `}
         </div>
     `;
@@ -11539,14 +11539,14 @@ function buildCreditCardsSection() {
     }, 0);
     
     let html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-            <div>
-                <h4 style="margin:0;">Total Debt: ₱${totalDebt.toFixed(2)}</h4>
-                <small style="color:#666;">Monthly Minimums: ₱${totalMinimums.toFixed(2)}</small>
+        <div class="finance-section-header" style="margin-bottom:15px;">
+            <div style="margin-bottom:10px;">
+                <h4 style="margin:0;font-size:16px;">Total Debt: ₱${totalDebt.toFixed(2)}</h4>
+                <small style="color:#666;display:block;margin-top:4px;">Monthly Minimums: ₱${totalMinimums.toFixed(2)}</small>
             </div>
-            <div>
-                <button onclick="openCreditCardModal()" class="btn-primary">➕ Add Card</button>
-                <button onclick="openLoanCalculatorModal()" class="btn-secondary">🏦 Check Loan</button>
+            <div style="display:flex;flex-direction:column;gap:8px;width:100%;">
+                <button onclick="openCreditCardModal()" class="btn-primary" style="width:100%;min-height:44px;">➕ Add Card</button>
+                <button onclick="openLoanCalculatorModal()" class="btn-secondary" style="width:100%;min-height:44px;">🏦 Check Loan</button>
             </div>
         </div>
     `;
@@ -11590,14 +11590,14 @@ function buildRecurringTemplatesSection(generated, month, year) {
     const templates = window.allRecurringTemplates || [];
     
     let html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
-            <div>
-                <h4 style="margin:0;">${templates.length} Templates</h4>
-                <small style="color:#666;">${templates.filter(t => t.isActive).length} active</small>
+        <div class="finance-section-header" style="margin-bottom:15px;">
+            <div style="margin-bottom:10px;">
+                <h4 style="margin:0;font-size:16px;">${templates.length} Templates</h4>
+                <small style="color:#666;display:block;margin-top:4px;">${templates.filter(t => t.isActive).length} active</small>
             </div>
-            <div>
-                <button onclick="openRecurringTemplateModal()" class="btn-primary">➕ Add Template</button>
-                <button onclick="generateRecurringExpenses(${month}, ${year})" class="btn-secondary" ${!window.isOnline ? 'disabled' : ''}>
+            <div style="display:flex;flex-direction:column;gap:8px;width:100%;">
+                <button onclick="openRecurringTemplateModal()" class="btn-primary" style="width:100%;min-height:44px;">➕ Add Template</button>
+                <button onclick="generateRecurringExpenses(${month}, ${year})" class="btn-secondary" ${!window.isOnline ? 'disabled' : ''} style="width:100%;min-height:44px;">
                     🔄 Generate This Month ${!generated ? '⚠️' : ''}
                 </button>
             </div>
@@ -11640,10 +11640,10 @@ function buildExpenseHistorySection(month, year) {
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
     
     let html = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
-            <div style="display:flex;gap:10px;flex:1;">
-                <input type="text" id="expenseSearch" placeholder="🔍 Search expenses..." style="flex:1;padding:8px;border:1px solid #ddd;border-radius:4px;" onkeyup="filterExpenses()">
-                <select id="categoryFilter" onchange="filterExpenses()" style="padding:8px;border:1px solid #ddd;border-radius:4px;">
+        <div class="finance-section-header" style="margin-bottom:15px;">
+            <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;width:100%;">
+                <input type="text" id="expenseSearch" placeholder="🔍 Search expenses..." style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;font-size:16px;" onkeyup="filterExpenses()">
+                <select id="categoryFilter" onchange="filterExpenses()" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;font-size:16px;">
                     <option value="">All Categories</option>
                     <option value="Bills">💡 Bills</option>
                     <option value="Loans">🏦 Loans</option>
@@ -11657,9 +11657,9 @@ function buildExpenseHistorySection(month, year) {
                     <option value="Other">📦 Other</option>
                 </select>
             </div>
-            <div>
-                <button onclick="openPersonalExpenseModal()" class="btn-primary">➕ Add Expense</button>
-                <button onclick="exportPersonalFinancesCSV(${month}, ${year})" class="btn-secondary">📊 Export CSV</button>
+            <div style="display:flex;flex-direction:column;gap:8px;width:100%;">
+                <button onclick="openPersonalExpenseModal()" class="btn-primary" style="width:100%;min-height:44px;">➕ Add Expense</button>
+                <button onclick="exportPersonalFinancesCSV(${month}, ${year})" class="btn-secondary" style="width:100%;min-height:44px;">📊 Export CSV</button>
             </div>
         </div>
     `;
