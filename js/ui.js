@@ -11070,6 +11070,8 @@ function buildUsageAnalyticsTab(container) {
 }
 
 async function loadUsageAnalyticsData(startDate, endDate) {
+    const contentDiv = document.getElementById('usageAnalyticsContent');
+    
     try {
         utils.showLoading(true);
 
@@ -11081,7 +11083,6 @@ async function loadUsageAnalyticsData(startDate, endDate) {
 
         utils.showLoading(false);
 
-        const contentDiv = document.getElementById('usageAnalyticsContent');
         if (!contentDiv) return;
 
         const summaryCards = `
@@ -11145,10 +11146,21 @@ async function loadUsageAnalyticsData(startDate, endDate) {
         
         const contentDiv = document.getElementById('usageAnalyticsContent');
         if (contentDiv) {
+            const isPermissionError = error.message && error.message.includes('permission');
             contentDiv.innerHTML = `
-                <div class="alert-danger">
-                    <p style="margin:0;">Error loading analytics data: ${error.message}</p>
-                    <p style="margin:5px 0 0;font-size:14px;">This might be because no usage data has been collected yet. Start using the app to generate analytics.</p>
+                <div class="alert-${isPermissionError ? 'warning' : 'danger'}">
+                    <h3 style="margin:0 0 10px;font-size:18px;">❌ ${isPermissionError ? 'Permission Error' : 'Error Loading Analytics'}</h3>
+                    <p style="margin:0;"><strong>Error:</strong> ${error.message}</p>
+                    ${isPermissionError ? `
+                        <p style="margin:10px 0 0;font-size:14px;">
+                            <strong>Solution:</strong> This means the Firebase database rules need to be deployed. 
+                            Contact your system administrator to deploy the latest database rules.
+                        </p>
+                    ` : `
+                        <p style="margin:5px 0 0;font-size:14px;">
+                            This might be because no usage data has been collected yet. Start using the app to generate analytics.
+                        </p>
+                    `}
                 </div>
             `;
         }
