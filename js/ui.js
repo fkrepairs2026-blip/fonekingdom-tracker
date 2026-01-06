@@ -12487,36 +12487,36 @@ function buildExtractRemittanceTab(container) {
         <div id="extractionResults"></div>
     `;
 
-    // Populate technician filter from all users
-    populateTechFilter();
+    // Populate technician filter from remittances
+    populateTechFilterFromRemittances();
 }
 
-function populateTechFilter() {
+function populateTechFilterFromRemittances() {
     const techFilter = document.getElementById('extractTechFilter');
     if (!techFilter) return;
 
-    // Get all technicians from repairs
-    const techIds = new Set();
-    (window.allRepairs || []).forEach(r => {
-        if (r.technicianId) techIds.add(r.technicianId);
-    });
+    // Get unique technicians from all remittances in Firebase
+    db.ref('techRemittances').once('value').then(snapshot => {
+        const techMap = new Map();
+        snapshot.forEach(child => {
+            const data = child.val();
+            if (data.techName && data.techId) {
+                techMap.set(data.techId, data.techName);
+            }
+        });
 
-    // Get technician names from users
-    const techOptions = [];
-    techIds.forEach(techId => {
-        const user = window.allUsers ? window.allUsers.find(u => u.id === techId) : null;
-        if (user) {
-            techOptions.push({ id: techId, name: user.displayName });
-        }
-    });
-
-    // Sort and populate
-    techOptions.sort((a, b) => a.name.localeCompare(b.name));
-    techOptions.forEach(tech => {
-        const option = document.createElement('option');
-        option.value = tech.id;
-        option.textContent = tech.name;
-        techFilter.appendChild(option);
+        // Sort by name and populate
+        const techs = Array.from(techMap.entries())
+            .sort((a, b) => a[1].localeCompare(b[1]));
+        
+        techs.forEach(([techId, techName]) => {
+            const option = document.createElement('option');
+            option.value = techId;
+            option.textContent = techName;
+            techFilter.appendChild(option);
+        });
+    }).catch(error => {
+        console.error('Error loading technicians:', error);
     });
 }
 

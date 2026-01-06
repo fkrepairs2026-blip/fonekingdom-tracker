@@ -16595,26 +16595,34 @@ async function performExtraction() {
             const repairDetails = [];
             if (r.paymentIds && r.paymentIds.length > 0) {
                 for (const paymentId of r.paymentIds) {
-                    const repair = window.allRepairs.find(rep => 
-                        rep.payments && rep.payments.some(p => p.id === paymentId)
-                    );
+                    // Find repair that contains this payment
+                    const repair = window.allRepairs.find(rep => {
+                        if (!rep.payments || !Array.isArray(rep.payments)) return false;
+                        return rep.payments.some(p => p.id === paymentId);
+                    });
+                    
                     if (repair) {
                         const payment = repair.payments.find(p => p.id === paymentId);
-                        repairDetails.push({
-                            repairId: repair.id,
-                            customerName: repair.customerName,
-                            deviceBrand: repair.deviceBrand,
-                            deviceModel: repair.deviceModel,
-                            problemDescription: repair.problemDescription,
-                            repairType: repair.repairType,
-                            totalPrice: repair.totalPrice || 0,
-                            partsCost: repair.partsCost || 0,
-                            supplierName: repair.supplierName || 'Shop Inventory',
-                            paymentAmount: payment.amount,
-                            paymentMethod: payment.method,
-                            paymentDate: payment.paidAt,
-                            recordedAt: repair.recordedAt
-                        });
+                        if (payment) {
+                            repairDetails.push({
+                                repairId: repair.id,
+                                customerName: repair.customerName,
+                                deviceBrand: repair.deviceBrand || 'N/A',
+                                deviceModel: repair.deviceModel || 'N/A',
+                                problemDescription: repair.problemDescription || repair.repairType || 'N/A',
+                                repairType: repair.repairType || 'N/A',
+                                totalPrice: repair.totalPrice || 0,
+                                partsCost: repair.partsCost || 0,
+                                supplierName: repair.supplierName || 'Shop Inventory',
+                                paymentAmount: payment.amount || 0,
+                                paymentMethod: payment.method || 'Cash',
+                                paymentDate: payment.paidAt || payment.timestamp || repair.recordedAt,
+                                recordedAt: repair.recordedAt
+                            });
+                        }
+                    } else {
+                        // Payment not found in repairs - add placeholder
+                        console.warn(`Payment ${paymentId} not found in repairs for remittance ${r.id}`);
                     }
                 }
             }
@@ -16659,6 +16667,9 @@ async function performExtraction() {
 
         // Store for export
         window.extractedRemittanceData = processedData;
+
+        console.log('✅ Extracted data:', processedData);
+        console.log('📊 Sample repair details:', processedData[0]?.repairDetails);
 
         // Display results
         displayExtractionResults(processedData, startDate, endDate);
@@ -16901,6 +16912,19 @@ function showRemittanceDetails(remittanceId) {
                         </tbody>
                     </table>
                 </div>
+            </div>
+        `;
+    } else {
+        html += `
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <strong>⚠️ No Device Details Available</strong>
+                <p style="margin: 5px 0 0;">Device-level data could not be found for this remittance. This may be because:</p>
+                <ul style="margin: 10px 0 0; padding-left: 20px;">
+                    <li>The repair records have been deleted</li>
+                    <li>Payment IDs don't match current repair records</li>
+                    <li>This is an older remittance before device tracking was implemented</li>
+                </ul>
+                <p style="margin: 10px 0 0;"><strong>Payment Count:</strong> ${remittance.paymentsCount} payment(s) | <strong>Total:</strong> ₱${remittance.payments.toFixed(2)}</p>
             </div>
         `;
     }
