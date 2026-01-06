@@ -6719,18 +6719,20 @@ async function confirmRemittance() {
         return;
     }
 
-    // FIXED CALCULATION: Commission is 40% of NET (after expenses), not gross
-    // Formula: expectedAmount = (payments - expenses) * 0.60
+    // CORRECT CALCULATION: Technician gets 40% of NET, Shop gets 60%
+    // Formula: expectedAmount = (payments - expenses) * 0.40
     const netAfterExpenses = paymentsTotal - expensesTotal;
-    const commissionDeduction = netAfterExpenses * 0.40;  // 40% commission on NET
-    const expectedAmount = netAfterExpenses * 0.60;  // Technician keeps 60% of NET
+    const technicianShare = netAfterExpenses * 0.40;  // Technician gets 40%
+    const shopShare = netAfterExpenses * 0.60;  // Shop gets 60%
+    const expectedAmount = technicianShare;
     const discrepancy = actualAmount - expectedAmount;
 
     DebugLogger.log('REMITTANCE', 'Remittance Amount Calculation', {
         paymentsTotal: paymentsTotal,
         expensesTotal: expensesTotal,
         netAfterExpenses: netAfterExpenses,
-        commissionDeduction: commissionDeduction,
+        technicianShare: technicianShare,
+        shopShare: shopShare,
         expectedAmount: expectedAmount,
         actualAmount: actualAmount,
         discrepancy: discrepancy,

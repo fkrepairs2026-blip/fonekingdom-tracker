@@ -193,10 +193,11 @@
                     <h3>✅ NEW (CORRECT) Formula</h3>
                     <div class="formula-display">
                         net = payments - expenses<br>
-                        commission = net × 0.40<br>
-                        expected = net × 0.60
+                        technicianShare = net × 0.40<br>
+                        shopShare = net × 0.60<br>
+                        expected = technicianShare
                     </div>
-                    <p><strong>Result:</strong> Charges 40% on net after expenses</p>
+                    <p><strong>Result:</strong> Technician gets 40% of net, Shop gets 60%</p>
                 </div>
             </div>
         </div>
@@ -230,7 +231,7 @@
                 <p>
                     <strong>Payments:</strong> ₱10,000<br>
                     <strong>Expenses:</strong> ₱3,000 (parts from COD supplier)<br>
-                    <strong>Expected Result:</strong> ₱4,200 remitted to technician
+                    <strong>Expected Result:</strong> ₱2,800 remitted to technician (40% of ₱7,000 net)
                 </p>
             </div>
 
@@ -239,7 +240,7 @@
                 <p>
                     <strong>Payments:</strong> ₱5,000<br>
                     <strong>Expenses:</strong> ₱2,500 (parts + delivery)<br>
-                    <strong>Expected Result:</strong> ₱1,500 remitted to technician
+                    <strong>Expected Result:</strong> ₱1,000 remitted to technician (40% of ₱2,500 net)
                 </p>
             </div>
 
@@ -248,7 +249,7 @@
                 <p>
                     <strong>Payments:</strong> ₱8,000<br>
                     <strong>Expenses:</strong> ₱0<br>
-                    <strong>Expected Result:</strong> ₱4,800 remitted to technician
+                    <strong>Expected Result:</strong> ₱3,200 remitted to technician (40% of ₱8,000 net)
                 </p>
             </div>
         </div>
@@ -291,8 +292,9 @@
 
             // NEW (CORRECT) Formula
             const net = payments - expenses;
-            const newCommission = net * 0.40;
-            const newExpected = net * 0.60;
+            const newTechShare = net * 0.40;  // Technician gets 40%
+            const newShopShare = net * 0.60;  // Shop gets 60%
+            const newExpected = newTechShare;
 
             // Difference
             const difference = newExpected - oldExpected;
@@ -332,8 +334,12 @@
                     <div class="comparison-card new-formula">
                         <h4>✅ NEW Formula Result</h4>
                         <div class="result-row">
-                            <span>Commission (40% of net):</span>
-                            <span>₱${newCommission.toFixed(2)}</span>
+                            <span>Technician Share (40%):</span>
+                            <span>₱${newTechShare.toFixed(2)}</span>
+                        </div>
+                        <div class="result-row">
+                            <span>Shop Share (60%):</span>
+                            <span>₱${newShopShare.toFixed(2)}</span>
                         </div>
                         <div class="result-row">
                             <span>Expected Remittance:</span>
@@ -377,16 +383,19 @@
                 },
                 expected: {
                     netAfterExpenses: payments - expenses,
-                    commissionRate: 0.40,
-                    commission: (payments - expenses) * 0.40,
-                    expectedRemittance: (payments - expenses) * 0.60,
-                    technicianShare: '60%',
-                    shopShare: '40%'
+                    technicianShareRate: 0.40,
+                    shopShareRate: 0.60,
+                    technicianShare: (payments - expenses) * 0.40,
+                    shopShare: (payments - expenses) * 0.60,
+                    expectedRemittance: (payments - expenses) * 0.40,
+                    technicianPercentage: '40%',
+                    shopPercentage: '60%'
                 },
                 verification: {
-                    formula: 'expectedRemittance = (payments - expenses) × 0.60',
+                    formula: 'expectedRemittance = (payments - expenses) × 0.40',
                     oldFormula: 'OLD (WRONG): (payments - expenses) - (payments × 0.40)',
-                    newFormula: 'NEW (CORRECT): (payments - expenses) × 0.60'
+                    newFormula: 'NEW (CORRECT): (payments - expenses) × 0.40',
+                    split: 'Technician: 40%, Shop: 60%'
                 },
                 sampleExpenses: [
                     {
