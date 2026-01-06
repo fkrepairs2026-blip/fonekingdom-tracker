@@ -16579,8 +16579,8 @@ async function performExtraction() {
             filteredRemittances = filteredRemittances.filter(r => r.status === statusFilter);
         }
 
-        // Process and calculate
-        const processedData = filteredRemittances.map(r => {
+        // Process and calculate with detailed repair data
+        const processedData = await Promise.all(filteredRemittances.map(async (r) => {
             const payments = r.totalPaymentsCollected || 0;
             const expenses = r.totalExpenses || 0;
             const net = payments - expenses;
@@ -16590,6 +16590,51 @@ async function performExtraction() {
             const discrepancyPercent = expectedRemittance > 0 
                 ? ((Math.abs(discrepancy) / expectedRemittance) * 100)
                 : 0;
+
+            // Fetch detailed repair data
+            const repairDetails = [];
+            if (r.paymentIds && r.paymentIds.length > 0) {
+                for (const paymentId of r.paymentIds) {
+                    const repair = window.allRepairs.find(rep => 
+                        rep.payments && rep.payments.some(p => p.id === paymentId)
+                    );
+                    if (repair) {
+                        const payment = repair.payments.find(p => p.id === paymentId);
+                        repairDetails.push({
+                            repairId: repair.id,
+                            customerName: repair.customerName,
+                            deviceBrand: repair.deviceBrand,
+                            deviceModel: repair.deviceModel,
+                            problemDescription: repair.problemDescription,
+                            repairType: repair.repairType,
+                            totalPrice: repair.totalPrice || 0,
+                            partsCost: repair.partsCost || 0,
+                            supplierName: repair.supplierName || 'Shop Inventory',
+                            paymentAmount: payment.amount,
+                            paymentMethod: payment.method,
+                            paymentDate: payment.paidAt,
+                            recordedAt: repair.recordedAt
+                        });
+                    }
+                }
+            }
+
+            // Fetch expense details
+            const expenseDetails = [];
+            if (r.expenseIds && r.expenseIds.length > 0) {
+                for (const expenseId of r.expenseIds) {
+                    const expense = (window.techExpenses || []).find(e => e.id === expenseId);
+                    if (expense) {
+                        expenseDetails.push({
+                            category: expense.category,
+                            amount: expense.amount,
+                            description: expense.description,
+                            linkedRepairId: expense.repairId,
+                            date: expense.date
+                        });
+                    }
+                }
+            }
 
             return {
                 id: r.id,
@@ -16606,9 +16651,11 @@ async function performExtraction() {
                 discrepancyPercent: discrepancyPercent,
                 isAccurate: Math.abs(discrepancy) < 1, // Within ₱1
                 paymentsCount: r.paymentIds?.length || 0,
-                expensesCount: r.expenseIds?.length || 0
+                expensesCount: r.expenseIds?.length || 0,
+                repairDetails: repairDetails,
+                expenseDetails: expenseDetails
             };
-        });
+        }));
 
         // Store for export
         window.extractedRemittanceData = processedData;
@@ -16711,7 +16758,10 @@ function displayExtractionResults(data, startDate, endDate) {
                             const discrepancyColor = d.discrepancy > 0 ? '#28a745' : '#dc3545';
 
                             return `
-                                <tr class="extraction-row" data-accurate="${d.isAccurate}">
+                                <tr class="extraction-row" data-accurate="${d.isAccurate}" 
+                                    onclick="showRemittanceDetails('${d.id}')" 
+                                    style="cursor: pointer;" 
+                                    title="Click to view detailed breakdown">
                                     <td>${utils.formatDate(d.date)}</td>
                                     <td>${d.techName}</td>
                                     <td><span class="status-badge ${statusClass}">${d.status}</span></td>
@@ -16734,8 +16784,170 @@ function displayExtractionResults(data, startDate, endDate) {
                 </table>
             </div>
         </div>
+
+        <!-- Detailed Breakdown Section -->
+        <div class="data-card" style="margin-top: 30px;">
+            <h3 style="margin-bottom: 20px;">📋 Detailed Device Breakdown</h3>
+            <p style="color: #666; margin-bottom: 20px;">
+                Click any remittance row above to see device-level details including repair pricing, parts costs, and payment breakdown.
+            </p>
+            <div id="detailedBreakdown" style="padding: 20px; background: #f8f9fa; border-radius: 6px; min-height: 100px;">
+                <p style="text-align: center; color: #999; font-style: italic;">
+                    Select a remittance to view detailed breakdown
+                </p>
+            </div>
+        </div>
     `;
 }
+
+function showRemittanceDetails(remittanceId) {
+    const remittance = window.extractedRemittanceData.find(r => r.id === remittanceId);
+    if (!remittance) return;
+
+    const detailDiv = document.getElementById('detailedBreakdown');
+    if (!detailDiv) return;
+
+    // Calculate old formula (60% tech) for comparison
+    const oldExpected = remittance.net * 0.60;
+    const wasCorrectUnderOldFormula = Math.abs(remittance.actualRemittance - oldExpected) < 1;
+
+    let html = `
+        <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+            <h4 style="margin: 0 0 15px; color: #667eea;">
+                🧾 Remittance: ${remittance.techName} - ${utils.formatDate(remittance.date)}
+            </h4>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div>
+                    <div style="font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 5px;">Total Payments</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #4caf50;">₱${remittance.payments.toFixed(2)}</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 5px;">Total Expenses</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #f44336;">₱${remittance.expenses.toFixed(2)}</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 5px;">Net Revenue</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #2196f3;">₱${remittance.net.toFixed(2)}</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 5px;">Actual Remitted</div>
+                    <div style="font-size: 24px; font-weight: bold; color: #9c27b0;">₱${remittance.actualRemittance.toFixed(2)}</div>
+                </div>
+            </div>
+
+            <!-- Formula Comparison -->
+            <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 6px; margin-bottom: 20px;">
+                <h5 style="margin: 0 0 10px; color: #856404;">⚠️ Formula Analysis</h5>
+                <table style="width: 100%; font-size: 14px;">
+                    <tr>
+                        <td><strong>Current Formula (Correct):</strong></td>
+                        <td>Tech gets 40%, Shop gets 60%</td>
+                        <td style="text-align: right;"><strong>Expected: ₱${remittance.expectedRemittance.toFixed(2)}</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Old Formula (Used before fix):</strong></td>
+                        <td>Tech got 60%, Shop got 40%</td>
+                        <td style="text-align: right;"><strong>Would be: ₱${oldExpected.toFixed(2)}</strong></td>
+                    </tr>
+                    <tr style="background: ${wasCorrectUnderOldFormula ? '#d4edda' : '#f8d7da'};">
+                        <td colspan="2"><strong>${wasCorrectUnderOldFormula ? '✅ This remittance used OLD formula' : '❌ Neither formula matches'}</strong></td>
+                        <td style="text-align: right;"><strong>Actual: ₱${remittance.actualRemittance.toFixed(2)}</strong></td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    `;
+
+    // Device Details
+    if (remittance.repairDetails && remittance.repairDetails.length > 0) {
+        html += `
+            <div style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 15px; color: #667eea;">📱 Device Details (${remittance.repairDetails.length} repairs)</h4>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Customer</th>
+                                <th>Device</th>
+                                <th>Problem/Type</th>
+                                <th>Total Price</th>
+                                <th>Parts Cost</th>
+                                <th>Supplier</th>
+                                <th>Payment</th>
+                                <th>Method</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${remittance.repairDetails.map(d => `
+                                <tr>
+                                    <td><strong>${d.customerName}</strong></td>
+                                    <td>${d.deviceBrand} ${d.deviceModel}</td>
+                                    <td>
+                                        ${d.problemDescription || d.repairType || 'N/A'}
+                                    </td>
+                                    <td><strong>₱${d.totalPrice.toFixed(2)}</strong></td>
+                                    <td>${d.partsCost > 0 ? '₱' + d.partsCost.toFixed(2) : '-'}</td>
+                                    <td><small>${d.supplierName}</small></td>
+                                    <td style="color: #4caf50; font-weight: bold;">₱${d.paymentAmount.toFixed(2)}</td>
+                                    <td><span class="badge">${d.paymentMethod}</span></td>
+                                    <td><small>${utils.formatDate(d.paymentDate)}</small></td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #e8f5e9; font-weight: bold;">
+                                <td colspan="6" style="text-align: right;">TOTAL PAYMENTS:</td>
+                                <td colspan="3" style="color: #4caf50;">₱${remittance.payments.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    // Expense Details
+    if (remittance.expenseDetails && remittance.expenseDetails.length > 0) {
+        html += `
+            <div style="background: white; padding: 20px; border-radius: 8px;">
+                <h4 style="margin: 0 0 15px; color: #667eea;">💸 Expense Details (${remittance.expenseDetails.length} expenses)</h4>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Category</th>
+                                <th>Amount</th>
+                                <th>Description</th>
+                                <th>Linked Repair</th>
+                                <th>Date</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${remittance.expenseDetails.map(e => `
+                                <tr>
+                                    <td><span class="badge">${e.category}</span></td>
+                                    <td style="color: #f44336; font-weight: bold;">₱${e.amount.toFixed(2)}</td>
+                                    <td>${e.description || '-'}</td>
+                                    <td><small>${e.linkedRepairId || 'N/A'}</small></td>
+                                    <td><small>${utils.formatDate(e.date)}</small></td>
+                                </tr>
+                            `).join('')}
+                            <tr style="background: #ffebee; font-weight: bold;">
+                                <td>TOTAL EXPENSES:</td>
+                                <td colspan="4" style="color: #f44336;">₱${remittance.expenses.toFixed(2)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    }
+
+    detailDiv.innerHTML = html;
+    detailDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Export detailed extraction function
+window.showRemittanceDetails = showRemittanceDetails;
 
 function applyExtractionFilters() {
     const showAll = document.getElementById('showAllExtract').checked;
@@ -16796,29 +17008,65 @@ function exportExtractionCSV() {
         return;
     }
 
+    // Main summary CSV
     const headers = ['Date', 'Technician', 'Status', 'Payments', 'Expenses', 'Net', 
-                   'Actual Remitted', 'Expected (40%)', 'Discrepancy', 'Discrepancy %', 'Accurate'];
+                   'Actual Remitted', 'Expected (40%)', 'Old Formula (60%)', 'Discrepancy', 'Discrepancy %', 'Accurate'];
     
-    const rows = window.extractedRemittanceData.map(d => [
-        new Date(d.date).toLocaleDateString(),
-        d.techName,
-        d.status,
-        d.payments.toFixed(2),
-        d.expenses.toFixed(2),
-        d.net.toFixed(2),
-        d.actualRemittance.toFixed(2),
-        d.expectedRemittance.toFixed(2),
-        d.discrepancy.toFixed(2),
-        d.discrepancyPercent.toFixed(2),
-        d.isAccurate ? 'Yes' : 'No'
-    ]);
+    const rows = window.extractedRemittanceData.map(d => {
+        const oldExpected = d.net * 0.60;
+        return [
+            new Date(d.date).toLocaleDateString(),
+            d.techName,
+            d.status,
+            d.payments.toFixed(2),
+            d.expenses.toFixed(2),
+            d.net.toFixed(2),
+            d.actualRemittance.toFixed(2),
+            d.expectedRemittance.toFixed(2),
+            oldExpected.toFixed(2),
+            d.discrepancy.toFixed(2),
+            d.discrepancyPercent.toFixed(2),
+            d.isAccurate ? 'Yes' : 'No'
+        ];
+    });
 
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], {type: 'text/csv'});
+    
+    // Detailed device-level CSV
+    const detailHeaders = ['Remittance Date', 'Technician', 'Customer', 'Device', 'Problem/Type', 
+                          'Total Price', 'Parts Cost', 'Supplier', 'Payment Amount', 'Payment Method', 'Payment Date'];
+    
+    const detailRows = [];
+    window.extractedRemittanceData.forEach(r => {
+        if (r.repairDetails && r.repairDetails.length > 0) {
+            r.repairDetails.forEach(d => {
+                detailRows.push([
+                    new Date(r.date).toLocaleDateString(),
+                    r.techName,
+                    d.customerName,
+                    `${d.deviceBrand} ${d.deviceModel}`,
+                    d.problemDescription || d.repairType || 'N/A',
+                    d.totalPrice.toFixed(2),
+                    d.partsCost.toFixed(2),
+                    d.supplierName,
+                    d.paymentAmount.toFixed(2),
+                    d.paymentMethod,
+                    new Date(d.paymentDate).toLocaleDateString()
+                ]);
+            });
+        }
+    });
+
+    const detailCsv = [detailHeaders, ...detailRows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+
+    // Create combined download
+    const combined = `REMITTANCE SUMMARY\n${csv}\n\n\nDETAILED DEVICE BREAKDOWN\n${detailCsv}`;
+    
+    const blob = new Blob([combined], {type: 'text/csv'});
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `remittance-data-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `remittance-data-detailed-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
 }
