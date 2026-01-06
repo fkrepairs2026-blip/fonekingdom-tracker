@@ -428,10 +428,13 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 
     <script>
         let extractedData = [];
         let filteredData = [];
+        let currentUser = null;
+        let currentUserData = null;
 
         // Initialize Firebase (copy config from firebase-config.js)
         const firebaseConfig = {
@@ -446,16 +449,205 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
+        const auth = firebase.auth();
 
-        // Set default dates
+        // Check authentication on load
         window.onload = function() {
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    currentUser = user;
+                    // Get user data to check role
+                    const userSnapshot = await db.ref(`users/${user.uid}`).once('value');
+                    currentUserData = userSnapshot.val();
+                    
+                    if (currentUserData && currentUserData.role === 'admin') {
+                        showMainInterface();
+                    } else {
+                        showAccessDenied();
+                    }
+                } else {
+                    showLoginScreen();
+                }
+            });
+        };
+
+        function showLoginScreen() {
+            document.querySelector('.content').innerHTML = `
+                <div class="alert alert-info">
+                    <strong>🔐 Authentication Required</strong>
+                    <p>This tool is restricted to administrators only. Please log in to continue.</p>
+                </div>
+                <div class="controls">
+                    <h2>Admin Login</h2>
+                    <div class="control-group">
+                        <div class="control-item">
+                            <label for="loginEmail">Email:</label>
+                            <input type="email" id="loginEmail" placeholder="admin@example.com">
+                        </div>
+                        <div class="control-item">
+                            <label for="loginPassword">Password:</label>
+                            <input type="password" id="loginPassword" placeholder="Enter password">
+                        </div>
+                    </div>
+                    <button class="btn" onclick="loginUser()">🔑 Login</button>
+                    <div id="loginError" style="color:#dc3545;margin-top:15px;display:none;"></div>
+                </div>
+            `;
+        }
+
+        function showAccessDenied() {
+            document.querySelector('.content').innerHTML = `
+                <div class="alert alert-danger">
+                    <strong>⛔ Access Denied</strong>
+                    <p>This tool is restricted to administrators only. You are logged in as <strong>${currentUserData.displayName}</strong> (${currentUserData.role}).</p>
+                    <p>Please contact an administrator if you need access to this tool.</p>
+                </div>
+                <button class="btn btn-secondary" onclick="logoutUser()">🚪 Logout</button>
+            `;
+        }
+
+        function showMainInterface() {
+            document.querySelector('.content').innerHTML = `
+                <div class="alert alert-info" style="background:#d4edda;border-color:#155724;color:#155724;">
+                    <strong>✅ Authenticated as Admin:</strong> ${currentUserData.displayName}
+                    <button class="btn btn-secondary" onclick="logoutUser()" style="float:right;padding:6px 15px;">🚪 Logout</button>
+                </div>
+                
+                <!-- Controls -->
+                <div class="controls">
+                    <h2>📅 Data Extraction Settings</h2>
+                    <div class="control-group">
+                        <div class="control-item">
+                            <label for="startDate">Start Date:</label>
+                            <input type="date" id="startDate">
+                        </div>
+                        <div class="control-item">
+                            <label for="endDate">End Date:</label>
+                            <input type="date" id="endDate">
+                        </div>
+                        <div class="control-item">
+                            <label for="techFilter">Technician Filter:</label>
+                            <select id="techFilter">
+                                <option value="">All Technicians</option>
+                            </select>
+                        </div>
+                        <div class="control-item">
+                            <label for="statusFilter">Status Filter:</label>
+                            <select id="statusFilter">
+                                <option value="">All Statuses</option>
+                                <option value="pending">Pending</option>
+                                <option value="verified">Verified</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="margin-top: 20px;">
+                        <button class="btn" onclick="extractData()">🔍 Extract Data</button>
+                        <button class="btn btn-secondary" onclick="setLastWeek()">Last 7 Days</button>
+                        <button class="btn btn-secondary" onclick="setLastMonth()">Last 30 Days</button>
+                        <button class="btn btn-success" onclick="exportToJSON()" id="exportBtn" style="display:none;">📥 Export JSON</button>
+                        <button class="btn btn-success" onclick="exportToCSV()" id="exportCSVBtn" style="display:none;">📊 Export CSV</button>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>ℹ️ Instructions:</strong> This tool connects to your Firebase database and extracts historical remittance data. 
+                    Select a date range, then click "Extract Data" to analyze calculations and identify any discrepancies.
+                </div>
+
+                <!-- Loading -->
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p style="color:#666;font-size:16px;">Connecting to Firebase and extracting data...</p>
+                </div>
+
+                <!-- Results -->
+                <div class="results" id="results">
+                    <!-- Summary Cards -->
+                    <div class="summary-cards" id="summaryCards"></div>
+
+                    <!-- Filters -->
+                    <div class="filters" id="filters" style="display:none;">
+                        <label>Show:</label>
+                        <label><input type="checkbox" id="showAll" checked onchange="applyFilters()"> All</label>
+                        <label><input type="checkbox" id="showDiscrepancies" onchange="applyFilters()"> Discrepancies Only</label>
+                        <label><input type="checkbox" id="showCorrect" onchange="applyFilters()"> Correct Only</label>
+                    </div>
+
+                    <!-- Data Table -->
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Technician</th>
+                                    <th>Status</th>
+                                    <th>Payments</th>
+                                    <th>Expenses</th>
+                                    <th>Net</th>
+                                    <th>Actual Remitted</th>
+                                    <th>Expected (40%)</th>
+                                    <th>Discrepancy</th>
+                                    <th>Accuracy</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dataTable">
+                                <tr>
+                                    <td colspan="10" class="empty-state">
+                                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        <h3>No Data Loaded</h3>
+                                        <p>Click "Extract Data" to load remittance records</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Export Section -->
+                    <div class="export-section">
+                        <h3>📤 Export Data</h3>
+                        <p style="margin-bottom:15px;color:#666;">Copy the data below for further analysis</p>
+                        <textarea id="exportData" readonly placeholder="Data will appear here after extraction..."></textarea>
+                        <button class="btn btn-success" onclick="copyExportData()" style="margin-top:10px;">📋 Copy to Clipboard</button>
+                    </div>
+                </div>
+            `;
+            
+            // Set default dates
             const today = new Date();
             const lastWeek = new Date();
             lastWeek.setDate(today.getDate() - 7);
             
             document.getElementById('endDate').value = today.toISOString().split('T')[0];
             document.getElementById('startDate').value = lastWeek.toISOString().split('T')[0];
-        };
+        }
+
+        async function loginUser() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorDiv = document.getElementById('loginError');
+
+            if (!email || !password) {
+                errorDiv.textContent = 'Please enter both email and password';
+                errorDiv.style.display = 'block';
+                return;
+            }
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                // onAuthStateChanged will handle the rest
+            } catch (error) {
+                errorDiv.textContent = 'Login failed: ' + error.message;
+                errorDiv.style.display = 'block';
+            }
+        }
+
+        async function logoutUser() {
+            await auth.signOut();
+            location.reload();
+        }
 
         function setLastWeek() {
             const today = new Date();
