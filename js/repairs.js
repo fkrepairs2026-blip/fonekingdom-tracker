@@ -16520,4 +16520,312 @@ window.getTabUsageStats = getTabUsageStats;
 window.getFormUsageStats = getFormUsageStats;
 window.getFieldUsageStats = getFieldUsageStats;
 
-console.log('✅ repairs.js loaded');
+/**
+ * Extract and analyze historical remittance data
+ */
+async function performExtraction() {
+    const startDate = document.getElementById('extractStartDate').value;
+    const endDate = document.getElementById('extractEndDate').value;
+    const techFilter = document.getElementById('extractTechFilter').value;
+    const statusFilter = document.getElementById('extractStatusFilter').value;
+
+    if (!startDate || !endDate) {
+        alert('Please select both start and end dates');
+        return;
+    }
+
+    const resultsContainer = document.getElementById('extractionResults');
+    resultsContainer.innerHTML = `
+        <div style="text-align: center; padding: 40px;">
+            <div style="border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; 
+                        width: 50px; height: 50px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+            <p style="color: #666; font-size: 16px;">Extracting data from Firebase...</p>
+        </div>
+        <style>
+            @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+            }
+        </style>
+    `;
+
+    try {
+        // Fetch all remittances
+        const snapshot = await db.ref('techRemittances').once('value');
+        const allRemittances = [];
+
+        snapshot.forEach(child => {
+            const data = child.val();
+            allRemittances.push({
+                id: child.key,
+                ...data
+            });
+        });
+
+        // Filter by date range
+        const start = new Date(startDate + 'T00:00:00');
+        const end = new Date(endDate + 'T23:59:59');
+
+        let filteredRemittances = allRemittances.filter(r => {
+            const remitDate = new Date(r.submittedAt || r.date);
+            return remitDate >= start && remitDate <= end;
+        });
+
+        // Apply filters
+        if (techFilter) {
+            filteredRemittances = filteredRemittances.filter(r => r.techId === techFilter);
+        }
+        if (statusFilter) {
+            filteredRemittances = filteredRemittances.filter(r => r.status === statusFilter);
+        }
+
+        // Process and calculate
+        const processedData = filteredRemittances.map(r => {
+            const payments = r.totalPaymentsCollected || 0;
+            const expenses = r.totalExpenses || 0;
+            const net = payments - expenses;
+            const expectedRemittance = net * 0.40; // Correct: 40% to tech
+            const actualRemittance = r.actualAmount || 0;
+            const discrepancy = actualRemittance - expectedRemittance;
+            const discrepancyPercent = expectedRemittance > 0 
+                ? ((Math.abs(discrepancy) / expectedRemittance) * 100)
+                : 0;
+
+            return {
+                id: r.id,
+                date: r.submittedAt || r.date,
+                techName: r.techName,
+                techId: r.techId,
+                status: r.status,
+                payments: payments,
+                expenses: expenses,
+                net: net,
+                actualRemittance: actualRemittance,
+                expectedRemittance: expectedRemittance,
+                discrepancy: discrepancy,
+                discrepancyPercent: discrepancyPercent,
+                isAccurate: Math.abs(discrepancy) < 1, // Within ₱1
+                paymentsCount: r.paymentIds?.length || 0,
+                expensesCount: r.expenseIds?.length || 0
+            };
+        });
+
+        // Store for export
+        window.extractedRemittanceData = processedData;
+
+        // Display results
+        displayExtractionResults(processedData, startDate, endDate);
+
+    } catch (error) {
+        console.error('Error extracting data:', error);
+        resultsContainer.innerHTML = `
+            <div class="alert alert-danger" style="background: #f8d7da; border-left: 4px solid #721c24; padding: 15px; border-radius: 6px;">
+                <strong>❌ Error:</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+function displayExtractionResults(data, startDate, endDate) {
+    const resultsContainer = document.getElementById('extractionResults');
+
+    // Calculate summary
+    const total = data.length;
+    const accurate = data.filter(d => d.isAccurate).length;
+    const withDiscrepancy = total - accurate;
+    const totalDiscrepancy = data.reduce((sum, d) => sum + Math.abs(d.discrepancy), 0);
+    const avgDiscrepancy = total > 0 ? (totalDiscrepancy / total) : 0;
+
+    // Show export buttons
+    document.getElementById('exportExtractBtn').style.display = 'inline-block';
+    document.getElementById('exportExtractCSVBtn').style.display = 'inline-block';
+
+    if (total === 0) {
+        resultsContainer.innerHTML = `
+            <div class="alert alert-warning" style="background: #fff3cd; border-left: 4px solid #856404; padding: 15px; border-radius: 6px;">
+                <strong>⚠️ No Data Found</strong>
+                <p>No remittances found in the selected date range with the applied filters.</p>
+            </div>
+        `;
+        return;
+    }
+
+    resultsContainer.innerHTML = `
+        <!-- Summary Cards -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
+            <div class="data-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h3 style="font-size: 14px; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase;">Total Remittances</h3>
+                <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${total}</div>
+                <div style="font-size: 14px; opacity: 0.8;">In selected period</div>
+            </div>
+            <div class="data-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                <h3 style="font-size: 14px; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase;">Accurate</h3>
+                <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${accurate}</div>
+                <div style="font-size: 14px; opacity: 0.8;">${total > 0 ? ((accurate/total)*100).toFixed(1) : 0}% of total</div>
+            </div>
+            <div class="data-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <h3 style="font-size: 14px; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase;">With Discrepancies</h3>
+                <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${withDiscrepancy}</div>
+                <div style="font-size: 14px; opacity: 0.8;">${total > 0 ? ((withDiscrepancy/total)*100).toFixed(1) : 0}% of total</div>
+            </div>
+            <div class="data-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
+                <h3 style="font-size: 14px; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase;">Avg Discrepancy</h3>
+                <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">₱${avgDiscrepancy.toFixed(2)}</div>
+                <div style="font-size: 14px; opacity: 0.8;">Per remittance</div>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="data-card" style="margin-bottom: 20px;">
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; align-items: center;">
+                <label style="font-weight: 600;">Show:</label>
+                <label><input type="checkbox" id="showAllExtract" checked onchange="applyExtractionFilters()"> All</label>
+                <label><input type="checkbox" id="showDiscrepanciesExtract" onchange="applyExtractionFilters()"> Discrepancies Only</label>
+                <label><input type="checkbox" id="showCorrectExtract" onchange="applyExtractionFilters()"> Accurate Only</label>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="data-card">
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Technician</th>
+                            <th>Status</th>
+                            <th>Payments</th>
+                            <th>Expenses</th>
+                            <th>Net</th>
+                            <th>Actual Remitted</th>
+                            <th>Expected (40%)</th>
+                            <th>Discrepancy</th>
+                            <th>Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="extractionTableBody">
+                        ${data.map(d => {
+                            const statusClass = d.status === 'verified' ? 'status-completed' : 
+                                              d.status === 'pending' ? 'status-pending' : 'status-cancelled';
+                            const accuracyClass = d.isAccurate ? 'status-completed' : 'status-pending';
+                            const discrepancyColor = d.discrepancy > 0 ? '#28a745' : '#dc3545';
+
+                            return `
+                                <tr class="extraction-row" data-accurate="${d.isAccurate}">
+                                    <td>${utils.formatDate(d.date)}</td>
+                                    <td>${d.techName}</td>
+                                    <td><span class="status-badge ${statusClass}">${d.status}</span></td>
+                                    <td>₱${d.payments.toFixed(2)}</td>
+                                    <td>₱${d.expenses.toFixed(2)}</td>
+                                    <td><strong>₱${d.net.toFixed(2)}</strong></td>
+                                    <td>₱${d.actualRemittance.toFixed(2)}</td>
+                                    <td>₱${d.expectedRemittance.toFixed(2)}</td>
+                                    <td style="color: ${discrepancyColor}; font-weight: bold;">
+                                        ${d.discrepancy > 0 ? '+' : ''}₱${d.discrepancy.toFixed(2)}
+                                        ${!d.isAccurate ? ` (${d.discrepancyPercent.toFixed(2)}%)` : ''}
+                                    </td>
+                                    <td><span class="status-badge ${accuracyClass}">
+                                        ${d.isAccurate ? '✓ Accurate' : '⚠ Discrepancy'}
+                                    </span></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+function applyExtractionFilters() {
+    const showAll = document.getElementById('showAllExtract').checked;
+    const showDiscrepancies = document.getElementById('showDiscrepanciesExtract').checked;
+    const showCorrect = document.getElementById('showCorrectExtract').checked;
+
+    const rows = document.querySelectorAll('.extraction-row');
+    rows.forEach(row => {
+        const isAccurate = row.dataset.accurate === 'true';
+        
+        let shouldShow = true;
+        if (!showAll) {
+            if (showDiscrepancies && isAccurate) shouldShow = false;
+            if (showCorrect && !isAccurate) shouldShow = false;
+        }
+
+        row.style.display = shouldShow ? '' : 'none';
+    });
+}
+
+function exportExtractionJSON() {
+    if (!window.extractedRemittanceData) {
+        alert('No data to export');
+        return;
+    }
+
+    const exportObj = {
+        extractedAt: new Date().toISOString(),
+        dateRange: {
+            start: document.getElementById('extractStartDate').value,
+            end: document.getElementById('extractEndDate').value
+        },
+        formula: {
+            correct: 'expectedRemittance = (payments - expenses) × 0.40',
+            split: 'Technician: 40%, Shop: 60%'
+        },
+        summary: {
+            total: window.extractedRemittanceData.length,
+            accurate: window.extractedRemittanceData.filter(d => d.isAccurate).length,
+            withDiscrepancies: window.extractedRemittanceData.filter(d => !d.isAccurate).length
+        },
+        data: window.extractedRemittanceData
+    };
+
+    const dataStr = JSON.stringify(exportObj, null, 2);
+    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `remittance-data-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function exportExtractionCSV() {
+    if (!window.extractedRemittanceData) {
+        alert('No data to export');
+        return;
+    }
+
+    const headers = ['Date', 'Technician', 'Status', 'Payments', 'Expenses', 'Net', 
+                   'Actual Remitted', 'Expected (40%)', 'Discrepancy', 'Discrepancy %', 'Accurate'];
+    
+    const rows = window.extractedRemittanceData.map(d => [
+        new Date(d.date).toLocaleDateString(),
+        d.techName,
+        d.status,
+        d.payments.toFixed(2),
+        d.expenses.toFixed(2),
+        d.net.toFixed(2),
+        d.actualRemittance.toFixed(2),
+        d.expectedRemittance.toFixed(2),
+        d.discrepancy.toFixed(2),
+        d.discrepancyPercent.toFixed(2),
+        d.isAccurate ? 'Yes' : 'No'
+    ]);
+
+    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `remittance-data-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+// Export extraction functions
+window.performExtraction = performExtraction;
+window.applyExtractionFilters = applyExtractionFilters;
+window.exportExtractionJSON = exportExtractionJSON;
+window.exportExtractionCSV = exportExtractionCSV;
+

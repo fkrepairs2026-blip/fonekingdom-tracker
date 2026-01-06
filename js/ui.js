@@ -119,6 +119,7 @@ function buildTabs() {
                 { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
                 { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
+                { id: 'extract-remittance', label: 'Extract Remittance Data', icon: '🔍', build: buildExtractRemittanceTab },
                 { id: 'usage-analytics', label: 'Usage Analytics', icon: '📈', build: buildUsageAnalyticsTab },
                 { id: 'admin-tools', label: 'Admin Tools', icon: '🔧', build: buildAdminToolsTab },
                 { id: 'admin-logs', label: 'Activity Logs', icon: '📋', build: buildActivityLogsTab },
@@ -12402,6 +12403,132 @@ function filterExpenses() {
         row.style.display = (matchesSearch && matchesCategory) ? '' : 'none';
     });
 }
+
+/**
+ * Build Extract Remittance Data Tab (Admin Only)
+ */
+function buildExtractRemittanceTab(container) {
+    console.log('🔍 Building Extract Remittance Data tab...');
+    
+    // Set refresh callback
+    window.currentTabRefresh = () => buildExtractRemittanceTab(container);
+
+    // Set default dates
+    const today = new Date();
+    const lastWeek = new Date();
+    lastWeek.setDate(today.getDate() - 7);
+    const defaultStartDate = lastWeek.toISOString().split('T')[0];
+    const defaultEndDate = today.toISOString().split('T')[0];
+
+    container.innerHTML = `
+        <div class="page-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 12px; margin-bottom: 30px;">
+            <h1 style="margin: 0 0 10px 0; font-size: 32px;">🔍 Extract Remittance Data</h1>
+            <p style="margin: 0; opacity: 0.9; font-size: 16px;">Extract and verify historical remittance calculations</p>
+        </div>
+
+        <!-- Controls -->
+        <div class="data-card" style="margin-bottom: 30px;">
+            <h2 style="margin-bottom: 20px; color: #333;">📅 Extraction Settings</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div>
+                    <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Start Date:</label>
+                    <input type="date" id="extractStartDate" value="${defaultStartDate}" 
+                           style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">End Date:</label>
+                    <input type="date" id="extractEndDate" value="${defaultEndDate}"
+                           style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Technician:</label>
+                    <select id="extractTechFilter" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        <option value="">All Technicians</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #555;">Status:</label>
+                    <select id="extractStatusFilter" style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px;">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="verified">Verified</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-primary" onclick="performExtraction()">🔍 Extract Data</button>
+                <button class="btn btn-secondary" onclick="setExtractionDateRange('week')">Last 7 Days</button>
+                <button class="btn btn-secondary" onclick="setExtractionDateRange('month')">Last 30 Days</button>
+                <button class="btn btn-success" onclick="exportExtractionJSON()" id="exportExtractBtn" style="display:none;">📥 Export JSON</button>
+                <button class="btn btn-success" onclick="exportExtractionCSV()" id="exportExtractCSVBtn" style="display:none;">📊 Export CSV</button>
+            </div>
+        </div>
+
+        <!-- Instructions -->
+        <div class="alert alert-info" style="background: #d1ecf1; border-left: 4px solid #0c5460; padding: 15px; margin-bottom: 20px; border-radius: 6px;">
+            <strong>ℹ️ Instructions:</strong> Select a date range and click "Extract Data" to analyze historical remittances. 
+            The system will verify the 40/60 split calculation (Technician 40%, Shop 60%) and identify any discrepancies.
+        </div>
+
+        <!-- Results Container -->
+        <div id="extractionResults"></div>
+    `;
+
+    // Populate technician filter from all users
+    populateTechFilter();
+}
+
+function populateTechFilter() {
+    const techFilter = document.getElementById('extractTechFilter');
+    if (!techFilter) return;
+
+    // Get all technicians from repairs
+    const techIds = new Set();
+    (window.allRepairs || []).forEach(r => {
+        if (r.technicianId) techIds.add(r.technicianId);
+    });
+
+    // Get technician names from users
+    const techOptions = [];
+    techIds.forEach(techId => {
+        const user = window.allUsers ? window.allUsers.find(u => u.id === techId) : null;
+        if (user) {
+            techOptions.push({ id: techId, name: user.displayName });
+        }
+    });
+
+    // Sort and populate
+    techOptions.sort((a, b) => a.name.localeCompare(b.name));
+    techOptions.forEach(tech => {
+        const option = document.createElement('option');
+        option.value = tech.id;
+        option.textContent = tech.name;
+        techFilter.appendChild(option);
+    });
+}
+
+function setExtractionDateRange(range) {
+    const today = new Date();
+    const startDateInput = document.getElementById('extractStartDate');
+    const endDateInput = document.getElementById('extractEndDate');
+    
+    if (!startDateInput || !endDateInput) return;
+    
+    const startDate = new Date(today);
+    if (range === 'week') {
+        startDate.setDate(today.getDate() - 7);
+    } else if (range === 'month') {
+        startDate.setDate(today.getDate() - 30);
+    }
+    
+    startDateInput.value = startDate.toISOString().split('T')[0];
+    endDateInput.value = today.toISOString().split('T')[0];
+}
+
+// Export functions
+window.buildExtractRemittanceTab = buildExtractRemittanceTab;
+window.setExtractionDateRange = setExtractionDateRange;
 
 // Export all modal and helper functions
 window.openRecurringTemplateModal = openRecurringTemplateModal;
