@@ -4014,11 +4014,11 @@ function buildSuppliersTab(container) {
  */
 function buildStaffOverviewTab(container) {
     console.log('👥 Building Staff Overview tab');
-    console.log('📊 User Activity Data:', window.allUserActivity);
     window.currentTabRefresh = () => buildStaffOverviewTab(document.getElementById('staff-overviewTab'));
 
     const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active');
     const allUserActivity = window.allUserActivity || {};
+    console.log('📊 User Activity Data:', allUserActivity, '- Total keys:', Object.keys(allUserActivity).length);
     const today = getLocalDateString(new Date());
 
     // Categorize users
@@ -4105,12 +4105,6 @@ function buildStaffOverviewTab(container) {
 function renderStaffStatusList(users, allUserActivity, groupName, icon) {
     if (users.length === 0) return '';
 
-    console.log(`🔍 Rendering ${groupName}:`, users.map(u => ({
-        name: u.displayName,
-        id: u.id,
-        activity: allUserActivity[u.id]
-    })));
-
     return `
         <div style="margin:20px 0;">
             <h4 style="color:#667eea;margin-bottom:15px;">${icon} ${groupName}</h4>
@@ -4120,6 +4114,7 @@ function renderStaffStatusList(users, allUserActivity, groupName, icon) {
                     const isClockedIn = activity?.currentStatus === 'clocked-in';
                     const lastActivity = activity?.lastActivity;
                     const clockInTime = activity?.todayClockIn;
+                    console.log(`🔍 ${user.displayName}:`, { activity, isClockedIn, clockInTime });
 
                     return `
                         <div style="background:#f9f9f9;padding:15px;border-radius:8px;border-left:4px solid ${isClockedIn ? '#4caf50' : '#999'};">

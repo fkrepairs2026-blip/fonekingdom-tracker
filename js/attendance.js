@@ -26,9 +26,13 @@ function initAttendanceListeners() {
         window.allUserActivity = snapshot.val() || {};
         console.log('👥 User activity updated:', Object.keys(window.allUserActivity).length, 'users');
         
-        // Update UI if on relevant tab
+        // Update UI if on relevant tab (with small delay for DOM updates)
         if (window.currentTabRefresh) {
-            window.currentTabRefresh();
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+            }, 100);
         }
     });
 }
