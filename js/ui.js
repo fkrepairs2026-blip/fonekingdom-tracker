@@ -291,7 +291,7 @@ function renderMobileBottomNav() {
             { id: 'profit-dashboard', icon: '💰', label: 'Profit' },
             { id: 'dashboard', icon: '🏠', label: 'Home' },
             { id: 'usage-analytics', icon: '📊', label: 'Analytics' },
-            { id: 'myfinances', icon: '💳', label: 'Finances' }
+            { id: 'personal-finance', icon: '💳', label: 'Finances' }
         );
     } else if (role === 'manager') {
         quickTabs.push(

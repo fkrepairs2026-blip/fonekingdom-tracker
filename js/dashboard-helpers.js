@@ -357,7 +357,7 @@ function buildAdminDashboard(userName, stats) {
         '₱' + personalBalance.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
         `Budget: ₱${totalBudget.toFixed(2)} | Spent: ₱${totalPersonalExpenses.toFixed(2)}`,
         'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-        'myfinances',
+        'personal-finance',
         '💳'
     )}
             </div>
