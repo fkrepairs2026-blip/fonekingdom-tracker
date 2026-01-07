@@ -4019,30 +4019,6 @@ function buildStaffOverviewTab(container) {
     const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active');
     const allUserActivity = window.allUserActivity || {};
     console.log('📊 User Activity Data:', allUserActivity, '- Total keys:', Object.keys(allUserActivity).length);
-    
-    // Check if attendance data is loaded yet
-    const attendanceDataLoaded = Object.keys(allUserActivity).length > 0 || Object.keys(window.allAttendance || {}).length > 0;
-    
-    if (!attendanceDataLoaded) {
-        container.innerHTML = `
-            <div class="page-header">
-                <h2>👥 Staff Overview</h2>
-                <p style="color:#666;margin-top:5px;">Loading attendance data...</p>
-            </div>
-            <div style="text-align:center;padding:60px 20px;color:#999;">
-                <div style="font-size:48px;margin-bottom:15px;">⏳</div>
-                <p>Loading real-time staff activity...</p>
-            </div>
-        `;
-        // Retry after a short delay when data should be available
-        setTimeout(() => {
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
-        }, 1000);
-        return;
-    }
-    
     const today = getLocalDateString(new Date());
 
     // Categorize users
