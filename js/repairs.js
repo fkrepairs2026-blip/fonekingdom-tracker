@@ -5695,6 +5695,18 @@ function calculateRepairCommission(repair, techId) {
         result.breakdown.partsCost -
         result.breakdown.deliveryExpenses;
 
+    // Validate net amount is not negative
+    if (result.breakdown.netAmount < 0) {
+        console.warn('⚠️ Commission Calculation Warning: Negative net amount', {
+            repairId: repair.id,
+            repairTotal: result.breakdown.repairTotal,
+            partsCost: result.breakdown.partsCost,
+            deliveryExpenses: result.breakdown.deliveryExpenses,
+            netAmount: result.breakdown.netAmount
+        });
+        result.breakdown.netAmount = 0;
+    }
+
     result.amount = result.breakdown.netAmount * result.breakdown.commissionRate;
 
     // Ensure non-negative
@@ -6681,6 +6693,24 @@ async function confirmRemittance() {
         return;
     }
 
+    // Re-fetch pending adjustment from Firebase to verify not cleared by admin
+    let pendingAdjustment = null;
+    let adjustmentAmount = 0;
+    try {
+        const techRef = db.ref(`users/${techId}`);
+        const snapshot = await techRef.once('value');
+        const techData = snapshot.val();
+        pendingAdjustment = techData.pendingCommissionAdjustment;
+        adjustmentAmount = pendingAdjustment ? (pendingAdjustment.totalAmount || 0) : 0;
+        
+        DebugLogger.log('REMITTANCE', 'Pending Adjustment Verified', {
+            hasPendingAdjustment: !!pendingAdjustment,
+            adjustmentAmount: adjustmentAmount
+        });
+    } catch (error) {
+        console.warn('Could not fetch pending adjustment:', error);
+    }
+
     // Use the same functions as openRemittanceModal - get ALL pending items
     const { payments, total: paymentsTotal } = getAllPendingPayments(techId);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, todayDateString); // Expenses stay date-specific
@@ -6692,7 +6722,8 @@ async function confirmRemittance() {
         expensesCount: expenses.length,
         expensesTotal: expensesTotal,
         commissionBreakdownCount: commissionBreakdown.length,
-        commissionTotal: commissionTotal
+        commissionTotal: commissionTotal,
+        pendingAdjustment: adjustmentAmount
     });
 
     // Calculate commission breakdown by payment method
@@ -6720,11 +6751,12 @@ async function confirmRemittance() {
     }
 
     // CORRECT CALCULATION: Technician gets 40% of NET, Shop gets 60%
-    // Formula: expectedAmount = (payments - expenses) * 0.40
+    // Formula: expectedAmount = (payments - expenses - commission) + pendingAdjustment
     const netAfterExpenses = paymentsTotal - expensesTotal;
     const technicianShare = netAfterExpenses * 0.40;  // Technician gets 40%
     const shopShare = netAfterExpenses * 0.60;  // Shop gets 60%
-    const expectedAmount = technicianShare;
+    const baseExpected = technicianShare - commissionTotal; // Base expected before adjustment
+    const expectedAmount = baseExpected + adjustmentAmount; // Add/subtract pending adjustment
     const discrepancy = actualAmount - expectedAmount;
 
     DebugLogger.log('REMITTANCE', 'Remittance Amount Calculation', {
@@ -6733,6 +6765,9 @@ async function confirmRemittance() {
         netAfterExpenses: netAfterExpenses,
         technicianShare: technicianShare,
         shopShare: shopShare,
+        commissionTotal: commissionTotal,
+        baseExpected: baseExpected,
+        pendingAdjustment: adjustmentAmount,
         expectedAmount: expectedAmount,
         actualAmount: actualAmount,
         discrepancy: discrepancy,
@@ -6748,6 +6783,9 @@ async function confirmRemittance() {
     let confirmMessage = `Submit remittance of ₱${actualAmount.toFixed(2)}?`;
     if (commissionTotal > 0) {
         confirmMessage += `\n\nCommission: ₱${commissionTotal.toFixed(2)}`;
+    }
+    if (adjustmentAmount !== 0) {
+        confirmMessage += `\n\nPending Adjustment: ${adjustmentAmount >= 0 ? '+' : ''}₱${adjustmentAmount.toFixed(2)}`;
     }
     if (hasManualOverride) {
         confirmMessage += `\n\n⚠️ Manual Override: ₱${manualCommission.toFixed(2)}`;
@@ -6796,6 +6834,12 @@ async function confirmRemittance() {
             manualCommission: manualCommission,
             overrideReason: overrideReason,
             finalApprovedCommission: hasManualOverride ? null : totalCommission,
+            // Pending adjustment applied
+            appliedAdjustment: pendingAdjustment ? {
+                totalAmount: adjustmentAmount,
+                adjustments: pendingAdjustment.adjustments,
+                appliedAt: new Date().toISOString()
+            } : null,
             // Expenses
             expenseIds: expenses.map(e => e.id),
             totalExpenses: expensesTotal,
@@ -6870,6 +6914,37 @@ async function confirmRemittance() {
         });
 
         await Promise.all(updatePromises);
+
+        // Clear pending adjustment and update notifications if adjustment was applied
+        if (pendingAdjustment) {
+            // Clear pending adjustment
+            await db.ref(`users/${techId}/pendingCommissionAdjustment`).set(null);
+            
+            // Update notifications to mark as applied
+            const notificationsRef = db.ref(`users/${techId}/notifications`);
+            const notifSnapshot = await notificationsRef.once('value');
+            const notifUpdates = {};
+            
+            notifSnapshot.forEach(child => {
+                const notif = child.val();
+                if (notif.type === 'commission_adjustment' && !notif.appliedToRemittance) {
+                    notifUpdates[child.key] = {
+                        ...notif,
+                        appliedToRemittance: remittanceId,
+                        appliedAt: new Date().toISOString()
+                    };
+                }
+            });
+            
+            if (Object.keys(notifUpdates).length > 0) {
+                await notificationsRef.update(notifUpdates);
+                
+                DebugLogger.log('REMITTANCE', 'Pending Adjustment Cleared', {
+                    adjustmentAmount: adjustmentAmount,
+                    notificationsUpdated: Object.keys(notifUpdates).length
+                });
+            }
+        }
 
         // Log remittance submission
         await logActivity('remittance_submitted', {
@@ -17101,3 +17176,655 @@ window.applyExtractionFilters = applyExtractionFilters;
 window.exportExtractionJSON = exportExtractionJSON;
 window.exportExtractionCSV = exportExtractionCSV;
 
+// ===== COMMISSION ADJUSTMENT SYSTEM =====
+
+/**
+ * Set baseline commission rate for a technician (admin only)
+ * Used for migration and onboarding new hires with custom compensation
+ */
+async function setBaselineCommissionRate(techId, rate, compensationType, effectiveDate, reason) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ Only administrators can set baseline rates');
+        return;
+    }
+
+    if (!techId || rate === undefined || !compensationType || !effectiveDate) {
+        alert('⚠️ All fields are required');
+        return;
+    }
+
+    if (rate < 0 || rate > 1) {
+        alert('⚠️ Rate must be between 0 and 1 (e.g., 0.40 for 40%)');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        // Check if remittances exist after this date
+        const affectedRemittances = window.techRemittances.filter(r => 
+            r.techId === techId && 
+            new Date(r.submittedAt) >= new Date(effectiveDate)
+        );
+
+        if (affectedRemittances.length > 0) {
+            const confirmMsg = `⚠️ WARNING: ${affectedRemittances.length} remittances will be affected by this baseline.\n\nRun Auto-Detect after saving to review adjustments.\n\nContinue?`;
+            if (!confirm(confirmMsg)) {
+                utils.showLoading(false);
+                return;
+            }
+        }
+
+        // Get current rate history
+        const techRef = db.ref(`users/${techId}`);
+        const snapshot = await techRef.once('value');
+        const techData = snapshot.val();
+        const rateHistory = techData.commissionRateHistory || [];
+
+        // Add baseline entry
+        const baselineEntry = {
+            rate: rate,
+            compensationType: compensationType,
+            changedAt: new Date(effectiveDate).toISOString(),
+            changedBy: window.currentUserData.displayName,
+            reason: reason || 'baseline_set',
+            timestamp: new Date().toISOString()
+        };
+
+        rateHistory.unshift(baselineEntry); // Add to beginning
+
+        // Update user record
+        await techRef.update({
+            commissionRate: rate,
+            compensationType: compensationType,
+            commissionRateHistory: rateHistory
+        });
+
+        utils.showLoading(false);
+        alert('✅ Baseline rate set successfully\n\nRun Auto-Detect to calculate adjustments for existing remittances.');
+        
+        return true;
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error setting baseline rate:', error);
+        alert('Error setting baseline rate: ' + error.message);
+        return false;
+    }
+}
+
+/**
+ * Get historical commission rate for a technician at a specific date
+ */
+function getHistoricalCommissionRate(techId, targetDate) {
+    const techUser = window.allUsers[techId];
+    if (!techUser) {
+        return { rate: 0.40, compensationType: 'commission' }; // Fallback
+    }
+
+    const rateHistory = techUser.commissionRateHistory || [];
+    if (rateHistory.length === 0) {
+        return { 
+            rate: techUser.commissionRate || 0.40, 
+            compensationType: techUser.compensationType || 'commission' 
+        };
+    }
+
+    // Sort by changedAt descending
+    const sortedHistory = [...rateHistory].sort((a, b) => 
+        new Date(b.changedAt) - new Date(a.changedAt)
+    );
+
+    // Find first entry where changedAt <= targetDate
+    const targetTime = new Date(targetDate).getTime();
+    for (const entry of sortedHistory) {
+        if (new Date(entry.changedAt).getTime() <= targetTime) {
+            return {
+                rate: entry.rate,
+                compensationType: entry.compensationType
+            };
+        }
+    }
+
+    // No historical rate found, use fallback
+    return { rate: 0.40, compensationType: 'commission' };
+}
+
+/**
+ * Detect remittances needing commission adjustments
+ * Returns array of mismatches with line-by-line repair breakdown
+ */
+function detectRemittancesNeedingAdjustment() {
+    if (!window.techRemittances || window.techRemittances.length === 0) {
+        alert('No remittances loaded');
+        return [];
+    }
+
+    const results = [];
+
+    window.techRemittances.forEach(remittance => {
+        if (!remittance.commissionBreakdown || remittance.commissionBreakdown.length === 0) {
+            return; // Skip remittances without commission breakdown
+        }
+
+        const techId = remittance.techId;
+        const submittedAt = remittance.submittedAt || remittance.date;
+        
+        // Get historical rate at time of remittance submission
+        const historicalRate = getHistoricalCommissionRate(techId, submittedAt);
+
+        let originalTotal = 0;
+        let recalculatedTotal = 0;
+        const repairs = [];
+
+        // Recalculate each repair in the breakdown
+        remittance.commissionBreakdown.forEach(item => {
+            const repairTotal = item.repairTotal || 0;
+            const partsCost = item.partsCost || 0;
+            const deliveryExpenses = item.deliveryExpenses || 0;
+
+            // Recalculate net amount
+            const recalculatedNet = Math.max(0, repairTotal - partsCost - deliveryExpenses);
+            const recalculatedCommission = recalculatedNet * historicalRate.rate;
+
+            const originalCommission = item.commission || 0;
+            const difference = recalculatedCommission - originalCommission;
+
+            originalTotal += originalCommission;
+            recalculatedTotal += recalculatedCommission;
+
+            repairs.push({
+                repairId: item.repairId,
+                customerName: item.customerName,
+                device: item.deviceInfo || `${item.deviceBrand || ''} ${item.deviceModel || ''}`.trim(),
+                repairTotal: repairTotal,
+                partsCost: partsCost,
+                deliveryExpenses: deliveryExpenses,
+                netAmount: recalculatedNet,
+                originalCommission: originalCommission,
+                recalculatedCommission: recalculatedCommission,
+                difference: difference
+            });
+        });
+
+        const totalDifference = recalculatedTotal - originalTotal;
+
+        // Only include if difference > ₱1
+        if (Math.abs(totalDifference) > 1) {
+            results.push({
+                remittanceId: remittance.id,
+                techId: techId,
+                techName: remittance.techName,
+                submittedAt: submittedAt,
+                originalCommission: originalTotal,
+                recalculatedCommission: recalculatedTotal,
+                difference: totalDifference,
+                historicalRate: historicalRate,
+                repairs: repairs,
+                staged: false,
+                approved: false
+            });
+        }
+    });
+
+    console.log('🔍 Detected adjustments needed:', results.length);
+    return results;
+}
+
+/**
+ * Stage adjustments for admin review
+ * Saves to global window.stagedAdjustments and sessionStorage
+ */
+function stageAdjustments(adjustments) {
+    window.stagedAdjustments = adjustments.map(adj => ({
+        ...adj,
+        staged: true,
+        approved: false,
+        editable: true
+    }));
+
+    // Persist in sessionStorage for page refresh recovery
+    try {
+        sessionStorage.setItem('stagedAdjustments', JSON.stringify(window.stagedAdjustments));
+    } catch (e) {
+        console.warn('Could not save staged adjustments to sessionStorage:', e);
+    }
+
+    console.log('📋 Staged adjustments:', window.stagedAdjustments.length);
+    return window.stagedAdjustments;
+}
+
+/**
+ * Apply approved adjustments to technician accounts
+ * Accumulates adjustments in pendingCommissionAdjustment field
+ */
+async function applyApprovedAdjustments(approvedAdjustments) {
+    if (!approvedAdjustments || approvedAdjustments.length === 0) {
+        alert('No adjustments to apply');
+        return;
+    }
+
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ Only administrators can apply adjustments');
+        return;
+    }
+
+    const confirmMsg = `Apply ${approvedAdjustments.length} commission adjustments?\n\nThis will add pending amounts to technician accounts.`;
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const results = [];
+        
+        // Group by technician
+        const byTech = {};
+        approvedAdjustments.forEach(adj => {
+            if (!byTech[adj.techId]) {
+                byTech[adj.techId] = [];
+            }
+            byTech[adj.techId].push(adj);
+        });
+
+        // Apply adjustments per technician
+        for (const techId of Object.keys(byTech)) {
+            const techAdjustments = byTech[techId];
+            const totalAmount = techAdjustments.reduce((sum, adj) => sum + adj.difference, 0);
+            
+            // Accumulate adjustment
+            await accumulateCommissionAdjustment(
+                techId,
+                techAdjustments.map(adj => ({
+                    remittanceId: adj.remittanceId,
+                    amount: adj.difference,
+                    reason: `Commission recalculation: ${adj.repairs.length} repairs`,
+                    affectedRepairs: adj.repairs.map(r => r.repairId)
+                }))
+            );
+
+            // Send notification
+            await notifyTechAdjustment(
+                techId,
+                totalAmount,
+                `Commission adjustment for ${techAdjustments.length} remittances`,
+                techAdjustments.map(adj => adj.remittanceId).join(', ')
+            );
+
+            results.push({
+                techId: techId,
+                techName: techAdjustments[0].techName,
+                amount: totalAmount
+            });
+        }
+
+        // Clear staged adjustments
+        window.stagedAdjustments = [];
+        sessionStorage.removeItem('stagedAdjustments');
+
+        utils.showLoading(false);
+        
+        const summary = results.map(r => 
+            `${r.techName}: ${r.amount >= 0 ? '+' : ''}₱${r.amount.toFixed(2)}`
+        ).join('\n');
+        
+        alert(`✅ Adjustments applied successfully:\n\n${summary}\n\nTechnicians have been notified.`);
+        
+        return results;
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error applying adjustments:', error);
+        alert('Error applying adjustments: ' + error.message);
+        return null;
+    }
+}
+
+/**
+ * Accumulate commission adjustment for a technician
+ * Uses Firebase transaction for atomic updates
+ */
+async function accumulateCommissionAdjustment(techId, adjustmentsArray) {
+    return new Promise((resolve, reject) => {
+        const techRef = db.ref(`users/${techId}/pendingCommissionAdjustment`);
+        
+        techRef.transaction(current => {
+            // Initialize if doesn't exist
+            if (!current) {
+                current = {
+                    totalAmount: 0,
+                    adjustments: []
+                };
+            }
+
+            // Add new adjustments
+            adjustmentsArray.forEach(adj => {
+                current.adjustments.push({
+                    remittanceId: adj.remittanceId,
+                    amount: adj.amount,
+                    reason: adj.reason,
+                    addedAt: new Date().toISOString(),
+                    addedBy: window.currentUserData.displayName,
+                    affectedRepairs: adj.affectedRepairs || []
+                });
+            });
+
+            // Recalculate total
+            current.totalAmount = current.adjustments.reduce((sum, adj) => sum + adj.amount, 0);
+            current.lastUpdated = new Date().toISOString();
+
+            return current;
+        }, (error, committed, snapshot) => {
+            if (error) {
+                console.error('Transaction failed:', error);
+                reject(error);
+            } else if (!committed) {
+                reject(new Error('Transaction not committed'));
+            } else {
+                console.log('✅ Adjustment accumulated for tech:', techId);
+                resolve(snapshot.val());
+            }
+        });
+    });
+}
+
+/**
+ * Send notification to technician about commission adjustment
+ */
+async function notifyTechAdjustment(techId, amount, reason, remittanceId) {
+    try {
+        const notificationsRef = db.ref(`users/${techId}/notifications`);
+        await notificationsRef.push({
+            id: Date.now(),
+            type: 'commission_adjustment',
+            amount: amount,
+            reason: reason,
+            remittanceId: remittanceId,
+            addedBy: window.currentUserData.displayName,
+            timestamp: new Date().toISOString(),
+            read: false,
+            dismissed: false,
+            appliedToRemittance: null
+        });
+        
+        console.log('📬 Notification sent to tech:', techId);
+        return true;
+    } catch (error) {
+        console.error('❌ Error sending notification:', error);
+        return false;
+    }
+}
+
+/**
+ * Clear pending commission adjustments (admin override)
+ */
+async function clearPendingAdjustment(techId, reason) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ Only administrators can clear adjustments');
+        return;
+    }
+
+    if (!reason || reason.trim().length < 5) {
+        alert('⚠️ Please provide a reason (minimum 5 characters)');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        // Fetch current pending adjustment
+        const techRef = db.ref(`users/${techId}`);
+        const snapshot = await techRef.once('value');
+        const techData = snapshot.val();
+        const pendingAdjustment = techData.pendingCommissionAdjustment;
+
+        if (!pendingAdjustment) {
+            alert('No pending adjustments to clear');
+            utils.showLoading(false);
+            return;
+        }
+
+        // Save to adjustment log
+        await db.ref('commissionAdjustmentLog').push({
+            action: 'cleared',
+            techId: techId,
+            techName: techData.displayName,
+            clearedAmount: pendingAdjustment.totalAmount,
+            clearedBy: window.currentUserData.displayName,
+            clearedAt: new Date().toISOString(),
+            reason: reason,
+            clearedAdjustments: pendingAdjustment.adjustments
+        });
+
+        // Clear pending adjustment
+        await techRef.update({
+            pendingCommissionAdjustment: null
+        });
+
+        // Notify technician
+        await notifyTechAdjustment(
+            techId,
+            0,
+            `Adjustment cleared by admin: ${reason}`,
+            'adjustment_cleared'
+        );
+
+        utils.showLoading(false);
+        alert(`✅ Pending adjustment cleared: ₱${pendingAdjustment.totalAmount.toFixed(2)}\n\nTechnician has been notified.`);
+        
+        return true;
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error clearing adjustment:', error);
+        alert('Error clearing adjustment: ' + error.message);
+        return false;
+    }
+}
+
+/**
+ * Export commission adjustment logs for a specific month
+ */
+async function exportAdjustmentLogs(year, month) {
+    try {
+        const startDate = new Date(year, month - 1, 1);
+        const endDate = new Date(year, month, 1);
+
+        const logsRef = db.ref('commissionAdjustmentLog');
+        const snapshot = await logsRef
+            .orderByChild('timestamp')
+            .startAt(startDate.toISOString())
+            .endAt(endDate.toISOString())
+            .once('value');
+
+        const logs = [];
+        snapshot.forEach(child => {
+            logs.push({
+                id: child.key,
+                ...child.val()
+            });
+        });
+
+        if (logs.length === 0) {
+            return { exported: 0, filename: null };
+        }
+
+        // Generate CSV
+        const headers = ['Date', 'Action', 'Tech Name', 'Tech ID', 'Amount', 'Reason', 'Details', 'By', 'Timestamp'];
+        const rows = logs.map(log => [
+            new Date(log.timestamp || log.clearedAt).toLocaleDateString(),
+            log.action,
+            log.techName,
+            log.techId,
+            (log.clearedAmount || 0).toFixed(2),
+            log.reason || '',
+            JSON.stringify(log.clearedAdjustments || []),
+            log.clearedBy || log.addedBy || '',
+            log.timestamp || log.clearedAt
+        ]);
+
+        const csv = [headers, ...rows].map(row => 
+            row.map(cell => `"${cell}"`).join(',')
+        ).join('\n');
+
+        // Download
+        const monthStr = String(month).padStart(2, '0');
+        const filename = `commission_adjustments_${year}-${monthStr}.csv`;
+        
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
+
+        console.log(`✅ Exported ${logs.length} adjustment logs:`, filename);
+        return { exported: logs.length, filename: filename };
+    } catch (error) {
+        console.error('❌ Error exporting logs:', error);
+        return { exported: 0, filename: null, error: error.message };
+    }
+}
+
+/**
+ * Get Storage files that need cleanup (older than 24 months)
+ */
+async function getStorageFilesForCleanup() {
+    try {
+        const storageRef = firebase.storage().ref('exports/adjustmentLogs');
+        const result = await storageRef.listAll();
+
+        const now = new Date();
+        const cutoffDate = new Date(now.getFullYear(), now.getMonth() - 24, 1); // 24 months ago
+
+        const filesToCleanup = [];
+
+        for (const item of result.items) {
+            const filename = item.name;
+            // Parse date from filename: commission_adjustments_YYYY-MM.csv
+            const match = filename.match(/commission_adjustments_(\d{4})-(\d{2})\.csv/);
+            
+            if (match) {
+                const fileYear = parseInt(match[1]);
+                const fileMonth = parseInt(match[2]);
+                const fileDate = new Date(fileYear, fileMonth - 1, 1);
+
+                if (fileDate < cutoffDate) {
+                    const ageMonths = Math.floor((now - fileDate) / (1000 * 60 * 60 * 24 * 30));
+                    const metadata = await item.getMetadata();
+                    
+                    filesToCleanup.push({
+                        filename: filename,
+                        path: item.fullPath,
+                        date: fileDate,
+                        ageMonths: ageMonths,
+                        sizeKB: Math.round(metadata.size / 1024)
+                    });
+                }
+            }
+        }
+
+        console.log(`🗑️ Found ${filesToCleanup.length} files for cleanup`);
+        return filesToCleanup;
+    } catch (error) {
+        console.error('❌ Error getting files for cleanup:', error);
+        return [];
+    }
+}
+
+/**
+ * Cleanup old adjustment logs with mandatory download
+ */
+async function cleanupOldAdjustmentLogs(downloadComplete) {
+    if (!downloadComplete) {
+        alert('⚠️ Please download all files locally before cleanup');
+        return false;
+    }
+
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ Only administrators can cleanup logs');
+        return false;
+    }
+
+    const confirmMsg = 'Delete old adjustment logs from Firebase?\n\nEnsure you have downloaded all files locally.';
+    if (!confirm(confirmMsg)) {
+        return false;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const filesToCleanup = await getStorageFilesForCleanup();
+        
+        if (filesToCleanup.length === 0) {
+            utils.showLoading(false);
+            alert('No files to cleanup');
+            return true;
+        }
+
+        let deletedFiles = 0;
+        let deletedRecords = 0;
+
+        // Delete files from Storage
+        for (const file of filesToCleanup) {
+            try {
+                const fileRef = firebase.storage().ref(file.path);
+                await fileRef.delete();
+                deletedFiles++;
+                console.log('🗑️ Deleted file:', file.filename);
+            } catch (error) {
+                console.error('Error deleting file:', file.filename, error);
+            }
+        }
+
+        // Delete corresponding DB records (older than 24 months)
+        const cutoffDate = new Date();
+        cutoffDate.setMonth(cutoffDate.getMonth() - 24);
+
+        const logsRef = db.ref('commissionAdjustmentLog');
+        const snapshot = await logsRef
+            .orderByChild('timestamp')
+            .endAt(cutoffDate.toISOString())
+            .once('value');
+
+        const deletePromises = [];
+        snapshot.forEach(child => {
+            deletePromises.push(child.ref.remove());
+            deletedRecords++;
+        });
+
+        await Promise.all(deletePromises);
+
+        // Log cleanup action
+        await db.ref('commissionAdjustmentLog').push({
+            action: 'cleanup',
+            deletedFiles: filesToCleanup.map(f => f.filename),
+            deletedFileCount: deletedFiles,
+            deletedRecordCount: deletedRecords,
+            deletedBy: window.currentUserData.displayName,
+            deletedAt: new Date().toISOString()
+        });
+
+        utils.showLoading(false);
+        alert(`✅ Cleanup complete:\n\n${deletedFiles} files deleted\n${deletedRecords} DB records removed`);
+        
+        return true;
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error during cleanup:', error);
+        alert('Error during cleanup: ' + error.message);
+        return false;
+    }
+}
+
+// Export commission adjustment functions
+window.setBaselineCommissionRate = setBaselineCommissionRate;
+window.getHistoricalCommissionRate = getHistoricalCommissionRate;
+window.detectRemittancesNeedingAdjustment = detectRemittancesNeedingAdjustment;
+window.stageAdjustments = stageAdjustments;
+window.applyApprovedAdjustments = applyApprovedAdjustments;
+window.accumulateCommissionAdjustment = accumulateCommissionAdjustment;
+window.notifyTechAdjustment = notifyTechAdjustment;
+window.clearPendingAdjustment = clearPendingAdjustment;
+window.exportAdjustmentLogs = exportAdjustmentLogs;
+window.getStorageFilesForCleanup = getStorageFilesForCleanup;
+window.cleanupOldAdjustmentLogs = cleanupOldAdjustmentLogs;

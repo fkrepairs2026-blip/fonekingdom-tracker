@@ -238,28 +238,55 @@ const utils = {
         repairs.forEach(r => {
             if (r.acceptedBy !== techId || !r.payments) return;
 
-            // Ensure payments is an array (Firebase may return object)
-            const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
-            
-            payments.forEach(payment => {
-                if (!payment.verified) return;
+            // Use calculateRepairCommission for accurate commission with custom rates
+            if (window.calculateRepairCommission) {
+                const commissionResult = window.calculateRepairCommission(r, techId);
+                
+                if (commissionResult.eligible && commissionResult.amount > 0) {
+                    // Ensure payments is an array (Firebase may return object)
+                    const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
+                    
+                    // Check if any payment in this repair falls within the date range
+                    const hasPaymentInRange = payments.some(payment => {
+                        if (!payment.verified) return false;
+                        const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                        return paymentDate >= startDate && paymentDate <= endDate;
+                    });
 
-                const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
-                if (paymentDate < startDate || paymentDate > endDate) return;
-
-                // Calculate commission based on payment - parts cost
-                const repairPartsCost = r.partsCost || 0;
-                const paymentShare = payment.amount;
-                const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
-                const netAmount = Math.max(0, paymentShare - partsCostShare);
-                const commission = netAmount * 0.40; // Tech gets 40%
-
-                if (payment.method === 'GCash') {
-                    gcashCommission += commission;
-                } else {
-                    cashCommission += commission;
+                    if (hasPaymentInRange) {
+                        // Determine if this is cash or GCash based on payment methods
+                        const hasGCashPayment = payments.some(p => p.method === 'GCash');
+                        
+                        if (hasGCashPayment) {
+                            gcashCommission += commissionResult.amount;
+                        } else {
+                            cashCommission += commissionResult.amount;
+                        }
+                    }
                 }
-            });
+            } else {
+                // Fallback to old calculation if calculateRepairCommission not available
+                const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
+                
+                payments.forEach(payment => {
+                    if (!payment.verified) return;
+
+                    const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
+                    if (paymentDate < startDate || paymentDate > endDate) return;
+
+                    const repairPartsCost = r.partsCost || 0;
+                    const paymentShare = payment.amount;
+                    const partsCostShare = r.payments.length > 0 ? repairPartsCost / r.payments.length : 0;
+                    const netAmount = Math.max(0, paymentShare - partsCostShare);
+                    const commission = netAmount * 0.40;
+
+                    if (payment.method === 'GCash') {
+                        gcashCommission += commission;
+                    } else {
+                        cashCommission += commission;
+                    }
+                });
+            }
         });
 
         return {

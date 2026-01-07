@@ -23,7 +23,15 @@
     "users": {
       ".read": "auth != null",
       "$userId": {
-        ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'",
+        "pendingCommissionAdjustment": {
+          ".read": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'",
+          ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        },
+        "notifications": {
+          ".read": "auth.uid === $userId",
+          ".write": "root.child('users').child(auth.uid).child('role').val() === 'admin' || auth.uid === $userId"
+        }
       }
     },
     "inventory": {
@@ -183,6 +191,12 @@
       ".read": "auth != null",
       "$goalId": {
         ".write": "auth != null && (!data.exists() || data.child('userId').val() === auth.uid)"
+      }
+    },
+    "commissionAdjustmentLog": {
+      ".read": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'",
+      "$logId": {
+        ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
     }
   }

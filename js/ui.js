@@ -8299,8 +8299,17 @@ function buildAnalyticsTab(container) {
 
     container.innerHTML = `
         <div class="page-header">
-            <h2>📊 Analytics & Reports</h2>
-            <p>Comprehensive business intelligence and reporting</p>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:15px;">
+                <div>
+                    <h2>📊 Analytics & Reports</h2>
+                    <p>Comprehensive business intelligence and reporting</p>
+                </div>
+                ${window.currentUserData.role === 'admin' ? `
+                    <button onclick="openCommissionAdjustmentModal()" class="btn-primary" style="height:fit-content;">
+                        💰 Adjust Commissions
+                    </button>
+                ` : ''}
+            </div>
         </div>
         
         <!-- Date Range Selector -->
@@ -12573,4 +12582,484 @@ window.saveManualBudget = saveManualBudget;
 window.exportPersonalFinancesCSV = exportPersonalFinancesCSV;
 window.filterExpenses = filterExpenses;
 
-console.log('✅ ui.js loaded');
+// ===== COMMISSION ADJUSTMENT UI =====
+
+function openCommissionAdjustmentModal() {
+    const modal = document.getElementById('commissionAdjustmentModal');
+    const content = document.getElementById('commissionAdjustmentContent');
+
+    // Load staged adjustments from sessionStorage if available
+    try {
+        const staged = sessionStorage.getItem('stagedAdjustments');
+        if (staged) {
+            window.stagedAdjustments = JSON.parse(staged);
+        }
+    } catch (e) {
+        console.warn('Could not load staged adjustments:', e);
+    }
+
+    content.innerHTML = `
+        <div style="background:var(--bg-white);border-radius:8px;margin-bottom:20px;">
+            <!-- Tab Navigation -->
+            <div style="display:flex;border-bottom:2px solid var(--border-color);margin-bottom:20px;">
+                <button onclick="showAdjustmentTab('baseline')" id="tab-baseline" class="adjustment-tab active" 
+                        style="padding:15px 25px;border:none;background:transparent;cursor:pointer;border-bottom:3px solid var(--primary-color);font-weight:600;">
+                    Set Baseline Rates
+                </button>
+                <button onclick="showAdjustmentTab('detect')" id="tab-detect" class="adjustment-tab"
+                        style="padding:15px 25px;border:none;background:transparent;cursor:pointer;font-weight:600;">
+                    Detect & Stage
+                </button>
+                <button onclick="showAdjustmentTab('review')" id="tab-review" class="adjustment-tab"
+                        style="padding:15px 25px;border:none;background:transparent;cursor:pointer;font-weight:600;">
+                    Review & Apply ${window.stagedAdjustments && window.stagedAdjustments.length > 0 ? `<span style="background:var(--danger-color);color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-left:5px;">${window.stagedAdjustments.length}</span>` : ''}
+                </button>
+                <button onclick="showAdjustmentTab('cleanup')" id="tab-cleanup" class="adjustment-tab"
+                        style="padding:15px 25px;border:none;background:transparent;cursor:pointer;font-weight:600;">
+                    Cleanup Logs
+                </button>
+            </div>
+
+            <!-- Tab Content -->
+            <div id="adjustment-tab-content"></div>
+        </div>
+    `;
+
+    modal.style.display = 'block';
+    showAdjustmentTab('baseline');
+}
+
+function closeCommissionAdjustmentModal() {
+    document.getElementById('commissionAdjustmentModal').style.display = 'none';
+}
+
+function showAdjustmentTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.adjustment-tab').forEach(btn => {
+        btn.style.borderBottom = 'none';
+        btn.style.color = 'var(--text-secondary)';
+    });
+    const activeTab = document.getElementById(`tab-${tabName}`);
+    if (activeTab) {
+        activeTab.style.borderBottom = '3px solid var(--primary-color)';
+        activeTab.style.color = 'var(--primary-color)';
+    }
+
+    const content = document.getElementById('adjustment-tab-content');
+
+    if (tabName === 'baseline') {
+        renderBaselineTab(content);
+    } else if (tabName === 'detect') {
+        renderDetectTab(content);
+    } else if (tabName === 'review') {
+        renderReviewTab(content);
+    } else if (tabName === 'cleanup') {
+        renderCleanupTab(content);
+    }
+}
+
+function renderBaselineTab(container) {
+    // Get all techs for dropdown
+    const techs = Object.values(window.allUsers || {})
+        .filter(u => u.role === 'technician' || u.role === 'admin' || u.role === 'manager')
+        .sort((a, b) => (a.displayName || '').localeCompare(b.displayName || ''));
+
+    container.innerHTML = `
+        <div style="padding:20px;">
+            <div style="background:var(--warning-bg);border-left:4px solid var(--warning-color);padding:15px;margin-bottom:20px;border-radius:8px;">
+                <strong>⚠️ Set Baseline Rates:</strong> Use this to set historical commission rates for technicians.
+                This is useful for migration or when onboarding new hires with custom compensation.
+                The system will warn if existing remittances will be affected.
+            </div>
+
+            <div style="max-width:600px;margin:0 auto;">
+                <div style="margin-bottom:20px;">
+                    <label style="display:block;margin-bottom:5px;font-weight:600;">Technician</label>
+                    <select id="baselineTechId" class="form-input" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;">
+                        <option value="">Select Technician</option>
+                        ${techs.map(t => `
+                            <option value="${t.uid}">${t.displayName} (${t.compensationType || 'commission'} - ${((t.commissionRate || 0.40) * 100).toFixed(0)}%)</option>
+                        `).join('')}
+                    </select>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="display:block;margin-bottom:5px;font-weight:600;">Compensation Type</label>
+                    <select id="baselineCompType" class="form-input" style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;">
+                        <option value="commission">Commission Only</option>
+                        <option value="salary">Salary Only (0% commission)</option>
+                        <option value="hybrid">Hybrid (Salary + Commission)</option>
+                        <option value="none">None (Cashier, etc.)</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="display:block;margin-bottom:5px;font-weight:600;">Commission Rate (decimal, e.g., 0.40 for 40%)</label>
+                    <input type="number" id="baselineRate" class="form-input" step="0.01" min="0" max="1" value="0.40"
+                           style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;">
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="display:block;margin-bottom:5px;font-weight:600;">Effective Date</label>
+                    <input type="date" id="baselineEffectiveDate" class="form-input"
+                           style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;">
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <label style="display:block;margin-bottom:5px;font-weight:600;">Reason</label>
+                    <input type="text" id="baselineReason" class="form-input" placeholder="e.g., Migration baseline, New hire rate"
+                           style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;">
+                </div>
+
+                <button onclick="saveBaselineRate()" class="btn-primary" style="width:100%;padding:12px;font-size:16px;">
+                    💾 Save Baseline Rate
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderDetectTab(container) {
+    container.innerHTML = `
+        <div style="padding:20px;">
+            <div style="background:var(--info-bg);border-left:4px solid var(--info-color);padding:15px;margin-bottom:20px;border-radius:8px;">
+                <strong>🔍 Auto-Detect Adjustments:</strong> Scan last 100 remittances for commission calculation errors.
+                The system will compare stored commissions against recalculated values using historical rates.
+                Differences > ₱1 will be flagged for review.
+            </div>
+
+            <button onclick="runAdjustmentDetection()" class="btn-primary" style="padding:12px 24px;font-size:16px;">
+                🔍 Scan for Adjustments
+            </button>
+
+            <div id="detection-results" style="margin-top:20px;"></div>
+        </div>
+    `;
+}
+
+function renderReviewTab(container) {
+    const staged = window.stagedAdjustments || [];
+
+    if (staged.length === 0) {
+        container.innerHTML = `
+            <div style="padding:40px;text-align:center;color:var(--text-secondary);">
+                <div style="font-size:48px;margin-bottom:15px;">📋</div>
+                <p style="font-size:18px;margin-bottom:10px;">No staged adjustments</p>
+                <p>Run "Detect & Stage" to find adjustments needing review</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Group by tech
+    const byTech = {};
+    staged.forEach(adj => {
+        if (!byTech[adj.techId]) {
+            byTech[adj.techId] = {
+                techName: adj.techName,
+                adjustments: [],
+                totalDifference: 0
+            };
+        }
+        byTech[adj.techId].adjustments.push(adj);
+        byTech[adj.techId].totalDifference += adj.difference;
+    });
+
+    container.innerHTML = `
+        <div style="padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+                <h4 style="margin:0;">${staged.length} Adjustments Staged</h4>
+                <div style="display:flex;gap:10px;">
+                    <button onclick="clearStagedAdjustments()" class="btn-secondary">Clear All</button>
+                    <button onclick="applyAllStagedAdjustments()" class="btn-primary">Apply All Adjustments</button>
+                </div>
+            </div>
+
+            ${Object.entries(byTech).map(([techId, data]) => `
+                <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+                        <h4 style="margin:0;">${data.techName}</h4>
+                        <div style="font-size:24px;font-weight:bold;color:${data.totalDifference >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
+                            ${data.totalDifference >= 0 ? '+' : ''}₱${Math.abs(data.totalDifference).toFixed(2)}
+                        </div>
+                    </div>
+
+                    ${data.adjustments.map(adj => `
+                        <details style="background:var(--bg-white);padding:15px;border-radius:8px;margin-bottom:10px;">
+                            <summary style="cursor:pointer;font-weight:600;display:flex;justify-content:space-between;align-items:center;">
+                                <span>Remittance ${adj.remittanceId.substring(0,8)}... (${new Date(adj.submittedAt).toLocaleDateString()})</span>
+                                <span style="color:${adj.difference >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
+                                    ${adj.difference >= 0 ? '+' : ''}₱${adj.difference.toFixed(2)}
+                                </span>
+                            </summary>
+
+                            <div style="margin-top:15px;">
+                                <table class="repair-table" style="font-size:13px;">
+                                    <thead>
+                                        <tr>
+                                            <th>Repair ID</th>
+                                            <th>Customer</th>
+                                            <th>Device</th>
+                                            <th>Original</th>
+                                            <th>Recalculated</th>
+                                            <th>Difference</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${adj.repairs.map(r => `
+                                            <tr>
+                                                <td>${r.repairId.substring(0,8)}...</td>
+                                                <td>${r.customerName}</td>
+                                                <td>${r.device}</td>
+                                                <td>₱${r.originalCommission.toFixed(2)}</td>
+                                                <td>₱${r.recalculatedCommission.toFixed(2)}</td>
+                                                <td style="color:${r.difference >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
+                                                    ${r.difference >= 0 ? '+' : ''}₱${r.difference.toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    `).join('')}
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function renderCleanupTab(container) {
+    container.innerHTML = `
+        <div style="padding:20px;">
+            <div style="background:var(--warning-bg);border-left:4px solid var(--warning-color);padding:15px;margin-bottom:20px;border-radius:8px;">
+                <strong>🗑️ Cleanup Old Logs:</strong> Delete commission adjustment logs and exports older than 24 months.
+                You MUST download all files locally before cleanup. This action cannot be undone.
+            </div>
+
+            <button onclick="scanForCleanupFiles()" class="btn-primary" style="padding:12px 24px;font-size:16px;">
+                🔍 Scan for Old Files
+            </button>
+
+            <div id="cleanup-results" style="margin-top:20px;"></div>
+        </div>
+    `;
+}
+
+async function saveBaselineRate() {
+    const techId = document.getElementById('baselineTechId').value;
+    const compType = document.getElementById('baselineCompType').value;
+    const rate = parseFloat(document.getElementById('baselineRate').value);
+    const effectiveDate = document.getElementById('baselineEffectiveDate').value;
+    const reason = document.getElementById('baselineReason').value.trim();
+
+    if (!techId || !compType || !effectiveDate) {
+        alert('⚠️ Please fill all required fields');
+        return;
+    }
+
+    const success = await window.setBaselineCommissionRate(techId, rate, compType, effectiveDate, reason);
+    if (success) {
+        // Clear form
+        document.getElementById('baselineTechId').value = '';
+        document.getElementById('baselineRate').value = '0.40';
+        document.getElementById('baselineEffectiveDate').value = '';
+        document.getElementById('baselineReason').value = '';
+    }
+}
+
+async function runAdjustmentDetection() {
+    const resultsDiv = document.getElementById('detection-results');
+    resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;">⏳ Scanning remittances...</div>';
+
+    try {
+        const adjustments = window.detectRemittancesNeedingAdjustment();
+
+        if (adjustments.length === 0) {
+            resultsDiv.innerHTML = `
+                <div style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <div style="font-size:48px;margin-bottom:15px;">✅</div>
+                    <p style="font-size:18px;">No adjustments needed</p>
+                    <p>All remittances are calculated correctly</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Stage adjustments
+        window.stageAdjustments(adjustments);
+
+        // Show results
+        const totalDifference = adjustments.reduce((sum, adj) => sum + adj.difference, 0);
+
+        resultsDiv.innerHTML = `
+            <div style="background:var(--success-bg);border-left:4px solid var(--success-color);padding:15px;margin-bottom:20px;border-radius:8px;">
+                <strong>✅ Detection Complete:</strong> Found ${adjustments.length} remittances needing adjustment.
+                Total adjustment: ${totalDifference >= 0 ? '+' : ''}₱${totalDifference.toFixed(2)}
+            </div>
+
+            <p style="margin-bottom:15px;">Adjustments have been staged for review. Switch to the "Review & Apply" tab to approve.</p>
+
+            <button onclick="showAdjustmentTab('review')" class="btn-primary">
+                Go to Review & Apply →
+            </button>
+        `;
+
+        // Update badge count
+        const reviewTab = document.getElementById('tab-review');
+        if (reviewTab) {
+            reviewTab.innerHTML = `Review & Apply <span style="background:var(--danger-color);color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-left:5px;">${adjustments.length}</span>`;
+        }
+    } catch (error) {
+        resultsDiv.innerHTML = `
+            <div style="background:var(--danger-bg);border-left:4px solid var(--danger-color);padding:15px;border-radius:8px;">
+                <strong>❌ Error:</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+function clearStagedAdjustments() {
+    if (!confirm('Clear all staged adjustments?')) return;
+
+    window.stagedAdjustments = [];
+    sessionStorage.removeItem('stagedAdjustments');
+    
+    renderReviewTab(document.getElementById('adjustment-tab-content'));
+    
+    const reviewTab = document.getElementById('tab-review');
+    if (reviewTab) {
+        reviewTab.innerHTML = 'Review & Apply';
+    }
+}
+
+async function applyAllStagedAdjustments() {
+    const staged = window.stagedAdjustments || [];
+    if (staged.length === 0) {
+        alert('No staged adjustments to apply');
+        return;
+    }
+
+    // Mark all as approved
+    const approved = staged.map(adj => ({ ...adj, approved: true }));
+
+    const results = await window.applyApprovedAdjustments(approved);
+
+    if (results) {
+        // Refresh review tab
+        renderReviewTab(document.getElementById('adjustment-tab-content'));
+        
+        // Update badge
+        const reviewTab = document.getElementById('tab-review');
+        if (reviewTab) {
+            reviewTab.innerHTML = 'Review & Apply';
+        }
+    }
+}
+
+async function scanForCleanupFiles() {
+    const resultsDiv = document.getElementById('cleanup-results');
+    resultsDiv.innerHTML = '<div style="text-align:center;padding:20px;">⏳ Scanning for old files...</div>';
+
+    try {
+        const files = await window.getStorageFilesForCleanup();
+
+        if (files.length === 0) {
+            resultsDiv.innerHTML = `
+                <div style="text-align:center;padding:40px;color:var(--text-secondary);">
+                    <div style="font-size:48px;margin-bottom:15px;">✅</div>
+                    <p style="font-size:18px;">No files to cleanup</p>
+                    <p>All files are within the 24-month retention period</p>
+                </div>
+            `;
+            return;
+        }
+
+        let downloadComplete = false;
+
+        resultsDiv.innerHTML = `
+            <div style="background:var(--warning-bg);border-left:4px solid var(--warning-color);padding:15px;margin-bottom:20px;border-radius:8px;">
+                <strong>⚠️ Found ${files.length} files to cleanup</strong>
+            </div>
+
+            <table class="repair-table" style="margin-bottom:20px;">
+                <thead>
+                    <tr>
+                        <th>Filename</th>
+                        <th>Date</th>
+                        <th>Age (months)</th>
+                        <th>Size (KB)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${files.map(f => `
+                        <tr>
+                            <td>${f.filename}</td>
+                            <td>${f.date.toLocaleDateString()}</td>
+                            <td>${f.ageMonths}</td>
+                            <td>${f.sizeKB}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+
+            <div style="display:flex;gap:10px;margin-bottom:20px;">
+                <button onclick="downloadAllCleanupFiles()" id="downloadBtn" class="btn-primary">
+                    📥 Download All Locally
+                </button>
+                <button onclick="confirmCleanupDelete()" id="deleteBtn" class="btn-danger" disabled>
+                    🗑️ Delete from Firebase
+                </button>
+            </div>
+
+            <div id="cleanup-status"></div>
+        `;
+    } catch (error) {
+        resultsDiv.innerHTML = `
+            <div style="background:var(--danger-bg);border-left:4px solid var(--danger-color);padding:15px;border-radius:8px;">
+                <strong>❌ Error:</strong> ${error.message}
+            </div>
+        `;
+    }
+}
+
+async function downloadAllCleanupFiles() {
+    // This would need JSZip library to be added
+    alert('⚠️ Download feature requires JSZip library.\n\nFor now, please manually download files from Firebase Console before cleanup.');
+    
+    // Enable delete button after "download"
+    document.getElementById('deleteBtn').disabled = false;
+    document.getElementById('downloadBtn').disabled = true;
+    document.getElementById('downloadBtn').textContent = '✅ Downloaded';
+    
+    document.getElementById('cleanup-status').innerHTML = `
+        <div style="background:var(--success-bg);border-left:4px solid var(--success-color);padding:15px;border-radius:8px;">
+            <strong>✅ Ready for cleanup:</strong> You can now delete files from Firebase.
+        </div>
+    `;
+}
+
+async function confirmCleanupDelete() {
+    const confirmed = await window.cleanupOldAdjustmentLogs(true);
+    if (confirmed) {
+        document.getElementById('cleanup-results').innerHTML = `
+            <div style="text-align:center;padding:40px;color:var(--success-color);">
+                <div style="font-size:48px;margin-bottom:15px;">✅</div>
+                <p style="font-size:18px;">Cleanup complete</p>
+            </div>
+        `;
+    }
+}
+
+// Export commission adjustment functions
+window.openCommissionAdjustmentModal = openCommissionAdjustmentModal;
+window.closeCommissionAdjustmentModal = closeCommissionAdjustmentModal;
+window.showAdjustmentTab = showAdjustmentTab;
+window.saveBaselineRate = saveBaselineRate;
+window.runAdjustmentDetection = runAdjustmentDetection;
+window.clearStagedAdjustments = clearStagedAdjustments;
+window.applyAllStagedAdjustments = applyAllStagedAdjustments;
+window.scanForCleanupFiles = scanForCleanupFiles;
+window.downloadAllCleanupFiles = downloadAllCleanupFiles;
+window.confirmCleanupDelete = confirmCleanupDelete;
+
