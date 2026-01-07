@@ -132,6 +132,17 @@ async function clockOut() {
             return;
         }
 
+        // Remittance check for technicians
+        if (window.currentUserData && window.currentUserData.role === 'technician' && window.getTechDailyPayments) {
+            const { payments, total } = window.getTechDailyPayments(userId, today);
+            if (payments && payments.length > 0) {
+                utils.showLoading(false);
+                // Show modal to require remittance
+                document.getElementById('remittanceRequiredModal').style.display = 'block';
+                return;
+            }
+        }
+
         // Get today's attendance
         const attendanceSnapshot = await db.ref(`userAttendance/${userId}/${today}`).once('value');
         const todayAttendance = attendanceSnapshot.val();
@@ -350,6 +361,17 @@ function getLocalDateString(date) {
 // Export functions to window
 window.clockIn = clockIn;
 window.clockOut = clockOut;
+
+// Helper to go to remittance tab from modal
+function goToRemittanceTab() {
+    document.getElementById('remittanceRequiredModal').style.display = 'none';
+    if (window.buildRemittanceTab) {
+        window.buildRemittanceTab(document.getElementById('mainTabContent'));
+    } else {
+        alert('Remittance tab not available. Please contact admin.');
+    }
+}
+window.goToRemittanceTab = goToRemittanceTab;
 window.getUserAttendanceStatus = getUserAttendanceStatus;
 window.getUserAttendanceRecords = getUserAttendanceRecords;
 window.getTodayWorkHours = getTodayWorkHours;
