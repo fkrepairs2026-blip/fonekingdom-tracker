@@ -407,6 +407,42 @@ function closeMobileSidebar() {
 }
 
 /**
+ * Toggle More Menu dropdown
+ */
+function toggleMoreMenu() {
+    const dropdown = document.getElementById('moreMenuDropdown');
+    if (!dropdown) return;
+
+    const isVisible = dropdown.style.display === 'block';
+    dropdown.style.display = isVisible ? 'none' : 'block';
+
+    // Close dropdown when clicking outside
+    if (!isVisible) {
+        setTimeout(() => {
+            document.addEventListener('click', closeMoreMenuOnClickOutside);
+        }, 0);
+    } else {
+        document.removeEventListener('click', closeMoreMenuOnClickOutside);
+    }
+}
+
+/**
+ * Close More Menu when clicking outside
+ */
+function closeMoreMenuOnClickOutside(event) {
+    const dropdown = document.getElementById('moreMenuDropdown');
+    const moreMenuBtn = document.querySelector('.more-menu-btn');
+    
+    if (!dropdown || !moreMenuBtn) return;
+    
+    // Check if click is outside both dropdown and button
+    if (!dropdown.contains(event.target) && !moreMenuBtn.contains(event.target)) {
+        dropdown.style.display = 'none';
+        document.removeEventListener('click', closeMoreMenuOnClickOutside);
+    }
+}
+
+/**
  * Restore sidebar state on load
  */
 function initSidebar() {
@@ -462,6 +498,7 @@ window.closePaymentModal = closePaymentModal;
 window.toggleSidebar = toggleSidebar;
 window.toggleMobileSidebar = toggleMobileSidebar;
 window.closeMobileSidebar = closeMobileSidebar;
+window.toggleMoreMenu = toggleMoreMenu;
 window.initSidebar = initSidebar;
 
 console.log('✅ app.js loaded');

@@ -83,37 +83,39 @@
                     </button>
                     <div id="workTimeDisplay" style="font-size:12px;color:#666;margin-top:4px;text-align:center;"></div>
                 </div>
-                <button onclick="openHelpGuide()" class="btn-small" title="Help Guide / Gabay sa Paggamit">
-                    <span>❓</span>
-                    <span class="btn-text">Help</span>
-                </button>
-                <div class="language-toggle" style="position:relative;">
-                    <button onclick="toggleLanguageDropdown()" class="btn-small"
-                        title="Change Language / Baguhin ang Wika" id="langToggleBtn">
-                        <span>🌐</span>
-                        <span class="btn-text" id="currentLangText">EN</span>
+                
+                <!-- More Menu Button -->
+                <div class="more-menu" style="position:relative;">
+                    <button onclick="toggleMoreMenu()" class="btn-small more-menu-btn" title="More Options">
+                        <span>⋮</span>
                     </button>
-                    <div id="languageDropdown" class="dropdown-menu"
-                        style="display:none;position:absolute;right:0;top:100%;background:white;border:1px solid #ccc;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.15);z-index:1000;min-width:120px;margin-top:5px;">
-                        <button onclick="setHelpLanguage('en')"
-                            style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
-                            🇺🇸 English
+                    <div id="moreMenuDropdown" class="more-menu-dropdown" style="display:none;">
+                        <button onclick="openHelpGuide(); toggleMoreMenu();" class="more-menu-item">
+                            <span class="more-menu-icon">❓</span>
+                            <span class="more-menu-text">Help Guide</span>
                         </button>
-                        <button onclick="setHelpLanguage('tl')"
-                            style="display:block;width:100%;padding:10px 15px;border:none;background:none;text-align:left;cursor:pointer;font-size:14px;">
-                            🇵🇭 Tagalog
+                        <button onclick="toggleTheme(); toggleMoreMenu();" class="more-menu-item">
+                            <span class="more-menu-icon theme-icon">🌙</span>
+                            <span class="more-menu-text" id="themeMenuText">Dark Mode</span>
+                        </button>
+                        <div class="more-menu-item language-section">
+                            <span class="more-menu-icon">🌐</span>
+                            <span class="more-menu-text">Language:</span>
+                            <div class="language-buttons">
+                                <button onclick="setHelpLanguage('en'); toggleMoreMenu();" class="lang-btn" id="langBtnEn">EN</button>
+                                <button onclick="setHelpLanguage('tl'); toggleMoreMenu();" class="lang-btn" id="langBtnTl">TL</button>
+                            </div>
+                        </div>
+                        <button onclick="openProfileModal(); toggleMoreMenu();" class="more-menu-item">
+                            <span class="more-menu-icon">⚙️</span>
+                            <span class="more-menu-text">Profile</span>
+                        </button>
+                        <button onclick="handleLogout()" class="more-menu-item logout-item">
+                            <span class="more-menu-icon">🚪</span>
+                            <span class="more-menu-text">Logout</span>
                         </button>
                     </div>
                 </div>
-                <button onclick="toggleTheme()" class="btn-small theme-toggle" id="themeToggle"
-                    title="Toggle Dark Mode">
-                    <span class="theme-icon">🌙</span>
-                </button>
-                <button onclick="openProfileModal()" class="btn-small" title="Profile">
-                    <span>⚙️</span>
-                    <span class="btn-text">Profile</span>
-                </button>
-                <button onclick="handleLogout()" class="btn-danger" title="Logout">Logout</button>
             </div>
         </div>
 

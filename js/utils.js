@@ -808,6 +808,12 @@ const utils = {
             themeIcon.textContent = newTheme === 'dark' ? '☀️' : '🌙';
         }
 
+        // Update More menu theme text
+        const themeMenuText = document.getElementById('themeMenuText');
+        if (themeMenuText) {
+            themeMenuText.textContent = newTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+        }
+
         // Show toast notification
         this.showToast(
             `${newTheme === 'dark' ? 'Dark' : 'Light'} mode activated`,
@@ -828,6 +834,21 @@ const utils = {
         const themeIcon = document.querySelector('.theme-icon');
         if (themeIcon) {
             themeIcon.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        // Update More menu theme text
+        const themeMenuText = document.getElementById('themeMenuText');
+        if (themeMenuText) {
+            themeMenuText.textContent = savedTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+        }
+
+        // Initialize language buttons in More menu
+        const currentLang = localStorage.getItem('helpLanguage') || 'en';
+        const langBtnEn = document.getElementById('langBtnEn');
+        const langBtnTl = document.getElementById('langBtnTl');
+        if (langBtnEn && langBtnTl) {
+            langBtnEn.classList.toggle('active', currentLang === 'en');
+            langBtnTl.classList.toggle('active', currentLang === 'tl');
         }
     },
 
@@ -1148,6 +1169,14 @@ function setHelpLanguage(lang) {
     const currentLangText = document.getElementById('currentLangText');
     if (currentLangText) {
         currentLangText.textContent = lang.toUpperCase();
+    }
+
+    // Update More menu language buttons
+    const langBtnEn = document.getElementById('langBtnEn');
+    const langBtnTl = document.getElementById('langBtnTl');
+    if (langBtnEn && langBtnTl) {
+        langBtnEn.classList.toggle('active', lang === 'en');
+        langBtnTl.classList.toggle('active', lang === 'tl');
     }
 
     // Close dropdown

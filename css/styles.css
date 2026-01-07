@@ -609,6 +609,126 @@ body.left-sidebar-collapsed .main-content {
     text-transform: capitalize;
 }
 
+/* ===== MORE MENU (Desktop & Mobile) ===== */
+.more-menu {
+    position: relative;
+}
+
+.more-menu-btn {
+    min-width: 40px;
+    padding: 8px;
+    font-size: 20px;
+}
+
+.more-menu-dropdown {
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--bg-white);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    min-width: 220px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.more-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 16px;
+    border: none;
+    background: var(--bg-white);
+    text-align: left;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-primary);
+    transition: background 0.2s ease;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.more-menu-item:last-child {
+    border-bottom: none;
+}
+
+.more-menu-item:hover {
+    background: var(--bg-light);
+}
+
+.more-menu-item.logout-item {
+    color: var(--danger);
+    font-weight: 600;
+}
+
+.more-menu-item.logout-item:hover {
+    background: rgba(220, 53, 69, 0.1);
+}
+
+.more-menu-icon {
+    font-size: 18px;
+    width: 24px;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.more-menu-text {
+    flex: 1;
+    font-weight: 500;
+}
+
+.more-menu-item.language-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: default;
+    padding: 10px 16px;
+}
+
+.more-menu-item.language-section:hover {
+    background: var(--bg-white);
+}
+
+.more-menu-item.language-section .more-menu-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.language-buttons {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+}
+
+.lang-btn {
+    flex: 1;
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-light);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.lang-btn:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.lang-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
 /* ===== STATS DASHBOARD ===== */
 /* Stats removed - now accessible via sidebar navigation */
 
@@ -2386,7 +2506,7 @@ button:disabled {
 
     .user-profile {
         display: none;
-        /* Hide user profile on mobile to save space */
+        /* Hidden on mobile, shown on desktop */
     }
 
     /* Mobile header buttons - icon only */
