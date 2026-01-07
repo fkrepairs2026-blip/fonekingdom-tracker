@@ -118,6 +118,7 @@ function buildTabs() {
         if (role === 'admin') {
             sections.admin.tabs.push(
                 { id: 'staff-overview', label: 'Staff Overview', icon: '👥', build: buildStaffOverviewTab },
+                { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab },
                 { id: 'users', label: 'Users', icon: '👤', build: buildUsersTab },
                 { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
