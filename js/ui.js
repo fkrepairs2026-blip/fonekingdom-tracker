@@ -431,6 +431,12 @@ function switchTab(tabId, dateFilter = null) {
 
     activeTab = tabId;
 
+    // Rebuild Staff Overview tab on switch to get fresh attendance data
+    if (tabId === 'staff-overview' && content) {
+        console.log('🔄 Refreshing Staff Overview with latest attendance data');
+        buildStaffOverviewTab(content);
+    }
+
     // Close mobile sidebar if open
     if (window.innerWidth <= 768) {
         if (window.closeMobileSidebar) {
