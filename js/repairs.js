@@ -123,6 +123,42 @@ async function loadModificationRequests() {
 window.loadModificationRequests = loadModificationRequests;
 
 /**
+ * Load parts orders from Firebase
+ */
+async function loadPartsOrders() {
+    return new Promise((resolve) => {
+        console.log('📦 Loading parts orders...');
+
+        db.ref('partsOrders').on('value', (snapshot) => {
+            window.allPartsOrders = [];
+
+            snapshot.forEach((child) => {
+                const order = child.val();
+                if (!order.deleted) {
+                    window.allPartsOrders.push({
+                        id: child.key,
+                        ...order
+                    });
+                }
+            });
+
+            console.log('✅ Parts orders loaded:', window.allPartsOrders.length);
+
+            // Refresh current tab if it's parts orders tab
+            if (window.currentTabRefresh) {
+                setTimeout(() => {
+                    window.currentTabRefresh();
+                }, 400);
+            }
+
+            resolve(window.allPartsOrders);
+        });
+    });
+}
+
+window.loadPartsOrders = loadPartsOrders;
+
+/**
  * Load activity logs from Firebase
  */
 async function loadActivityLogs() {
@@ -17815,6 +17851,833 @@ async function cleanupOldAdjustmentLogs(downloadComplete) {
         return false;
     }
 }
+
+// ========================================
+// PARTS ORDERING SYSTEM
+// ========================================
+
+/**
+ * Open Parts Order Modal
+ */
+function openPartsOrderModal(repairId, suggestedPartName = '') {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+
+    const content = document.getElementById('partsOrderModalContent');
+    
+    // Get existing orders for this repair
+    const existingOrders = (window.allPartsOrders || []).filter(o => 
+        o.repairId === repairId && !['cancelled', 'received'].includes(o.status)
+    );
+
+    content.innerHTML = `
+        <div class="alert-info" style="margin-bottom:15px;">
+            <p style="margin:0;"><strong>Repair:</strong> ${repair.customerName} - ${repair.brand} ${repair.model}</p>
+            <p style="margin:5px 0 0 0;"><strong>Problem:</strong> ${repair.problem || 'N/A'}</p>
+            ${existingOrders.length > 0 ? `
+                <p style="margin:10px 0 0 0;color:#f59e0b;"><strong>⚠️ ${existingOrders.length} order(s) already pending for this repair</strong></p>
+            ` : ''}
+        </div>
+        
+        <form onsubmit="submitPartsOrder(event, '${repairId}')" id="partsOrderForm">
+            <div class="form-group">
+                <label>Part Needed *</label>
+                <input type="text" id="orderPartName" class="input" value="${suggestedPartName}" required placeholder="e.g., LCD Screen, Battery, Charging Port">
+            </div>
+            
+            <div class="form-group">
+                <label>Preferred Supplier</label>
+                <select id="orderSupplier" class="input">
+                    <option value="">Any available supplier</option>
+                    ${(window.allSuppliers || [])
+                        .filter(s => s.active !== false && !s.deleted)
+                        .map(s => `<option value="${s.id}">${s.name || s.supplierName || 'Unnamed Supplier'}</option>`)
+                        .join('')}
+                </select>
+                <small style="color:#666;">Leave blank if admin should choose</small>
+            </div>
+            
+            <div class="form-group">
+                <label>Quantity Needed</label>
+                <input type="number" id="orderQuantity" class="input" value="1" min="1" required>
+            </div>
+            
+            <div class="form-group">
+                <label>Urgency Level *</label>
+                <select id="orderUrgency" class="input" required>
+                    <option value="urgent">🔴 Urgent (Customer waiting)</option>
+                    <option value="normal" selected>🟡 Normal (Can wait 1-2 days)</option>
+                    <option value="low">🟢 Low (When available)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label>Additional Notes</label>
+                <textarea id="orderNotes" class="input" rows="2" placeholder="Specifications, brand preference, estimated price, etc."></textarea>
+            </div>
+
+            <div style="background:#f3f4f6;padding:15px;border-radius:8px;margin:15px 0;">
+                <p style="margin:0 0 10px 0;font-weight:600;">💵 Collect Downpayment?</p>
+                <button type="button" class="btn-secondary" onclick="openPartsDownpayment('${repairId}')" style="width:100%;">
+                    Collect Downpayment
+                </button>
+                <small style="display:block;margin-top:5px;color:#666;">
+                    Opens payment modal to record customer downpayment for parts
+                </small>
+            </div>
+            
+            <div style="display:flex;gap:10px;margin-top:20px;">
+                <button type="submit" class="btn-primary" style="flex:1;">📦 Submit Order Request</button>
+                <button type="button" class="btn-secondary" onclick="closePartsOrderModal()">Cancel</button>
+            </div>
+        </form>
+    `;
+    
+    document.getElementById('partsOrderModal').style.display = 'block';
+}
+
+function closePartsOrderModal() {
+    document.getElementById('partsOrderModal').style.display = 'none';
+}
+
+/**
+ * Open payment modal for parts downpayment
+ */
+function openPartsDownpayment(repairId) {
+    // Store that we're collecting parts downpayment
+    window.partsDownpaymentRepairId = repairId;
+    
+    // Open payment modal with special flag
+    openPaymentModal(repairId, 'parts-downpayment');
+}
+
+/**
+ * Submit Parts Order Request
+ */
+async function submitPartsOrder(e, repairId) {
+    e.preventDefault();
+    
+    const partName = document.getElementById('orderPartName').value.trim();
+    const supplierId = document.getElementById('orderSupplier').value;
+    const quantity = parseInt(document.getElementById('orderQuantity').value);
+    const urgency = document.getElementById('orderUrgency').value;
+    const notes = document.getElementById('orderNotes').value.trim();
+    
+    if (!partName) {
+        alert('Please enter the part name');
+        return;
+    }
+
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+
+    // Get supplier name if selected
+    let supplierName = null;
+    if (supplierId) {
+        const supplier = window.allSuppliers.find(s => s.id === supplierId);
+        supplierName = supplier ? (supplier.name || supplier.supplierName) : null;
+    }
+
+    const orderData = {
+        // Order identification
+        orderNumber: `PO-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
+        
+        // What's being ordered
+        partName: partName,
+        quantity: quantity,
+        urgency: urgency,
+        notes: notes,
+        
+        // Supplier info
+        supplierId: supplierId || null,
+        supplierName: supplierName,
+        
+        // Related repair
+        repairId: repairId,
+        repairDetails: {
+            customerName: repair.customerName,
+            device: `${repair.brand} ${repair.model}`,
+            problem: repair.problem || 'N/A'
+        },
+        
+        // Requester info
+        requestedBy: window.currentUser.uid,
+        requestedByName: window.currentUserData.displayName,
+        requestedAt: new Date().toISOString(),
+        
+        // Status tracking
+        status: 'pending', // pending → approved → ordered → received → cancelled
+        
+        // Pricing (filled during workflow)
+        estimatedPrice: null,
+        actualPrice: null,
+        priceVariance: null,
+        
+        // Workflow tracking
+        approvedBy: null,
+        approvedByName: null,
+        approvedAt: null,
+        approvalNotes: null,
+        
+        orderedBy: null,
+        orderedByName: null,
+        orderedAt: null,
+        supplierOrderNumber: null,
+        estimatedArrival: null,
+        
+        receivedBy: null,
+        receivedByName: null,
+        receivedAt: null,
+        receivingNotes: null,
+        
+        cancelledBy: null,
+        cancelledByName: null,
+        cancelledAt: null,
+        cancellationReason: null,
+        
+        // Downpayment tracking
+        paymentId: null, // Links to payment in repairs array
+        downpaymentAmount: null,
+        
+        // Technician notification
+        acknowledgedByTech: false,
+        
+        // Workaround flag
+        workaroundActive: false,
+        
+        deleted: false,
+        lastUpdated: new Date().toISOString()
+    };
+    
+    try {
+        utils.showLoading(true);
+        
+        // Create order
+        const orderRef = await db.ref('partsOrders').push(orderData);
+        console.log('✅ Parts order created:', orderRef.key);
+        
+        // Update repair status to "Waiting for Parts"
+        await db.ref(`repairs/${repairId}`).update({
+            status: 'Waiting for Parts',
+            waitingForParts: true,
+            waitingForPartsSince: new Date().toISOString(),
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        utils.showLoading(false);
+        closePartsOrderModal();
+        
+        alert(`✅ Parts order request submitted!\n\nOrder #${orderData.orderNumber}\nPart: ${partName}\n\nAdmin will review and place the order.`);
+        
+        // Auto-refresh
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error submitting parts order:', error);
+        alert('Error submitting order: ' + error.message);
+    }
+}
+
+/**
+ * Enable Workaround - Allow tech to work on other issues while waiting for parts
+ */
+async function enableWorkaround(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+
+    if (repair.status !== 'Waiting for Parts') {
+        alert('This repair is not waiting for parts');
+        return;
+    }
+
+    const confirmed = confirm(
+        '🔧 Work on Other Issues\n\n' +
+        'This will change the repair status to "In Progress (Parts Pending)".\n\n' +
+        'You can start working on other aspects of this repair while waiting for the parts to arrive.\n\n' +
+        'Continue?'
+    );
+
+    if (!confirmed) return;
+
+    try {
+        utils.showLoading(true);
+
+        // Update all pending orders for this repair
+        const pendingOrders = (window.allPartsOrders || []).filter(o => 
+            o.repairId === repairId && 
+            ['pending', 'approved', 'ordered'].includes(o.status)
+        );
+
+        const updates = {};
+        pendingOrders.forEach(order => {
+            updates[`partsOrders/${order.id}/workaroundActive`] = true;
+        });
+
+        // Update repair status
+        updates[`repairs/${repairId}/status`] = 'In Progress (Parts Pending)';
+        updates[`repairs/${repairId}/workaroundActive`] = true;
+        updates[`repairs/${repairId}/lastUpdated`] = new Date().toISOString();
+        updates[`repairs/${repairId}/lastUpdatedBy`] = window.currentUserData.displayName;
+
+        await db.ref().update(updates);
+
+        utils.showLoading(false);
+        alert('✅ Status updated!\n\nYou can now work on other issues while parts are pending.');
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error enabling workaround:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Approve Parts Order
+ */
+async function approvePartsOrder(orderId) {
+    const order = (window.allPartsOrders || []).find(o => o.id === orderId);
+    
+    if (!order) {
+        alert('Order not found');
+        return;
+    }
+
+    if (order.status !== 'pending') {
+        alert('This order is not pending approval');
+        return;
+    }
+
+    const estimatedPrice = prompt(
+        `📦 Approve Parts Order\n\n` +
+        `Part: ${order.partName}\n` +
+        `Quantity: ${order.quantity}\n` +
+        `Urgency: ${order.urgency.toUpperCase()}\n\n` +
+        `Enter estimated price per unit (₱):`
+    );
+
+    if (estimatedPrice === null) return; // Cancelled
+
+    const price = parseFloat(estimatedPrice);
+    if (isNaN(price) || price <= 0) {
+        alert('Please enter a valid price');
+        return;
+    }
+
+    const approvalNotes = prompt('Admin notes (optional):') || '';
+
+    try {
+        utils.showLoading(true);
+
+        await db.ref(`partsOrders/${orderId}`).update({
+            status: 'approved',
+            estimatedPrice: price,
+            totalEstimatedPrice: price * order.quantity,
+            approvedBy: window.currentUser.uid,
+            approvedByName: window.currentUserData.displayName,
+            approvedAt: new Date().toISOString(),
+            approvalNotes: approvalNotes,
+            lastUpdated: new Date().toISOString()
+        });
+
+        utils.showLoading(false);
+        alert(`✅ Order approved!\n\nEstimated total: ₱${(price * order.quantity).toFixed(2)}\n\nYou can now contact the supplier and mark it as ordered.`);
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error approving order:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Reject Parts Order
+ */
+async function rejectPartsOrder(orderId) {
+    const order = (window.allPartsOrders || []).find(o => o.id === orderId);
+    
+    if (!order) {
+        alert('Order not found');
+        return;
+    }
+
+    if (order.status !== 'pending') {
+        alert('This order is not pending approval');
+        return;
+    }
+
+    const reason = prompt(
+        `❌ Reject Parts Order\n\n` +
+        `Part: ${order.partName}\n` +
+        `Requested by: ${order.requestedByName}\n\n` +
+        `Enter rejection reason (min 10 chars):`
+    );
+
+    if (reason === null) return;
+
+    if (!reason || reason.trim().length < 10) {
+        alert('Please enter a rejection reason (minimum 10 characters)');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        await db.ref(`partsOrders/${orderId}`).update({
+            status: 'cancelled',
+            cancelledBy: window.currentUser.uid,
+            cancelledByName: window.currentUserData.displayName,
+            cancelledAt: new Date().toISOString(),
+            cancellationReason: `Rejected by admin: ${reason.trim()}`,
+            lastUpdated: new Date().toISOString()
+        });
+
+        // Check if repair should go back to previous status
+        const activeOrders = (window.allPartsOrders || []).filter(o => 
+            o.repairId === order.repairId && 
+            o.id !== orderId &&
+            ['pending', 'approved', 'ordered'].includes(o.status)
+        );
+
+        if (activeOrders.length === 0) {
+            // No more active orders, change status back
+            const repair = window.allRepairs.find(r => r.id === order.repairId);
+            const newStatus = repair?.workaroundActive ? 'In Progress' : 'In Progress';
+            
+            await db.ref(`repairs/${order.repairId}`).update({
+                status: newStatus,
+                waitingForParts: false,
+                workaroundActive: false,
+                lastUpdated: new Date().toISOString(),
+                lastUpdatedBy: window.currentUserData.displayName
+            });
+        }
+
+        utils.showLoading(false);
+        alert('✅ Order rejected');
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error rejecting order:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Mark Parts as Ordered
+ */
+async function markAsOrdered(orderId) {
+    const order = (window.allPartsOrders || []).find(o => o.id === orderId);
+    
+    if (!order) {
+        alert('Order not found');
+        return;
+    }
+
+    if (order.status !== 'approved') {
+        alert('This order has not been approved yet');
+        return;
+    }
+
+    const supplierOrderNumber = prompt(
+        `📞 Mark as Ordered\n\n` +
+        `Part: ${order.partName} (x${order.quantity})\n` +
+        `Estimated: ₱${order.estimatedPrice || 0}/unit\n\n` +
+        `Enter supplier's order/reference number:`
+    );
+
+    if (supplierOrderNumber === null) return;
+
+    const etaInput = prompt(
+        `When do you expect it to arrive?\n\n` +
+        `Enter date (YYYY-MM-DD) or leave blank:`
+    );
+
+    let estimatedArrival = null;
+    if (etaInput && etaInput.trim()) {
+        estimatedArrival = new Date(etaInput.trim()).toISOString();
+    }
+
+    try {
+        utils.showLoading(true);
+
+        await db.ref(`partsOrders/${orderId}`).update({
+            status: 'ordered',
+            supplierOrderNumber: supplierOrderNumber.trim() || 'N/A',
+            estimatedArrival: estimatedArrival,
+            orderedBy: window.currentUser.uid,
+            orderedByName: window.currentUserData.displayName,
+            orderedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        });
+
+        utils.showLoading(false);
+        alert(`✅ Marked as ordered!\n\nSupplier ref: ${supplierOrderNumber}\n\nNotify technician when parts arrive.`);
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error marking as ordered:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Mark Parts as Received
+ */
+async function markPartsReceived(orderId) {
+    const order = (window.allPartsOrders || []).find(o => o.id === orderId);
+    
+    if (!order) {
+        alert('Order not found');
+        return;
+    }
+
+    if (order.status !== 'ordered') {
+        alert('This order has not been marked as ordered yet');
+        return;
+    }
+
+    const actualPriceInput = prompt(
+        `📦 Parts Received\n\n` +
+        `Part: ${order.partName} (x${order.quantity})\n` +
+        `Estimated: ₱${order.estimatedPrice || 0}/unit\n\n` +
+        `Enter actual price paid per unit (₱):`
+    );
+
+    if (actualPriceInput === null) return;
+
+    const actualPrice = parseFloat(actualPriceInput);
+    if (isNaN(actualPrice) || actualPrice <= 0) {
+        alert('Please enter a valid price');
+        return;
+    }
+
+    const priceVariance = actualPrice - (order.estimatedPrice || 0);
+    const variancePercent = order.estimatedPrice ? ((priceVariance / order.estimatedPrice) * 100).toFixed(1) : 0;
+
+    // Show variance warning
+    let varianceMessage = '';
+    if (Math.abs(variancePercent) > 10) {
+        varianceMessage = `\n\n⚠️ Price variance: ${variancePercent > 0 ? '+' : ''}${variancePercent}%`;
+    }
+
+    const receivingNotes = prompt(
+        `Receiving notes (optional):${varianceMessage}\n\nCondition, quality, etc.:`
+    ) || '';
+
+    try {
+        utils.showLoading(true);
+
+        // Update order
+        await db.ref(`partsOrders/${orderId}`).update({
+            status: 'received',
+            actualPrice: actualPrice,
+            totalActualPrice: actualPrice * order.quantity,
+            priceVariance: priceVariance,
+            priceVariancePercent: parseFloat(variancePercent),
+            receivedBy: window.currentUser.uid,
+            receivedByName: window.currentUserData.displayName,
+            receivedAt: new Date().toISOString(),
+            receivingNotes: receivingNotes,
+            acknowledgedByTech: false, // Trigger notification
+            lastUpdated: new Date().toISOString()
+        });
+
+        // Auto-create inventory item
+        const inventoryData = {
+            partName: order.partName,
+            supplier: order.supplierName || 'Unknown',
+            supplierId: order.supplierId || null,
+            quantity: order.quantity,
+            unitCost: actualPrice,
+            category: 'Parts', // Default category
+            notes: `Auto-added from parts order ${order.orderNumber}`,
+            linkedOrderId: orderId,
+            linkedRepairId: order.repairId,
+            createdAt: new Date().toISOString(),
+            createdBy: window.currentUserData.displayName,
+            lastUpdated: new Date().toISOString(),
+            deleted: false
+        };
+
+        const inventoryRef = await db.ref('inventory').push(inventoryData);
+        console.log('✅ Inventory item created:', inventoryRef.key);
+
+        // Log stock movement
+        await db.ref('stockMovements').push({
+            itemId: inventoryRef.key,
+            partName: order.partName,
+            adjustment: order.quantity,
+            previousQuantity: 0,
+            newQuantity: order.quantity,
+            reason: `Received from supplier (Order ${order.orderNumber})`,
+            performedBy: window.currentUserData.displayName,
+            timestamp: new Date().toISOString()
+        });
+
+        // Check if all orders for this repair are completed
+        const allRepairOrders = (window.allPartsOrders || []).filter(o => 
+            o.repairId === order.repairId && o.id !== orderId
+        );
+        
+        const stillPending = allRepairOrders.some(o => 
+            ['pending', 'approved', 'ordered'].includes(o.status)
+        );
+
+        // Update repair status if no more pending orders
+        if (!stillPending) {
+            const repair = window.allRepairs.find(r => r.id === order.repairId);
+            const newStatus = 'In Progress';
+            
+            await db.ref(`repairs/${order.repairId}`).update({
+                status: newStatus,
+                waitingForParts: false,
+                workaroundActive: false,
+                lastUpdated: new Date().toISOString(),
+                lastUpdatedBy: window.currentUserData.displayName
+            });
+        }
+
+        utils.showLoading(false);
+        alert(
+            `✅ Parts received and added to inventory!\n\n` +
+            `Actual cost: ₱${actualPrice}/unit (Total: ₱${(actualPrice * order.quantity).toFixed(2)})\n` +
+            `Variance: ${variancePercent > 0 ? '+' : ''}${variancePercent}%\n\n` +
+            `Technician will be notified.`
+        );
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error marking parts received:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Cancel Parts Order
+ */
+async function cancelPartsOrder(orderId) {
+    const order = (window.allPartsOrders || []).find(o => o.id === orderId);
+    
+    if (!order) {
+        alert('Order not found');
+        return;
+    }
+
+    if (!['pending', 'approved', 'ordered'].includes(order.status)) {
+        alert('This order cannot be cancelled');
+        return;
+    }
+
+    const reason = prompt(
+        `🚫 Cancel Parts Order\n\n` +
+        `Part: ${order.partName}\n` +
+        `Status: ${order.status.toUpperCase()}\n\n` +
+        `Enter cancellation reason (min 20 chars):`
+    );
+
+    if (reason === null) return;
+
+    if (!reason || reason.trim().length < 20) {
+        alert('Please enter a detailed cancellation reason (minimum 20 characters)');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        // Update order
+        await db.ref(`partsOrders/${orderId}`).update({
+            status: 'cancelled',
+            cancelledBy: window.currentUser.uid,
+            cancelledByName: window.currentUserData.displayName,
+            cancelledAt: new Date().toISOString(),
+            cancellationReason: reason.trim(),
+            lastUpdated: new Date().toISOString()
+        });
+
+        // Refund downpayment if exists
+        if (order.paymentId) {
+            const repair = window.allRepairs.find(r => r.id === order.repairId);
+            if (repair && repair.payments) {
+                const payment = repair.payments.find(p => p.id === order.paymentId);
+                
+                if (payment && payment.amount > 0) {
+                    // Create refund payment (negative)
+                    const refundPayment = {
+                        id: `refund_${Date.now()}`,
+                        amount: -payment.amount,
+                        method: payment.method,
+                        date: new Date().toISOString(),
+                        receivedBy: window.currentUser.uid,
+                        receivedByName: window.currentUserData.displayName,
+                        paymentType: 'parts-downpayment-refund',
+                        linkedOrderId: orderId,
+                        originalPaymentId: order.paymentId,
+                        notes: `Refund: Parts order cancelled - ${reason.trim()}`,
+                        remittanceStatus: 'verified' // Auto-verified for refunds
+                    };
+
+                    const payments = repair.payments || [];
+                    payments.push(refundPayment);
+
+                    await db.ref(`repairs/${order.repairId}/payments`).set(payments);
+                    
+                    console.log('✅ Downpayment refunded:', payment.amount);
+                }
+            }
+        }
+
+        // Check if repair should go back to previous status
+        const activeOrders = (window.allPartsOrders || []).filter(o => 
+            o.repairId === order.repairId && 
+            o.id !== orderId &&
+            ['pending', 'approved', 'ordered'].includes(o.status)
+        );
+
+        if (activeOrders.length === 0) {
+            // No more active orders
+            const repair = window.allRepairs.find(r => r.id === order.repairId);
+            const newStatus = 'In Progress';
+            
+            await db.ref(`repairs/${order.repairId}`).update({
+                status: newStatus,
+                waitingForParts: false,
+                workaroundActive: false,
+                lastUpdated: new Date().toISOString(),
+                lastUpdatedBy: window.currentUserData.displayName
+            });
+        }
+
+        utils.showLoading(false);
+        
+        let message = '✅ Order cancelled';
+        if (order.paymentId) {
+            message += '\n\n💵 Downpayment has been refunded to customer balance';
+        }
+        
+        alert(message);
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error cancelling order:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Acknowledge Parts Received (Technician)
+ */
+async function acknowledgePartsReceived(orderId) {
+    try {
+        await db.ref(`partsOrders/${orderId}`).update({
+            acknowledgedByTech: true,
+            acknowledgedAt: new Date().toISOString()
+        });
+
+        console.log('✅ Parts receipt acknowledged:', orderId);
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        console.error('❌ Error acknowledging receipt:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Acknowledge all received parts for technician
+ */
+async function acknowledgeAllPartsReceived() {
+    const unacknowledged = (window.allPartsOrders || []).filter(o => 
+        o.requestedBy === window.currentUser.uid &&
+        o.status === 'received' &&
+        o.acknowledgedByTech === false
+    );
+
+    if (unacknowledged.length === 0) {
+        alert('No parts to acknowledge');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        const updates = {};
+        unacknowledged.forEach(order => {
+            updates[`partsOrders/${order.id}/acknowledgedByTech`] = true;
+            updates[`partsOrders/${order.id}/acknowledgedAt`] = new Date().toISOString();
+        });
+
+        await db.ref().update(updates);
+
+        utils.showLoading(false);
+        alert(`✅ Acknowledged ${unacknowledged.length} parts delivery(ies)`);
+
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error acknowledging all:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+// Export parts ordering functions
+window.openPartsOrderModal = openPartsOrderModal;
+window.closePartsOrderModal = closePartsOrderModal;
+window.openPartsDownpayment = openPartsDownpayment;
+window.submitPartsOrder = submitPartsOrder;
+window.enableWorkaround = enableWorkaround;
+window.approvePartsOrder = approvePartsOrder;
+window.rejectPartsOrder = rejectPartsOrder;
+window.markAsOrdered = markAsOrdered;
+window.markPartsReceived = markPartsReceived;
+window.cancelPartsOrder = cancelPartsOrder;
+window.acknowledgePartsReceived = acknowledgePartsReceived;
+window.acknowledgeAllPartsReceived = acknowledgeAllPartsReceived;
 
 // Export commission adjustment functions
 window.setBaselineCommissionRate = setBaselineCommissionRate;

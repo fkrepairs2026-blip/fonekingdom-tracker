@@ -241,29 +241,43 @@ function buildManagerDashboard(userName, stats) {
             </div>
             
             <!-- Alerts Section -->
-            ${(stats.staleInProgress > 0 || stats.overduePickup > 0 || stats.pendingRemittances > 0) ? `
+            ${(stats.staleInProgress > 0 || stats.overduePickup > 0 || stats.pendingRemittances > 0 || stats.pendingPartsOrders > 0 || stats.urgentPartsOrders > 0) ? `
                 <div class="dashboard-alerts-grid">
-                    ${utils.createAlertCard(
+                    ${stats.staleInProgress > 0 ? utils.createAlertCard(
         'Stale Repairs (>5 days)',
         stats.staleInProgress,
         'high',
         'inprogress',
         '🔴'
-    )}
-                    ${utils.createAlertCard(
+    ) : ''}
+                    ${stats.overduePickup > 0 ? utils.createAlertCard(
         'Overdue Pickups (>3 days)',
         stats.overduePickup,
         'medium',
         'forrelease',
         '⚠️'
-    )}
-                    ${utils.createAlertCard(
+    ) : ''}
+                    ${stats.pendingRemittances > 0 ? utils.createAlertCard(
         'Pending Remittances',
         stats.pendingRemittances,
         'medium',
         'verify-remittance',
         '📥'
-    )}
+    ) : ''}
+                    ${stats.pendingPartsOrders > 0 ? utils.createAlertCard(
+        'Parts Orders Awaiting Approval',
+        stats.pendingPartsOrders,
+        'high',
+        'approve-parts-orders',
+        '📦'
+    ) : ''}
+                    ${stats.urgentPartsOrders > 0 ? utils.createAlertCard(
+        'Urgent Parts Orders',
+        stats.urgentPartsOrders,
+        'high',
+        'approve-parts-orders',
+        '🔴'
+    ) : ''}
                 </div>
             ` : ''}
             
@@ -363,15 +377,29 @@ function buildAdminDashboard(userName, stats) {
             </div>
             
             <!-- Admin Alerts Section (Only mod requests) -->
-            ${stats.pendingModRequests > 0 ? `
+            ${stats.pendingModRequests > 0 || stats.pendingPartsOrders > 0 || stats.urgentPartsOrders > 0 ? `
                 <div class="dashboard-alerts-grid">
-                    ${utils.createAlertCard(
+                    ${stats.pendingModRequests > 0 ? utils.createAlertCard(
         'Modification Requests',
         stats.pendingModRequests || 0,
         'high',
         'mod-requests',
         '🔔'
-    )}
+    ) : ''}
+                    ${stats.pendingPartsOrders > 0 ? utils.createAlertCard(
+        'Parts Orders Awaiting Approval',
+        stats.pendingPartsOrders || 0,
+        'high',
+        'approve-parts-orders',
+        '📦'
+    ) : ''}
+                    ${stats.urgentPartsOrders > 0 ? utils.createAlertCard(
+        'Urgent Parts Orders',
+        stats.urgentPartsOrders || 0,
+        'high',
+        'approve-parts-orders',
+        '🔴'
+    ) : ''}
                 </div>
             ` : ''}
             

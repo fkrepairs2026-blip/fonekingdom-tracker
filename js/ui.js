@@ -83,6 +83,7 @@ function buildTabs() {
             sections.operations.tabs.push(
                 { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
                 { id: 'backjob-reception', label: 'Back Job Reception', icon: '🔄', build: buildBackJobReceptionTab },
+                { id: 'approve-parts-orders', label: 'Approve Orders', icon: '📦', build: buildApprovePartsOrdersTab },
                 { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
                 { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
                 { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
@@ -119,6 +120,7 @@ function buildTabs() {
             sections.admin.tabs.push(
                 { id: 'staff-overview', label: 'Staff Overview', icon: '👥', build: buildStaffOverviewTab },
                 { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab },
+                { id: 'approve-parts-orders', label: 'Approve Orders', icon: '📦', build: buildApprovePartsOrdersTab },
                 { id: 'users', label: 'Users', icon: '👤', build: buildUsersTab },
                 { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
@@ -147,6 +149,7 @@ function buildTabs() {
             { id: 'my', label: 'My Jobs', icon: '🔧', build: buildMyRepairsTab },
             { id: 'mycompleted', label: 'My Completed', icon: '✅', build: buildMyCompletedDevicesTab },
             { id: 'myclaimed', label: 'My Claimed', icon: '🎉', build: buildMyClaimedDevicesTab },
+            { id: 'parts-orders', label: 'Parts Orders', icon: '📦', build: buildPartsOrdersTab },
             { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
             { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
             { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
@@ -2270,11 +2273,14 @@ function displayRepairsInContainer(repairs, container) {
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         const balance = r.total - totalPaid;
         const paymentStatus = balance === 0 && r.total > 0 ? 'verified' : (r.payments && r.payments.some(p => !p.verified)) ? 'pending' : 'unpaid';
+        
+        // Get enhanced status display with parts info
+        const enhancedStatus = getEnhancedStatusDisplay(r);
 
         return `
             <div class="repair-card">
                 <h4>${r.customerName}${r.shopName ? ` (${r.shopName})` : ''} - ${r.brand} ${r.model}</h4>
-                <span class="status-badge status-${statusClass}">${r.status}</span>
+                <span class="status-badge status-${statusClass}">${enhancedStatus.statusText}${enhancedStatus.statusIcon}</span>
                 ${r.isBackJob ? '<span class="status-badge status-badge-danger">🔄 Back Job</span>' : ''}
                 ${!hidePaymentActions ? `<span class="payment-badge payment-${paymentStatus}">${paymentStatus === 'unpaid' ? 'Unpaid' : paymentStatus === 'pending' ? 'Pending' : 'Verified'}</span>` : ''}
                 ${r.customerType === 'Dealer' ? '<span class="badge-pill badge-pill-warning">🏪 Dealer</span>' : '<span class="badge-pill badge-pill-success">👤 Walk-in</span>'}
@@ -2338,12 +2344,77 @@ function displayRepairsInContainer(repairs, container) {
                     </details>
                 ` : ''}
                 
+                ${(() => {
+                    const repairOrders = (window.allPartsOrders || []).filter(o => o.repairId === r.id);
+                    if (repairOrders.length === 0) return '';
+                    
+                    return `
+                        <details style="margin-top:15px;background:#f3f4f6;padding:10px;border-radius:8px;border-left:4px solid #8b5cf6;">
+                            <summary style="cursor:pointer;font-weight:600;color:#8b5cf6;">📦 Parts Order History (${repairOrders.length})</summary>
+                            <div style="margin-top:10px;">
+                                ${repairOrders.map(order => {
+                                    const statusColor = 
+                                        order.status === 'pending' ? '#f59e0b' :
+                                        order.status === 'approved' ? '#3b82f6' :
+                                        order.status === 'ordered' ? '#8b5cf6' :
+                                        order.status === 'received' ? '#10b981' : '#ef4444';
+                                    
+                                    const varianceIcon = !order.priceVariancePercent ? '' : 
+                                        Math.abs(order.priceVariancePercent) <= 10 ? '🟢' : 
+                                        Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
+                                    
+                                    return `
+                                        <div style="background:white;padding:10px;border-radius:6px;margin-bottom:8px;border-left:3px solid ${statusColor};">
+                                            <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+                                                <strong>${order.partName}</strong> (x${order.quantity})
+                                                <span style="background:${statusColor};color:white;padding:2px 8px;border-radius:12px;font-size:11px;">
+                                                    ${order.status.toUpperCase()}
+                                                </span>
+                                            </div>
+                                            <div style="font-size:12px;color:#666;">
+                                                Order #${order.orderNumber} • ${order.supplierName || 'Supplier TBD'}
+                                            </div>
+                                            ${order.estimatedPrice ? `
+                                                <div style="font-size:12px;margin-top:5px;">
+                                                    Est: ₱${order.estimatedPrice}/unit (Total: ₱${(order.estimatedPrice * order.quantity).toFixed(2)})
+                                                </div>
+                                            ` : ''}
+                                            ${order.actualPrice ? `
+                                                <div style="font-size:12px;margin-top:3px;color:#10b981;">
+                                                    <strong>Actual: ₱${order.actualPrice}/unit (Total: ₱${(order.actualPrice * order.quantity).toFixed(2)})</strong>
+                                                    ${order.priceVariance ? ` ${varianceIcon} ${order.priceVariance > 0 ? '+' : ''}₱${order.priceVariance.toFixed(2)}` : ''}
+                                                </div>
+                                            ` : ''}
+                                            ${order.paymentId ? `
+                                                <div style="font-size:11px;margin-top:3px;color:#059669;">
+                                                    💵 Downpayment collected
+                                                </div>
+                                            ` : ''}
+                                            ${order.cancellationReason ? `
+                                                <div style="font-size:11px;color:#ef4444;margin-top:5px;padding:5px;background:#fee;border-radius:3px;">
+                                                    Cancelled: ${order.cancellationReason}
+                                                </div>
+                                            ` : ''}
+                                            <div style="font-size:11px;color:#999;margin-top:5px;">
+                                                Requested: ${utils.formatDateTime(order.requestedAt)}
+                                                ${order.receivedAt ? ` • Received: ${utils.formatDateTime(order.receivedAt)}` : ''}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </details>
+                    `;
+                })()}
+                
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
                     ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
                     ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
                     ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
                     ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
+                    ${!['Completed', 'Claimed', 'Cancelled'].includes(r.status) && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openPartsOrderModal('${r.id}')" style="background:#8b5cf6;color:white;">📦 Request Parts</button>` : ''}
+                    ${r.status === 'Waiting for Parts' && !r.workaroundActive && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="enableWorkaround('${r.id}')" style="background:#f59e0b;color:white;">🔧 Work on Other Issues</button>` : ''}
                     ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
                     ${(() => {
                         const repairExpenses = (window.techExpenses || []).filter(e => e.repairId === r.id);
@@ -3014,6 +3085,8 @@ function renderStandardButtons(r, role) {
         ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
         ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
         ${(r.status === 'In Progress' || r.status === 'Ready for Pickup') ? `<button class="btn-small" onclick="openPartsCostModal('${r.id}')" style="background:#ff9800;color:white;">💵 Parts Cost</button>` : ''}
+        ${!['Completed', 'Claimed', 'Cancelled'].includes(r.status) && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openPartsOrderModal('${r.id}')" style="background:#8b5cf6;color:white;">📦 Request Parts</button>` : ''}
+        ${r.status === 'Waiting for Parts' && !r.workaroundActive && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="enableWorkaround('${r.id}')" style="background:#f59e0b;color:white;">🔧 Work on Other Issues</button>` : ''}
         ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
         ${r.acceptedBy && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openTransferRepairModal('${r.id}')" style="background:#9c27b0;color:white;">🔄 Transfer</button>` : ''}
         ${canRequestDelete ? `<button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">🗑️ Request Delete</button>` : ''}
@@ -13433,6 +13506,434 @@ async function confirmCleanupDelete() {
         `;
     }
 }
+
+// ========================================
+// PARTS ORDERING TABS
+// ========================================
+
+/**
+ * Get enhanced status display with parts info
+ */
+function getEnhancedStatusDisplay(repair) {
+    const activeOrders = (window.allPartsOrders || []).filter(o => 
+        o.repairId === repair.id && 
+        ['pending', 'approved', 'ordered'].includes(o.status)
+    );
+    
+    const unacknowledgedParts = (window.allPartsOrders || []).filter(o => 
+        o.repairId === repair.id && 
+        o.status === 'received' && 
+        !o.acknowledgedByTech
+    );
+    
+    let statusText = repair.status;
+    let statusIcon = '';
+    
+    if (unacknowledgedParts.length > 0) {
+        statusIcon = ' 🎉';
+    } else if (activeOrders.length > 0) {
+        if (repair.workaroundActive || repair.status === 'In Progress (Parts Pending)') {
+            statusText = `In Progress (⏳ ${activeOrders.length} parts pending)`;
+            statusIcon = ' 🔧⏳';
+        } else if (repair.status === 'Waiting for Parts') {
+            statusText = `Waiting for Parts (${activeOrders.length})`;
+            statusIcon = ' ⏳';
+        }
+    }
+    
+    return { statusText, statusIcon, activeOrders: activeOrders.length, unacknowledgedParts: unacknowledgedParts.length };
+}
+
+/**
+ * Build Parts Orders Tab (Technician View)
+ */
+function buildPartsOrdersTab(container) {
+    console.log('📦 Building Parts Orders tab');
+    
+    // Set refresh callback
+    window.currentTabRefresh = () => buildPartsOrdersTab(
+        document.getElementById('parts-ordersTab')
+    );
+    
+    const techId = window.currentUser.uid;
+    const myOrders = (window.allPartsOrders || []).filter(o => o.requestedBy === techId);
+    
+    // Group by status
+    const unacknowledged = myOrders.filter(o => o.status === 'received' && !o.acknowledgedByTech);
+    const pending = myOrders.filter(o => o.status === 'pending');
+    const approved = myOrders.filter(o => o.status === 'approved');
+    const ordered = myOrders.filter(o => o.status === 'ordered');
+    const received = myOrders.filter(o => o.status === 'received' && o.acknowledgedByTech);
+    const cancelled = myOrders.filter(o => o.status === 'cancelled');
+    
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>📦 Parts Orders</h2>
+            <p>Manage your parts order requests</p>
+        </div>
+        
+        ${unacknowledged.length > 0 ? `
+            <div style="background:#10b981;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <strong style="font-size:18px;">🎉 ${unacknowledged.length} Parts Received!</strong>
+                        <p style="margin:5px 0 0 0;opacity:0.9;">Parts are ready for use in repairs</p>
+                    </div>
+                    <button class="btn-primary" onclick="acknowledgeAllPartsReceived()" style="background:white;color:#10b981;">
+                        Acknowledge All
+                    </button>
+                </div>
+            </div>
+        ` : ''}
+        
+        <div class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card" style="background:var(--warning-bg);border-left:4px solid var(--warning-color);">
+                <div class="stat-value">${pending.length}</div>
+                <div class="stat-label">⏳ Pending Approval</div>
+            </div>
+            <div class="stat-card" style="background:var(--info-bg);border-left:4px solid var(--info-color);">
+                <div class="stat-value">${approved.length + ordered.length}</div>
+                <div class="stat-label">📞 Approved/Ordered</div>
+            </div>
+            <div class="stat-card" style="background:var(--success-bg);border-left:4px solid var(--success-color);">
+                <div class="stat-value">${received.length}</div>
+                <div class="stat-label">✅ Received</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${myOrders.length}</div>
+                <div class="stat-label">📊 Total Orders</div>
+            </div>
+        </div>
+        
+        ${renderOrdersSection('⏳ Pending Approval', pending, 'warning')}
+        ${renderOrdersSection('✅ Approved', approved, 'info')}
+        ${renderOrdersSection('📞 Ordered', ordered, 'info')}
+        ${renderOrdersSection('📦 Received', unacknowledged.concat(received), 'success')}
+        ${renderOrdersSection('🚫 Cancelled', cancelled, 'danger')}
+    `;
+}
+
+/**
+ * Build Approve Parts Orders Tab (Admin View)
+ */
+function buildApprovePartsOrdersTab(container) {
+    console.log('📦 Building Approve Parts Orders tab');
+    
+    // Set refresh callback
+    window.currentTabRefresh = () => buildApprovePartsOrdersTab(
+        document.getElementById('approve-parts-ordersTab')
+    );
+    
+    const allOrders = window.allPartsOrders || [];
+    
+    // Group by status
+    const pending = allOrders.filter(o => o.status === 'pending');
+    const approved = allOrders.filter(o => o.status === 'approved');
+    const ordered = allOrders.filter(o => o.status === 'ordered');
+    const received = allOrders.filter(o => o.status === 'received').slice(0, 20); // Last 20
+    const urgent = pending.filter(o => o.urgency === 'urgent');
+    
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>📦 Approve Parts Orders</h2>
+            <p>Review and manage all parts order requests</p>
+        </div>
+        
+        ${urgent.length > 0 ? `
+            <div style="background:#ef4444;color:white;padding:15px;border-radius:8px;margin-bottom:20px;">
+                <strong style="font-size:18px;">🔴 ${urgent.length} Urgent Order(s) Waiting!</strong>
+                <p style="margin:5px 0 0 0;opacity:0.9;">Customers are waiting for these parts</p>
+            </div>
+        ` : ''}
+        
+        <div class="stats-grid" style="margin-bottom:20px;">
+            <div class="stat-card" style="background:var(--warning-bg);border-left:4px solid var(--warning-color);">
+                <div class="stat-value">${pending.length}</div>
+                <div class="stat-label">⏳ Pending Approval</div>
+            </div>
+            <div class="stat-card" style="background:var(--info-bg);border-left:4px solid var(--info-color);">
+                <div class="stat-value">${approved.length}</div>
+                <div class="stat-label">✅ Approved</div>
+            </div>
+            <div class="stat-card" style="background:var(--info-bg);border-left:4px solid var(--info-color);">
+                <div class="stat-value">${ordered.length}</div>
+                <div class="stat-label">📞 Ordered</div>
+            </div>
+            <div class="stat-card" style="background:var(--success-bg);border-left:4px solid var(--success-color);">
+                <div class="stat-value">${received.length}</div>
+                <div class="stat-label">📦 Recently Received</div>
+            </div>
+        </div>
+        
+        ${renderAdminOrdersSection('⏳ Pending Approval', pending, 'pending')}
+        ${renderAdminOrdersSection('✅ Approved (Ready to Order)', approved, 'approved')}
+        ${renderAdminOrdersSection('📞 Ordered (Awaiting Delivery)', ordered, 'ordered')}
+        ${renderAdminOrdersSection('📦 Recently Received', received, 'received')}
+    `;
+}
+
+/**
+ * Render orders section (Technician view)
+ */
+function renderOrdersSection(title, orders, colorType) {
+    if (orders.length === 0) {
+        return `
+            <div class="card" style="margin-bottom:20px;">
+                <h3 style="margin-bottom:10px;">${title} (0)</h3>
+                <p style="color:#999;margin:0;">No orders in this status</p>
+            </div>
+        `;
+    }
+    
+    // Group by repair
+    const byRepair = {};
+    orders.forEach(order => {
+        if (!byRepair[order.repairId]) {
+            byRepair[order.repairId] = [];
+        }
+        byRepair[order.repairId].push(order);
+    });
+    
+    let html = `
+        <div class="card" style="margin-bottom:20px;">
+            <h3 style="margin-bottom:15px;">${title} (${orders.length})</h3>
+    `;
+    
+    for (const [repairId, repairOrders] of Object.entries(byRepair)) {
+        const firstOrder = repairOrders[0];
+        
+        html += `
+            <div class="repair-card" style="margin-bottom:15px;background:#f9fafb;padding:15px;border-radius:8px;border-left:4px solid var(--${colorType}-color);">
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                    <div>
+                        <strong>${firstOrder.repairDetails.customerName}</strong> - ${firstOrder.repairDetails.device}
+                        <div style="font-size:13px;color:#666;margin-top:3px;">
+                            ${firstOrder.repairDetails.problem}
+                        </div>
+                    </div>
+                    <button class="btn-secondary" onclick="switchTab('all'); setTimeout(() => filterRepairById('${repairId}'), 500);" style="font-size:12px;">
+                        View Repair
+                    </button>
+                </div>
+                
+                ${repairOrders.map(order => {
+                    const urgencyIcon = order.urgency === 'urgent' ? '🔴' : order.urgency === 'normal' ? '🟡' : '🟢';
+                    const age = utils.daysAgo(order.requestedAt);
+                    
+                    let statusBadge = '';
+                    if (order.status === 'pending') {
+                        statusBadge = `<span class="badge" style="background:#f59e0b;color:white;">⏳ Pending</span>`;
+                    } else if (order.status === 'approved') {
+                        statusBadge = `<span class="badge" style="background:#3b82f6;color:white;">✅ Approved</span>`;
+                    } else if (order.status === 'ordered') {
+                        statusBadge = `<span class="badge" style="background:#8b5cf6;color:white;">📞 Ordered</span>`;
+                    } else if (order.status === 'received') {
+                        const varianceIcon = !order.priceVariancePercent ? '' : 
+                            Math.abs(order.priceVariancePercent) <= 10 ? '🟢' : 
+                            Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
+                        statusBadge = `<span class="badge" style="background:#10b981;color:white;">📦 Received ${varianceIcon}</span>`;
+                    } else if (order.status === 'cancelled') {
+                        statusBadge = `<span class="badge" style="background:#ef4444;color:white;">🚫 Cancelled</span>`;
+                    }
+                    
+                    let actionButtons = '';
+                    if (order.status === 'pending' || order.status === 'approved') {
+                        actionButtons = `<button class="btn-danger" onclick="cancelPartsOrder('${order.id}')" style="font-size:11px;padding:3px 8px;">Cancel</button>`;
+                    }
+                    
+                    if (order.status === 'received' && !order.acknowledgedByTech) {
+                        actionButtons = `<button class="btn-primary" onclick="acknowledgePartsReceived('${order.id}')" style="font-size:11px;padding:3px 8px;">Acknowledge</button>`;
+                    }
+                    
+                    return `
+                        <div style="background:white;padding:12px;border-radius:6px;margin-top:10px;border:1px solid #e5e7eb;">
+                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
+                                <div>
+                                    <strong>${urgencyIcon} ${order.partName}</strong> (x${order.quantity})
+                                    <div style="font-size:12px;color:#666;margin-top:2px;">
+                                        Order #${order.orderNumber} • ${age}
+                                    </div>
+                                </div>
+                                <div style="text-align:right;">
+                                    ${statusBadge}
+                                </div>
+                            </div>
+                            
+                            ${order.supplierName ? `<div style="font-size:12px;color:#666;">Supplier: ${order.supplierName}</div>` : ''}
+                            
+                            ${order.estimatedPrice ? `<div style="font-size:12px;margin-top:5px;">Est: ₱${order.estimatedPrice}/unit (Total: ₱${(order.estimatedPrice * order.quantity).toFixed(2)})</div>` : ''}
+                            
+                            ${order.actualPrice ? `
+                                <div style="font-size:12px;margin-top:3px;color:#10b981;">
+                                    <strong>Actual: ₱${order.actualPrice}/unit (Total: ₱${(order.actualPrice * order.quantity).toFixed(2)})</strong>
+                                    ${order.priceVariance ? `<span style="color:${order.priceVariance > 0 ? '#ef4444' : '#10b981'};">(${order.priceVariance > 0 ? '+' : ''}₱${order.priceVariance.toFixed(2)})</span>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            ${order.estimatedArrival && order.status === 'ordered' ? `
+                                <div style="font-size:12px;margin-top:5px;color:#f59e0b;">
+                                    ETA: ${utils.formatDate(order.estimatedArrival)}
+                                </div>
+                            ` : ''}
+                            
+                            ${order.notes ? `<div style="font-size:12px;color:#666;margin-top:5px;font-style:italic;">${order.notes}</div>` : ''}
+                            
+                            ${order.cancellationReason ? `
+                                <div style="font-size:12px;color:#ef4444;margin-top:5px;padding:8px;background:#fee;border-radius:4px;">
+                                    <strong>Cancelled:</strong> ${order.cancellationReason}
+                                </div>
+                            ` : ''}
+                            
+                            ${actionButtons ? `<div style="margin-top:8px;">${actionButtons}</div>` : ''}
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        `;
+    }
+    
+    html += `</div>`;
+    return html;
+}
+
+/**
+ * Render admin orders section
+ */
+function renderAdminOrdersSection(title, orders, status) {
+    if (orders.length === 0) {
+        return `
+            <div class="card" style="margin-bottom:20px;">
+                <h3 style="margin-bottom:10px;">${title} (0)</h3>
+                <p style="color:#999;margin:0;">No orders in this status</p>
+            </div>
+        `;
+    }
+    
+    let html = `
+        <div class="card" style="margin-bottom:20px;">
+            <h3 style="margin-bottom:15px;">${title} (${orders.length})</h3>
+    `;
+    
+    orders.forEach(order => {
+        const urgencyIcon = order.urgency === 'urgent' ? '🔴' : order.urgency === 'normal' ? '🟡' : '🟢';
+        const age = utils.daysAgo(order.requestedAt);
+        
+        let actionButtons = '';
+        if (status === 'pending') {
+            actionButtons = `
+                <button class="btn-primary" onclick="approvePartsOrder('${order.id}')" style="margin-right:5px;">✅ Approve</button>
+                <button class="btn-danger" onclick="rejectPartsOrder('${order.id}')">❌ Reject</button>
+            `;
+        } else if (status === 'approved') {
+            actionButtons = `
+                <button class="btn-primary" onclick="markAsOrdered('${order.id}')" style="margin-right:5px;">📞 Mark as Ordered</button>
+                <button class="btn-secondary" onclick="cancelPartsOrder('${order.id}')">Cancel</button>
+            `;
+        } else if (status === 'ordered') {
+            actionButtons = `
+                <button class="btn-success" onclick="markPartsReceived('${order.id}')" style="margin-right:5px;">📦 Mark as Received</button>
+                <button class="btn-secondary" onclick="cancelPartsOrder('${order.id}')">Cancel</button>
+            `;
+        }
+        
+        const varianceIcon = !order.priceVariancePercent ? '' : 
+            Math.abs(order.priceVariancePercent) <= 10 ? '🟢' : 
+            Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
+        
+        html += `
+            <div class="repair-card" style="margin-bottom:15px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+                    <div>
+                        <strong style="font-size:16px;">${urgencyIcon} ${order.partName}</strong> (x${order.quantity})
+                        <div style="font-size:13px;color:#666;margin-top:3px;">
+                            Order #${order.orderNumber} • ${age}
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background:#f9fafb;padding:10px;border-radius:6px;margin-bottom:10px;">
+                    <div style="font-size:13px;">
+                        <strong>Repair:</strong> ${order.repairDetails.customerName} - ${order.repairDetails.device}
+                    </div>
+                    <div style="font-size:13px;color:#666;">
+                        ${order.repairDetails.problem}
+                    </div>
+                </div>
+                
+                <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:10px;font-size:13px;">
+                    <div><strong>Requested by:</strong> ${order.requestedByName}</div>
+                    <div><strong>Requested:</strong> ${utils.formatDate(order.requestedAt)}</div>
+                    ${order.supplierName ? `<div><strong>Supplier:</strong> ${order.supplierName}</div>` : '<div></div>'}
+                    ${order.estimatedPrice ? `<div><strong>Est Price:</strong> ₱${order.estimatedPrice}/unit</div>` : '<div></div>'}
+                </div>
+                
+                ${order.notes ? `
+                    <div style="font-size:13px;color:#666;padding:8px;background:#f3f4f6;border-radius:4px;margin-bottom:10px;">
+                        <strong>Notes:</strong> ${order.notes}
+                    </div>
+                ` : ''}
+                
+                ${order.approvalNotes ? `
+                    <div style="font-size:13px;color:#059669;padding:8px;background:#d1fae5;border-radius:4px;margin-bottom:10px;">
+                        <strong>Admin notes:</strong> ${order.approvalNotes}
+                    </div>
+                ` : ''}
+                
+                ${order.supplierOrderNumber ? `
+                    <div style="font-size:13px;margin-bottom:5px;">
+                        <strong>Supplier Ref:</strong> ${order.supplierOrderNumber}
+                    </div>
+                ` : ''}
+                
+                ${order.estimatedArrival ? `
+                    <div style="font-size:13px;margin-bottom:5px;">
+                        <strong>ETA:</strong> ${utils.formatDate(order.estimatedArrival)}
+                    </div>
+                ` : ''}
+                
+                ${order.actualPrice ? `
+                    <div style="font-size:14px;margin-top:10px;padding:8px;background:#d1fae5;border-radius:4px;">
+                        <strong>Received:</strong> ₱${order.actualPrice}/unit (Total: ₱${(order.actualPrice * order.quantity).toFixed(2)})
+                        ${order.priceVariance ? `
+                            <span style="color:${order.priceVariance > 0 ? '#ef4444' : '#10b981'};">
+                                ${varianceIcon} ${order.priceVariance > 0 ? '+' : ''}₱${order.priceVariance.toFixed(2)} 
+                                (${order.priceVariancePercent > 0 ? '+' : ''}${order.priceVariancePercent}%)
+                            </span>
+                        ` : ''}
+                    </div>
+                ` : ''}
+                
+                ${actionButtons ? `
+                    <div style="margin-top:15px;display:flex;gap:10px;">
+                        ${actionButtons}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    return html;
+}
+
+/**
+ * Helper to filter repair by ID (for linking from parts orders)
+ */
+function filterRepairById(repairId) {
+    // This assumes there's a search/filter input in All Repairs tab
+    const searchInput = document.querySelector('input[type="text"]');
+    if (searchInput) {
+        searchInput.value = repairId;
+        searchInput.dispatchEvent(new Event('input'));
+    }
+}
+
+// Export parts ordering tab functions
+window.buildPartsOrdersTab = buildPartsOrdersTab;
+window.buildApprovePartsOrdersTab = buildApprovePartsOrdersTab;
+window.renderOrdersSection = renderOrdersSection;
+window.renderAdminOrdersSection = renderAdminOrdersSection;
+window.filterRepairById = filterRepairById;
 
 // Export commission adjustment functions
 window.openCommissionAdjustmentModal = openCommissionAdjustmentModal;

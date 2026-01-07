@@ -998,6 +998,38 @@ async function exportMonthlyArchive(year = null, month = null) {
         // Remittances section
         exportData.push({ '=== REMITTANCES ===': '', 'Count': remittancesData.length });
         exportData.push(...remittancesData);
+        exportData.push({});
+
+        // Parts Orders section
+        const partsOrdersData = [];
+        if (window.allPartsOrders) {
+            window.allPartsOrders.forEach(order => {
+                const orderDate = new Date(order.requestedAt);
+                if (orderDate >= startDate && orderDate <= endDate) {
+                    partsOrdersData.push({
+                        'Order Number': order.orderNumber,
+                        'Repair ID': order.repairId,
+                        'Customer': order.repairDetails?.customerName || 'N/A',
+                        'Part Name': order.partName,
+                        'Quantity': order.quantity,
+                        'Supplier': order.supplierName || 'TBD',
+                        'Urgency': order.urgency.toUpperCase(),
+                        'Status': order.status.toUpperCase(),
+                        'Estimated Price': order.estimatedPrice || 0,
+                        'Actual Price': order.actualPrice || 0,
+                        'Variance': order.priceVariance || 0,
+                        'Variance %': order.priceVariancePercent || 0,
+                        'Downpayment': order.paymentId ? 'Yes' : 'No',
+                        'Requested By': order.requestedByName,
+                        'Requested Date': utils.formatDate(order.requestedAt),
+                        'Received Date': order.receivedAt ? utils.formatDate(order.receivedAt) : 'N/A',
+                        'Cancellation Reason': order.cancellationReason || 'N/A'
+                    });
+                }
+            });
+        }
+        exportData.push({ '=== PARTS ORDERS ===': '', 'Count': partsOrdersData.length });
+        exportData.push(...partsOrdersData);
 
         // Export to CSV
         exportToCSV(exportData, `monthly_archive_${monthString}`);

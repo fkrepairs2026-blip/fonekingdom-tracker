@@ -62,6 +62,10 @@ async function initializeApp() {
         await loadModificationRequests();
         console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
 
+        console.log('📦 Loading parts orders...');
+        await loadPartsOrders();
+        console.log('✅ Parts orders loaded:', window.allPartsOrders.length);
+
         console.log('📦 Loading tech expenses...');
         await loadTechExpenses();
         console.log('✅ Tech expenses loaded:', window.techExpenses.length);

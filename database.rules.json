@@ -65,6 +65,22 @@
         ".write": "auth != null"
       }
     },
+    "partsOrders": {
+      ".indexOn": [
+        "repairId",
+        "status",
+        "requestedBy",
+        "urgency"
+      ],
+      ".read": "auth != null",
+      "$orderId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager' ||
+          (!data.exists() && root.child('users').child(auth.uid).child('role').val() === 'technician')
+        )"
+      }
+    },
     "auditLogs": {
       ".read": "root.child('users').child(auth.uid).child('role').val() === 'admin'",
       "$logId": {

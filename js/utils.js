@@ -563,6 +563,18 @@ const utils = {
             if (role === 'admin') {
                 const modRequests = window.allModificationRequests || [];
                 stats.pendingModRequests = modRequests.filter(r => r.status === 'pending').length;
+                
+                // Parts orders stats
+                const partsOrders = window.allPartsOrders || [];
+                stats.pendingPartsOrders = partsOrders.filter(o => o.status === 'pending').length;
+                stats.urgentPartsOrders = partsOrders.filter(o => o.status === 'pending' && o.urgency === 'urgent').length;
+            }
+            
+            // Parts orders for manager
+            if (role === 'manager') {
+                const partsOrders = window.allPartsOrders || [];
+                stats.pendingPartsOrders = partsOrders.filter(o => o.status === 'pending').length;
+                stats.urgentPartsOrders = partsOrders.filter(o => o.status === 'pending' && o.urgency === 'urgent').length;
             }
 
             // Remittances pending verification
