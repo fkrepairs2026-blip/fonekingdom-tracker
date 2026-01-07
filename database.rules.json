@@ -198,6 +198,20 @@
       "$logId": {
         ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
+    },
+    "userAttendance": {
+      ".read": "auth != null",
+      "$userId": {
+        "$dateKey": {
+          ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        }
+      }
+    },
+    "userActivity": {
+      ".read": "auth != null",
+      "$userId": {
+        ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
     }
   }
 }

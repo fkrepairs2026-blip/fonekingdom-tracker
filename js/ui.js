@@ -115,7 +115,8 @@ function buildTabs() {
         // Administration (Admin only)
         if (role === 'admin') {
             sections.admin.tabs.push(
-                { id: 'users', label: 'Users', icon: '👥', build: buildUsersTab },
+                { id: 'staff-overview', label: 'Staff Overview', icon: '👥', build: buildStaffOverviewTab },
+                { id: 'users', label: 'Users', icon: '👤', build: buildUsersTab },
                 { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
                 { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
@@ -4005,6 +4006,370 @@ function buildSuppliersTab(container) {
             <p style="text-align:center;color:#999;padding:40px;">Supplier report feature coming soon...</p>
         </div>
     `;
+}
+
+/**
+ * Build Staff Overview Tab (Admin only)
+ * Shows real-time staff status, attendance, and activity
+ */
+function buildStaffOverviewTab(container) {
+    console.log('👥 Building Staff Overview tab');
+    window.currentTabRefresh = () => buildStaffOverviewTab(document.getElementById('staff-overviewTab'));
+
+    const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active');
+    const allUserActivity = window.allUserActivity || {};
+    const today = getLocalDateString(new Date());
+
+    // Categorize users
+    const technicians = users.filter(u => u.role === 'technician');
+    const cashiers = users.filter(u => u.role === 'cashier');
+    const managers = users.filter(u => u.role === 'manager');
+    const admins = users.filter(u => u.role === 'admin');
+
+    // Count currently clocked in
+    const clockedInTechs = technicians.filter(t => allUserActivity[t.id]?.currentStatus === 'clocked-in').length;
+    const clockedInCashiers = cashiers.filter(c => allUserActivity[c.id]?.currentStatus === 'clocked-in').length;
+
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>👥 Staff Overview</h2>
+            <p style="color:#666;margin-top:5px;">Real-time staff activity and attendance monitoring</p>
+        </div>
+
+        <!-- Summary Stats -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin:20px 0;">
+            <div class="stat-card alert-card-info">
+                <h3>${users.length}</h3>
+                <p>Active Staff</p>
+            </div>
+            <div class="stat-card alert-card-success">
+                <h3>${clockedInTechs + clockedInCashiers}</h3>
+                <p>🟢 Clocked In</p>
+            </div>
+            <div class="stat-card alert-card-warning">
+                <h3>${technicians.length}</h3>
+                <p>🔧 Technicians</p>
+            </div>
+            <div class="stat-card alert-card-info">
+                <h3>${cashiers.length}</h3>
+                <p>💳 Cashiers</p>
+            </div>
+        </div>
+
+        <!-- Real-time Status -->
+        <div class="card" style="margin:20px 0;">
+            <h3>🟢 Real-Time Status</h3>
+            ${renderStaffStatusList(technicians, allUserActivity, 'Technicians', '🔧')}
+            ${renderStaffStatusList(cashiers, allUserActivity, 'Cashiers', '💳')}
+            ${managers.length > 0 ? renderStaffStatusList(managers, allUserActivity, 'Managers', '👨‍💼') : ''}
+        </div>
+
+        <!-- Today's Attendance -->
+        <div class="card" style="margin:20px 0;">
+            <h3>📅 Today's Attendance (${utils.formatDate(new Date().toISOString())})</h3>
+            <div id="todayAttendanceList">
+                <p style="text-align:center;color:#999;padding:20px;">Loading attendance data...</p>
+            </div>
+        </div>
+
+        <!-- Staff Dashboards (View Other Users) -->
+        <div class="card" style="margin:20px 0;">
+            <h3>📊 View User Dashboard</h3>
+            <p style="color:#666;margin-bottom:15px;">Select a user to view their personal dashboard and activity</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
+                ${users.map(user => {
+                    const activity = allUserActivity[user.id];
+                    const isClockedIn = activity?.currentStatus === 'clocked-in';
+                    return `
+                        <button onclick="viewUserDashboard('${user.id}')" class="btn-secondary" 
+                            style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
+                            <span>
+                                ${isClockedIn ? '🟢' : '⚫'} ${user.displayName}
+                            </span>
+                            <span style="font-size:11px;opacity:0.7;">${user.role}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+
+    // Load today's attendance asynchronously
+    loadTodayAttendance(users);
+}
+
+/**
+ * Render staff status list for a group
+ */
+function renderStaffStatusList(users, allUserActivity, groupName, icon) {
+    if (users.length === 0) return '';
+
+    return `
+        <div style="margin:20px 0;">
+            <h4 style="color:#667eea;margin-bottom:15px;">${icon} ${groupName}</h4>
+            <div style="display:grid;gap:10px;">
+                ${users.map(user => {
+                    const activity = allUserActivity[user.id];
+                    const isClockedIn = activity?.currentStatus === 'clocked-in';
+                    const lastActivity = activity?.lastActivity;
+                    const clockInTime = activity?.todayClockIn;
+
+                    return `
+                        <div style="background:#f9f9f9;padding:15px;border-radius:8px;border-left:4px solid ${isClockedIn ? '#4caf50' : '#999'};">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <strong>${user.displayName}</strong>
+                                    <div style="font-size:13px;color:#666;margin-top:5px;">
+                                        Status: <span style="color:${isClockedIn ? '#4caf50' : '#999'};font-weight:600;">
+                                            ${isClockedIn ? '🟢 Clocked In' : '⚫ Clocked Out'}
+                                        </span>
+                                    </div>
+                                    ${clockInTime ? `
+                                        <div style="font-size:12px;color:#666;margin-top:3px;">
+                                            Clock In: ${utils.formatDateTime(clockInTime)}
+                                        </div>
+                                    ` : ''}
+                                    ${lastActivity ? `
+                                        <div style="font-size:12px;color:#999;margin-top:3px;">
+                                            Last Activity: ${utils.daysAgo(lastActivity)}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <button onclick="viewUserDashboard('${user.id}')" class="btn-small">
+                                    View Dashboard
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Load today's attendance for all users
+ */
+async function loadTodayAttendance(users) {
+    const container = document.getElementById('todayAttendanceList');
+    if (!container) return;
+
+    try {
+        const today = getLocalDateString(new Date());
+        const db = firebase.database();
+        
+        const attendancePromises = users.map(async (user) => {
+            const snapshot = await db.ref(`userAttendance/${user.id}/${today}`).once('value');
+            return {
+                user: user,
+                attendance: snapshot.val()
+            };
+        });
+
+        const results = await Promise.all(attendancePromises);
+
+        // Filter users who have attendance today
+        const withAttendance = results.filter(r => r.attendance);
+        const withoutAttendance = results.filter(r => !r.attendance);
+
+        if (withAttendance.length === 0) {
+            container.innerHTML = `
+                <p style="text-align:center;color:#999;padding:20px;">No attendance records for today</p>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="display:grid;gap:10px;">
+                ${withAttendance.map(({ user, attendance }) => {
+                    const clockIn = attendance.clockIn;
+                    const clockOut = attendance.clockOut;
+                    const duration = attendance.duration || 0;
+                    const isActive = !clockOut;
+
+                    // Calculate current duration if still clocked in
+                    let displayDuration = duration;
+                    if (isActive && clockIn) {
+                        const clockInTime = new Date(clockIn);
+                        const now = new Date();
+                        displayDuration = Math.floor((now - clockInTime) / 1000);
+                    }
+
+                    const hours = Math.floor(displayDuration / 3600);
+                    const minutes = Math.floor((displayDuration % 3600) / 60);
+
+                    return `
+                        <div style="background:#f9f9f9;padding:15px;border-radius:8px;border-left:4px solid ${isActive ? '#4caf50' : '#2196f3'};">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <strong>${user.displayName}</strong> 
+                                    <span style="font-size:12px;color:#666;">(${user.role})</span>
+                                    <div style="font-size:13px;margin-top:8px;color:#666;">
+                                        <div>⏰ Clock In: ${utils.formatDateTime(clockIn)}</div>
+                                        ${clockOut ? `
+                                            <div>⏰ Clock Out: ${utils.formatDateTime(clockOut)}</div>
+                                        ` : `
+                                            <div style="color:#4caf50;font-weight:600;">🟢 Currently Working</div>
+                                        `}
+                                    </div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:24px;font-weight:600;color:${isActive ? '#4caf50' : '#2196f3'};">
+                                        ${hours}h ${minutes}m
+                                    </div>
+                                    <div style="font-size:12px;color:#666;margin-top:5px;">
+                                        Work Duration
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+
+            ${withoutAttendance.length > 0 ? `
+                <div style="margin-top:20px;padding:15px;background:#fff3cd;border-radius:8px;border-left:4px solid #ffc107;">
+                    <strong>⚠️ No Clock In Today:</strong>
+                    <div style="margin-top:10px;font-size:13px;">
+                        ${withoutAttendance.map(({ user }) => 
+                            `<span style="display:inline-block;background:white;padding:5px 10px;margin:5px 5px 0 0;border-radius:4px;">${user.displayName}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `;
+
+    } catch (error) {
+        console.error('❌ Error loading today attendance:', error);
+        container.innerHTML = `
+            <p style="text-align:center;color:#f44336;padding:20px;">Error loading attendance data</p>
+        `;
+    }
+}
+
+/**
+ * View another user's dashboard (Admin feature)
+ */
+async function viewUserDashboard(userId) {
+    const user = window.allUsers[userId];
+    if (!user) {
+        alert('User not found');
+        return;
+    }
+
+    // Show modal with user's dashboard
+    const modal = document.getElementById('userModal');
+    const modalTitle = document.getElementById('userModalTitle');
+    const modalContent = document.getElementById('userModalContent');
+
+    if (!modal || !modalTitle || !modalContent) return;
+
+    modalTitle.textContent = `📊 ${user.displayName}'s Dashboard`;
+    modalContent.innerHTML = `<p style="text-align:center;color:#999;padding:40px;">Loading dashboard...</p>`;
+    modal.style.display = 'block';
+
+    try {
+        // Get user's stats
+        const userRepairs = window.allRepairs.filter(r => {
+            if (user.role === 'technician') {
+                return r.technicianId === userId;
+            } else if (user.role === 'cashier') {
+                return r.receivedById === userId || (r.payments && r.payments.some(p => p.receivedById === userId));
+            }
+            return false;
+        });
+
+        const today = getLocalDateString(new Date());
+        const todayRepairs = userRepairs.filter(r => {
+            const createdDate = r.createdAt ? getLocalDateString(new Date(r.createdAt)) : null;
+            return createdDate === today;
+        });
+
+        // Get attendance data
+        const db = firebase.database();
+        const attendanceSnapshot = await db.ref(`userAttendance/${userId}`).limitToLast(7).once('value');
+        const attendanceData = attendanceSnapshot.val() || {};
+        const attendanceDates = Object.keys(attendanceData).sort().reverse();
+
+        // Get activity status
+        const activity = window.allUserActivity[userId];
+        const isClockedIn = activity?.currentStatus === 'clocked-in';
+
+        modalContent.innerHTML = `
+            <!-- User Info -->
+            <div style="background:#f9f9f9;padding:20px;border-radius:8px;margin-bottom:20px;">
+                <h3 style="margin:0 0 10px 0;">${user.displayName}</h3>
+                <div style="font-size:14px;color:#666;">
+                    <div><strong>Role:</strong> ${user.role.toUpperCase()}</div>
+                    <div><strong>Email:</strong> ${user.email}</div>
+                    <div><strong>Status:</strong> 
+                        <span style="color:${isClockedIn ? '#4caf50' : '#999'};font-weight:600;">
+                            ${isClockedIn ? '🟢 Clocked In' : '⚫ Clocked Out'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;margin-bottom:20px;">
+                <div class="stat-card alert-card-info">
+                    <h3>${userRepairs.length}</h3>
+                    <p>Total Repairs</p>
+                </div>
+                <div class="stat-card alert-card-success">
+                    <h3>${todayRepairs.length}</h3>
+                    <p>Today's Work</p>
+                </div>
+            </div>
+
+            <!-- Recent Attendance -->
+            <div style="margin-top:20px;">
+                <h4>📅 Recent Attendance (Last 7 Days)</h4>
+                ${attendanceDates.length === 0 ? `
+                    <p style="color:#999;padding:20px;text-align:center;">No attendance records</p>
+                ` : `
+                    <div style="margin-top:15px;">
+                        ${attendanceDates.map(date => {
+                            const record = attendanceData[date];
+                            const duration = record.duration || 0;
+                            const hours = Math.floor(duration / 3600);
+                            const minutes = Math.floor((duration % 3600) / 60);
+
+                            return `
+                                <div style="background:#f9f9f9;padding:12px;margin-bottom:8px;border-radius:6px;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                                        <div>
+                                            <strong>${utils.formatDate(record.clockIn)}</strong>
+                                            <div style="font-size:12px;color:#666;margin-top:4px;">
+                                                ${record.clockIn ? utils.formatDateTime(record.clockIn) : 'N/A'} - 
+                                                ${record.clockOut ? utils.formatDateTime(record.clockOut) : 'No clock out'}
+                                            </div>
+                                        </div>
+                                        <div style="font-weight:600;color:#2196f3;">
+                                            ${hours}h ${minutes}m
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `}
+            </div>
+
+            <div style="margin-top:20px;text-align:center;">
+                <button onclick="closeUserModal()" class="btn-secondary">Close</button>
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('❌ Error loading user dashboard:', error);
+        modalContent.innerHTML = `
+            <p style="text-align:center;color:#f44336;padding:40px;">Error loading dashboard</p>
+            <div style="text-align:center;">
+                <button onclick="closeUserModal()" class="btn-secondary">Close</button>
+            </div>
+        `;
+    }
 }
 
 function buildUsersTab(container) {
@@ -13063,3 +13428,8 @@ window.scanForCleanupFiles = scanForCleanupFiles;
 window.downloadAllCleanupFiles = downloadAllCleanupFiles;
 window.confirmCleanupDelete = confirmCleanupDelete;
 
+// Export Staff Overview functions
+window.buildStaffOverviewTab = buildStaffOverviewTab;
+window.renderStaffStatusList = renderStaffStatusList;
+window.loadTodayAttendance = loadTodayAttendance;
+window.viewUserDashboard = viewUserDashboard;

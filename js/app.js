@@ -115,8 +115,11 @@ async function initializeApp() {
 
         console.log('🎯 Loading savings goals...');
         await loadSavingsGoals();
-        console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);
-        console.log('�🔖 Building tabs...');
+        console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);        
+        console.log('🕐 Initializing attendance system...');
+        initAttendanceListeners();
+        console.log('✅ Attendance system initialized');
+                console.log('�🔖 Building tabs...');
         buildTabs();
 
         console.log('🎨 Initializing sidebars...');
@@ -193,7 +196,7 @@ async function initializeApp() {
 /**
  * Update header with user information
  */
-function updateHeaderUserInfo() {
+async function updateHeaderUserInfo() {
     try {
         const userName = document.getElementById('userName');
         const userRole = document.getElementById('userRole');
@@ -213,11 +216,96 @@ function updateHeaderUserInfo() {
             userAvatar.src = avatarUrl;
 
             console.log('✅ Header updated');
+            
+            // Update clock in/out widget for technicians and cashiers
+            if (['technician', 'cashier'].includes(window.currentUserData.role)) {
+                await updateClockInOutWidget();
+            }
         }
     } catch (error) {
         console.error('❌ Error updating header:', error);
     }
 }
+
+/**
+ * Update clock in/out widget
+ */
+async function updateClockInOutWidget() {
+    const widget = document.getElementById('clockInOutWidget');
+    const btn = document.getElementById('clockInOutBtn');
+    const btnText = document.getElementById('clockBtnText');
+    const clockIcon = document.getElementById('clockIcon');
+    const workTimeDisplay = document.getElementById('workTimeDisplay');
+
+    if (!widget || !btn) return;
+
+    // Show widget
+    widget.style.display = 'block';
+
+    // Get current status
+    const status = await getUserAttendanceStatus();
+    const todayHours = await getTodayWorkHours();
+
+    if (status.currentStatus === 'clocked-in') {
+        btnText.textContent = 'Clock Out';
+        clockIcon.textContent = '🔴';
+        btn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+        
+        // Show live work time
+        if (todayHours.clockedIn) {
+            const duration = todayHours.duration;
+            const hours = Math.floor(duration / 3600);
+            const minutes = Math.floor((duration % 3600) / 60);
+            workTimeDisplay.textContent = `${hours}h ${minutes}m`;
+            workTimeDisplay.style.color = '#4caf50';
+            workTimeDisplay.style.fontWeight = 'bold';
+        }
+    } else {
+        btnText.textContent = 'Clock In';
+        clockIcon.textContent = '🕐';
+        btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        
+        // Show today's total work time if clocked out
+        if (todayHours.duration > 0) {
+            const duration = todayHours.duration;
+            const hours = Math.floor(duration / 3600);
+            const minutes = Math.floor((duration % 3600) / 60);
+            workTimeDisplay.textContent = `Today: ${hours}h ${minutes}m`;
+            workTimeDisplay.style.color = '#666';
+            workTimeDisplay.style.fontWeight = 'normal';
+        } else {
+            workTimeDisplay.textContent = '';
+        }
+    }
+}
+
+/**
+ * Handle clock in/out button click
+ */
+async function handleClockInOut() {
+    const status = await getUserAttendanceStatus();
+    
+    if (status.currentStatus === 'clocked-in') {
+        // Confirm before clocking out
+        if (confirm('Are you sure you want to clock out?')) {
+            await clockOut();
+            await updateClockInOutWidget();
+        }
+    } else {
+        await clockIn();
+        await updateClockInOutWidget();
+    }
+}
+
+// Update work time display every minute for clocked-in users
+setInterval(async () => {
+    if (window.currentUserData && ['technician', 'cashier'].includes(window.currentUserData.role)) {
+        const status = await getUserAttendanceStatus();
+        if (status.currentStatus === 'clocked-in') {
+            await updateClockInOutWidget();
+        }
+    }
+}, 60000); // Every 1 minute
 
 /**
  * Stats functions removed - Now accessible via sidebar navigation
@@ -361,6 +449,8 @@ function setupBackButtonHandler() {
 // Export to global scope
 window.initializeApp = initializeApp;
 window.updateHeaderUserInfo = updateHeaderUserInfo;
+window.updateClockInOutWidget = updateClockInOutWidget;
+window.handleClockInOut = handleClockInOut;
 window.closePhotoModal = closePhotoModal;
 window.showPhotoModal = showPhotoModal;
 window.closeUserModal = closeUserModal;
