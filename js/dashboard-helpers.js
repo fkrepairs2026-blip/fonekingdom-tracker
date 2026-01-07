@@ -306,61 +306,64 @@ function buildManagerDashboard(userName, stats) {
  */
 function buildAdminDashboard(userName, stats) {
     const recentActivities = getRecentActivities(10);
+    
+    // Get staff overview stats
+    const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active' && u.role !== 'admin');
+    const allUserActivity = window.allUserActivity || {};
+    const clockedInCount = users.filter(u => allUserActivity[u.id]?.currentStatus === 'clocked-in').length;
+    
+    // Get personal finance balance
+    const personalExpenses = window.personalExpenses || [];
+    const totalPersonalExpenses = personalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+    const personalBudgets = window.personalBudgets || [];
+    const totalBudget = personalBudgets.reduce((sum, budget) => sum + parseFloat(budget.monthlyAmount || 0), 0);
+    const personalBalance = totalBudget - totalPersonalExpenses;
 
     return `
         <div class="dashboard-container">
             <div class="page-header">
                 <h2>👋 Welcome back, ${userName}!</h2>
-                <p style="color:var(--text-secondary);">System health & oversight dashboard</p>
+                <p style="color:var(--text-secondary);">Administration & oversight dashboard</p>
             </div>
             
-            <!-- Primary Metrics -->
+            <!-- Admin-Focused Metrics -->
             <div class="dashboard-stats-grid">
                 ${utils.createStatCard(
-        'Revenue Today (Shop 60%)',
+        'Staff Overview',
+        `${clockedInCount}/${users.length}`,
+        `${clockedInCount} staff currently clocked in`,
+        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        'staff-overview',
+        '👥'
+    )}
+                ${utils.createStatCard(
+        'Profit Dashboard',
         '₱' + stats.revenueToday.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
-        `Cash: ₱${(stats.todayCashRevenue || 0).toFixed(2)} | GCash: ₱${(stats.todayGCashRevenue || 0).toFixed(2)}`,
+        'Shop revenue today (60% share)',
         'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-        'analytics',
+        'profit-dashboard',
         '💰'
     )}
                 ${utils.createStatCard(
-        'Ready for Release',
-        stats.released,
-        'Awaiting customer pickup',
+        'Usage Analytics',
+        Object.keys(allUserActivity).length + ' active',
+        'System activity tracking',
         'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        'forrelease',
-        '📦'
+        'usage-analytics',
+        '📊'
     )}
                 ${utils.createStatCard(
-        'Claimed Today',
-        stats.claimedToday,
-        'Successfully finalized',
-        'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
-        'claimed',
-        '✅'
-    )}
-                ${utils.createStatCard(
-        'All Devices',
-        stats.totalActive,
-        `${stats.inProgress} in progress`,
-        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        'all',
-        '📱'
-    )}
-                ${utils.createStatCard(
-        'Avg Completion Time',
-        stats.avgCompletionDays + ' days',
-        'This week average',
+        'My Finances',
+        '₱' + personalBalance.toLocaleString('en-PH', { minimumFractionDigits: 2 }),
+        `Budget: ₱${totalBudget.toFixed(2)} | Spent: ₱${totalPersonalExpenses.toFixed(2)}`,
         'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-        'analytics',
-        '⏱️'
+        'myfinances',
+        '💳'
     )}
-                ${buildDataHealthWidget()}
             </div>
             
-            <!-- Admin Alerts Section -->
-            ${(stats.pendingModRequests > 0 || stats.staleInProgress > 0 || stats.overduePickup > 0 || stats.pendingRemittances > 0) ? `
+            <!-- Admin Alerts Section (Only mod requests) -->
+            ${stats.pendingModRequests > 0 ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
         'Modification Requests',
@@ -368,27 +371,6 @@ function buildAdminDashboard(userName, stats) {
         'high',
         'mod-requests',
         '🔔'
-    )}
-                    ${utils.createAlertCard(
-        'Stale Repairs (>5 days)',
-        stats.staleInProgress,
-        'high',
-        'inprogress',
-        '🔴'
-    )}
-                    ${utils.createAlertCard(
-        'Overdue Pickups (>3 days)',
-        stats.overduePickup,
-        'medium',
-        'forrelease',
-        '⚠️'
-    )}
-                    ${utils.createAlertCard(
-        'Pending Remittances',
-        stats.pendingRemittances,
-        'medium',
-        'verify-remittance',
-        '📥'
     )}
                 </div>
             ` : ''}

@@ -78,22 +78,24 @@ function buildTabs() {
         );
     }
     else if (role === 'admin' || role === 'manager') {
-        // Operations
-        sections.operations.tabs.push(
-            { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
-            { id: 'backjob-reception', label: 'Back Job Reception', icon: '🔄', build: buildBackJobReceptionTab },
-            { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
-            { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
-            { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
-            { id: 'rto', label: 'RTO Devices', icon: '↩️', build: buildRTODevicesTab },
-            { id: 'claimed', label: 'Claimed Units', icon: '✅', build: buildClaimedUnitsPage }
-        );
-        // Payments
-        sections.payments.tabs.push(
-            { id: 'pending', label: 'Pending Verification', icon: '⏳', build: buildPendingTab },
-            { id: 'cash', label: 'Cash Count', icon: '💵', build: buildCashCountTab },
-            { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab }
-        );
+        // Operations (only for manager, not admin)
+        if (role === 'manager') {
+            sections.operations.tabs.push(
+                { id: 'receive', label: 'Receive Device', icon: '➕', build: buildReceiveDeviceTab },
+                { id: 'backjob-reception', label: 'Back Job Reception', icon: '🔄', build: buildBackJobReceptionTab },
+                { id: 'received', label: 'Received Devices', icon: '📥', build: buildReceivedDevicesPage },
+                { id: 'inprogress', label: 'In Progress', icon: '🔧', build: buildInProgressPage },
+                { id: 'forrelease', label: 'For Release', icon: '📦', build: buildForReleasePage },
+                { id: 'rto', label: 'RTO Devices', icon: '↩️', build: buildRTODevicesTab },
+                { id: 'claimed', label: 'Claimed Units', icon: '✅', build: buildClaimedUnitsPage }
+            );
+            // Payments (manager only)
+            sections.payments.tabs.push(
+                { id: 'pending', label: 'Pending Verification', icon: '⏳', build: buildPendingTab },
+                { id: 'cash', label: 'Cash Count', icon: '💵', build: buildCashCountTab },
+                { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab }
+            );
+        }
         // Inventory & Reports
         sections.inventory.tabs.push(
             { id: 'all', label: 'All Repairs', icon: '📋', build: buildAllRepairsTab },
@@ -283,9 +285,16 @@ function renderMobileBottomNav() {
             { id: 'search', icon: '🔍', label: 'Search' },
             { id: 'remittance', icon: '💸', label: 'Remittance' }
         );
-    } else if (role === 'admin' || role === 'manager') {
+    } else if (role === 'admin') {
         quickTabs.push(
-            { id: 'admin-tools', icon: '⚙️', label: 'Admin' },
+            { id: 'staff-overview', icon: '👥', label: 'Staff' },
+            { id: 'profit-dashboard', icon: '💰', label: 'Profit' },
+            { id: 'dashboard', icon: '🏠', label: 'Home' },
+            { id: 'usage-analytics', icon: '📊', label: 'Analytics' },
+            { id: 'myfinances', icon: '💳', label: 'Finances' }
+        );
+    } else if (role === 'manager') {
+        quickTabs.push(
             { id: 'analytics', icon: '📈', label: 'Profit' },
             { id: 'dashboard', icon: '🏠', label: 'Home' },
             { id: 'verify-remittance', icon: '✅', label: 'Verify' },
@@ -4022,16 +4031,16 @@ function buildStaffOverviewTab(container) {
     console.log('👥 Building Staff Overview tab');
     window.currentTabRefresh = () => buildStaffOverviewTab(document.getElementById('staff-overviewTab'));
 
-    const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active');
+    // Exclude admin role from staff overview
+    const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active' && u.role !== 'admin');
     const allUserActivity = window.allUserActivity || {};
     console.log('📊 User Activity Data:', allUserActivity, '- Total keys:', Object.keys(allUserActivity).length);
     const today = getLocalDateString(new Date());
 
-    // Categorize users
+    // Categorize users (no admins)
     const technicians = users.filter(u => u.role === 'technician');
     const cashiers = users.filter(u => u.role === 'cashier');
     const managers = users.filter(u => u.role === 'manager');
-    const admins = users.filter(u => u.role === 'admin');
 
     // Count currently clocked in
     const clockedInTechs = technicians.filter(t => allUserActivity[t.id]?.currentStatus === 'clocked-in').length;
