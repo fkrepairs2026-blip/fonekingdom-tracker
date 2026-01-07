@@ -4014,6 +4014,7 @@ function buildSuppliersTab(container) {
  */
 function buildStaffOverviewTab(container) {
     console.log('👥 Building Staff Overview tab');
+    console.log('📊 User Activity Data:', window.allUserActivity);
     window.currentTabRefresh = () => buildStaffOverviewTab(document.getElementById('staff-overviewTab'));
 
     const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active');
@@ -4103,6 +4104,12 @@ function buildStaffOverviewTab(container) {
  */
 function renderStaffStatusList(users, allUserActivity, groupName, icon) {
     if (users.length === 0) return '';
+
+    console.log(`🔍 Rendering ${groupName}:`, users.map(u => ({
+        name: u.displayName,
+        id: u.id,
+        activity: allUserActivity[u.id]
+    })));
 
     return `
         <div style="margin:20px 0;">
