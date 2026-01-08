@@ -62,13 +62,25 @@ async function initializeApp() {
         await loadModificationRequests();
         console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
 
-        console.log('📦 Loading retroactive intakes...');
-        await loadRetroactiveIntakes();
-        console.log('✅ Retroactive intakes loaded:', window.allRetroactiveIntakes.length);
+        // Load retroactive intakes (optional - won't block if collection doesn't exist)
+        try {
+            console.log('📦 Loading retroactive intakes...');
+            await loadRetroactiveIntakes();
+            console.log('✅ Retroactive intakes loaded:', window.allRetroactiveIntakes.length);
+        } catch (error) {
+            console.warn('⚠️ Retroactive intakes not loaded (collection may not exist yet):', error.message);
+            window.allRetroactiveIntakes = [];
+        }
 
-        console.log('📦 Loading system settings...');
-        await loadSystemSettings();
-        console.log('✅ System settings loaded');
+        // Load system settings (optional - won't block if doesn't exist)
+        try {
+            console.log('📦 Loading system settings...');
+            await loadSystemSettings();
+            console.log('✅ System settings loaded');
+        } catch (error) {
+            console.warn('⚠️ System settings not loaded, using defaults:', error.message);
+            window.systemSettings = { retroactiveIntakeThreshold: 5 };
+        }
 
         console.log('📦 Loading parts orders...');
         await loadPartsOrders();

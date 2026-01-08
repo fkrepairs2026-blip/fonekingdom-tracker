@@ -130,35 +130,55 @@ window.loadModificationRequests = loadModificationRequests;
  * Load retroactive intakes from Firebase
  */
 async function loadRetroactiveIntakes() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         console.log('📦 Loading retroactive intakes...');
 
-        db.ref('retroactiveIntakes').orderByChild('performedAt').on('value', (snapshot) => {
+        const timeout = setTimeout(() => {
+            console.warn('⚠️ Retroactive intakes load timeout');
+            resolve([]); // Resolve with empty array instead of rejecting
+        }, 5000); // 5 second timeout
+
+        try {
+            db.ref('retroactiveIntakes').orderByChild('performedAt').on('value', (snapshot) => {
+                clearTimeout(timeout);
+                window.allRetroactiveIntakes = [];
+
+                if (snapshot.exists()) {
+                    snapshot.forEach((child) => {
+                        window.allRetroactiveIntakes.push({
+                            id: child.key,
+                            ...child.val()
+                        });
+                    });
+
+                    // Sort by performedAt descending (most recent first)
+                    window.allRetroactiveIntakes.sort((a, b) => {
+                        return new Date(b.performedAt) - new Date(a.performedAt);
+                    });
+                }
+
+                console.log('✅ Retroactive intakes loaded:', window.allRetroactiveIntakes.length);
+
+                // Refresh retroactive intakes tab if currently viewing
+                if (window.currentTabRefresh && window.activeTab === 'retroactive-intakes') {
+                    setTimeout(() => {
+                        window.currentTabRefresh();
+                    }, 400);
+                }
+
+                resolve(window.allRetroactiveIntakes);
+            }, (error) => {
+                clearTimeout(timeout);
+                console.warn('⚠️ Error loading retroactive intakes:', error);
+                window.allRetroactiveIntakes = [];
+                resolve([]); // Resolve with empty array instead of rejecting
+            });
+        } catch (error) {
+            clearTimeout(timeout);
+            console.warn('⚠️ Error setting up retroactive intakes listener:', error);
             window.allRetroactiveIntakes = [];
-
-            snapshot.forEach((child) => {
-                window.allRetroactiveIntakes.push({
-                    id: child.key,
-                    ...child.val()
-                });
-            });
-
-            // Sort by performedAt descending (most recent first)
-            window.allRetroactiveIntakes.sort((a, b) => {
-                return new Date(b.performedAt) - new Date(a.performedAt);
-            });
-
-            console.log('✅ Retroactive intakes loaded:', window.allRetroactiveIntakes.length);
-
-            // Refresh retroactive intakes tab if currently viewing
-            if (window.currentTabRefresh && window.activeTab === 'retroactive-intakes') {
-                setTimeout(() => {
-                    window.currentTabRefresh();
-                }, 400);
-            }
-
-            resolve(window.allRetroactiveIntakes);
-        });
+            resolve([]); // Resolve with empty array instead of rejecting
+        }
     });
 }
 
@@ -168,18 +188,37 @@ window.loadRetroactiveIntakes = loadRetroactiveIntakes;
  * Load system settings from Firebase
  */
 async function loadSystemSettings() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         console.log('📦 Loading system settings...');
 
-        db.ref('systemSettings').on('value', (snapshot) => {
-            window.systemSettings = snapshot.val() || {
-                retroactiveIntakeThreshold: 5
-            };
-
-            console.log('✅ System settings loaded:', window.systemSettings);
-
+        const timeout = setTimeout(() => {
+            console.warn('⚠️ System settings load timeout, using defaults');
+            window.systemSettings = { retroactiveIntakeThreshold: 5 };
             resolve(window.systemSettings);
-        });
+        }, 5000); // 5 second timeout
+
+        try {
+            db.ref('systemSettings').on('value', (snapshot) => {
+                clearTimeout(timeout);
+                window.systemSettings = snapshot.val() || {
+                    retroactiveIntakeThreshold: 5
+                };
+
+                console.log('✅ System settings loaded:', window.systemSettings);
+
+                resolve(window.systemSettings);
+            }, (error) => {
+                clearTimeout(timeout);
+                console.warn('⚠️ Error loading system settings:', error);
+                window.systemSettings = { retroactiveIntakeThreshold: 5 };
+                resolve(window.systemSettings);
+            });
+        } catch (error) {
+            clearTimeout(timeout);
+            console.warn('⚠️ Error setting up system settings listener:', error);
+            window.systemSettings = { retroactiveIntakeThreshold: 5 };
+            resolve(window.systemSettings);
+        }
     });
 }
 
