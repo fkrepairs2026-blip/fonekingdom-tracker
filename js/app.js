@@ -122,8 +122,15 @@ async function initializeApp() {
         console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);
         console.log('🕐 Initializing attendance system...');
         initAttendanceListeners();
-        console.log('✅ Attendance system initialized');
-        console.log('�🔖 Building tabs...');
+        console.log('✅ Attendance system initialized');        
+        // Start clock reminder system for techs/cashiers
+        const role = window.currentUserData.role;
+        if (['technician', 'cashier'].includes(role)) {
+            if (window.startClockReminderSystem) {
+                window.startClockReminderSystem();
+            }
+        }
+                console.log('�🔖 Building tabs...');
         buildTabs();
 
         console.log('🎨 Initializing sidebars...');

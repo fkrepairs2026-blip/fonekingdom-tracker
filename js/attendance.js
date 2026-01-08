@@ -377,11 +377,154 @@ function goToRemittanceTab() {
 }
 window.goToRemittanceTab = goToRemittanceTab;
 window.getUserAttendanceStatus = getUserAttendanceStatus;
+/**
+ * Clock Reminder System
+ * Reminds techs/cashiers to clock in/out at configured times
+ */
+let clockReminderInterval = null;
+window.clockReminderSettings = {
+    enabled: true,
+    clockInTime: '08:00',
+    clockOutTime: '17:50',
+    reminderWindow: 15,
+    workDays: [1, 2, 3, 4, 5, 6]
+};
+
+async function loadClockReminderSettings() {
+    try {
+        const snapshot = await db.ref('clockReminderSettings').once('value');
+        if (snapshot.exists()) {
+            const settings = snapshot.val();
+            window.clockReminderSettings = {
+                enabled: settings.enabled !== false,
+                clockInTime: settings.clockInTime || '08:00',
+                clockOutTime: settings.clockOutTime || '17:50',
+                reminderWindow: settings.reminderWindow || 15,
+                workDays: settings.workDays || [1, 2, 3, 4, 5, 6]
+            };
+            console.log('⏰ Clock reminder settings loaded:', window.clockReminderSettings);
+        }
+    } catch (error) {
+        console.error('❌ Error loading clock reminder settings:', error);
+    }
+}
+
+function checkClockReminder() {
+    const role = window.currentUserData?.role;
+    if (!role || !['technician', 'cashier'].includes(role)) return;
+    if (!window.clockReminderSettings.enabled) return;
+    
+    const manilaTimeStr = new Date().toLocaleString('en-US', {
+        timeZone: 'Asia/Manila',
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        weekday: 'short'
+    });
+    
+    const [weekday, time] = manilaTimeStr.split(', ');
+    const [hours, minutes] = time.split(':').map(Number);
+    const currentMinutes = hours * 60 + minutes;
+    
+    const dayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+    const dayOfWeek = dayMap[weekday];
+    
+    if (!window.clockReminderSettings.workDays.includes(dayOfWeek)) return;
+    
+    const [clockInHour, clockInMin] = window.clockReminderSettings.clockInTime.split(':').map(Number);
+    const clockInMinutes = clockInHour * 60 + clockInMin;
+    const clockInWindowEnd = clockInMinutes + window.clockReminderSettings.reminderWindow;
+    
+    const [clockOutHour, clockOutMin] = window.clockReminderSettings.clockOutTime.split(':').map(Number);
+    const clockOutMinutes = clockOutHour * 60 + clockOutMin;
+    const clockOutWindowEnd = clockOutMinutes + window.clockReminderSettings.reminderWindow;
+    
+    const userId = window.currentUser?.uid;
+    if (!userId) return;
+    
+    const userActivity = window.allUserActivity?.[userId];
+    const isClockedIn = userActivity?.currentStatus === 'clocked-in';
+    
+    if (!isClockedIn && currentMinutes >= clockInMinutes && currentMinutes <= clockInWindowEnd) {
+        const lastReminder = sessionStorage.getItem(`lastClockInReminder_${userId}`);
+        const now = Date.now();
+        
+        if (!lastReminder || (now - parseInt(lastReminder)) > 15 * 60 * 1000) {
+            const timeStr = window.clockReminderSettings.clockInTime;
+            utils.showToast(
+                `⏰ Time to clock in! It's ${timeStr} - start your shift.`,
+                'warning',
+                8000
+            );
+            sessionStorage.setItem(`lastClockInReminder_${userId}`, now.toString());
+            console.log('⏰ Clock-in reminder shown');
+        }
+    }
+    
+    if (isClockedIn && currentMinutes >= clockOutMinutes && currentMinutes <= clockOutWindowEnd) {
+        const lastReminder = sessionStorage.getItem(`lastClockOutReminder_${userId}`);
+        const now = Date.now();
+        
+        if (!lastReminder || (now - parseInt(lastReminder)) > 15 * 60 * 1000) {
+            const timeStr = window.clockReminderSettings.clockOutTime;
+            utils.showToast(
+                `⏰ Time to clock out! It's ${timeStr} - end your shift.`,
+                'warning',
+                8000
+            );
+            sessionStorage.setItem(`lastClockOutReminder_${userId}`, now.toString());
+            console.log('⏰ Clock-out reminder shown');
+        }
+    }
+}
+
+async function startClockReminderSystem() {
+    console.log('⏰ Initializing clock reminder system...');
+    await loadClockReminderSettings();
+    
+    if (clockReminderInterval) {
+        clearInterval(clockReminderInterval);
+    }
+    
+    clockReminderInterval = setInterval(checkClockReminder, 300000);
+    setTimeout(checkClockReminder, 10000);
+    
+    console.log('✅ Clock reminder system started');
+}
+
+async function saveClockReminderSettings(settings) {
+    if (window.currentUserData?.role !== 'admin') {
+        throw new Error('Only admins can modify clock reminder settings');
+    }
+    
+    try {
+        await db.ref('clockReminderSettings').set({
+            enabled: settings.enabled !== false,
+            clockInTime: settings.clockInTime || '08:00',
+            clockOutTime: settings.clockOutTime || '17:50',
+            reminderWindow: settings.reminderWindow || 15,
+            workDays: settings.workDays || [1, 2, 3, 4, 5, 6],
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        window.clockReminderSettings = { ...settings };
+        console.log('✅ Clock reminder settings saved');
+        return true;
+    } catch (error) {
+        console.error('❌ Error saving clock reminder settings:', error);
+        throw error;
+    }
+}
+
 window.getUserAttendanceRecords = getUserAttendanceRecords;
 window.getTodayWorkHours = getTodayWorkHours;
 window.getAllUsersStatus = getAllUsersStatus;
 window.getAttendanceSummary = getAttendanceSummary;
 window.formatDuration = formatDuration;
 window.initAttendanceListeners = initAttendanceListeners;
+window.startClockReminderSystem = startClockReminderSystem;
+window.saveClockReminderSettings = saveClockReminderSettings;
+window.loadClockReminderSettings = loadClockReminderSettings;
 
 console.log('✅ Attendance module loaded');
