@@ -22,6 +22,10 @@ window.allActivityLogs = [];
 window.allUsers = {};
 // Global tech remittances
 window.techRemittances = [];
+// Global retroactive intakes
+window.allRetroactiveIntakes = [];
+// Global system settings
+window.systemSettings = { retroactiveIntakeThreshold: 5 };
 
 /**
  * Load all repairs from Firebase

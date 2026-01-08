@@ -1123,7 +1123,7 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <!-- Retroactive Completion Mode (Tech/Admin/Manager only) -->
-                <div id="retroactiveSection" style="display:${['technician', 'admin', 'manager'].includes(window.currentUserData.role) ? 'block' : 'none'};background:#fff3e0;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #ff9800;">
+                <div id="retroactiveSection" style="display:${window.currentUserData && ['technician', 'admin', 'manager'].includes(window.currentUserData.role) ? 'block' : 'none'};background:#fff3e0;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #ff9800;">
                     <h4 style="margin:0 0 12px 0;color:#e65100;">⚡ Retroactive Completion Mode <span style="font-size:12px;color:#666;font-weight:normal;">(Device already repaired)</span></h4>
                     
                     <div style="margin-bottom:15px;">
@@ -1164,7 +1164,7 @@ function buildReceiveDeviceTab(container) {
                             </div>
                         </div>
                         
-                        ${window.currentUserData.role === 'admin' ? `
+                        ${window.currentUserData && window.currentUserData.role === 'admin' ? `
                         <div class="form-group">
                             <label style="display:flex;align-items:center;gap:8px;">
                                 <input type="checkbox" id="releasedAdminDateOverride" name="releasedAdminDateOverride">
@@ -1253,7 +1253,7 @@ function buildReceiveDeviceTab(container) {
                             </div>
                         </div>
                         
-                        ${window.currentUserData.role === 'admin' ? `
+                        ${window.currentUserData && window.currentUserData.role === 'admin' ? `
                         <div class="form-group">
                             <label style="display:flex;align-items:center;gap:8px;">
                                 <input type="checkbox" id="claimedAdminDateOverride" name="claimedAdminDateOverride">
