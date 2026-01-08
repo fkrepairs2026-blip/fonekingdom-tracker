@@ -1192,7 +1192,8 @@ body.left-sidebar-collapsed .main-content {
     padding: var(--spacing-lg);
     border-top: 1px solid var(--border-color);
     /* animation: slideDown 0.3s ease; */
-    opacity: 1 !important; /* Force visible - override any animation */
+    opacity: 1 !important;
+    /* Force visible - override any animation */
 }
 
 @keyframes slideDown {
@@ -2343,6 +2344,20 @@ button:disabled {
     margin-bottom: 20px;
     border-radius: 8px;
     border: 1px solid var(--border-color);
+    position: relative;
+}
+
+.table-responsive table {
+    min-width: 600px; /* Prevent excessive squeezing */
+    margin-bottom: 0;
+}
+
+/* Increase touch targets in tables for mobile */
+.table-responsive table td button,
+.table-responsive table td .btn-small {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 10px 12px;
 }
 
 .table-responsive::-webkit-scrollbar {
@@ -2541,6 +2556,88 @@ button:disabled {
         padding: 6px;
     }
 
+    /* ===== MOBILE FORM & GRID OVERRIDES ===== */
+    
+    /* Force single-column layouts for all grid forms on mobile */
+    [style*="grid-template-columns"] input,
+    [style*="grid-template-columns"] select,
+    [style*="grid-template-columns"] textarea {
+        font-size: 16px !important; /* Prevent iOS zoom on focus */
+        min-height: 48px;
+        padding: 12px;
+    }
+
+    /* Override inline grid styles to stack on mobile */
+    .modal-content [style*="grid-template-columns: 1fr 1fr"],
+    .tab-contents [style*="grid-template-columns: 1fr 1fr"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    .modal-content [style*="grid-template-columns: 1fr 1fr auto"],
+    .tab-contents [style*="grid-template-columns: 1fr 1fr auto"] {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    /* Stats grids - force single column on mobile */
+    [style*="minmax(150px"],
+    [style*="minmax(200px"],
+    [style*="minmax(250px"],
+    [style*="minmax(300px"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* ===== MOBILE TABLE ENHANCEMENTS ===== */
+    
+    /* Ensure tables are horizontally scrollable */
+    .table-responsive {
+        border: none;
+        margin: 0 -12px 20px -12px; /* Extend to screen edges */
+        border-radius: 0;
+    }
+
+    .table-responsive table {
+        font-size: 13px; /* Slightly smaller on mobile */
+    }
+
+    .table-responsive table th,
+    .table-responsive table td {
+        padding: 10px 8px; /* Tighter padding */
+        white-space: nowrap; /* Prevent text wrapping in cells */
+    }
+
+    /* Touch-friendly action buttons in tables */
+    .table-responsive table td button {
+        font-size: 12px;
+        padding: 8px 10px;
+        margin: 2px;
+    }
+
+    /* ===== iOS/ANDROID COMPATIBILITY FIXES ===== */
+    
+    input, select, textarea {
+        font-size: 16px !important; /* Prevent zoom on iOS */
+        -webkit-appearance: none; /* Remove default iOS styling */
+        appearance: none;
+    }
+
+    button {
+        touch-action: manipulation; /* Remove 300ms tap delay on Android */
+        -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+    }
+
+    /* Ensure modals don't break on small screens */
+    .modal-content {
+        max-width: 100%;
+        margin: 20px;
+        max-height: calc(100vh - 40px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
     /* Move stats to bottom on mobile so content shows first */
     .stats-container {
         order: 2;
@@ -2647,23 +2744,24 @@ button:disabled {
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
     }
-    
+
     .stat-card {
         padding: 12px;
     }
-    
+
     .stat-card h3 {
         font-size: 26px;
     }
-    
+
     .repair-card {
         padding: 12px;
     }
-    
+
     .form-group input,
     .form-group textarea,
     .form-group select {
-        font-size: 16px; /* Prevent iOS zoom on focus */
+        font-size: 16px;
+        /* Prevent iOS zoom on focus */
     }
 }
 
@@ -2672,21 +2770,21 @@ button:disabled {
     .stats-container {
         grid-template-columns: repeat(3, 1fr);
     }
-    
+
     .repair-card {
         padding: 18px;
     }
-    
+
     .tab {
         padding: 12px 20px;
         font-size: 14px;
     }
-    
+
     /* Tables can show more columns */
     .table-responsive {
         overflow-x: visible;
     }
-    
+
     /* Show table view by default on tablets */
     .table-view-toggle {
         display: block;
@@ -2699,24 +2797,24 @@ button:disabled {
         grid-template-columns: 1fr;
         gap: 6px;
     }
-    
+
     .stat-card {
         padding: 10px;
     }
-    
+
     .stat-card h3 {
         font-size: 24px;
     }
-    
+
     .stat-card p {
         font-size: 10px;
     }
-    
+
     .btn {
         font-size: 13px;
         padding: 8px 12px;
     }
-    
+
     .header-left h2 {
         font-size: 14px;
     }
@@ -6367,12 +6465,12 @@ input:checked+.toggle-slider:before {
     .budget-card {
         padding: 12px;
     }
-    
+
     .budget-card h4 {
         font-size: 16px;
         margin: 0 0 10px 0;
     }
-    
+
     .budget-card .stat-value {
         font-size: 20px !important;
     }
@@ -6388,7 +6486,7 @@ input:checked+.toggle-slider:before {
     #expenseTableContainer table {
         font-size: 12px;
     }
-    
+
     #expenseTableContainer th,
     #expenseTableContainer td {
         padding: 8px 4px;
@@ -6405,26 +6503,27 @@ input:checked+.toggle-slider:before {
         max-height: 90vh;
         overflow-y: auto;
     }
-    
+
     .modal-content h3 {
         font-size: 18px;
     }
-    
+
     .form-group label {
         font-size: 14px;
     }
-    
+
     .form-group input,
     .form-group select,
     .form-group textarea {
-        font-size: 16px; /* Prevents zoom on iOS */
+        font-size: 16px;
+        /* Prevents zoom on iOS */
     }
-    
+
     .form-actions {
         flex-direction: column;
         gap: 10px;
     }
-    
+
     .form-actions button {
         width: 100%;
     }
@@ -6435,7 +6534,7 @@ input:checked+.toggle-slider:before {
     .admin-section-header h3 {
         font-size: 16px;
     }
-    
+
     .admin-section-content {
         padding: 10px;
     }
@@ -6443,9 +6542,11 @@ input:checked+.toggle-slider:before {
 
 /* Touch-friendly buttons */
 @media (max-width: 767px) {
+
     .btn-primary,
     .btn-secondary {
-        min-height: 44px; /* Apple HIG recommendation */
+        min-height: 44px;
+        /* Apple HIG recommendation */
         padding: 12px 20px;
         font-size: 16px;
     }
@@ -6455,76 +6556,78 @@ input:checked+.toggle-slider:before {
 
 /* Mobile-friendly grid layouts */
 @media (max-width: 768px) {
+
     /* Budget dashboard grid - stack on mobile */
-    #budget-dashboard-section > div[style*="grid-template-columns"] {
+    #budget-dashboard-section>div[style*="grid-template-columns"] {
         display: flex !important;
         flex-direction: column !important;
     }
-    
+
     /* Force single column for all grid stats */
     #budget-dashboard-section div[style*="display:grid"] {
         display: flex !important;
         flex-direction: column !important;
         gap: 10px !important;
     }
-    
+
     /* Stat boxes full width */
-    #budget-dashboard-section > div > div > div,
-    #budget-dashboard-section > div > div[style*="background"] {
+    #budget-dashboard-section>div>div>div,
+    #budget-dashboard-section>div>div[style*="background"] {
         width: 100% !important;
         min-width: 100% !important;
         margin-bottom: 10px;
     }
-    
+
     /* Savings goals grid - single column on mobile */
-    #savings-goals-section > div[style*="grid-template-columns"] {
+    #savings-goals-section>div[style*="grid-template-columns"] {
         display: flex !important;
         flex-direction: column !important;
         gap: 15px !important;
     }
-    
+
     /* Goal cards full width */
-    #savings-goals-section > div > div[style*="background"] {
+    #savings-goals-section>div>div[style*="background"] {
         width: 100% !important;
     }
 }
 
 /* Personal Finance header buttons */
 @media (max-width: 768px) {
+
     /* Stack buttons vertically on mobile */
-    #savings-goals-section > div[style*="display:flex"][style*="justify-content:space-between"] > div:last-child,
-    #credit-cards-section > div[style*="display:flex"][style*="justify-content:space-between"] > div:last-child,
-    #recurring-templates-section > div[style*="display:flex"][style*="justify-content:space-between"] > div:last-child {
+    #savings-goals-section>div[style*="display:flex"][style*="justify-content:space-between"]>div:last-child,
+    #credit-cards-section>div[style*="display:flex"][style*="justify-content:space-between"]>div:last-child,
+    #recurring-templates-section>div[style*="display:flex"][style*="justify-content:space-between"]>div:last-child {
         display: flex !important;
         flex-direction: column !important;
         width: 100% !important;
         gap: 8px !important;
     }
-    
+
     /* Full width buttons in header sections */
-    #savings-goals-section > div button,
-    #credit-cards-section > div button,
-    #recurring-templates-section > div button,
-    #expense-history-section > div button,
-    #budget-dashboard-section > div button {
+    #savings-goals-section>div button,
+    #credit-cards-section>div button,
+    #recurring-templates-section>div button,
+    #expense-history-section>div button,
+    #budget-dashboard-section>div button {
         width: 100% !important;
         margin: 0 !important;
     }
-    
+
     /* Header containers stack */
-    #savings-goals-section > div[style*="justify-content:space-between"],
-    #credit-cards-section > div[style*="justify-content:space-between"],
-    #recurring-templates-section > div[style*="justify-content:space-between"],
-    #expense-history-section > div[style*="justify-content:space-between"] {
+    #savings-goals-section>div[style*="justify-content:space-between"],
+    #credit-cards-section>div[style*="justify-content:space-between"],
+    #recurring-templates-section>div[style*="justify-content:space-between"],
+    #expense-history-section>div[style*="justify-content:space-between"] {
         flex-direction: column !important;
         align-items: flex-start !important;
         gap: 12px !important;
     }
-    
+
     /* Info text full width */
-    #savings-goals-section > div > div:first-child,
-    #credit-cards-section > div > div:first-child,
-    #recurring-templates-section > div > div:first-child {
+    #savings-goals-section>div>div:first-child,
+    #credit-cards-section>div>div:first-child,
+    #recurring-templates-section>div>div:first-child {
         width: 100% !important;
         margin-bottom: 8px;
     }
@@ -6532,6 +6635,7 @@ input:checked+.toggle-slider:before {
 
 /* Goal card button rows */
 @media (max-width: 768px) {
+
     /* Goal card action buttons - keep horizontal but smaller */
     #savings-goals-section div[style*="display:flex;gap:5px"] button {
         font-size: 11px !important;
@@ -6545,19 +6649,20 @@ input:checked+.toggle-slider:before {
     #credit-cards-section .data-table {
         font-size: 11px !important;
     }
-    
+
     #credit-cards-section .data-table th,
     #credit-cards-section .data-table td {
         padding: 6px 4px !important;
         white-space: nowrap;
     }
-    
+
     /* Hide less important columns on small screens */
     #credit-cards-section .data-table th:nth-child(3),
     #credit-cards-section .data-table td:nth-child(3) {
-        display: none; /* Hide Bank column */
+        display: none;
+        /* Hide Bank column */
     }
-    
+
     /* Action buttons smaller */
     #credit-cards-section .data-table button {
         font-size: 10px !important;
@@ -6571,12 +6676,12 @@ input:checked+.toggle-slider:before {
     #recurring-templates-section .data-table {
         font-size: 11px !important;
     }
-    
+
     #recurring-templates-section .data-table th,
     #recurring-templates-section .data-table td {
         padding: 6px 4px !important;
     }
-    
+
     /* Hide category on very small screens */
     #recurring-templates-section .data-table th:nth-child(2),
     #recurring-templates-section .data-table td:nth-child(2) {
@@ -6586,22 +6691,24 @@ input:checked+.toggle-slider:before {
 
 /* Expense history filters */
 @media (max-width: 768px) {
+
     /* Stack filter inputs vertically */
-    #expense-history-section > div[style*="display:flex;gap:10px;margin-bottom"] {
+    #expense-history-section>div[style*="display:flex;gap:10px;margin-bottom"] {
         flex-direction: column !important;
         gap: 8px !important;
     }
-    
-    #expense-history-section > div[style*="display:flex;gap:10px;margin-bottom"] > * {
+
+    #expense-history-section>div[style*="display:flex;gap:10px;margin-bottom"]>* {
         width: 100% !important;
         flex: none !important;
     }
-    
+
     /* Full width search/filter controls */
     #expense-history-section input,
     #expense-history-section select {
         width: 100% !important;
-        font-size: 16px !important; /* Prevent iOS zoom */
+        font-size: 16px !important;
+        /* Prevent iOS zoom */
     }
 }
 
@@ -6610,18 +6717,18 @@ input:checked+.toggle-slider:before {
     #expense-history-section .data-table {
         font-size: 11px !important;
     }
-    
+
     #expense-history-section .data-table th,
     #expense-history-section .data-table td {
         padding: 6px 4px !important;
     }
-    
+
     /* Hide description column on mobile */
     #expense-history-section .data-table th:nth-child(3),
     #expense-history-section .data-table td:nth-child(3) {
         display: none;
     }
-    
+
     /* Stack action buttons if needed */
     #expense-history-section .data-table button {
         font-size: 10px !important;
@@ -6638,7 +6745,7 @@ input:checked+.toggle-slider:before {
         flex-direction: column !important;
         gap: 8px !important;
     }
-    
+
     #manualBudgetInput {
         width: 100% !important;
         font-size: 16px !important;
@@ -6647,6 +6754,7 @@ input:checked+.toggle-slider:before {
 
 /* Info boxes and alerts */
 @media (max-width: 768px) {
+
     /* Help text boxes */
     div[style*="background:#E3F2FD"],
     div[style*="background:#E8F5E9"],
@@ -6654,7 +6762,7 @@ input:checked+.toggle-slider:before {
         padding: 10px !important;
         font-size: 13px !important;
     }
-    
+
     div[style*="background:#E3F2FD"] strong,
     div[style*="background:#E8F5E9"] strong {
         display: block;
@@ -6667,13 +6775,13 @@ input:checked+.toggle-slider:before {
     #trend-charts-section canvas {
         max-height: 250px !important;
     }
-    
+
     /* Stack chart type selector */
-    #trend-charts-section > div[style*="display:flex"] {
+    #trend-charts-section>div[style*="display:flex"] {
         flex-direction: column !important;
         gap: 10px !important;
     }
-    
+
     #trend-charts-section select {
         width: 100% !important;
         font-size: 16px !important;
@@ -6689,34 +6797,35 @@ input:checked+.toggle-slider:before {
 
 /* Personal Finance modals */
 @media (max-width: 768px) {
+
     /* Personal expense modal */
     #personalExpenseModal .form-row {
         flex-direction: column !important;
         gap: 0 !important;
     }
-    
+
     #personalExpenseModal .form-group {
         width: 100% !important;
     }
-    
+
     /* Credit card modal */
     #creditCardModal .form-row {
         flex-direction: column !important;
     }
-    
+
     #creditCardModal .form-group {
         width: 100% !important;
     }
-    
+
     /* Savings goal modal */
     #savingsGoalModal .form-row {
         flex-direction: column !important;
     }
-    
+
     #savingsGoalModal .form-group {
         width: 100% !important;
     }
-    
+
     /* Loan calculator modal - results */
     #loanCalculatorModal div[style*="display:grid;grid-template-columns"] {
         display: flex !important;
@@ -6726,6 +6835,7 @@ input:checked+.toggle-slider:before {
 
 /* Progress bars responsive */
 @media (max-width: 768px) {
+
     div[style*="height:20px;border-radius:10px"],
     div[style*="height:12px;border-radius:6px"] {
         height: 16px !important;
@@ -6737,7 +6847,7 @@ input:checked+.toggle-slider:before {
     div[style*="font-size:24px;font-weight:bold"] {
         font-size: 20px !important;
     }
-    
+
     div[style*="font-size:18px;font-weight:bold"] {
         font-size: 16px !important;
     }
@@ -6745,18 +6855,19 @@ input:checked+.toggle-slider:before {
 
 /* Small screen (iPhone SE, small Android) */
 @media (max-width: 375px) {
+
     #budget-dashboard-section h4,
     #savings-goals-section h4,
     #credit-cards-section h4 {
         font-size: 14px !important;
     }
-    
+
     /* Even smaller buttons on tiny screens */
     #savings-goals-section div[style*="display:flex;gap:5px"] button {
         font-size: 10px !important;
         padding: 6px 3px !important;
     }
-    
+
     /* Compact stat displays */
     div[style*="font-size:20px;font-weight:bold"] {
         font-size: 16px !important;

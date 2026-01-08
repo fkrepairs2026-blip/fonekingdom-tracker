@@ -119,11 +119,11 @@ async function initializeApp() {
 
         console.log('🎯 Loading savings goals...');
         await loadSavingsGoals();
-        console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);        
+        console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);
         console.log('🕐 Initializing attendance system...');
         initAttendanceListeners();
         console.log('✅ Attendance system initialized');
-                console.log('�🔖 Building tabs...');
+        console.log('�🔖 Building tabs...');
         buildTabs();
 
         console.log('🎨 Initializing sidebars...');
@@ -220,7 +220,7 @@ async function updateHeaderUserInfo() {
             userAvatar.src = avatarUrl;
 
             console.log('✅ Header updated');
-            
+
             // Update clock in/out widget for technicians and cashiers
             if (['technician', 'cashier'].includes(window.currentUserData.role)) {
                 await updateClockInOutWidget();
@@ -254,7 +254,7 @@ async function updateClockInOutWidget() {
         btnText.textContent = 'Clock Out';
         clockIcon.textContent = '🔴';
         btn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
-        
+
         // Show live work time
         if (todayHours.clockedIn) {
             const duration = todayHours.duration;
@@ -268,7 +268,7 @@ async function updateClockInOutWidget() {
         btnText.textContent = 'Clock In';
         clockIcon.textContent = '🕐';
         btn.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-        
+
         // Show today's total work time if clocked out
         if (todayHours.duration > 0) {
             const duration = todayHours.duration;
@@ -288,7 +288,7 @@ async function updateClockInOutWidget() {
  */
 async function handleClockInOut() {
     const status = await getUserAttendanceStatus();
-    
+
     if (status.currentStatus === 'clocked-in') {
         // Confirm before clocking out
         if (confirm('Are you sure you want to clock out?')) {
@@ -432,9 +432,9 @@ function toggleMoreMenu() {
 function closeMoreMenuOnClickOutside(event) {
     const dropdown = document.getElementById('moreMenuDropdown');
     const moreMenuBtn = document.querySelector('.more-menu-btn');
-    
+
     if (!dropdown || !moreMenuBtn) return;
-    
+
     // Check if click is outside both dropdown and button
     if (!dropdown.contains(event.target) && !moreMenuBtn.contains(event.target)) {
         dropdown.style.display = 'none';
@@ -469,10 +469,10 @@ function setupBackButtonHandler() {
     window.history.pushState({ page: 'app' }, '', window.location.href);
 
     // Handle back button
-    window.addEventListener('popstate', function(event) {
+    window.addEventListener('popstate', function (event) {
         // Confirm before leaving the app
         const confirmExit = confirm('Are you sure you want to leave the app? Any unsaved changes may be lost.');
-        
+
         if (confirmExit) {
             // Allow navigation away
             window.removeEventListener('popstate', arguments.callee);

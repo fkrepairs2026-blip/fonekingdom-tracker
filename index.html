@@ -7,7 +7,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Fonekingdom Repair Tracker v2.0</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📱</text></svg>">
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📱</text></svg>">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
@@ -83,7 +84,7 @@
                     </button>
                     <div id="workTimeDisplay" style="font-size:12px;color:#666;margin-top:4px;text-align:center;"></div>
                 </div>
-                
+
                 <!-- More Menu Button -->
                 <div class="more-menu" style="position:relative;">
                     <button onclick="toggleMoreMenu()" class="btn-small more-menu-btn" title="More Options">
@@ -102,8 +103,10 @@
                             <span class="more-menu-icon">🌐</span>
                             <span class="more-menu-text">Language:</span>
                             <div class="language-buttons">
-                                <button onclick="setHelpLanguage('en'); toggleMoreMenu();" class="lang-btn" id="langBtnEn">EN</button>
-                                <button onclick="setHelpLanguage('tl'); toggleMoreMenu();" class="lang-btn" id="langBtnTl">TL</button>
+                                <button onclick="setHelpLanguage('en'); toggleMoreMenu();" class="lang-btn"
+                                    id="langBtnEn">EN</button>
+                                <button onclick="setHelpLanguage('tl'); toggleMoreMenu();" class="lang-btn"
+                                    id="langBtnTl">TL</button>
                             </div>
                         </div>
                         <button onclick="openProfileModal(); toggleMoreMenu();" class="more-menu-item">
@@ -254,14 +257,15 @@
         </div>
     </div>
 
-        <!-- Remittance Required Modal -->
-        <div id="remittanceRequiredModal" class="modal">
-            <div class="modal-content" style="max-width:400px;">
-                <h3>Remittance Required</h3>
-                <p style="font-size:16px;">You have pending cash collections for today.<br><b>Please submit your remittance before clocking out.</b></p>
-                <button onclick="goToRemittanceTab()" class="btn-primary" style="margin-top:16px;">Remit Cash Now</button>
-            </div>
+    <!-- Remittance Required Modal -->
+    <div id="remittanceRequiredModal" class="modal">
+        <div class="modal-content" style="max-width:400px;">
+            <h3>Remittance Required</h3>
+            <p style="font-size:16px;">You have pending cash collections for today.<br><b>Please submit your remittance
+                    before clocking out.</b></p>
+            <button onclick="goToRemittanceTab()" class="btn-primary" style="margin-top:16px;">Remit Cash Now</button>
         </div>
+    </div>
 
     <!-- Firebase and App Scripts are loaded at the bottom of body for better performance -->
 
@@ -844,8 +848,9 @@
 
             <div class="alert-card-danger">
                 <p style="margin:0;font-size:14px;">
-                    <strong>⚠️ Important:</strong> This will create a new repair entry for this returning device. 
-                    The repair will be auto-assigned to the original technician and marked as warranty work (no customer payment).
+                    <strong>⚠️ Important:</strong> This will create a new repair entry for this returning device.
+                    The repair will be auto-assigned to the original technician and marked as warranty work (no customer
+                    payment).
                 </p>
             </div>
 
@@ -1211,7 +1216,8 @@
     <div id="personalExpenseModal" class="modal">
         <div class="modal-content">
             <h3>💰 Add Personal Expense</h3>
-            <div id="offlineExpenseBanner" style="display:none;background:#fff3cd;padding:10px;border-radius:4px;margin-bottom:15px;">
+            <div id="offlineExpenseBanner"
+                style="display:none;background:#fff3cd;padding:10px;border-radius:4px;margin-bottom:15px;">
                 📡 Offline Mode - Will sync when online
             </div>
             <div class="form-group">
@@ -1484,7 +1490,8 @@
             </div>
             <div class="form-group">
                 <label>Reason *</label>
-                <textarea id="withdrawalReason" rows="3" required placeholder="Why are you withdrawing from this goal?"></textarea>
+                <textarea id="withdrawalReason" rows="3" required
+                    placeholder="Why are you withdrawing from this goal?"></textarea>
             </div>
             <div class="form-actions">
                 <button onclick="saveWithdrawal()" class="btn-primary">💸 Record Withdrawal</button>
@@ -1505,12 +1512,14 @@
     </div>
 
     <!-- Offline Indicator -->
-    <div id="offlineIndicator" style="display:none;position:fixed;top:70px;right:20px;background:#ff9800;color:white;padding:8px 15px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10000;font-size:14px;">
+    <div id="offlineIndicator"
+        style="display:none;position:fixed;top:70px;right:20px;background:#ff9800;color:white;padding:8px 15px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10000;font-size:14px;">
         📡 Offline - Add-only mode
     </div>
 
     <!-- Sync Indicator -->
-    <div id="syncIndicator" style="display:none;position:fixed;top:70px;right:20px;background:#2196F3;color:white;padding:8px 15px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10000;font-size:14px;">
+    <div id="syncIndicator"
+        style="display:none;position:fixed;top:70px;right:20px;background:#2196F3;color:white;padding:8px 15px;border-radius:20px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:10000;font-size:14px;">
         ⏳ Syncing...
     </div>
 

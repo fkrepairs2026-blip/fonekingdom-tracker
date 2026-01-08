@@ -241,11 +241,11 @@ const utils = {
             // Use calculateRepairCommission for accurate commission with custom rates
             if (window.calculateRepairCommission) {
                 const commissionResult = window.calculateRepairCommission(r, techId);
-                
+
                 if (commissionResult.eligible && commissionResult.amount > 0) {
                     // Ensure payments is an array (Firebase may return object)
                     const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
-                    
+
                     // Check if any payment in this repair falls within the date range
                     const hasPaymentInRange = payments.some(payment => {
                         if (!payment.verified) return false;
@@ -256,7 +256,7 @@ const utils = {
                     if (hasPaymentInRange) {
                         // Determine if this is cash or GCash based on payment methods
                         const hasGCashPayment = payments.some(p => p.method === 'GCash');
-                        
+
                         if (hasGCashPayment) {
                             gcashCommission += commissionResult.amount;
                         } else {
@@ -267,7 +267,7 @@ const utils = {
             } else {
                 // Fallback to old calculation if calculateRepairCommission not available
                 const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
-                
+
                 payments.forEach(payment => {
                     if (!payment.verified) return;
 
@@ -421,7 +421,7 @@ const utils = {
 
                 // Ensure payments is an array (Firebase may return object)
                 const payments = Array.isArray(r.payments) ? r.payments : Object.values(r.payments);
-                
+
                 payments.forEach(payment => {
                     if (!payment.verified) return;
 
@@ -563,13 +563,13 @@ const utils = {
             if (role === 'admin') {
                 const modRequests = window.allModificationRequests || [];
                 stats.pendingModRequests = modRequests.filter(r => r.status === 'pending').length;
-                
+
                 // Parts orders stats
                 const partsOrders = window.allPartsOrders || [];
                 stats.pendingPartsOrders = partsOrders.filter(o => o.status === 'pending').length;
                 stats.urgentPartsOrders = partsOrders.filter(o => o.status === 'pending' && o.urgency === 'urgent').length;
             }
-            
+
             // Parts orders for manager
             if (role === 'manager') {
                 const partsOrders = window.allPartsOrders || [];

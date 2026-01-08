@@ -7385,7 +7385,7 @@ function buildTechnicianLogsTab(container) {
         <div class="card" style="margin:20px 0;">
             <h3>💰 Payments Collected (${techPayments.length})</h3>
             ${techPayments.length > 0 ? `
-                <div style="max-height:400px;overflow-y:auto;">
+                <div class="table-responsive" style="max-height:400px;overflow-y:auto;">
                     <table style="width:100%;border-collapse:collapse;">
                         <thead style="background:#f5f5f5;position:sticky;top:0;">
                             <tr>
@@ -7433,7 +7433,7 @@ function buildTechnicianLogsTab(container) {
         <div class="card" style="margin:20px 0;">
             <h3>💸 Expenses Recorded (${techExpenses.length})</h3>
             ${techExpenses.length > 0 ? `
-                <div style="max-height:400px;overflow-y:auto;">
+                <div class="table-responsive" style="max-height:400px;overflow-y:auto;">
                     <table style="width:100%;border-collapse:collapse;">
                         <thead style="background:#f5f5f5;position:sticky;top:0;">
                             <tr>
@@ -8819,7 +8819,7 @@ function buildAnalyticsTab(container) {
                 <h3 style="margin:0;">📊 Revenue by Repair Type</h3>
                 <button onclick="exportRevenueByType()" class="btn-small">📥 Export CSV</button>
             </div>
-            <div class="analytics-table">
+            <div class="table-responsive">
                 <table class="repair-table">
                     <thead>
                         <tr>
@@ -8850,7 +8850,7 @@ function buildAnalyticsTab(container) {
                 <h4 style="margin:0;">Performance Metrics</h4>
                 <button onclick="exportTechPerformance()" class="btn-small">📥 Export CSV</button>
             </div>
-            <div class="analytics-table">
+            <div class="table-responsive">
                 <table class="repair-table">
                     <thead>
                         <tr>
@@ -8914,7 +8914,7 @@ function buildAnalyticsTab(container) {
                 <h4 style="margin:0;">🏆 Top 10 Customers</h4>
                 <button onclick="exportCustomerAnalytics()" class="btn-small">📥 Export CSV</button>
             </div>
-            <div class="analytics-table">
+            <div class="table-responsive">
                 <table class="repair-table">
                     <thead>
                         <tr>
@@ -8949,7 +8949,7 @@ function buildAnalyticsTab(container) {
                 <h4 style="margin:0;">Most Common Repairs</h4>
                 <button onclick="exportRepairTypeAnalytics()" class="btn-small">📥 Export CSV</button>
             </div>
-            <div class="analytics-table">
+            <div class="table-responsive">
                 <table class="repair-table">
                     <thead>
                         <tr>
@@ -9001,7 +9001,7 @@ function buildAnalyticsTab(container) {
                 <h4 style="margin:0;">Most Used Parts</h4>
                 <button onclick="exportInventoryAnalytics()" class="btn-small">📥 Export CSV</button>
             </div>
-            <div class="analytics-table">
+            <div class="table-responsive">
                 <table class="repair-table">
                     <thead>
                         <tr>
@@ -9357,7 +9357,7 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
                 <p style="color:#666;font-size:14px;margin-bottom:15px;">
                     Lower rates indicate better repair quality. Industry standard: <5% is excellent, 5-10% is acceptable, >10% needs attention.
                 </p>
-                <div class="analytics-table">
+                <div class="table-responsive">
                     <table class="repair-table">
                         <thead>
                             <tr>
@@ -9903,7 +9903,7 @@ function refreshProfitDashboard() {
             <!-- PROFIT BY REPAIR TYPE -->
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">📊 Profit by Repair Type</h4>
-                <div style="overflow-x:auto;">
+                <div class="table-responsive">
                     <table class="repairs-table">
                         <thead>
                             <tr>
@@ -9941,7 +9941,7 @@ function refreshProfitDashboard() {
             <!-- PROFIT BY TECHNICIAN -->
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">👨‍🔧 Profit by Technician</h4>
-                <div style="overflow-x:auto;">
+                <div class="table-responsive">
                     <table class="repairs-table">
                         <thead>
                             <tr>
@@ -9979,7 +9979,7 @@ function refreshProfitDashboard() {
             <!-- PROFIT TRENDS -->
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 <h4 style="margin:0 0 15px;">📈 Daily Profit Trends</h4>
-                <div style="overflow-x:auto;">
+                <div class="table-responsive">
                     <table class="repairs-table">
                         <thead>
                             <tr>
@@ -10138,7 +10138,7 @@ function buildOverheadExpensesTab(container) {
                         No overhead expenses recorded yet
                     </div>
                 ` : `
-                    <div style="overflow-x:auto;">
+                    <div class="table-responsive">
                         <table class="repairs-table">
                             <thead>
                                 <tr>
@@ -10423,7 +10423,7 @@ function buildSupplierPayablesTab(container) {
             ${Object.keys(bySupplier).length > 0 ? `
                 <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
                     <h4 style="margin:0 0 15px;">📊 Outstanding by Supplier</h4>
-                    <div style="overflow-x:auto;">
+                    <div class="table-responsive">
                         <table class="repairs-table">
                             <thead>
                                 <tr>
@@ -10458,7 +10458,7 @@ function buildSupplierPayablesTab(container) {
                         No supplier purchases recorded yet
                     </div>
                 ` : `
-                    <div style="overflow-x:auto;">
+                    <div class="table-responsive">
                         <table class="repairs-table">
                             <thead>
                                 <tr>
@@ -10994,13 +10994,14 @@ function generatePLStatement() {
 
         container.innerHTML = `
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-top:15px;">
-                <table style="width:100%;border-collapse:collapse;">
-                    <tr style="border-bottom:2px solid #333;">
-                        <td colspan="2" style="padding:10px;font-size:18px;font-weight:bold;">PROFIT & LOSS STATEMENT</td>
-                    </tr>
-                    <tr style="border-bottom:1px solid #ddd;">
-                        <td colspan="2" style="padding:8px;color:#666;">${utils.formatDate(startDate)} - ${utils.formatDate(endDate)}</td>
-                    </tr>
+                <div class="table-responsive">
+                    <table style="width:100%;border-collapse:collapse;">
+                        <tr style="border-bottom:2px solid #333;">
+                            <td colspan="2" style="padding:10px;font-size:18px;font-weight:bold;">PROFIT & LOSS STATEMENT</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #ddd;">
+                            <td colspan="2" style="padding:8px;color:#666;">${utils.formatDate(startDate)} - ${utils.formatDate(endDate)}</td>
+                        </tr>
                     
                     <!-- REVENUE -->
                     <tr style="background:#f8f9fa;">
@@ -11172,7 +11173,7 @@ function generateQuarterlySummary() {
                 
                 <!-- Monthly Breakdown -->
                 <h5 style="margin:20px 0 10px;">Monthly Breakdown</h5>
-                <div style="overflow-x:auto;">
+                <div class="table-responsive">
                     <table class="repairs-table">
                         <thead>
                             <tr>
@@ -11570,15 +11571,16 @@ async function loadUsageAnalyticsData(startDate, endDate) {
         const tabsTable = tabStats.mostUsedTabs.length > 0 ? `
             <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;border:1px solid #e0e0e0;">
                 <h4 style="margin:0 0 15px 0;color:#2196f3;">🔝 Most Used Tabs</h4>
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Rank</th>
-                            <th>Tab Name</th>
-                            <th>Total Visits</th>
-                            <th>% of Total</th>
-                        </tr>
-                    </thead>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Tab Name</th>
+                                <th>Total Visits</th>
+                                <th>% of Total</th>
+                            </tr>
+                        </thead>
                     <tbody>
                         ${tabStats.mostUsedTabs.map((tab, index) => {
                             const percentage = ((tab.count / tabStats.totalEvents) * 100).toFixed(1);
@@ -12032,7 +12034,7 @@ function buildCreditCardsSection() {
     if (cards.length === 0) {
         html += '<p style="text-align:center;color:#666;padding:40px;">No credit cards tracked yet.</p>';
     } else {
-        html += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+        html += '<div class="table-responsive"><table class="data-table"><thead><tr>';
         html += '<th>Card Name</th><th>Holder</th><th>Bank</th><th>Limit</th><th>Balance</th><th>Utilization</th><th>Due Date</th><th>Actions</th>';
         html += '</tr></thead><tbody>';
         
@@ -12085,7 +12087,7 @@ function buildRecurringTemplatesSection(generated, month, year) {
     if (templates.length === 0) {
         html += '<p style="text-align:center;color:#666;padding:40px;">No recurring templates. Add one to automate monthly bills!</p>';
     } else {
-        html += '<div style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+        html += '<div class="table-responsive"><table class="data-table"><thead><tr>';
         html += '<th>Name</th><th>Category</th><th>Amount</th><th>Day of Month</th><th>Status</th><th>Actions</th>';
         html += '</tr></thead><tbody>';
         
@@ -12145,7 +12147,7 @@ function buildExpenseHistorySection(month, year) {
     if (expenses.length === 0) {
         html += '<p style="text-align:center;color:#666;padding:40px;">No expenses for this month.</p>';
     } else {
-        html += '<div id="expenseTableContainer" style="overflow-x:auto;"><table class="data-table"><thead><tr>';
+        html += '<div id="expenseTableContainer" class="table-responsive"><table class="data-table"><thead><tr>';
         html += '<th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Currency</th><th>PHP Equivalent</th><th>Status</th><th>Actions</th>';
         html += '</tr></thead><tbody id="expenseTableBody">';
         
