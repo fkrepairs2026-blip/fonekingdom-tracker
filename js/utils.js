@@ -1460,4 +1460,139 @@ function removeToast(toast) {
     }, 300);
 }
 
+/**
+ * Export retroactive intakes to CSV
+ */
+function exportRetroactiveIntakesToCSV() {
+    // Get filtered data from current table
+    const dateFrom = document.getElementById('filterDateFrom')?.value;
+    const dateTo = document.getElementById('filterDateTo')?.value;
+    const techFilter = document.getElementById('filterTech')?.value;
+    const statusFilter = document.getElementById('filterStatus')?.value;
+    const duplicatesOnly = document.getElementById('filterDuplicates')?.checked;
+    const excessiveOnly = document.getElementById('filterExcessive')?.checked;
+    
+    let intakes = window.allRetroactiveIntakes || [];
+    
+    // Apply same filters as table
+    if (dateFrom) {
+        intakes = intakes.filter(i => i.performedAt >= dateFrom);
+    }
+    if (dateTo) {
+        const dateToEnd = dateTo + 'T23:59:59';
+        intakes = intakes.filter(i => i.performedAt <= dateToEnd);
+    }
+    if (techFilter) {
+        intakes = intakes.filter(i => i.performedBy === techFilter);
+    }
+    if (statusFilter) {
+        intakes = intakes.filter(i => i.finalStatus === statusFilter);
+    }
+    if (duplicatesOnly) {
+        intakes = intakes.filter(i => i.duplicateOverridden);
+    }
+    if (excessiveOnly) {
+        intakes = intakes.filter(i => i.excessiveUsageFlag);
+    }
+    
+    if (intakes.length === 0) {
+        alert('No records to export!');
+        return;
+    }
+    
+    // CSV headers
+    const headers = [
+        'Date',
+        'Time',
+        'Repair ID',
+        'Tech Name',
+        'Tech Role',
+        'Customer Name',
+        'Device Brand',
+        'Device Model',
+        'Final Status',
+        'Completion Date',
+        'Backdated Release Date',
+        'Verification Method',
+        'Payment Amount',
+        'Payment Method',
+        'Warranty Days',
+        'Admin Date Override',
+        'Duplicate Detected',
+        'Duplicate Override Reason',
+        'Daily Count',
+        'Excessive Flag',
+        'Performed At'
+    ];
+    
+    // Convert data to CSV rows
+    const rows = intakes.map(intake => {
+        const performedDate = new Date(intake.performedAt);
+        return [
+            performedDate.toLocaleDateString(),
+            performedDate.toLocaleTimeString(),
+            intake.repairId,
+            intake.performedByName || '',
+            intake.performedByRole || '',
+            intake.customerName || '',
+            intake.deviceBrand || '',
+            intake.deviceModel || '',
+            intake.finalStatus || '',
+            intake.originalCompletionDate || '',
+            intake.backdatedReleaseDate || '',
+            intake.verificationMethod || '',
+            intake.paymentCollected || '',
+            intake.paymentMethod || '',
+            intake.warrantyDays || '',
+            intake.adminDateOverride ? 'YES' : 'NO',
+            intake.duplicateDetected ? 'YES' : 'NO',
+            intake.duplicateOverrideReason || '',
+            intake.techDailyCount || '',
+            intake.excessiveUsageFlag ? 'YES' : 'NO',
+            intake.performedAt || ''
+        ].map(field => {
+            // Escape fields containing commas, quotes, or newlines
+            const fieldStr = String(field);
+            if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+                return `"${fieldStr.replace(/"/g, '""')}"`;
+            }
+            return fieldStr;
+        });
+    });
+    
+    // Build CSV content
+    const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Generate filename with date range
+    let filename = 'retroactive-intakes';
+    if (dateFrom && dateTo) {
+        filename += `-${dateFrom}-to-${dateTo}`;
+    } else if (dateFrom) {
+        filename += `-from-${dateFrom}`;
+    } else if (dateTo) {
+        filename += `-to-${dateTo}`;
+    }
+    filename += `-${new Date().toISOString().split('T')[0]}.csv`;
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Show success toast
+    utils.showToast(`✅ Exported ${intakes.length} records to ${filename}`, 'success');
+}
+
+window.exportRetroactiveIntakesToCSV = exportRetroactiveIntakesToCSV;
+
 console.log('✅ utils.js loaded');

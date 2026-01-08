@@ -1122,6 +1122,202 @@ function buildReceiveDeviceTab(container) {
                     </ol>
                 </div>
                 
+                <!-- Retroactive Completion Mode (Tech/Admin/Manager only) -->
+                <div id="retroactiveSection" style="display:${['technician', 'admin', 'manager'].includes(window.currentUserData.role) ? 'block' : 'none'};background:#fff3e0;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #ff9800;">
+                    <h4 style="margin:0 0 12px 0;color:#e65100;">⚡ Retroactive Completion Mode <span style="font-size:12px;color:#666;font-weight:normal;">(Device already repaired)</span></h4>
+                    
+                    <div style="margin-bottom:15px;">
+                        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;border:2px solid #4caf50;">
+                            <input type="radio" name="completionMode" value="normal" checked onchange="toggleCompletionFields()">
+                            <span><strong>✅ Normal Reception</strong> - Device goes through repair workflow</span>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom:15px;">
+                        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;">
+                            <input type="radio" name="completionMode" value="released" onchange="toggleCompletionFields()">
+                            <span><strong>📦 Pre-completed (Released)</strong> - Device already repaired, skip to Released status</span>
+                        </label>
+                    </div>
+                    
+                    <div style="margin-bottom:15px;">
+                        <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;">
+                            <input type="radio" name="completionMode" value="claimed" onchange="toggleCompletionFields()">
+                            <span><strong>🎯 Pre-completed (Claimed)</strong> - Device already repaired & claimed, final status</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Released Completion Fields -->
+                    <div id="releasedCompletionFields" style="display:none;background:#e8f5e9;padding:15px;border-radius:5px;margin-top:10px;border-left:3px solid #4caf50;">
+                        <h5 style="margin:0 0 12px 0;color:#2e7d32;">Released Mode Settings</h5>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><strong style="color:#d32f2f;">*</strong> Completion Date & Time</label>
+                                <input type="datetime-local" id="releasedCompletionDate" name="releasedCompletionDate">
+                                <small style="color:#666;">When repair was actually completed</small>
+                            </div>
+                            <div class="form-group">
+                                <label><strong style="color:#d32f2f;">*</strong> Release Date & Time</label>
+                                <input type="datetime-local" id="releasedReleaseDate" name="releasedReleaseDate">
+                                <small style="color:#666;">When device was given to customer</small>
+                            </div>
+                        </div>
+                        
+                        ${window.currentUserData.role === 'admin' ? `
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="releasedAdminDateOverride" name="releasedAdminDateOverride">
+                                <span>🔓 Admin Override - Allow dates before 2025</span>
+                            </label>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="form-group">
+                            <label><strong style="color:#d32f2f;">*</strong> Verification Method</label>
+                            <select id="releasedVerificationMethod" name="releasedVerificationMethod" required>
+                                <option value="">-- Select Method --</option>
+                                <option value="with-slip">With Service Slip</option>
+                                <option value="customer-address">Customer Address</option>
+                                <option value="verified-photo">Verified by Photo</option>
+                            </select>
+                        </div>
+                        
+                        <div id="releasedSlipUploadGroup" style="display:none;">
+                            <div class="form-group">
+                                <label>Service Slip Photo</label>
+                                <input type="file" id="releasedServiceSlipPhoto" accept="image/*">
+                                <small style="color:#666;">Optional: Upload service slip image</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Release Notes</label>
+                            <textarea id="releasedReleaseNotes" name="releasedReleaseNotes" rows="3" placeholder="Any notes about the release..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="releasedCollectPayment" name="releasedCollectPayment" onchange="toggleReleasedPaymentFields()">
+                                <span>💰 Collect Payment Now</span>
+                            </label>
+                        </div>
+                        
+                        <div id="releasedPaymentFields" style="display:none;background:#fff;padding:10px;border-radius:5px;margin-top:10px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Payment Amount (₱)</label>
+                                    <input type="number" id="releasedPaymentAmount" name="releasedPaymentAmount" min="0.01" step="0.01">
+                                    <small style="color:#666;">Auto-populated from total</small>
+                                </div>
+                                <div class="form-group">
+                                    <label><strong style="color:#d32f2f;">*</strong> Payment Method</label>
+                                    <select id="releasedPaymentMethod" name="releasedPaymentMethod" onchange="toggleReleasedGCashRef()">
+                                        <option value="">-- Select Method --</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="GCash">GCash</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="releasedGCashRefGroup" style="display:none;">
+                                <div class="form-group">
+                                    <label>GCash Reference Number</label>
+                                    <input type="text" id="releasedGCashRef" name="releasedGCashRef" maxlength="13">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Payment Notes</label>
+                                <textarea id="releasedPaymentNotes" name="releasedPaymentNotes" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Claimed Completion Fields -->
+                    <div id="claimedCompletionFields" style="display:none;background:#e3f2fd;padding:15px;border-radius:5px;margin-top:10px;border-left:3px solid #2196f3;">
+                        <h5 style="margin:0 0 12px 0;color:#1565c0;">Claimed Mode Settings</h5>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label><strong style="color:#d32f2f;">*</strong> Completion Date & Time</label>
+                                <input type="datetime-local" id="claimedCompletionDate" name="claimedCompletionDate">
+                                <small style="color:#666;">When repair was actually completed</small>
+                            </div>
+                            <div class="form-group">
+                                <label><strong style="color:#d32f2f;">*</strong> Claimed Date & Time</label>
+                                <input type="datetime-local" id="claimedClaimDate" name="claimedClaimDate">
+                                <small style="color:#666;">When device was finalized/claimed</small>
+                            </div>
+                        </div>
+                        
+                        ${window.currentUserData.role === 'admin' ? `
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="claimedAdminDateOverride" name="claimedAdminDateOverride">
+                                <span>🔓 Admin Override - Allow dates before 2025</span>
+                            </label>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="form-group">
+                            <label>Warranty Period (Days)</label>
+                            <input type="number" id="claimedWarrantyDays" name="claimedWarrantyDays" value="7" min="0" max="365">
+                            <small style="color:#666;">Default: 7 days for hardware repairs, 0 for software</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Final Notes</label>
+                            <textarea id="claimedFinalNotes" name="claimedFinalNotes" rows="3" placeholder="Any final notes about this repair..."></textarea>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label style="display:flex;align-items:center;gap:8px;">
+                                <input type="checkbox" id="claimedCollectPayment" name="claimedCollectPayment" onchange="toggleClaimedPaymentFields()">
+                                <span>💰 Collect Payment Now</span>
+                            </label>
+                        </div>
+                        
+                        <div id="claimedPaymentFields" style="display:none;background:#fff;padding:10px;border-radius:5px;margin-top:10px;">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Payment Amount (₱)</label>
+                                    <input type="number" id="claimedPaymentAmount" name="claimedPaymentAmount" min="0.01" step="0.01">
+                                    <small style="color:#666;">Auto-populated from total</small>
+                                </div>
+                                <div class="form-group">
+                                    <label><strong style="color:#d32f2f;">*</strong> Payment Method</label>
+                                    <select id="claimedPaymentMethod" name="claimedPaymentMethod" onchange="toggleClaimedGCashRef()">
+                                        <option value="">-- Select Method --</option>
+                                        <option value="Cash">Cash</option>
+                                        <option value="GCash">GCash</option>
+                                        <option value="Bank Transfer">Bank Transfer</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div id="claimedGCashRefGroup" style="display:none;">
+                                <div class="form-group">
+                                    <label>GCash Reference Number</label>
+                                    <input type="text" id="claimedGCashRef" name="claimedGCashRef" maxlength="13">
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label>Payment Notes</label>
+                                <textarea id="claimedPaymentNotes" name="claimedPaymentNotes" rows="2"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="background:#ffebee;padding:10px;border-radius:5px;margin-top:10px;">
+                        <small style="color:#c62828;"><strong>⚠️ Warning:</strong> Retroactive mode bypasses normal workflow. Only use when device was already repaired before this intake. Pricing is required.</small>
+                    </div>
+                </div>
+                
                 <!-- Technician Self-Assignment Section (Tech/Admin/Manager only) -->
                 <div id="techAcceptSection" style="display:${window.currentUserData.role !== 'cashier' ? 'block' : 'none'};background:#f3e5f5;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #9c27b0;">
                     <h4 style="margin:0 0 12px 0;color:#9c27b0;">🔧 Assign This Repair</h4>
@@ -5977,6 +6173,183 @@ function toggleAssignToTech() {
 }
 
 /**
+ * Toggle completion mode fields (Released/Claimed)
+ */
+function toggleCompletionFields() {
+    const completionMode = document.querySelector('input[name="completionMode"]:checked')?.value;
+    const releasedFields = document.getElementById('releasedCompletionFields');
+    const claimedFields = document.getElementById('claimedCompletionFields');
+    const techAcceptSection = document.getElementById('techAcceptSection');
+    
+    // Hide all completion fields first
+    if (releasedFields) releasedFields.style.display = 'none';
+    if (claimedFields) claimedFields.style.display = 'none';
+    
+    // Show/hide tech assignment section
+    if (techAcceptSection) {
+        techAcceptSection.style.display = completionMode === 'normal' ? 'block' : 'none';
+    }
+    
+    // Show appropriate completion fields
+    if (completionMode === 'released' && releasedFields) {
+        releasedFields.style.display = 'block';
+        
+        // Set default dates to now
+        const now = new Date();
+        const nowStr = now.toISOString().slice(0, 16);
+        document.getElementById('releasedCompletionDate').value = nowStr;
+        document.getElementById('releasedReleaseDate').value = nowStr;
+        
+        // Validate dates on change
+        document.getElementById('releasedCompletionDate').addEventListener('change', validateCompletionDates);
+        document.getElementById('releasedReleaseDate').addEventListener('change', validateCompletionDates);
+        
+        // Toggle service slip upload based on verification method
+        const verificationMethod = document.getElementById('releasedVerificationMethod');
+        if (verificationMethod) {
+            verificationMethod.addEventListener('change', function() {
+                const slipUploadGroup = document.getElementById('releasedSlipUploadGroup');
+                if (slipUploadGroup) {
+                    slipUploadGroup.style.display = this.value === 'with-slip' ? 'block' : 'none';
+                }
+            });
+        }
+    } else if (completionMode === 'claimed' && claimedFields) {
+        claimedFields.style.display = 'block';
+        
+        // Set default dates to now
+        const now = new Date();
+        const nowStr = now.toISOString().slice(0, 16);
+        document.getElementById('claimedCompletionDate').value = nowStr;
+        document.getElementById('claimedClaimDate').value = nowStr;
+        
+        // Validate dates on change
+        document.getElementById('claimedCompletionDate').addEventListener('change', validateCompletionDates);
+        document.getElementById('claimedClaimDate').addEventListener('change', validateCompletionDates);
+    }
+}
+
+/**
+ * Validate completion dates (not future, release >= completion, >= 2025 unless admin override)
+ */
+function validateCompletionDates() {
+    const completionMode = document.querySelector('input[name="completionMode"]:checked')?.value;
+    if (completionMode === 'normal') return true;
+    
+    const isReleased = completionMode === 'released';
+    const completionDateInput = document.getElementById(isReleased ? 'releasedCompletionDate' : 'claimedCompletionDate');
+    const releaseDateInput = document.getElementById(isReleased ? 'releasedReleaseDate' : 'claimedClaimDate');
+    const adminOverrideInput = document.getElementById(isReleased ? 'releasedAdminDateOverride' : 'claimedAdminDateOverride');
+    
+    if (!completionDateInput || !releaseDateInput) return false;
+    
+    const completionDate = new Date(completionDateInput.value);
+    const releaseDate = new Date(releaseDateInput.value);
+    const now = new Date();
+    const minDate = new Date('2025-01-01');
+    const isAdminOverride = adminOverrideInput?.checked || false;
+    
+    // Check completion not future
+    if (completionDate > now) {
+        alert('⚠️ Completion date cannot be in the future!');
+        completionDateInput.value = '';
+        return false;
+    }
+    
+    // Check release not future
+    if (releaseDate > now) {
+        alert('⚠️ Release/claim date cannot be in the future!');
+        releaseDateInput.value = '';
+        return false;
+    }
+    
+    // Check release >= completion
+    if (releaseDate < completionDate) {
+        alert('⚠️ Release/claim date must be after or equal to completion date!');
+        releaseDateInput.value = completionDateInput.value;
+        return false;
+    }
+    
+    // Check dates >= 2025 unless admin override
+    if (!isAdminOverride) {
+        if (completionDate < minDate) {
+            alert('⚠️ Completion date must be after January 1, 2025!\n(Admin override required for earlier dates)');
+            completionDateInput.value = '';
+            return false;
+        }
+        if (releaseDate < minDate) {
+            alert('⚠️ Release/claim date must be after January 1, 2025!\n(Admin override required for earlier dates)');
+            releaseDateInput.value = '';
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+/**
+ * Toggle Released payment fields
+ */
+function toggleReleasedPaymentFields() {
+    const checkbox = document.getElementById('releasedCollectPayment');
+    const fieldsDiv = document.getElementById('releasedPaymentFields');
+    const amountInput = document.getElementById('releasedPaymentAmount');
+    
+    if (fieldsDiv) {
+        fieldsDiv.style.display = checkbox?.checked ? 'block' : 'none';
+        
+        // Auto-populate amount from total
+        if (checkbox?.checked && amountInput) {
+            const total = parseFloat(document.getElementById('preApprovedTotal')?.value || 0);
+            amountInput.value = total.toFixed(2);
+        }
+    }
+}
+
+/**
+ * Toggle Released GCash reference field
+ */
+function toggleReleasedGCashRef() {
+    const method = document.getElementById('releasedPaymentMethod')?.value;
+    const gcashRefGroup = document.getElementById('releasedGCashRefGroup');
+    
+    if (gcashRefGroup) {
+        gcashRefGroup.style.display = method === 'GCash' ? 'block' : 'none';
+    }
+}
+
+/**
+ * Toggle Claimed payment fields
+ */
+function toggleClaimedPaymentFields() {
+    const checkbox = document.getElementById('claimedCollectPayment');
+    const fieldsDiv = document.getElementById('claimedPaymentFields');
+    const amountInput = document.getElementById('claimedPaymentAmount');
+    
+    if (fieldsDiv) {
+        fieldsDiv.style.display = checkbox?.checked ? 'block' : 'none';
+        
+        // Auto-populate amount from total
+        if (checkbox?.checked && amountInput) {
+            const total = parseFloat(document.getElementById('preApprovedTotal')?.value || 0);
+            amountInput.value = total.toFixed(2);
+        }
+    }
+}
+
+/**
+ * Toggle Claimed GCash reference field
+ */
+function toggleClaimedGCashRef() {
+    const method = document.getElementById('claimedPaymentMethod')?.value;
+    const gcashRefGroup = document.getElementById('claimedGCashRefGroup');
+    
+    if (gcashRefGroup) {
+        gcashRefGroup.style.display = method === 'GCash' ? 'block' : 'none';
+    }
+}
+
+/**
  * Handle problem type selection
  */
 function handleProblemTypeChange() {
@@ -6148,6 +6521,12 @@ window.buildUsersTab = buildUsersTab;
 window.toggleBackJobFields = toggleBackJobFields;
 window.calculatePreApprovedTotal = calculatePreApprovedTotal;
 window.toggleAssignToTech = toggleAssignToTech;
+window.toggleCompletionFields = toggleCompletionFields;
+window.validateCompletionDates = validateCompletionDates;
+window.toggleReleasedPaymentFields = toggleReleasedPaymentFields;
+window.toggleReleasedGCashRef = toggleReleasedGCashRef;
+window.toggleClaimedPaymentFields = toggleClaimedPaymentFields;
+window.toggleClaimedGCashRef = toggleClaimedGCashRef;
 window.buildClaimedUnitsPage = buildClaimedUnitsPage;
 window.applyLogFilters = applyLogFilters;
 window.clearLogFilters = clearLogFilters;
@@ -13949,8 +14328,298 @@ window.scanForCleanupFiles = scanForCleanupFiles;
 window.downloadAllCleanupFiles = downloadAllCleanupFiles;
 window.confirmCleanupDelete = confirmCleanupDelete;
 
+/**
+ * Build Retroactive Intakes Tab (Admin Only)
+ */
+function buildRetroactiveIntakesTab(container) {
+    window.currentTabRefresh = () => buildRetroactiveIntakesTab(container);
+    
+    const intakes = window.allRetroactiveIntakes || [];
+    const role = window.currentUserData?.role;
+    
+    if (role !== 'admin') {
+        container.innerHTML = `
+            <div class="page-header">
+                <h2>🔒 Access Denied</h2>
+                <p>This page is for administrators only.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Calculate stats
+    const today = new Date().toISOString().split('T')[0];
+    const thisMonth = new Date().toISOString().slice(0, 7);
+    
+    const totalIntakes = intakes.length;
+    const thisMonthIntakes = intakes.filter(i => i.performedAt && i.performedAt.startsWith(thisMonth)).length;
+    const duplicateOverrides = intakes.filter(i => i.duplicateOverridden).length;
+    const excessiveFlags = intakes.filter(i => i.excessiveUsageFlag).length;
+    const totalPayments = intakes.reduce((sum, i) => sum + (i.paymentCollected || 0), 0);
+    
+    // Technician breakdown
+    const techStats = {};
+    intakes.forEach(intake => {
+        const uid = intake.performedBy;
+        if (!uid) return;
+        
+        if (!techStats[uid]) {
+            techStats[uid] = {
+                name: intake.performedByName || 'Unknown',
+                today: 0,
+                thisWeek: 0,
+                thisMonth: 0,
+                total: 0
+            };
+        }
+        
+        techStats[uid].total++;
+        
+        const intakeDate = intake.performedDate || intake.performedAt?.split('T')[0];
+        if (intakeDate === today) techStats[uid].today++;
+        if (intake.performedMonth === thisMonth) techStats[uid].thisMonth++;
+    });
+    
+    container.innerHTML = `
+        <div class="page-header">
+            <h2>🔄 Retroactive Intakes</h2>
+            <p>Audit trail for devices received after completion</p>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+            <div class="stat-card">
+                <div class="stat-value">${totalIntakes}</div>
+                <div class="stat-label">Total Retroactive</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">${thisMonthIntakes}</div>
+                <div class="stat-label">This Month</div>
+            </div>
+            <div class="stat-card" style="background:#fff3cd;">
+                <div class="stat-value">${duplicateOverrides}</div>
+                <div class="stat-label">Duplicate Overrides</div>
+            </div>
+            <div class="stat-card" style="background:#f8d7da;">
+                <div class="stat-value">${excessiveFlags}</div>
+                <div class="stat-label">Excessive Usage Alerts</div>
+            </div>
+            <div class="stat-card" style="background:#d1ecf1;">
+                <div class="stat-value">₱${totalPayments.toLocaleString()}</div>
+                <div class="stat-label">Total Payments</div>
+            </div>
+        </div>
+        
+        <!-- Technician Breakdown -->
+        <div style="background:white;padding:20px;border-radius:8px;margin-bottom:20px;">
+            <h3 style="margin:0 0 15px 0;">👥 Technician Breakdown</h3>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Technician</th>
+                        <th>Today</th>
+                        <th>This Month</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${Object.entries(techStats).map(([uid, stats]) => `
+                        <tr>
+                            <td><strong>${stats.name}</strong></td>
+                            <td>${stats.today}</td>
+                            <td>${stats.thisMonth}</td>
+                            <td>${stats.total}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Filters -->
+        <div style="background:white;padding:15px;border-radius:8px;margin-bottom:20px;">
+            <h4 style="margin:0 0 12px 0;">🔍 Filters</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+                <div>
+                    <label>Date From</label>
+                    <input type="date" id="filterDateFrom" onchange="applyRetroactiveFilters()">
+                </div>
+                <div>
+                    <label>Date To</label>
+                    <input type="date" id="filterDateTo" onchange="applyRetroactiveFilters()">
+                </div>
+                <div>
+                    <label>Technician</label>
+                    <select id="filterTech" onchange="applyRetroactiveFilters()">
+                        <option value="">All Technicians</option>
+                        ${Object.entries(techStats).map(([uid, stats]) => `
+                            <option value="${uid}">${stats.name}</option>
+                        `).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label>Status</label>
+                    <select id="filterStatus" onchange="applyRetroactiveFilters()">
+                        <option value="">All</option>
+                        <option value="Released">Released</option>
+                        <option value="Claimed">Claimed</option>
+                    </select>
+                </div>
+                <div>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:25px;">
+                        <input type="checkbox" id="filterDuplicates" onchange="applyRetroactiveFilters()">
+                        <span>Duplicates Only</span>
+                    </label>
+                </div>
+                <div>
+                    <label style="display:flex;align-items:center;gap:8px;margin-top:25px;">
+                        <input type="checkbox" id="filterExcessive" onchange="applyRetroactiveFilters()">
+                        <span>Excessive Only</span>
+                    </label>
+                </div>
+            </div>
+            <div style="margin-top:10px;">
+                <button onclick="clearRetroactiveFilters()" class="btn-secondary">Clear Filters</button>
+                <button onclick="exportRetroactiveIntakesToCSV()" class="btn-primary">📄 Export to CSV</button>
+            </div>
+        </div>
+        
+        <!-- Intakes Table -->
+        <div style="background:white;padding:20px;border-radius:8px;">
+            <h3 style="margin:0 0 15px 0;">📋 All Retroactive Intakes</h3>
+            <div id="retroactiveIntakesTableContainer">
+                ${renderRetroactiveIntakesTable(intakes)}
+            </div>
+        </div>
+    `;
+}
+
+function renderRetroactiveIntakesTable(intakes) {
+    if (!intakes || intakes.length === 0) {
+        return '<p style="text-align:center;padding:40px;color:#666;">No retroactive intakes found.</p>';
+    }
+    
+    return `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Date/Time</th>
+                    <th>Repair ID</th>
+                    <th>Technician</th>
+                    <th>Customer</th>
+                    <th>Device</th>
+                    <th>Status</th>
+                    <th>Payment</th>
+                    <th>Flags</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${intakes.map(intake => {
+                    const flags = [];
+                    if (intake.duplicateOverridden) flags.push('<span style="background:#ffc107;color:#000;padding:2px 6px;border-radius:3px;font-size:11px;">DUPLICATE</span>');
+                    if (intake.excessiveUsageFlag) flags.push('<span style="background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">EXCESSIVE</span>');
+                    if (intake.adminDateOverride) flags.push('<span style="background:#17a2b8;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">DATE OVERRIDE</span>');
+                    
+                    return `
+                        <tr>
+                            <td>${utils.formatDateTime(intake.performedAt)}</td>
+                            <td><a href="#" onclick="viewRepairDetails('${intake.repairId}'); return false;">${intake.repairId.substring(0, 8)}</a></td>
+                            <td>${intake.performedByName}</td>
+                            <td>${intake.customerName}</td>
+                            <td>${intake.deviceBrand} ${intake.deviceModel}</td>
+                            <td><span class="status-badge ${intake.finalStatus.toLowerCase().replace(' ', '-')}">${intake.finalStatus}</span></td>
+                            <td>${intake.paymentCollected ? '₱' + intake.paymentCollected.toLocaleString() : '-'}</td>
+                            <td>${flags.join(' ')}</td>
+                            <td>
+                                <button onclick="viewRetroactiveIntakeDetails('${intake.id}')" class="btn-small">View Details</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+function applyRetroactiveFilters() {
+    const dateFrom = document.getElementById('filterDateFrom')?.value;
+    const dateTo = document.getElementById('filterDateTo')?.value;
+    const techFilter = document.getElementById('filterTech')?.value;
+    const statusFilter = document.getElementById('filterStatus')?.value;
+    const duplicatesOnly = document.getElementById('filterDuplicates')?.checked;
+    const excessiveOnly = document.getElementById('filterExcessive')?.checked;
+    
+    let filtered = window.allRetroactiveIntakes || [];
+    
+    if (dateFrom) {
+        filtered = filtered.filter(i => i.performedAt >= dateFrom);
+    }
+    if (dateTo) {
+        const dateToEnd = dateTo + 'T23:59:59';
+        filtered = filtered.filter(i => i.performedAt <= dateToEnd);
+    }
+    if (techFilter) {
+        filtered = filtered.filter(i => i.performedBy === techFilter);
+    }
+    if (statusFilter) {
+        filtered = filtered.filter(i => i.finalStatus === statusFilter);
+    }
+    if (duplicatesOnly) {
+        filtered = filtered.filter(i => i.duplicateOverridden);
+    }
+    if (excessiveOnly) {
+        filtered = filtered.filter(i => i.excessiveUsageFlag);
+    }
+    
+    document.getElementById('retroactiveIntakesTableContainer').innerHTML = renderRetroactiveIntakesTable(filtered);
+}
+
+function clearRetroactiveFilters() {
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    document.getElementById('filterTech').value = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterDuplicates').checked = false;
+    document.getElementById('filterExcessive').checked = false;
+    applyRetroactiveFilters();
+}
+
+function viewRetroactiveIntakeDetails(intakeId) {
+    const intake = window.allRetroactiveIntakes.find(i => i.id === intakeId);
+    if (!intake) {
+        alert('Intake not found');
+        return;
+    }
+    
+    let details = `🔄 RETROACTIVE INTAKE DETAILS\n\n`;
+    details += `Repair ID: ${intake.repairId}\n`;
+    details += `Performed By: ${intake.performedByName} (${intake.performedByRole})\n`;
+    details += `Performed At: ${utils.formatDateTime(intake.performedAt)}\n\n`;
+    details += `Customer: ${intake.customerName}\n`;
+    details += `Device: ${intake.deviceBrand} ${intake.deviceModel}\n\n`;
+    details += `Original Completion: ${utils.formatDateTime(intake.originalCompletionDate)}\n`;
+    details += `Backdated Release: ${utils.formatDateTime(intake.backdatedReleaseDate)}\n`;
+    details += `Final Status: ${intake.finalStatus}\n\n`;
+    details += `Verification: ${intake.verificationMethod}\n`;
+    details += `Payment: ${intake.paymentCollected ? '₱' + intake.paymentCollected + ' via ' + intake.paymentMethod : 'Not collected'}\n`;
+    details += `Warranty: ${intake.warrantyDays} days\n\n`;
+    details += `Tech Daily Count: ${intake.techDailyCount}/${intake.threshold || 5}\n`;
+    details += `Excessive Flag: ${intake.excessiveUsageFlag ? 'YES' : 'NO'}\n`;
+    details += `Admin Date Override: ${intake.adminDateOverride ? 'YES' : 'NO'}\n`;
+    details += `Duplicate Detected: ${intake.duplicateDetected ? 'YES' : 'NO'}\n`;
+    if (intake.duplicateOverridden) {
+        details += `Duplicate Override Reason: ${intake.duplicateOverrideReason}\n`;
+    }
+    
+    alert(details);
+}
+
 // Export Staff Overview functions
 window.buildStaffOverviewTab = buildStaffOverviewTab;
 window.renderStaffStatusList = renderStaffStatusList;
 window.loadTodayAttendance = loadTodayAttendance;
 window.viewUserDashboard = viewUserDashboard;
+window.buildRetroactiveIntakesTab = buildRetroactiveIntakesTab;
+window.applyRetroactiveFilters = applyRetroactiveFilters;
+window.clearRetroactiveFilters = clearRetroactiveFilters;
+window.viewRetroactiveIntakeDetails = viewRetroactiveIntakeDetails;

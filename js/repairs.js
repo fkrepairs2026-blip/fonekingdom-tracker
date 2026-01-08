@@ -123,6 +123,65 @@ async function loadModificationRequests() {
 window.loadModificationRequests = loadModificationRequests;
 
 /**
+ * Load retroactive intakes from Firebase
+ */
+async function loadRetroactiveIntakes() {
+    return new Promise((resolve) => {
+        console.log('📦 Loading retroactive intakes...');
+
+        db.ref('retroactiveIntakes').orderByChild('performedAt').on('value', (snapshot) => {
+            window.allRetroactiveIntakes = [];
+
+            snapshot.forEach((child) => {
+                window.allRetroactiveIntakes.push({
+                    id: child.key,
+                    ...child.val()
+                });
+            });
+
+            // Sort by performedAt descending (most recent first)
+            window.allRetroactiveIntakes.sort((a, b) => {
+                return new Date(b.performedAt) - new Date(a.performedAt);
+            });
+
+            console.log('✅ Retroactive intakes loaded:', window.allRetroactiveIntakes.length);
+
+            // Refresh retroactive intakes tab if currently viewing
+            if (window.currentTabRefresh && window.activeTab === 'retroactive-intakes') {
+                setTimeout(() => {
+                    window.currentTabRefresh();
+                }, 400);
+            }
+
+            resolve(window.allRetroactiveIntakes);
+        });
+    });
+}
+
+window.loadRetroactiveIntakes = loadRetroactiveIntakes;
+
+/**
+ * Load system settings from Firebase
+ */
+async function loadSystemSettings() {
+    return new Promise((resolve) => {
+        console.log('📦 Loading system settings...');
+
+        db.ref('systemSettings').on('value', (snapshot) => {
+            window.systemSettings = snapshot.val() || {
+                retroactiveIntakeThreshold: 5
+            };
+
+            console.log('✅ System settings loaded:', window.systemSettings);
+
+            resolve(window.systemSettings);
+        });
+    });
+}
+
+window.loadSystemSettings = loadSystemSettings;
+
+/**
  * Load parts orders from Firebase
  */
 async function loadPartsOrders() {
@@ -307,8 +366,204 @@ async function loadUsers() {
 window.loadUsers = loadUsers;
 
 /**
- * Submit receive device (NEW WORKFLOW - No assignment)
+ * Calculate string similarity using Levenshtein distance
+ * @param {string} str1 - First string
+ * @param {string} str2 - Second string
+ * @returns {number} - Similarity percentage (0-100)
  */
+function calculateStringSimilarity(str1, str2) {
+    if (!str1 || !str2) return 0;
+    
+    // Normalize strings: lowercase and trim
+    const s1 = str1.toLowerCase().trim();
+    const s2 = str2.toLowerCase().trim();
+    
+    if (s1 === s2) return 100;
+    
+    // Levenshtein distance algorithm
+    const matrix = [];
+    const len1 = s1.length;
+    const len2 = s2.length;
+    
+    // Initialize matrix
+    for (let i = 0; i <= len1; i++) {
+        matrix[i] = [i];
+    }
+    for (let j = 0; j <= len2; j++) {
+        matrix[0][j] = j;
+    }
+    
+    // Calculate distances
+    for (let i = 1; i <= len1; i++) {
+        for (let j = 1; j <= len2; j++) {
+            const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,      // deletion
+                matrix[i][j - 1] + 1,      // insertion
+                matrix[i - 1][j - 1] + cost // substitution
+            );
+        }
+    }
+    
+    const distance = matrix[len1][len2];
+    const maxLen = Math.max(len1, len2);
+    const similarity = ((maxLen - distance) / maxLen) * 100;
+    
+    return Math.round(similarity);
+}
+
+/**
+ * Check for duplicate retroactive intakes
+ * @param {string} customerName - Customer name to check
+ * @param {string} brand - Device brand
+ * @param {string} model - Device model
+ * @returns {object} - {isBlocked, matchingRepairs, reason}
+ */
+function checkDuplicateRetroactiveIntake(customerName, brand, model) {
+    if (!customerName || !brand || !model) {
+        return { isBlocked: false, matchingRepairs: [], reason: '' };
+    }
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const matchingRepairs = [];
+    
+    // Check all repairs from last 7 days
+    (window.allRepairs || []).forEach(repair => {
+        if (!repair.createdAt) return;
+        
+        const repairDate = new Date(repair.createdAt);
+        if (repairDate < sevenDaysAgo) return;
+        
+        // Check if brand and model match exactly
+        const brandMatch = repair.deviceBrand?.toLowerCase() === brand.toLowerCase();
+        const modelMatch = repair.deviceModel?.toLowerCase() === model.toLowerCase();
+        
+        if (!brandMatch || !modelMatch) return;
+        
+        // Calculate name similarity
+        const nameSimilarity = calculateStringSimilarity(customerName, repair.customerName);
+        
+        // Check if it's an exact name match or high similarity
+        if (nameSimilarity >= 70) {
+            const daysAgo = Math.floor((new Date() - repairDate) / (1000 * 60 * 60 * 24));
+            const hoursAgo = Math.floor((new Date() - repairDate) / (1000 * 60 * 60));
+            
+            matchingRepairs.push({
+                id: repair.id,
+                customerName: repair.customerName,
+                brand: repair.deviceBrand,
+                model: repair.deviceModel,
+                date: repair.createdAt,
+                daysAgo: daysAgo,
+                hoursAgo: hoursAgo,
+                confidence: nameSimilarity,
+                status: repair.status
+            });
+        }
+    });
+    
+    // Determine if should block
+    let isBlocked = false;
+    let reason = '';
+    
+    if (matchingRepairs.length > 0) {
+        // Block if any match has >90% similarity OR within 24 hours
+        const highConfidenceMatch = matchingRepairs.find(m => m.confidence >= 90);
+        const recentMatch = matchingRepairs.find(m => m.hoursAgo <= 24);
+        
+        if (highConfidenceMatch || recentMatch) {
+            isBlocked = true;
+            if (highConfidenceMatch && recentMatch) {
+                reason = `High confidence match (${highConfidenceMatch.confidence}%) within 24 hours`;
+            } else if (highConfidenceMatch) {
+                reason = `High confidence match (${highConfidenceMatch.confidence}%)`;
+            } else {
+                reason = `Recent repair within 24 hours (${recentMatch.hoursAgo} hours ago)`;
+            }
+        }
+    }
+    
+    return {
+        isBlocked,
+        matchingRepairs,
+        reason,
+        requiresAdminOverride: isBlocked
+    };
+}
+
+/**
+ * Validate backdate timestamps
+ * @param {string} completionDate - Completion date ISO string
+ * @param {string} releaseDate - Release/claim date ISO string
+ * @param {boolean} isAdminOverride - Admin override flag
+ * @returns {object} - {valid, error}
+ */
+function validateBackdateTimestamp(completionDate, releaseDate, isAdminOverride) {
+    if (!completionDate || !releaseDate) {
+        return { valid: false, error: 'Both completion and release/claim dates are required' };
+    }
+    
+    const completion = new Date(completionDate);
+    const release = new Date(releaseDate);
+    const now = new Date();
+    const minDate = new Date('2025-01-01');
+    
+    // Check completion not future
+    if (completion > now) {
+        return { valid: false, error: 'Completion date cannot be in the future' };
+    }
+    
+    // Check release not future
+    if (release > now) {
+        return { valid: false, error: 'Release/claim date cannot be in the future' };
+    }
+    
+    // Check release >= completion
+    if (release < completion) {
+        return { valid: false, error: 'Release/claim date must be after or equal to completion date' };
+    }
+    
+    // Check dates >= 2025 unless admin override
+    if (!isAdminOverride) {
+        if (completion < minDate) {
+            return { valid: false, error: 'Completion date must be after January 1, 2025 (admin override required)' };
+        }
+        if (release < minDate) {
+            return { valid: false, error: 'Release/claim date must be after January 1, 2025 (admin override required)' };
+        }
+    }
+    
+    return { valid: true, error: '' };
+}
+
+/**
+ * Check for excessive retroactive intakes by technician today
+ * @param {string} techUid - Technician UID
+ * @returns {object} - {isExcessive, count, threshold}
+ */
+function checkExcessiveRetroactiveIntakes(techUid) {
+    const threshold = window.systemSettings?.retroactiveIntakeThreshold || 5;
+    
+    // Get today's date string (YYYY-MM-DD)
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Count retroactive intakes by this tech today
+    const count = (window.allRetroactiveIntakes || []).filter(intake => {
+        if (!intake.performedBy || !intake.performedAt) return false;
+        
+        const intakeDate = intake.performedAt.split('T')[0];
+        return intake.performedBy === techUid && intakeDate === today;
+    }).length;
+    
+    return {
+        isExcessive: count >= threshold,
+        count: count,
+        threshold: threshold
+    };
+}
+
 /**
  * Submit receive device with BACK JOB support
  */
@@ -402,6 +657,379 @@ async function submitReceiveDevice(e) {
     const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
     const total = partsCost + laborCost;
     const hasPricing = repairType && total > 0;
+
+    // ==================== RETROACTIVE COMPLETION MODE ====================
+    // Check if retroactive completion mode is selected
+    const completionMode = data.get('completionMode') || 'normal';
+    
+    if (completionMode !== 'normal') {
+        // Retroactive mode - device already completed
+        console.log('🔄 Retroactive completion mode:', completionMode);
+        
+        // VALIDATION: Require pricing
+        if (!hasPricing) {
+            alert('⚠️ Pricing is required for retroactive completion mode!\n\nPlease enter:\n• Repair Type\n• Parts Cost\n• Labor Cost');
+            return;
+        }
+        
+        // VALIDATION: Check for duplicates
+        const duplicateCheck = checkDuplicateRetroactiveIntake(
+            data.get('customerName'),
+            data.get('brand'),
+            data.get('model')
+        );
+        
+        if (duplicateCheck.isBlocked) {
+            // Blocked duplicate detected
+            if (window.currentUserData.role !== 'admin') {
+                // Non-admin: Cannot proceed
+                let duplicateMsg = '❌ DUPLICATE DETECTION - Cannot proceed!\n\n';
+                duplicateMsg += `Reason: ${duplicateCheck.reason}\n\n`;
+                duplicateMsg += 'Similar repairs found:\n';
+                duplicateCheck.matchingRepairs.forEach((match, idx) => {
+                    duplicateMsg += `\n${idx + 1}. ID: ${match.id.substring(0, 8)}\n`;
+                    duplicateMsg += `   Customer: ${match.customerName}\n`;
+                    duplicateMsg += `   Device: ${match.brand} ${match.model}\n`;
+                    duplicateMsg += `   Date: ${match.daysAgo} days ago\n`;
+                    duplicateMsg += `   Confidence: ${match.confidence}%\n`;
+                    duplicateMsg += `   Status: ${match.status}\n`;
+                });
+                duplicateMsg += '\nOnly admins can override this block.';
+                alert(duplicateMsg);
+                return;
+            } else {
+                // Admin: Show warning and require override reason
+                const overrideReason = prompt(
+                    `⚠️ ADMIN DUPLICATE OVERRIDE REQUIRED\n\n` +
+                    `Reason: ${duplicateCheck.reason}\n\n` +
+                    `${duplicateCheck.matchingRepairs.length} similar repair(s) found in last 7 days:\n` +
+                    duplicateCheck.matchingRepairs.map((m, i) => 
+                        `${i+1}. ${m.customerName} - ${m.brand} ${m.model} (${m.daysAgo}d ago, ${m.confidence}% match)`
+                    ).join('\n') +
+                    `\n\nEnter override reason (minimum 20 characters):`
+                );
+                
+                if (!overrideReason || overrideReason.trim().length < 20) {
+                    alert('❌ Override cancelled or reason too short (minimum 20 characters required)');
+                    return;
+                }
+                
+                repair.duplicateOverrideReason = overrideReason.trim();
+                repair.duplicateOverridden = true;
+            }
+        }
+        
+        // Get completion mode specific fields
+        const isReleased = completionMode === 'released';
+        const prefix = isReleased ? 'released' : 'claimed';
+        
+        const completionDate = document.getElementById(`${prefix}CompletionDate`)?.value;
+        const releaseDate = document.getElementById(`${prefix}${isReleased ? 'Release' : 'Claim'}Date`)?.value;
+        const adminOverride = document.getElementById(`${prefix}AdminDateOverride`)?.checked || false;
+        
+        // VALIDATION: Validate dates
+        const dateValidation = validateBackdateTimestamp(completionDate, releaseDate, adminOverride);
+        if (!dateValidation.valid) {
+            alert(`⚠️ Date Validation Error:\n\n${dateValidation.error}`);
+            return;
+        }
+        
+        // Check for excessive usage
+        const excessiveCheck = checkExcessiveRetroactiveIntakes(window.currentUser.uid);
+        if (excessiveCheck.isExcessive) {
+            const continueExcessive = confirm(
+                `⚠️ EXCESSIVE USAGE WARNING\n\n` +
+                `You've created ${excessiveCheck.count}/${excessiveCheck.threshold} retroactive intakes today.\n\n` +
+                `Admin will be notified of this activity.\n\n` +
+                `Continue anyway?`
+            );
+            
+            if (!continueExcessive) {
+                return;
+            }
+        }
+        
+        // Get additional fields
+        let verificationMethod = null;
+        let serviceSlipPhoto = null;
+        let releaseNotes = '';
+        let warrantyDays = 7;
+        let finalNotes = '';
+        
+        if (isReleased) {
+            verificationMethod = document.getElementById('releasedVerificationMethod')?.value;
+            releaseNotes = document.getElementById('releasedReleaseNotes')?.value || '';
+            
+            if (!verificationMethod) {
+                alert('⚠️ Please select a verification method!');
+                return;
+            }
+            
+            // Handle service slip photo if provided
+            const slipPhotoInput = document.getElementById('releasedServiceSlipPhoto');
+            if (slipPhotoInput && slipPhotoInput.files && slipPhotoInput.files[0]) {
+                // Compress and convert to base64
+                serviceSlipPhoto = await utils.compressImage(slipPhotoInput.files[0]);
+            }
+        } else {
+            // Claimed mode
+            warrantyDays = parseInt(document.getElementById('claimedWarrantyDays')?.value || 7);
+            finalNotes = document.getElementById('claimedFinalNotes')?.value || '';
+        }
+        
+        // Handle payment collection
+        const collectPayment = document.getElementById(`${prefix}CollectPayment`)?.checked;
+        let paymentData = null;
+        
+        if (collectPayment) {
+            const paymentAmount = parseFloat(document.getElementById(`${prefix}PaymentAmount`)?.value || 0);
+            const paymentMethod = document.getElementById(`${prefix}PaymentMethod`)?.value;
+            const paymentNotes = document.getElementById(`${prefix}PaymentNotes`)?.value || '';
+            
+            if (!paymentMethod) {
+                alert('⚠️ Please select a payment method!');
+                return;
+            }
+            
+            if (paymentAmount <= 0) {
+                alert('⚠️ Payment amount must be greater than 0!');
+                return;
+            }
+            
+            // GCash validation
+            if (paymentMethod === 'GCash') {
+                const gcashRef = document.getElementById(`${prefix}GCashRef`)?.value;
+                if (!gcashRef || gcashRef.trim().length === 0) {
+                    alert('⚠️ GCash reference number is required!');
+                    return;
+                }
+            }
+            
+            paymentData = {
+                amount: paymentAmount,
+                method: paymentMethod,
+                gcashReference: paymentMethod === 'GCash' ? document.getElementById(`${prefix}GCashRef`)?.value : null,
+                notes: paymentNotes,
+                collectedDuringIntake: true,
+                collectedAt: new Date().toISOString(),
+                receivedBy: window.currentUser.uid,
+                receivedByName: window.currentUserData.displayName
+            };
+        }
+        
+        // CONFIRMATION MODAL
+        const confirmDetails = `
+⚠️ **RETROACTIVE INTAKE - BYPASS NORMAL WORKFLOW**
+
+Status: ${isReleased ? 'Released (Ready for Pickup)' : 'Claimed (Finalized)'}
+Completion Date: ${utils.formatDateTime(completionDate)}
+${isReleased ? 'Release' : 'Claim'} Date: ${utils.formatDateTime(releaseDate)}
+Assigned Tech: ${window.currentUserData.displayName}
+${isReleased ? `Verification: ${verificationMethod}` : `Warranty: ${warrantyDays} days (until ${new Date(new Date(releaseDate).getTime() + warrantyDays * 24 * 60 * 60 * 1000).toLocaleDateString()})`}
+Payment: ${paymentData ? `₱${paymentData.amount.toFixed(2)} via ${paymentData.method}` : 'Not collected'}
+${duplicateCheck.matchingRepairs.length > 0 ? `\n⚠️ Duplicate Override: ${repair.duplicateOverrideReason || 'N/A'}` : ''}
+${excessiveCheck.isExcessive ? `\n⚠️ Daily Count: ${excessiveCheck.count}/${excessiveCheck.threshold} (Admin notified)` : ''}
+
+This device will be marked as already repaired.
+        `.trim();
+        
+        const userConfirmed = confirm(
+            confirmDetails + '\n\n☑️ I confirm this device was already repaired before this intake.\n\nContinue?'
+        );
+        
+        if (!userConfirmed) {
+            console.log('❌ User cancelled retroactive intake');
+            return;
+        }
+        
+        // BUILD RETROACTIVE REPAIR OBJECT
+        const completionDateISO = new Date(completionDate).toISOString();
+        const releaseDateISO = new Date(releaseDate).toISOString();
+        const warrantyEndDate = new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000);
+        
+        // Set base repair data with pricing
+        repair.repairType = repairType;
+        repair.partsCost = partsCost;
+        repair.laborCost = laborCost;
+        repair.total = total;
+        
+        // Mark as retroactive intake
+        repair.retroactiveIntake = true;
+        repair.retroactiveReason = 'Device received after completion';
+        repair.adminDateOverride = adminOverride;
+        repair.duplicateDetected = duplicateCheck.matchingRepairs.length > 0;
+        
+        // Set status
+        repair.status = isReleased ? 'Released' : 'Claimed';
+        
+        // Set completion fields
+        repair.completedAt = completionDateISO;
+        repair.completedBy = window.currentUserData.displayName;
+        repair.completedById = window.currentUser.uid;
+        
+        // Set diagnosis as created and customer approved
+        repair.diagnosisCreated = true;
+        repair.diagnosisCreatedAt = completionDateISO;
+        repair.diagnosisCreatedBy = window.currentUser.uid;
+        repair.diagnosisCreatedByName = window.currentUserData.displayName;
+        repair.customerApproved = true;
+        repair.customerApprovedAt = completionDateISO;
+        repair.customerApprovedBy = window.currentUser.uid;
+        
+        // Auto-assign to current technician
+        repair.acceptedBy = window.currentUser.uid;
+        repair.acceptedByName = window.currentUserData.displayName;
+        repair.acceptedAt = completionDateISO;
+        repair.assignmentMethod = 'retroactive-auto-assign';
+        
+        // Set released/claimed specific fields
+        if (isReleased) {
+            repair.releasedAt = releaseDateISO;
+            repair.releaseDate = releaseDateISO;
+            repair.releasedBy = window.currentUserData.displayName;
+            repair.releasedById = window.currentUser.uid;
+            repair.releasedByRole = window.currentUserData.role;
+            repair.repairedBy = window.currentUserData.displayName;
+            repair.repairedById = window.currentUser.uid;
+            repair.verificationMethod = verificationMethod;
+            repair.serviceSlipPhoto = serviceSlipPhoto;
+            repair.verifiedWithSlip = verificationMethod === 'with-slip';
+            repair.releaseNotes = releaseNotes;
+        } else {
+            // Claimed mode - set both released and claimed fields
+            repair.releasedAt = releaseDateISO;
+            repair.releaseDate = releaseDateISO;
+            repair.releasedBy = window.currentUserData.displayName;
+            repair.releasedById = window.currentUser.uid;
+            repair.releasedByRole = window.currentUserData.role;
+            repair.repairedBy = window.currentUserData.displayName;
+            repair.repairedById = window.currentUser.uid;
+            
+            repair.claimedAt = releaseDateISO;
+            repair.finalizedAt = releaseDateISO;
+            repair.finalizedBy = window.currentUserData.displayName;
+            repair.finalizedById = window.currentUser.uid;
+            repair.autoFinalized = false;
+            repair.warrantyDays = warrantyDays;
+            repair.warrantyEndDate = warrantyEndDate.toISOString();
+            repair.finalNotes = finalNotes;
+        }
+        
+        // Add payment if collected
+        if (paymentData) {
+            repair.payments = [paymentData];
+            repair.amountPaid = paymentData.amount;
+        }
+        
+        // Save to Firebase
+        try {
+            const newRef = await db.ref('repairs').push(repair);
+            const repairId = newRef.key;
+            
+            console.log('✅ Retroactive intake saved:', repairId);
+            
+            // Save to retroactiveIntakes audit collection
+            const today = new Date();
+            const auditEntry = {
+                repairId: repairId,
+                performedBy: window.currentUser.uid,
+                performedByName: window.currentUserData.displayName,
+                performedByRole: window.currentUserData.role,
+                performedAt: new Date().toISOString(),
+                performedDate: today.toISOString().split('T')[0],
+                performedWeek: `${today.getFullYear()}-W${String(Math.ceil((today - new Date(today.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000))).padStart(2, '0')}`,
+                performedMonth: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`,
+                originalCompletionDate: completionDateISO,
+                backdatedReleaseDate: releaseDateISO,
+                finalStatus: isReleased ? 'Released' : 'Claimed',
+                customerName: repair.customerName,
+                deviceBrand: repair.brand,
+                deviceModel: repair.model,
+                verificationMethod: verificationMethod || 'N/A',
+                paymentCollected: paymentData ? paymentData.amount : null,
+                paymentMethod: paymentData ? paymentData.method : null,
+                warrantyDays: warrantyDays,
+                retroactiveReason: 'Device received after completion',
+                adminDateOverride: adminOverride,
+                duplicateDetected: duplicateCheck.matchingRepairs.length > 0,
+                duplicateOverridden: repair.duplicateOverridden || false,
+                duplicateOverrideReason: repair.duplicateOverrideReason || null,
+                duplicateMatchingRepairs: duplicateCheck.matchingRepairs.map(m => ({
+                    id: m.id,
+                    customerName: m.customerName,
+                    confidence: m.confidence,
+                    daysAgo: m.daysAgo
+                })),
+                techDailyCount: excessiveCheck.count + 1,
+                excessiveUsageFlag: excessiveCheck.isExcessive
+            };
+            
+            await db.ref('retroactiveIntakes').push(auditEntry);
+            console.log('✅ Audit entry saved to retroactiveIntakes collection');
+            
+            // Send notification if excessive usage
+            if (excessiveCheck.isExcessive) {
+                await db.ref('adminNotifications').push({
+                    type: 'excessive_retroactive_intakes',
+                    techUid: window.currentUser.uid,
+                    techName: window.currentUserData.displayName,
+                    count: excessiveCheck.count + 1,
+                    threshold: excessiveCheck.threshold,
+                    date: today.toISOString().split('T')[0],
+                    repairIds: [repairId],
+                    message: `${window.currentUserData.displayName} created ${excessiveCheck.count + 1} retroactive intakes today`,
+                    createdAt: new Date().toISOString(),
+                    read: false,
+                    priority: 'medium'
+                });
+                console.log('⚠️ Excessive usage notification sent to admins');
+            }
+            
+            // Log activity with special retroactive intake marker
+            await logActivity('retroactive_intake', {
+                repairId: repairId,
+                originalCompletionDate: completionDateISO,
+                backdatedTo: releaseDateISO,
+                finalStatus: repair.status,
+                assignedTo: window.currentUserData.displayName,
+                paymentCollected: paymentData ? paymentData.amount : 0,
+                verificationMethod: verificationMethod || 'warranty-finalized',
+                duplicateCheckPassed: !duplicateCheck.isBlocked || repair.duplicateOverridden,
+                duplicateOverridden: repair.duplicateOverridden || false,
+                excessiveUsageFlag: excessiveCheck.isExcessive,
+                techDailyCount: excessiveCheck.count + 1,
+                threshold: excessiveCheck.threshold
+            }, `🔄 Retroactive intake - Device completed on ${utils.formatDate(completionDateISO)}, received on ${utils.formatDate(new Date().toISOString())}`);
+
+            
+            // Success message
+            alert(
+                `✅ Retroactive Intake Complete!\n\n` +
+                `📱 Device: ${repair.brand} ${repair.model}\n` +
+                `👤 Customer: ${repair.customerName}\n` +
+                `📍 Status: ${repair.status}\n` +
+                `✅ Completed: ${utils.formatDateTime(completionDateISO)}\n` +
+                `${isReleased ? '📦' : '🎯'} ${isReleased ? 'Released' : 'Claimed'}: ${utils.formatDateTime(releaseDateISO)}\n` +
+                `${paymentData ? `💰 Payment: ₱${paymentData.amount.toFixed(2)} collected\n` : ''}` +
+                `${!isReleased ? `🛡️ Warranty: ${warrantyDays} days\n` : ''}\n` +
+                `Repair ID: ${repairId.substring(0, 8)}`
+            );
+            
+            // Reset form and refresh
+            form.reset();
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+            
+            return; // Exit early - skip normal workflow
+            
+        } catch (error) {
+            console.error('❌ Error saving retroactive intake:', error);
+            alert('Error saving retroactive intake: ' + error.message);
+            return;
+        }
+    }
+    // ==================== END RETROACTIVE COMPLETION MODE ====================
 
     // Handle PRE-APPROVED devices (customer already agreed to pricing)
     if (hasPricing && !isBackJob) {

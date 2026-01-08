@@ -62,6 +62,14 @@ async function initializeApp() {
         await loadModificationRequests();
         console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
 
+        console.log('📦 Loading retroactive intakes...');
+        await loadRetroactiveIntakes();
+        console.log('✅ Retroactive intakes loaded:', window.allRetroactiveIntakes.length);
+
+        console.log('📦 Loading system settings...');
+        await loadSystemSettings();
+        console.log('✅ System settings loaded');
+
         console.log('📦 Loading parts orders...');
         await loadPartsOrders();
         console.log('✅ Parts orders loaded:', window.allPartsOrders.length);
