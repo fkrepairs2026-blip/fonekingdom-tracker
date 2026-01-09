@@ -28,6 +28,13 @@
             const forceCleanup = setInterval(function () {
                 attempts++;
 
+                // Stop cleanup if app is initialized
+                if (window.currentUser || window.appInitialized) {
+                    clearInterval(forceCleanup);
+                    console.log('✅ Emergency cleanup stopped - app initialized');
+                    return;
+                }
+
                 // Force hide loading
                 const loading = document.getElementById('loading');
                 if (loading) {

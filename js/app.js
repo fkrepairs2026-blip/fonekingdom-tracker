@@ -191,6 +191,9 @@ async function initializeApp() {
         utils.showLoading(false);
 
         console.log('✅ App initialization complete!');
+        
+        // Set flag to stop emergency cleanup script
+        window.appInitialized = true;
 
         // Prevent accidental browser back button exits
         setupBackButtonHandler();
