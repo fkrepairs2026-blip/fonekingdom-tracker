@@ -4351,7 +4351,7 @@ async function viewUserDashboard(userId) {
         // Get user's stats
         const userRepairs = window.allRepairs.filter(r => {
             if (user.role === 'technician') {
-                return r.technicianId === userId;
+                return r.acceptedBy === userId;
             } else if (user.role === 'cashier') {
                 return r.receivedById === userId || (r.payments && r.payments.some(p => p.receivedById === userId));
             }

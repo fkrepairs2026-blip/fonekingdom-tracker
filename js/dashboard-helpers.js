@@ -266,12 +266,12 @@ function buildManagerDashboard(userName, stats) {
  */
 function buildAdminDashboard(userName, stats) {
     const recentActivities = getRecentActivities(10);
-    
+
     // Get staff overview stats
     const users = Object.values(window.allUsers || {}).filter(u => u.status === 'active' && u.role !== 'admin');
     const allUserActivity = window.allUserActivity || {};
-    const clockedInCount = users.filter(u => allUserActivity[u.id]?.currentStatus === 'clocked-in').length;
-    
+    const clockedInCount = users.filter(u => allUserActivity[u.uid]?.currentStatus === 'clocked-in').length;
+
     // Get personal finance balance
     const personalExpenses = window.personalExpenses || [];
     const totalPersonalExpenses = personalExpenses.reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
@@ -840,13 +840,13 @@ function showUnclassifiedSuppliersBanner(count) {
     // Only show on admin dashboard
     const dashboardContainer = document.getElementById('main-content');
     if (!dashboardContainer) return;
-    
+
     // Check if banner already exists
     let banner = document.getElementById('unclassifiedSuppliersBanner');
     if (banner) {
         banner.remove();
     }
-    
+
     // Create new banner
     banner = document.createElement('div');
     banner.id = 'unclassifiedSuppliersBanner';
@@ -861,7 +861,7 @@ function showUnclassifiedSuppliersBanner(count) {
             <button onclick="dismissUnclassifiedWarning()" class="btn-secondary" style="white-space:nowrap;">Dismiss</button>
         </div>
     `;
-    
+
     // Insert at top of dashboard
     const firstChild = dashboardContainer.firstChild;
     dashboardContainer.insertBefore(banner, firstChild);
