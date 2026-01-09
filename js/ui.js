@@ -1135,31 +1135,31 @@ function buildReceiveDeviceTab(container) {
                     
                     <div style="margin-bottom:15px;">
                         <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;">
-                            <input type="radio" name="completionMode" value="released" onchange="toggleCompletionFields()">
-                            <span><strong>📦 Pre-completed (Released)</strong> - Device already repaired, skip to Released status</span>
+                            <input type="radio" name="completionMode" value="pre-completed" onchange="toggleCompletionFields()">
+                            <span><strong>📦 Pre-completed (Waiting to be Claimed)</strong> - Job done, ready for customer pickup</span>
                         </label>
                     </div>
                     
                     <div style="margin-bottom:15px;">
                         <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;">
-                            <input type="radio" name="completionMode" value="claimed" onchange="toggleCompletionFields()">
-                            <span><strong>🎯 Pre-completed (Claimed)</strong> - Device already repaired & claimed, final status</span>
+                            <input type="radio" name="completionMode" value="completed" onchange="toggleCompletionFields()">
+                            <span><strong>🎯 Completed (Released & Paid)</strong> - Device already given to customer (auto-finalize if fully paid)</span>
                         </label>
                     </div>
                     
-                    <!-- Released Completion Fields -->
-                    <div id="releasedCompletionFields" style="display:none;background:#e8f5e9;padding:15px;border-radius:5px;margin-top:10px;border-left:3px solid #4caf50;">
-                        <h5 style="margin:0 0 12px 0;color:#2e7d32;">Released Mode Settings</h5>
+                    <!-- Simplified Completion Fields -->
+                    <div id="completedFields" style="display:none;background:#e8f5e9;padding:15px;border-radius:5px;margin-top:10px;border-left:3px solid #4caf50;">
+                        <h5 style="margin:0 0 12px 0;color:#2e7d32;">Completion Settings</h5>
                         
                         <div class="form-row">
                             <div class="form-group">
                                 <label><strong style="color:#d32f2f;">*</strong> Completion Date & Time</label>
-                                <input type="datetime-local" id="releasedCompletionDate" name="releasedCompletionDate">
+                                <input type="datetime-local" id="completionDate" name="completionDate">
                                 <small style="color:#666;">When repair was actually completed</small>
                             </div>
                             <div class="form-group">
                                 <label><strong style="color:#d32f2f;">*</strong> Release Date & Time</label>
-                                <input type="datetime-local" id="releasedReleaseDate" name="releasedReleaseDate">
+                                <input type="datetime-local" id="releaseDate" name="releaseDate">
                                 <small style="color:#666;">When device was given to customer</small>
                             </div>
                         </div>
@@ -1167,52 +1167,62 @@ function buildReceiveDeviceTab(container) {
                         ${window.currentUserData && window.currentUserData.role === 'admin' ? `
                         <div class="form-group">
                             <label style="display:flex;align-items:center;gap:8px;">
-                                <input type="checkbox" id="releasedAdminDateOverride" name="releasedAdminDateOverride">
+                                <input type="checkbox" id="adminDateOverride" name="adminDateOverride">
                                 <span>🔓 Admin Override - Allow dates before 2025</span>
                             </label>
                         </div>
                         ` : ''}
                         
+                        <!-- Warranty field - only shown for "completed" mode -->
+                        <div id="warrantyField" style="display:none;">
+                            <div class="form-group">
+                                <label>Warranty Period (Days)</label>
+                                <input type="number" id="warrantyDays" name="warrantyDays" value="7" min="0" max="365">
+                                <small style="color:#666;">Default: 7 days for hardware repairs, 0 for software</small>
+                            </div>
+                        </div>
+                        
                         <div class="form-group">
-                            <label><strong style="color:#d32f2f;">*</strong> Verification Method</label>
-                            <select id="releasedVerificationMethod" name="releasedVerificationMethod" required>
-                                <option value="">-- Select Method --</option>
+                            <label>Verification Method</label>
+                            <select id="verificationMethod" name="verificationMethod">
+                                <option value="">-- Select --</option>
+                                <option value="walk-in">Walk-in Pickup</option>
                                 <option value="with-slip">With Service Slip</option>
                                 <option value="customer-address">Customer Address</option>
                                 <option value="verified-photo">Verified by Photo</option>
                             </select>
                         </div>
                         
-                        <div id="releasedSlipUploadGroup" style="display:none;">
+                        <div id="slipUploadGroup" style="display:none;">
                             <div class="form-group">
                                 <label>Service Slip Photo</label>
-                                <input type="file" id="releasedServiceSlipPhoto" accept="image/*">
+                                <input type="file" id="serviceSlipPhoto" accept="image/*">
                                 <small style="color:#666;">Optional: Upload service slip image</small>
                             </div>
                         </div>
                         
                         <div class="form-group">
                             <label>Release Notes</label>
-                            <textarea id="releasedReleaseNotes" name="releasedReleaseNotes" rows="3" placeholder="Any notes about the release..."></textarea>
+                            <textarea id="releaseNotes" name="releaseNotes" rows="3" placeholder="Any notes about the release..."></textarea>
                         </div>
                         
                         <div class="form-group">
                             <label style="display:flex;align-items:center;gap:8px;">
-                                <input type="checkbox" id="releasedCollectPayment" name="releasedCollectPayment" onchange="toggleReleasedPaymentFields()">
+                                <input type="checkbox" id="collectPayment" name="collectPayment" onchange="togglePaymentFields()">
                                 <span>💰 Collect Payment Now</span>
                             </label>
                         </div>
                         
-                        <div id="releasedPaymentFields" style="display:none;background:#fff;padding:10px;border-radius:5px;margin-top:10px;">
+                        <div id="paymentFields" style="display:none;background:#fff;padding:10px;border-radius:5px;margin-top:10px;">
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Payment Amount (₱)</label>
-                                    <input type="number" id="releasedPaymentAmount" name="releasedPaymentAmount" min="0.01" step="0.01">
-                                    <small style="color:#666;">Auto-populated from total</small>
+                                    <input type="number" id="paymentAmount" name="paymentAmount" min="0.01" step="0.01">
+                                    <small style="color:#666;">Enter payment amount</small>
                                 </div>
                                 <div class="form-group">
                                     <label><strong style="color:#d32f2f;">*</strong> Payment Method</label>
-                                    <select id="releasedPaymentMethod" name="releasedPaymentMethod" onchange="toggleReleasedGCashRef()">
+                                    <select id="paymentMethod" name="paymentMethod" onchange="toggleGCashRef()">
                                         <option value="">-- Select Method --</option>
                                         <option value="Cash">Cash</option>
                                         <option value="GCash">GCash</option>
@@ -1222,93 +1232,16 @@ function buildReceiveDeviceTab(container) {
                                 </div>
                             </div>
                             
-                            <div id="releasedGCashRefGroup" style="display:none;">
+                            <div id="gcashRefGroup" style="display:none;">
                                 <div class="form-group">
                                     <label>GCash Reference Number</label>
-                                    <input type="text" id="releasedGCashRef" name="releasedGCashRef" maxlength="13">
+                                    <input type="text" id="gcashRef" name="gcashRef" maxlength="13">
                                 </div>
                             </div>
                             
                             <div class="form-group">
                                 <label>Payment Notes</label>
-                                <textarea id="releasedPaymentNotes" name="releasedPaymentNotes" rows="2"></textarea>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Claimed Completion Fields -->
-                    <div id="claimedCompletionFields" style="display:none;background:#e3f2fd;padding:15px;border-radius:5px;margin-top:10px;border-left:3px solid #2196f3;">
-                        <h5 style="margin:0 0 12px 0;color:#1565c0;">Claimed Mode Settings</h5>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label><strong style="color:#d32f2f;">*</strong> Completion Date & Time</label>
-                                <input type="datetime-local" id="claimedCompletionDate" name="claimedCompletionDate">
-                                <small style="color:#666;">When repair was actually completed</small>
-                            </div>
-                            <div class="form-group">
-                                <label><strong style="color:#d32f2f;">*</strong> Claimed Date & Time</label>
-                                <input type="datetime-local" id="claimedClaimDate" name="claimedClaimDate">
-                                <small style="color:#666;">When device was finalized/claimed</small>
-                            </div>
-                        </div>
-                        
-                        ${window.currentUserData && window.currentUserData.role === 'admin' ? `
-                        <div class="form-group">
-                            <label style="display:flex;align-items:center;gap:8px;">
-                                <input type="checkbox" id="claimedAdminDateOverride" name="claimedAdminDateOverride">
-                                <span>🔓 Admin Override - Allow dates before 2025</span>
-                            </label>
-                        </div>
-                        ` : ''}
-                        
-                        <div class="form-group">
-                            <label>Warranty Period (Days)</label>
-                            <input type="number" id="claimedWarrantyDays" name="claimedWarrantyDays" value="7" min="0" max="365">
-                            <small style="color:#666;">Default: 7 days for hardware repairs, 0 for software</small>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label>Final Notes</label>
-                            <textarea id="claimedFinalNotes" name="claimedFinalNotes" rows="3" placeholder="Any final notes about this repair..."></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label style="display:flex;align-items:center;gap:8px;">
-                                <input type="checkbox" id="claimedCollectPayment" name="claimedCollectPayment" onchange="toggleClaimedPaymentFields()">
-                                <span>💰 Collect Payment Now</span>
-                            </label>
-                        </div>
-                        
-                        <div id="claimedPaymentFields" style="display:none;background:#fff;padding:10px;border-radius:5px;margin-top:10px;">
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label>Payment Amount (₱)</label>
-                                    <input type="number" id="claimedPaymentAmount" name="claimedPaymentAmount" min="0.01" step="0.01">
-                                    <small style="color:#666;">Auto-populated from total</small>
-                                </div>
-                                <div class="form-group">
-                                    <label><strong style="color:#d32f2f;">*</strong> Payment Method</label>
-                                    <select id="claimedPaymentMethod" name="claimedPaymentMethod" onchange="toggleClaimedGCashRef()">
-                                        <option value="">-- Select Method --</option>
-                                        <option value="Cash">Cash</option>
-                                        <option value="GCash">GCash</option>
-                                        <option value="Bank Transfer">Bank Transfer</option>
-                                        <option value="Cheque">Cheque</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div id="claimedGCashRefGroup" style="display:none;">
-                                <div class="form-group">
-                                    <label>GCash Reference Number</label>
-                                    <input type="text" id="claimedGCashRef" name="claimedGCashRef" maxlength="13">
-                                </div>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label>Payment Notes</label>
-                                <textarea id="claimedPaymentNotes" name="claimedPaymentNotes" rows="2"></textarea>
+                                <textarea id="paymentNotes" name="paymentNotes" rows="2"></textarea>
                             </div>
                         </div>
                     </div>
@@ -6177,55 +6110,48 @@ function toggleAssignToTech() {
  */
 function toggleCompletionFields() {
     const completionMode = document.querySelector('input[name="completionMode"]:checked')?.value;
-    const releasedFields = document.getElementById('releasedCompletionFields');
-    const claimedFields = document.getElementById('claimedCompletionFields');
+    const completedFields = document.getElementById('completedFields');
+    const warrantyField = document.getElementById('warrantyField');
     const techAcceptSection = document.getElementById('techAcceptSection');
     
-    // Hide all completion fields first
-    if (releasedFields) releasedFields.style.display = 'none';
-    if (claimedFields) claimedFields.style.display = 'none';
+    // Hide completion fields first
+    if (completedFields) completedFields.style.display = 'none';
+    if (warrantyField) warrantyField.style.display = 'none';
     
     // Show/hide tech assignment section
     if (techAcceptSection) {
         techAcceptSection.style.display = completionMode === 'normal' ? 'block' : 'none';
     }
     
-    // Show appropriate completion fields
-    if (completionMode === 'released' && releasedFields) {
-        releasedFields.style.display = 'block';
+    // Show completion fields for pre-completed or completed modes
+    if ((completionMode === 'pre-completed' || completionMode === 'completed') && completedFields) {
+        completedFields.style.display = 'block';
+        
+        // Show warranty field only for "completed" mode
+        if (completionMode === 'completed' && warrantyField) {
+            warrantyField.style.display = 'block';
+        }
         
         // Set default dates to now
         const now = new Date();
         const nowStr = now.toISOString().slice(0, 16);
-        document.getElementById('releasedCompletionDate').value = nowStr;
-        document.getElementById('releasedReleaseDate').value = nowStr;
+        document.getElementById('completionDate').value = nowStr;
+        document.getElementById('releaseDate').value = nowStr;
         
         // Validate dates on change
-        document.getElementById('releasedCompletionDate').addEventListener('change', validateCompletionDates);
-        document.getElementById('releasedReleaseDate').addEventListener('change', validateCompletionDates);
+        document.getElementById('completionDate').addEventListener('change', validateCompletionDates);
+        document.getElementById('releaseDate').addEventListener('change', validateCompletionDates);
         
         // Toggle service slip upload based on verification method
-        const verificationMethod = document.getElementById('releasedVerificationMethod');
+        const verificationMethod = document.getElementById('verificationMethod');
         if (verificationMethod) {
             verificationMethod.addEventListener('change', function() {
-                const slipUploadGroup = document.getElementById('releasedSlipUploadGroup');
+                const slipUploadGroup = document.getElementById('slipUploadGroup');
                 if (slipUploadGroup) {
                     slipUploadGroup.style.display = this.value === 'with-slip' ? 'block' : 'none';
                 }
             });
         }
-    } else if (completionMode === 'claimed' && claimedFields) {
-        claimedFields.style.display = 'block';
-        
-        // Set default dates to now
-        const now = new Date();
-        const nowStr = now.toISOString().slice(0, 16);
-        document.getElementById('claimedCompletionDate').value = nowStr;
-        document.getElementById('claimedClaimDate').value = nowStr;
-        
-        // Validate dates on change
-        document.getElementById('claimedCompletionDate').addEventListener('change', validateCompletionDates);
-        document.getElementById('claimedClaimDate').addEventListener('change', validateCompletionDates);
     }
 }
 
@@ -6290,63 +6216,52 @@ function validateCompletionDates() {
 /**
  * Toggle Released payment fields
  */
+/**
+ * Toggle payment fields for completion mode
+ */
+function togglePaymentFields() {
+    const checkbox = document.getElementById('collectPayment');
+    const fieldsDiv = document.getElementById('paymentFields');
+    const amountInput = document.getElementById('paymentAmount');
+    
+    if (fieldsDiv) {
+        fieldsDiv.style.display = checkbox?.checked ? 'block' : 'none';
+        
+        // Auto-populate amount from total
+        if (checkbox?.checked && amountInput) {
+            const total = parseFloat(document.getElementById('preApprovedTotal')?.value || 0);
+            amountInput.value = total.toFixed(2);
+        }
+    }
+}
+
+/**
+ * Toggle GCash reference field for completion mode
+ */
+function toggleGCashRef() {
+    const method = document.getElementById('paymentMethod')?.value;
+    const gcashRefGroup = document.getElementById('gcashRefGroup');
+    
+    if (gcashRefGroup) {
+        gcashRefGroup.style.display = method === 'GCash' ? 'block' : 'none';
+    }
+}
+
+// Keep old function names for backwards compatibility (in case they're called from other places)
 function toggleReleasedPaymentFields() {
-    const checkbox = document.getElementById('releasedCollectPayment');
-    const fieldsDiv = document.getElementById('releasedPaymentFields');
-    const amountInput = document.getElementById('releasedPaymentAmount');
-    
-    if (fieldsDiv) {
-        fieldsDiv.style.display = checkbox?.checked ? 'block' : 'none';
-        
-        // Auto-populate amount from total
-        if (checkbox?.checked && amountInput) {
-            const total = parseFloat(document.getElementById('preApprovedTotal')?.value || 0);
-            amountInput.value = total.toFixed(2);
-        }
-    }
+    togglePaymentFields();
 }
 
-/**
- * Toggle Released GCash reference field
- */
 function toggleReleasedGCashRef() {
-    const method = document.getElementById('releasedPaymentMethod')?.value;
-    const gcashRefGroup = document.getElementById('releasedGCashRefGroup');
-    
-    if (gcashRefGroup) {
-        gcashRefGroup.style.display = method === 'GCash' ? 'block' : 'none';
-    }
+    toggleGCashRef();
 }
 
-/**
- * Toggle Claimed payment fields
- */
 function toggleClaimedPaymentFields() {
-    const checkbox = document.getElementById('claimedCollectPayment');
-    const fieldsDiv = document.getElementById('claimedPaymentFields');
-    const amountInput = document.getElementById('claimedPaymentAmount');
-    
-    if (fieldsDiv) {
-        fieldsDiv.style.display = checkbox?.checked ? 'block' : 'none';
-        
-        // Auto-populate amount from total
-        if (checkbox?.checked && amountInput) {
-            const total = parseFloat(document.getElementById('preApprovedTotal')?.value || 0);
-            amountInput.value = total.toFixed(2);
-        }
-    }
+    togglePaymentFields();
 }
 
-/**
- * Toggle Claimed GCash reference field
- */
 function toggleClaimedGCashRef() {
-    const method = document.getElementById('claimedPaymentMethod')?.value;
-    const gcashRefGroup = document.getElementById('claimedGCashRefGroup');
-    
-    if (gcashRefGroup) {
-        gcashRefGroup.style.display = method === 'GCash' ? 'block' : 'none';
-    }
+    toggleGCashRef();
 }
 
 /**
@@ -6523,6 +6438,8 @@ window.calculatePreApprovedTotal = calculatePreApprovedTotal;
 window.toggleAssignToTech = toggleAssignToTech;
 window.toggleCompletionFields = toggleCompletionFields;
 window.validateCompletionDates = validateCompletionDates;
+window.togglePaymentFields = togglePaymentFields;
+window.toggleGCashRef = toggleGCashRef;
 window.toggleReleasedPaymentFields = toggleReleasedPaymentFields;
 window.toggleReleasedGCashRef = toggleReleasedGCashRef;
 window.toggleClaimedPaymentFields = toggleClaimedPaymentFields;

@@ -762,13 +762,10 @@ async function submitReceiveDevice(e) {
             }
         }
         
-        // Get completion mode specific fields
-        const isReleased = completionMode === 'released';
-        const prefix = isReleased ? 'released' : 'claimed';
-        
-        const completionDate = document.getElementById(`${prefix}CompletionDate`)?.value;
-        const releaseDate = document.getElementById(`${prefix}${isReleased ? 'Release' : 'Claim'}Date`)?.value;
-        const adminOverride = document.getElementById(`${prefix}AdminDateOverride`)?.checked || false;
+        // Get unified completion fields
+        const completionDate = document.getElementById('completionDate')?.value;
+        const releaseDate = document.getElementById('releaseDate')?.value;
+        const adminOverride = document.getElementById('adminDateOverride')?.checked || false;
         
         // VALIDATION: Validate dates
         const dateValidation = validateBackdateTimestamp(completionDate, releaseDate, adminOverride);
@@ -793,41 +790,25 @@ async function submitReceiveDevice(e) {
         }
         
         // Get additional fields
-        let verificationMethod = null;
-        let serviceSlipPhoto = null;
-        let releaseNotes = '';
-        let warrantyDays = 7;
-        let finalNotes = '';
+        const verificationMethod = document.getElementById('verificationMethod')?.value || null;
+        const releaseNotes = document.getElementById('releaseNotes')?.value || '';
+        const warrantyDays = parseInt(document.getElementById('warrantyDays')?.value || 7);
         
-        if (isReleased) {
-            verificationMethod = document.getElementById('releasedVerificationMethod')?.value;
-            releaseNotes = document.getElementById('releasedReleaseNotes')?.value || '';
-            
-            if (!verificationMethod) {
-                alert('⚠️ Please select a verification method!');
-                return;
-            }
-            
-            // Handle service slip photo if provided
-            const slipPhotoInput = document.getElementById('releasedServiceSlipPhoto');
-            if (slipPhotoInput && slipPhotoInput.files && slipPhotoInput.files[0]) {
-                // Compress and convert to base64
-                serviceSlipPhoto = await utils.compressImage(slipPhotoInput.files[0]);
-            }
-        } else {
-            // Claimed mode
-            warrantyDays = parseInt(document.getElementById('claimedWarrantyDays')?.value || 7);
-            finalNotes = document.getElementById('claimedFinalNotes')?.value || '';
+        // Handle service slip photo if provided
+        let serviceSlipPhoto = null;
+        const slipPhotoInput = document.getElementById('serviceSlipPhoto');
+        if (slipPhotoInput && slipPhotoInput.files && slipPhotoInput.files[0]) {
+            serviceSlipPhoto = await utils.compressImage(slipPhotoInput.files[0]);
         }
         
         // Handle payment collection
-        const collectPayment = document.getElementById(`${prefix}CollectPayment`)?.checked;
+        const collectPayment = document.getElementById('collectPayment')?.checked;
         let paymentData = null;
         
         if (collectPayment) {
-            const paymentAmount = parseFloat(document.getElementById(`${prefix}PaymentAmount`)?.value || 0);
-            const paymentMethod = document.getElementById(`${prefix}PaymentMethod`)?.value;
-            const paymentNotes = document.getElementById(`${prefix}PaymentNotes`)?.value || '';
+            const paymentAmount = parseFloat(document.getElementById('paymentAmount')?.value || 0);
+            const paymentMethod = document.getElementById('paymentMethod')?.value;
+            const paymentNotes = document.getElementById('paymentNotes')?.value || '';
             
             if (!paymentMethod) {
                 alert('⚠️ Please select a payment method!');
@@ -841,7 +822,7 @@ async function submitReceiveDevice(e) {
             
             // GCash validation
             if (paymentMethod === 'GCash') {
-                const gcashRef = document.getElementById(`${prefix}GCashRef`)?.value;
+                const gcashRef = document.getElementById('gcashRef')?.value;
                 if (!gcashRef || gcashRef.trim().length === 0) {
                     alert('⚠️ GCash reference number is required!');
                     return;
@@ -851,7 +832,7 @@ async function submitReceiveDevice(e) {
             paymentData = {
                 amount: paymentAmount,
                 method: paymentMethod,
-                gcashReference: paymentMethod === 'GCash' ? document.getElementById(`${prefix}GCashRef`)?.value : null,
+                gcashReference: paymentMethod === 'GCash' ? document.getElementById('gcashRef')?.value : null,
                 notes: paymentNotes,
                 collectedDuringIntake: true,
                 collectedAt: new Date().toISOString(),
@@ -860,18 +841,52 @@ async function submitReceiveDevice(e) {
             };
         }
         
+        // SMART AUTO-FINALIZATION LOGIC
+        // Completed mode: Check if fully paid
+        // - If fully paid (amount >= total) → Claimed status with warranty
+        // - If unpaid or partial payment → Released status (for dealers)
+        //
+        // Pre-completed mode: Always Released status (waiting for pickup)
+        
+        let finalStatus = 'Released'; // Default
+        let shouldFinalize = false;
+        
+        if (completionMode === 'completed') {
+            // Check payment against total
+            const amountPaid = paymentData ? paymentData.amount : 0;
+            const totalCost = total;
+            
+            if (amountPaid >= totalCost) {
+                // Fully paid - auto-finalize to Claimed
+                finalStatus = 'Claimed';
+                shouldFinalize = true;
+            } else {
+                // Unpaid or partial - keep as Released for dealer finalization
+                finalStatus = 'Released';
+                shouldFinalize = false;
+            }
+        } else {
+            // Pre-completed mode - always Released (waiting for customer)
+            finalStatus = 'Released';
+            shouldFinalize = false;
+        }
+        
         // CONFIRMATION MODAL
         const confirmDetails = `
 ⚠️ **RETROACTIVE INTAKE - BYPASS NORMAL WORKFLOW**
 
-Status: ${isReleased ? 'Released (Ready for Pickup)' : 'Claimed (Finalized)'}
+Mode: ${completionMode === 'pre-completed' ? 'Pre-completed (Waiting to be Claimed)' : 'Completed (Released & Paid)'}
+Final Status: ${finalStatus}${shouldFinalize ? ' (Auto-finalized)' : ''}
 Completion Date: ${utils.formatDateTime(completionDate)}
-${isReleased ? 'Release' : 'Claim'} Date: ${utils.formatDateTime(releaseDate)}
+Release Date: ${utils.formatDateTime(releaseDate)}
 Assigned Tech: ${window.currentUserData.displayName}
-${isReleased ? `Verification: ${verificationMethod}` : `Warranty: ${warrantyDays} days (until ${new Date(new Date(releaseDate).getTime() + warrantyDays * 24 * 60 * 60 * 1000).toLocaleDateString()})`}
-Payment: ${paymentData ? `₱${paymentData.amount.toFixed(2)} via ${paymentData.method}` : 'Not collected'}
+${verificationMethod ? `Verification: ${verificationMethod}` : ''}
+${shouldFinalize ? `Warranty: ${warrantyDays} days (until ${new Date(new Date(releaseDate).getTime() + warrantyDays * 24 * 60 * 60 * 1000).toLocaleDateString()})` : ''}
+Payment: ${paymentData ? `₱${paymentData.amount.toFixed(2)} via ${paymentData.method}${shouldFinalize ? ' (Fully Paid ✓)' : ' (Partial/Unpaid)'}` : 'Not collected'}
 ${duplicateCheck.matchingRepairs.length > 0 ? `\n⚠️ Duplicate Override: ${repair.duplicateOverrideReason || 'N/A'}` : ''}
 ${excessiveCheck.isExcessive ? `\n⚠️ Daily Count: ${excessiveCheck.count}/${excessiveCheck.threshold} (Admin notified)` : ''}
+
+${shouldFinalize ? '✓ Device will be auto-finalized to Claimed status (fully paid)' : finalStatus === 'Released' ? '⚠ Device will remain in Released status (unpaid/partial - for dealer finalization)' : ''}
 
 This device will be marked as already repaired.
         `.trim();
@@ -902,8 +917,8 @@ This device will be marked as already repaired.
         repair.adminDateOverride = adminOverride;
         repair.duplicateDetected = duplicateCheck.matchingRepairs.length > 0;
         
-        // Set status
-        repair.status = isReleased ? 'Released' : 'Claimed';
+        // Set status based on auto-finalization logic
+        repair.status = finalStatus;
         
         // Set completion fields
         repair.completedAt = completionDateISO;
@@ -925,37 +940,29 @@ This device will be marked as already repaired.
         repair.acceptedAt = completionDateISO;
         repair.assignmentMethod = 'retroactive-auto-assign';
         
-        // Set released/claimed specific fields
-        if (isReleased) {
-            repair.releasedAt = releaseDateISO;
-            repair.releaseDate = releaseDateISO;
-            repair.releasedBy = window.currentUserData.displayName;
-            repair.releasedById = window.currentUser.uid;
-            repair.releasedByRole = window.currentUserData.role;
-            repair.repairedBy = window.currentUserData.displayName;
-            repair.repairedById = window.currentUser.uid;
-            repair.verificationMethod = verificationMethod;
-            repair.serviceSlipPhoto = serviceSlipPhoto;
-            repair.verifiedWithSlip = verificationMethod === 'with-slip';
-            repair.releaseNotes = releaseNotes;
-        } else {
-            // Claimed mode - set both released and claimed fields
-            repair.releasedAt = releaseDateISO;
-            repair.releaseDate = releaseDateISO;
-            repair.releasedBy = window.currentUserData.displayName;
-            repair.releasedById = window.currentUser.uid;
-            repair.releasedByRole = window.currentUserData.role;
-            repair.repairedBy = window.currentUserData.displayName;
-            repair.repairedById = window.currentUser.uid;
-            
+        // Always set released fields
+        repair.releasedAt = releaseDateISO;
+        repair.releaseDate = releaseDateISO;
+        repair.releasedBy = window.currentUserData.displayName;
+        repair.releasedById = window.currentUser.uid;
+        repair.releasedByRole = window.currentUserData.role;
+        repair.repairedBy = window.currentUserData.displayName;
+        repair.repairedById = window.currentUser.uid;
+        repair.verificationMethod = verificationMethod;
+        repair.serviceSlipPhoto = serviceSlipPhoto;
+        repair.verifiedWithSlip = verificationMethod === 'with-slip';
+        repair.releaseNotes = releaseNotes;
+        
+        // If auto-finalized to Claimed, set finalization fields
+        if (shouldFinalize) {
             repair.claimedAt = releaseDateISO;
             repair.finalizedAt = releaseDateISO;
             repair.finalizedBy = window.currentUserData.displayName;
             repair.finalizedById = window.currentUser.uid;
-            repair.autoFinalized = false;
+            repair.autoFinalized = true;
+            repair.autoFinalizedReason = 'Fully paid during retroactive intake';
             repair.warrantyDays = warrantyDays;
             repair.warrantyEndDate = warrantyEndDate.toISOString();
-            repair.finalNotes = finalNotes;
         }
         
         // Add payment if collected
@@ -984,7 +991,9 @@ This device will be marked as already repaired.
                 performedMonth: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`,
                 originalCompletionDate: completionDateISO,
                 backdatedReleaseDate: releaseDateISO,
-                finalStatus: isReleased ? 'Released' : 'Claimed',
+                completionMode: completionMode,
+                finalStatus: finalStatus,
+                autoFinalized: shouldFinalize,
                 customerName: repair.customerName,
                 deviceBrand: repair.brand,
                 deviceModel: repair.model,
@@ -1050,12 +1059,13 @@ This device will be marked as already repaired.
                 `✅ Retroactive Intake Complete!\n\n` +
                 `📱 Device: ${repair.brand} ${repair.model}\n` +
                 `👤 Customer: ${repair.customerName}\n` +
-                `📍 Status: ${repair.status}\n` +
+                `📍 Status: ${repair.status}${shouldFinalize ? ' (Auto-finalized ✓)' : ''}\n` +
+                `🔄 Mode: ${completionMode === 'pre-completed' ? 'Pre-completed (Waiting)' : 'Completed (Released & Paid)'}\n` +
                 `✅ Completed: ${utils.formatDateTime(completionDateISO)}\n` +
-                `${isReleased ? '📦' : '🎯'} ${isReleased ? 'Released' : 'Claimed'}: ${utils.formatDateTime(releaseDateISO)}\n` +
+                `📦 Released: ${utils.formatDateTime(releaseDateISO)}\n` +
                 `${paymentData ? `💰 Payment: ₱${paymentData.amount.toFixed(2)} collected\n` : ''}` +
-                `${!isReleased ? `🛡️ Warranty: ${warrantyDays} days\n` : ''}\n` +
-                `Repair ID: ${repairId.substring(0, 8)}`
+                `${shouldFinalize ? `🛡️ Warranty: ${warrantyDays} days (until ${new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000).toLocaleDateString()})\n` : ''}` +
+                `\nRepair ID: ${repairId.substring(0, 8)}`
             );
             
             // Reset form and refresh
