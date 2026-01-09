@@ -232,6 +232,16 @@
     "clockReminderSettings": {
       ".read": "auth != null",
       ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    },
+    "retroactiveIntakes": {
+      ".read": "auth != null",
+      "$intakeId": {
+        ".write": "auth != null && (
+          root.child('users').child(auth.uid).child('role').val() === 'admin' ||
+          root.child('users').child(auth.uid).child('role').val() === 'manager' ||
+          root.child('users').child(auth.uid).child('role').val() === 'technician'
+        )"
+      }
     }
   }
 }

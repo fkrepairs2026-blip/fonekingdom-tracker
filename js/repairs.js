@@ -612,17 +612,26 @@ function checkExcessiveRetroactiveIntakes(techUid) {
  */
 async function submitReceiveDevice(e) {
     e.preventDefault();
-    const form = e.target;
-    const data = new FormData(form);
+    
+    // Prevent double submission
+    if (window.isSubmittingDevice) {
+        console.warn('⚠️ Submission already in progress, ignoring duplicate');
+        return;
+    }
+    window.isSubmittingDevice = true;
+    
+    try {
+        const form = e.target;
+        const data = new FormData(form);
 
-    console.log('📥 Receiving device...');
+        console.log('📥 Receiving device...');
 
-    // Check if it's a back job (element removed, always false for normal receive)
-    const isBackJobCheckbox = document.getElementById('isBackJob');
-    const isBackJob = isBackJobCheckbox ? isBackJobCheckbox.checked : false;
+        // Check if it's a back job (element removed, always false for normal receive)
+        const isBackJobCheckbox = document.getElementById('isBackJob');
+        const isBackJob = isBackJobCheckbox ? isBackJobCheckbox.checked : false;
 
-    // DEBUG: Capture form inputs
-    const formInputs = {
+        // DEBUG: Capture form inputs
+        const formInputs = {
         customerType: data.get('customerType'),
         customerName: data.get('customerName'),
         shopName: data.get('shopName') || '',
@@ -1320,6 +1329,9 @@ This device will be marked as already repaired.
     } catch (error) {
         console.error('❌ Error receiving device:', error);
         alert('Error: ' + error.message);
+    } finally {
+        // Always reset the submission flag
+        window.isSubmittingDevice = false;
     }
 }
 
