@@ -416,18 +416,18 @@ window.loadUsers = loadUsers;
  */
 function calculateStringSimilarity(str1, str2) {
     if (!str1 || !str2) return 0;
-    
+
     // Normalize strings: lowercase and trim
     const s1 = str1.toLowerCase().trim();
     const s2 = str2.toLowerCase().trim();
-    
+
     if (s1 === s2) return 100;
-    
+
     // Levenshtein distance algorithm
     const matrix = [];
     const len1 = s1.length;
     const len2 = s2.length;
-    
+
     // Initialize matrix
     for (let i = 0; i <= len1; i++) {
         matrix[i] = [i];
@@ -435,7 +435,7 @@ function calculateStringSimilarity(str1, str2) {
     for (let j = 0; j <= len2; j++) {
         matrix[0][j] = j;
     }
-    
+
     // Calculate distances
     for (let i = 1; i <= len1; i++) {
         for (let j = 1; j <= len2; j++) {
@@ -447,11 +447,11 @@ function calculateStringSimilarity(str1, str2) {
             );
         }
     }
-    
+
     const distance = matrix[len1][len2];
     const maxLen = Math.max(len1, len2);
     const similarity = ((maxLen - distance) / maxLen) * 100;
-    
+
     return Math.round(similarity);
 }
 
@@ -466,33 +466,33 @@ function checkDuplicateRetroactiveIntake(customerName, brand, model) {
     if (!customerName || !brand || !model) {
         return { isBlocked: false, matchingRepairs: [], reason: '' };
     }
-    
+
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const matchingRepairs = [];
-    
+
     // Check all repairs from last 7 days
     (window.allRepairs || []).forEach(repair => {
         if (!repair.createdAt) return;
-        
+
         const repairDate = new Date(repair.createdAt);
         if (repairDate < sevenDaysAgo) return;
-        
+
         // Check if brand and model match exactly
         const brandMatch = repair.deviceBrand?.toLowerCase() === brand.toLowerCase();
         const modelMatch = repair.deviceModel?.toLowerCase() === model.toLowerCase();
-        
+
         if (!brandMatch || !modelMatch) return;
-        
+
         // Calculate name similarity
         const nameSimilarity = calculateStringSimilarity(customerName, repair.customerName);
-        
+
         // Check if it's an exact name match or high similarity
         if (nameSimilarity >= 70) {
             const daysAgo = Math.floor((new Date() - repairDate) / (1000 * 60 * 60 * 24));
             const hoursAgo = Math.floor((new Date() - repairDate) / (1000 * 60 * 60));
-            
+
             matchingRepairs.push({
                 id: repair.id,
                 customerName: repair.customerName,
@@ -506,16 +506,16 @@ function checkDuplicateRetroactiveIntake(customerName, brand, model) {
             });
         }
     });
-    
+
     // Determine if should block
     let isBlocked = false;
     let reason = '';
-    
+
     if (matchingRepairs.length > 0) {
         // Block if any match has >90% similarity OR within 24 hours
         const highConfidenceMatch = matchingRepairs.find(m => m.confidence >= 90);
         const recentMatch = matchingRepairs.find(m => m.hoursAgo <= 24);
-        
+
         if (highConfidenceMatch || recentMatch) {
             isBlocked = true;
             if (highConfidenceMatch && recentMatch) {
@@ -527,7 +527,7 @@ function checkDuplicateRetroactiveIntake(customerName, brand, model) {
             }
         }
     }
-    
+
     return {
         isBlocked,
         matchingRepairs,
@@ -547,27 +547,27 @@ function validateBackdateTimestamp(completionDate, releaseDate, isAdminOverride)
     if (!completionDate || !releaseDate) {
         return { valid: false, error: 'Both completion and release/claim dates are required' };
     }
-    
+
     const completion = new Date(completionDate);
     const release = new Date(releaseDate);
     const now = new Date();
     const minDate = new Date('2025-01-01');
-    
+
     // Check completion not future
     if (completion > now) {
         return { valid: false, error: 'Completion date cannot be in the future' };
     }
-    
+
     // Check release not future
     if (release > now) {
         return { valid: false, error: 'Release/claim date cannot be in the future' };
     }
-    
+
     // Check release >= completion
     if (release < completion) {
         return { valid: false, error: 'Release/claim date must be after or equal to completion date' };
     }
-    
+
     // Check dates >= 2025 unless admin override
     if (!isAdminOverride) {
         if (completion < minDate) {
@@ -577,7 +577,7 @@ function validateBackdateTimestamp(completionDate, releaseDate, isAdminOverride)
             return { valid: false, error: 'Release/claim date must be after January 1, 2025 (admin override required)' };
         }
     }
-    
+
     return { valid: true, error: '' };
 }
 
@@ -588,18 +588,18 @@ function validateBackdateTimestamp(completionDate, releaseDate, isAdminOverride)
  */
 function checkExcessiveRetroactiveIntakes(techUid) {
     const threshold = window.systemSettings?.retroactiveIntakeThreshold || 5;
-    
+
     // Get today's date string (YYYY-MM-DD)
     const today = new Date().toISOString().split('T')[0];
-    
+
     // Count retroactive intakes by this tech today
     const count = (window.allRetroactiveIntakes || []).filter(intake => {
         if (!intake.performedBy || !intake.performedAt) return false;
-        
+
         const intakeDate = intake.performedAt.split('T')[0];
         return intake.performedBy === techUid && intakeDate === today;
     }).length;
-    
+
     return {
         isExcessive: count >= threshold,
         count: count,
@@ -704,24 +704,24 @@ async function submitReceiveDevice(e) {
     // ==================== RETROACTIVE COMPLETION MODE ====================
     // Check if retroactive completion mode is selected
     const completionMode = data.get('completionMode') || 'normal';
-    
+
     if (completionMode !== 'normal') {
         // Retroactive mode - device already completed
         console.log('🔄 Retroactive completion mode:', completionMode);
-        
+
         // VALIDATION: Require pricing
         if (!hasPricing) {
             alert('⚠️ Pricing is required for retroactive completion mode!\n\nPlease enter:\n• Repair Type\n• Parts Cost\n• Labor Cost');
             return;
         }
-        
+
         // VALIDATION: Check for duplicates
         const duplicateCheck = checkDuplicateRetroactiveIntake(
             data.get('customerName'),
             data.get('brand'),
             data.get('model')
         );
-        
+
         if (duplicateCheck.isBlocked) {
             // Blocked duplicate detected
             if (window.currentUserData.role !== 'admin') {
@@ -746,34 +746,34 @@ async function submitReceiveDevice(e) {
                     `⚠️ ADMIN DUPLICATE OVERRIDE REQUIRED\n\n` +
                     `Reason: ${duplicateCheck.reason}\n\n` +
                     `${duplicateCheck.matchingRepairs.length} similar repair(s) found in last 7 days:\n` +
-                    duplicateCheck.matchingRepairs.map((m, i) => 
-                        `${i+1}. ${m.customerName} - ${m.brand} ${m.model} (${m.daysAgo}d ago, ${m.confidence}% match)`
+                    duplicateCheck.matchingRepairs.map((m, i) =>
+                        `${i + 1}. ${m.customerName} - ${m.brand} ${m.model} (${m.daysAgo}d ago, ${m.confidence}% match)`
                     ).join('\n') +
                     `\n\nEnter override reason (minimum 20 characters):`
                 );
-                
+
                 if (!overrideReason || overrideReason.trim().length < 20) {
                     alert('❌ Override cancelled or reason too short (minimum 20 characters required)');
                     return;
                 }
-                
+
                 repair.duplicateOverrideReason = overrideReason.trim();
                 repair.duplicateOverridden = true;
             }
         }
-        
+
         // Get unified completion fields
         const completionDate = document.getElementById('completionDate')?.value;
         const releaseDate = document.getElementById('releaseDate')?.value;
         const adminOverride = document.getElementById('adminDateOverride')?.checked || false;
-        
+
         // VALIDATION: Validate dates
         const dateValidation = validateBackdateTimestamp(completionDate, releaseDate, adminOverride);
         if (!dateValidation.valid) {
             alert(`⚠️ Date Validation Error:\n\n${dateValidation.error}`);
             return;
         }
-        
+
         // Check for excessive usage
         const excessiveCheck = checkExcessiveRetroactiveIntakes(window.currentUser.uid);
         if (excessiveCheck.isExcessive) {
@@ -783,43 +783,43 @@ async function submitReceiveDevice(e) {
                 `Admin will be notified of this activity.\n\n` +
                 `Continue anyway?`
             );
-            
+
             if (!continueExcessive) {
                 return;
             }
         }
-        
+
         // Get additional fields
         const verificationMethod = document.getElementById('verificationMethod')?.value || null;
         const releaseNotes = document.getElementById('releaseNotes')?.value || '';
         const warrantyDays = parseInt(document.getElementById('warrantyDays')?.value || 7);
-        
+
         // Handle service slip photo if provided
         let serviceSlipPhoto = null;
         const slipPhotoInput = document.getElementById('serviceSlipPhoto');
         if (slipPhotoInput && slipPhotoInput.files && slipPhotoInput.files[0]) {
             serviceSlipPhoto = await utils.compressImage(slipPhotoInput.files[0]);
         }
-        
+
         // Handle payment collection
         const collectPayment = document.getElementById('collectPayment')?.checked;
         let paymentData = null;
-        
+
         if (collectPayment) {
             const paymentAmount = parseFloat(document.getElementById('paymentAmount')?.value || 0);
             const paymentMethod = document.getElementById('paymentMethod')?.value;
             const paymentNotes = document.getElementById('paymentNotes')?.value || '';
-            
+
             if (!paymentMethod) {
                 alert('⚠️ Please select a payment method!');
                 return;
             }
-            
+
             if (paymentAmount <= 0) {
                 alert('⚠️ Payment amount must be greater than 0!');
                 return;
             }
-            
+
             // GCash validation
             if (paymentMethod === 'GCash') {
                 const gcashRef = document.getElementById('gcashRef')?.value;
@@ -828,7 +828,7 @@ async function submitReceiveDevice(e) {
                     return;
                 }
             }
-            
+
             paymentData = {
                 amount: paymentAmount,
                 method: paymentMethod,
@@ -840,22 +840,22 @@ async function submitReceiveDevice(e) {
                 receivedByName: window.currentUserData.displayName
             };
         }
-        
+
         // SMART AUTO-FINALIZATION LOGIC
         // Completed mode: Check if fully paid
         // - If fully paid (amount >= total) → Claimed status with warranty
         // - If unpaid or partial payment → Released status (for dealers)
         //
         // Pre-completed mode: Always Released status (waiting for pickup)
-        
+
         let finalStatus = 'Released'; // Default
         let shouldFinalize = false;
-        
+
         if (completionMode === 'completed') {
             // Check payment against total
             const amountPaid = paymentData ? paymentData.amount : 0;
             const totalCost = total;
-            
+
             if (amountPaid >= totalCost) {
                 // Fully paid - auto-finalize to Claimed
                 finalStatus = 'Claimed';
@@ -870,7 +870,7 @@ async function submitReceiveDevice(e) {
             finalStatus = 'Released';
             shouldFinalize = false;
         }
-        
+
         // CONFIRMATION MODAL
         const confirmDetails = `
 ⚠️ **RETROACTIVE INTAKE - BYPASS NORMAL WORKFLOW**
@@ -890,41 +890,41 @@ ${shouldFinalize ? '✓ Device will be auto-finalized to Claimed status (fully p
 
 This device will be marked as already repaired.
         `.trim();
-        
+
         const userConfirmed = confirm(
             confirmDetails + '\n\n☑️ I confirm this device was already repaired before this intake.\n\nContinue?'
         );
-        
+
         if (!userConfirmed) {
             console.log('❌ User cancelled retroactive intake');
             return;
         }
-        
+
         // BUILD RETROACTIVE REPAIR OBJECT
         const completionDateISO = new Date(completionDate).toISOString();
         const releaseDateISO = new Date(releaseDate).toISOString();
         const warrantyEndDate = new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000);
-        
+
         // Set base repair data with pricing
         repair.repairType = repairType;
         repair.partsCost = partsCost;
         repair.laborCost = laborCost;
         repair.total = total;
-        
+
         // Mark as retroactive intake
         repair.retroactiveIntake = true;
         repair.retroactiveReason = 'Device received after completion';
         repair.adminDateOverride = adminOverride;
         repair.duplicateDetected = duplicateCheck.matchingRepairs.length > 0;
-        
+
         // Set status based on auto-finalization logic
         repair.status = finalStatus;
-        
+
         // Set completion fields
         repair.completedAt = completionDateISO;
         repair.completedBy = window.currentUserData.displayName;
         repair.completedById = window.currentUser.uid;
-        
+
         // Set diagnosis as created and customer approved
         repair.diagnosisCreated = true;
         repair.diagnosisCreatedAt = completionDateISO;
@@ -933,13 +933,13 @@ This device will be marked as already repaired.
         repair.customerApproved = true;
         repair.customerApprovedAt = completionDateISO;
         repair.customerApprovedBy = window.currentUser.uid;
-        
+
         // Auto-assign to current technician
         repair.acceptedBy = window.currentUser.uid;
         repair.acceptedByName = window.currentUserData.displayName;
         repair.acceptedAt = completionDateISO;
         repair.assignmentMethod = 'retroactive-auto-assign';
-        
+
         // Always set released fields
         repair.releasedAt = releaseDateISO;
         repair.releaseDate = releaseDateISO;
@@ -952,7 +952,7 @@ This device will be marked as already repaired.
         repair.serviceSlipPhoto = serviceSlipPhoto;
         repair.verifiedWithSlip = verificationMethod === 'with-slip';
         repair.releaseNotes = releaseNotes;
-        
+
         // If auto-finalized to Claimed, set finalization fields
         if (shouldFinalize) {
             repair.claimedAt = releaseDateISO;
@@ -964,20 +964,20 @@ This device will be marked as already repaired.
             repair.warrantyDays = warrantyDays;
             repair.warrantyEndDate = warrantyEndDate.toISOString();
         }
-        
+
         // Add payment if collected
         if (paymentData) {
             repair.payments = [paymentData];
             repair.amountPaid = paymentData.amount;
         }
-        
+
         // Save to Firebase
         try {
             const newRef = await db.ref('repairs').push(repair);
             const repairId = newRef.key;
-            
+
             console.log('✅ Retroactive intake saved:', repairId);
-            
+
             // Save to retroactiveIntakes audit collection
             const today = new Date();
             const auditEntry = {
@@ -1015,10 +1015,10 @@ This device will be marked as already repaired.
                 techDailyCount: excessiveCheck.count + 1,
                 excessiveUsageFlag: excessiveCheck.isExcessive
             };
-            
+
             await db.ref('retroactiveIntakes').push(auditEntry);
             console.log('✅ Audit entry saved to retroactiveIntakes collection');
-            
+
             // Send notification if excessive usage
             if (excessiveCheck.isExcessive) {
                 await db.ref('adminNotifications').push({
@@ -1036,7 +1036,7 @@ This device will be marked as already repaired.
                 });
                 console.log('⚠️ Excessive usage notification sent to admins');
             }
-            
+
             // Log activity with special retroactive intake marker
             await logActivity('retroactive_intake', {
                 repairId: repairId,
@@ -1053,7 +1053,7 @@ This device will be marked as already repaired.
                 threshold: excessiveCheck.threshold
             }, `🔄 Retroactive intake - Device completed on ${utils.formatDate(completionDateISO)}, received on ${utils.formatDate(new Date().toISOString())}`);
 
-            
+
             // Success message
             alert(
                 `✅ Retroactive Intake Complete!\n\n` +
@@ -1067,15 +1067,15 @@ This device will be marked as already repaired.
                 `${shouldFinalize ? `🛡️ Warranty: ${warrantyDays} days (until ${new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000).toLocaleDateString()})\n` : ''}` +
                 `\nRepair ID: ${repairId.substring(0, 8)}`
             );
-            
+
             // Reset form and refresh
             form.reset();
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
             }
-            
+
             return; // Exit early - skip normal workflow
-            
+
         } catch (error) {
             console.error('❌ Error saving retroactive intake:', error);
             alert('Error saving retroactive intake: ' + error.message);
@@ -5529,15 +5529,15 @@ async function savePartsCost() {
         alert('Please select a supplier');
         return;
     }
-    
+
     // Check supplier payment type for special suppliers
     let supplierPaymentType = null;
     if (actualSupplier !== 'Stock' && actualSupplier !== 'Customer Provided') {
         const supplier = (window.allSuppliers || []).find(s => s.supplierName === actualSupplier);
-        
+
         if (supplier) {
             supplierPaymentType = supplier.paymentType;
-            
+
             // Warn if supplier is not classified
             if (!supplierPaymentType) {
                 if (window.currentUserData.role === 'admin') {
@@ -5548,7 +5548,7 @@ async function savePartsCost() {
                         `Would you like to classify it now?\n\n` +
                         `(Click OK to classify, Cancel to proceed without classification)`
                     );
-                    
+
                     if (classify) {
                         closePartsCostModal();
                         if (window.editSupplierForm) {
@@ -5565,7 +5565,7 @@ async function savePartsCost() {
                         `Contact an admin to classify this supplier.\n\n` +
                         `Proceed anyway?`
                     );
-                    
+
                     if (!proceed) return;
                 }
             }
@@ -5594,17 +5594,17 @@ async function savePartsCost() {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Auto-create or update expense if supplier type is tech_pays_cod
         if (supplierPaymentType === 'tech_pays_cod') {
             // Check for existing auto-generated expense for this repair
-            const existingExpense = (window.techExpenses || []).find(e => 
-                e.repairId === repairId && 
-                e.category === 'parts' && 
+            const existingExpense = (window.techExpenses || []).find(e =>
+                e.repairId === repairId &&
+                e.category === 'parts' &&
                 e.autoGenerated === true &&
                 !e.remittanceId  // Only if not yet remitted
             );
-            
+
             if (existingExpense) {
                 // Update existing expense instead of creating duplicate
                 await db.ref(`techExpenses/${existingExpense.id}`).update({
@@ -5617,7 +5617,7 @@ async function savePartsCost() {
             } else {
                 // Create new expense
                 const linkedPartsCostId = repairId + '_partsCost_' + Date.now();
-                
+
                 const expense = {
                     techId: window.currentUser.uid,
                     techName: window.currentUserData.displayName,
@@ -5633,11 +5633,11 @@ async function savePartsCost() {
                     linkedPartsCostId: linkedPartsCostId,
                     autoGenerated: true
                 };
-                
+
                 await db.ref('techExpenses').push(expense);
                 console.log('✅ Auto-created expense for technician - parts cost will be deducted from remittance');
             }
-            
+
             // Reload expenses
             if (window.loadTechExpenses) {
                 await window.loadTechExpenses();
@@ -5652,7 +5652,7 @@ async function savePartsCost() {
             const varianceText = costVariance > 0 ? `+₱${costVariance.toFixed(2)} higher` : `₱${Math.abs(costVariance).toFixed(2)} lower`;
             message += `\n\nVariance from quote: ${varianceText}`;
         }
-        
+
         if (supplierPaymentType === 'tech_pays_cod') {
             message += `\n\n💵 Expense auto-created and will be deducted from your daily remittance.`;
         }
@@ -5787,20 +5787,20 @@ function closeExpenseModal() {
 function viewRepairExpenses(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     const expenses = (window.techExpenses || []).filter(e => e.repairId === repairId);
-    
+
     if (expenses.length === 0) {
         alert('No expenses found for this repair');
         return;
     }
-    
+
     const modal = document.getElementById('userModal');
     const modalContent = document.getElementById('userModalContent');
     const modalTitle = document.getElementById('userModalTitle');
-    
+
     modalTitle.textContent = `💸 Expenses for ${repair?.customerName || 'Repair'}`;
-    
+
     const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
-    
+
     modalContent.innerHTML = `
         <div style="margin-bottom:20px;">
             <strong>Device:</strong> ${repair?.brand || ''} ${repair?.model || ''}<br>
@@ -5847,7 +5847,7 @@ function viewRepairExpenses(repairId) {
             <button onclick="closeModal()" class="btn-secondary">Close</button>
         </div>
     `;
-    
+
     modal.style.display = 'block';
 }
 
@@ -5856,35 +5856,35 @@ function viewRepairExpenses(repairId) {
  */
 async function deleteExpense(expenseId) {
     const expense = (window.techExpenses || []).find(e => e.id === expenseId);
-    
+
     if (!expense) {
         alert('Expense not found');
         return;
     }
-    
+
     if (expense.remittanceId) {
         alert('Cannot delete expense that has been remitted');
         return;
     }
-    
+
     const confirmMsg = expense.autoGenerated
         ? '⚠️ Delete this auto-generated expense?\n\n' +
-          'This expense was automatically created from parts cost.\n' +
-          'Deleting it will affect your daily remittance calculation.\n\n' +
-          'This action will be logged for audit purposes.\n\n' +
-          'Continue?'
+        'This expense was automatically created from parts cost.\n' +
+        'Deleting it will affect your daily remittance calculation.\n\n' +
+        'This action will be logged for audit purposes.\n\n' +
+        'Continue?'
         : '⚠️ Delete this expense?\n\n' +
-          'This will affect your daily remittance calculation.\n' +
-          'This action will be logged for audit purposes.\n\n' +
-          'Continue?';
-    
+        'This will affect your daily remittance calculation.\n' +
+        'This action will be logged for audit purposes.\n\n' +
+        'Continue?';
+
     if (!confirm(confirmMsg)) {
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Create audit log for deletion
         await db.ref('expenseDeletions').push({
             expenseId: expenseId,
@@ -5894,18 +5894,18 @@ async function deleteExpense(expenseId) {
             deletedAt: new Date().toISOString(),
             reason: 'Manual deletion via expense view'
         });
-        
+
         // Delete the expense
         await db.ref(`techExpenses/${expenseId}`).remove();
-        
+
         // Reload expenses
         if (window.loadTechExpenses) {
             await window.loadTechExpenses();
         }
-        
+
         utils.showLoading(false);
         alert('✅ Expense deleted and logged for audit');
-        
+
         // Close modal and refresh
         closeModal();
         setTimeout(() => {
@@ -7419,7 +7419,7 @@ async function confirmRemittance() {
         const techData = snapshot.val();
         pendingAdjustment = techData.pendingCommissionAdjustment;
         adjustmentAmount = pendingAdjustment ? (pendingAdjustment.totalAmount || 0) : 0;
-        
+
         DebugLogger.log('REMITTANCE', 'Pending Adjustment Verified', {
             hasPendingAdjustment: !!pendingAdjustment,
             adjustmentAmount: adjustmentAmount
@@ -7636,12 +7636,12 @@ async function confirmRemittance() {
         if (pendingAdjustment) {
             // Clear pending adjustment
             await db.ref(`users/${techId}/pendingCommissionAdjustment`).set(null);
-            
+
             // Update notifications to mark as applied
             const notificationsRef = db.ref(`users/${techId}/notifications`);
             const notifSnapshot = await notificationsRef.once('value');
             const notifUpdates = {};
-            
+
             notifSnapshot.forEach(child => {
                 const notif = child.val();
                 if (notif.type === 'commission_adjustment' && !notif.appliedToRemittance) {
@@ -7652,10 +7652,10 @@ async function confirmRemittance() {
                     };
                 }
             });
-            
+
             if (Object.keys(notifUpdates).length > 0) {
                 await notificationsRef.update(notifUpdates);
-                
+
                 DebugLogger.log('REMITTANCE', 'Pending Adjustment Cleared', {
                     adjustmentAmount: adjustmentAmount,
                     notificationsUpdated: Object.keys(notifUpdates).length
@@ -13827,150 +13827,8 @@ function exportUnpaidDevicesList() {
 
 // ==================== AUTO-FINALIZATION FOR RELEASED STATUS ====================
 
-/**
- * Check and auto-finalize Released devices at 6pm Manila time
- */
-async function checkAndAutoFinalizeReleased() {
-    try {
-        if (!window.allRepairs || !window.currentUser) return;
-
-        // Get current date and time in Manila timezone
-        const manilaTimeStr = new Date().toLocaleString('en-US', {
-            timeZone: 'Asia/Manila',
-            hour12: false
-        });
-        const manilaDate = new Date(manilaTimeStr);
-        const currentHour = manilaDate.getHours();
-        const currentMinute = manilaDate.getMinutes();
-
-        // Only run at 6pm Manila time (18:00) - with 10-minute window
-        if (currentHour !== 18 || currentMinute >= 10) {
-            return;
-        }
-
-        console.log('🕒 Checking for Released devices to auto-finalize...');
-
-        // Get today's date in Manila timezone (YYYY-MM-DD)
-        const todayManilaStr = manilaDate.toISOString().split('T')[0];
-
-        // Find all Released devices from today or earlier that are fully paid
-        const releasedDevices = window.allRepairs.filter(repair => {
-            if (repair.status !== 'Released') return false;
-            if (!repair.releasedAt) return false;
-
-            // Check if device has unpaid balance
-            const totalPaid = (repair.payments || [])
-                .filter(p => p.verified)
-                .reduce((sum, p) => sum + p.amount, 0);
-            const balance = repair.total - totalPaid;
-
-            if (balance > 0) {
-                DebugLogger.log('CLAIM', 'Auto-Finalize Skipped - Has Balance', {
-                    repairId: repair.id,
-                    customerName: repair.customerName,
-                    total: repair.total,
-                    totalPaid: totalPaid,
-                    balance: balance
-                });
-                console.log(`⚠️ Skipping auto-finalize for ${repair.customerName} - has balance of ₱${balance.toFixed(2)}`);
-                return false;
-            }
-
-            // Get release date in Manila timezone
-            const releasedDate = new Date(repair.releasedAt);
-            const releasedManilaStr = new Date(releasedDate.toLocaleString('en-US', {
-                timeZone: 'Asia/Manila'
-            })).toISOString().split('T')[0];
-
-            // Finalize if released today or before
-            return releasedManilaStr <= todayManilaStr;
-        });
-
-        if (releasedDevices.length === 0) {
-            console.log('✅ No Released devices to auto-finalize');
-            return;
-        }
-
-        console.log(`📋 Auto-finalizing ${releasedDevices.length} Released device(s)...`);
-
-        // Auto-finalize each device
-        for (const repair of releasedDevices) {
-            await finalizeClaimDevice(repair.id, true);
-            console.log(`✅ Auto-finalized: ${repair.customerName} (${repair.id})`);
-        }
-
-        console.log('✅ Auto-finalization complete');
-
-        // Refresh UI if needed
-        if (window.currentTabRefresh) {
-            window.currentTabRefresh();
-        }
-        if (window.buildStats) {
-            window.buildStats();
-        }
-
-    } catch (error) {
-        console.error('❌ Error in auto-finalization:', error);
-    }
-}
-
-/**
- * Get countdown to 6pm Manila time for a Released device
- */
-function getCountdownTo6PM(releasedAt) {
-    try {
-        const releasedDate = new Date(releasedAt);
-
-        // Get release date in Manila timezone
-        const releasedManilaStr = new Date(releasedDate.toLocaleString('en-US', {
-            timeZone: 'Asia/Manila'
-        })).toISOString().split('T')[0];
-
-        // Create 6pm Manila time for the release date
-        const finalizeTime = new Date(`${releasedManilaStr}T18:00:00+08:00`);
-
-        // Get current time in Manila
-        const nowManilaStr = new Date().toLocaleString('en-US', {
-            timeZone: 'Asia/Manila',
-            hour12: false
-        });
-        const nowManila = new Date(nowManilaStr);
-
-        // Calculate difference
-        const diff = finalizeTime - nowManila;
-
-        if (diff <= 0) {
-            return 'Finalizing...';
-        }
-
-        const hours = Math.floor(diff / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-        return `${hours}h ${minutes}m until auto-finalize`;
-
-    } catch (error) {
-        console.error('Error calculating countdown:', error);
-        return 'Pending finalization';
-    }
-}
-
-// Start auto-finalization checker (runs every 5 minutes)
-let autoFinalizeInterval = null;
-
-function startAutoFinalizeChecker() {
-    // Clear existing interval if any
-    if (autoFinalizeInterval) {
-        clearInterval(autoFinalizeInterval);
-    }
-
-    // Run check every 5 minutes (300000 ms)
-    autoFinalizeInterval = setInterval(checkAndAutoFinalizeReleased, 300000);
-
-    // Also run once immediately
-    setTimeout(checkAndAutoFinalizeReleased, 5000); // Wait 5 seconds after load
-
-    console.log('✅ Auto-finalization checker started (every 5 minutes)');
-}
+// Auto-finalization system removed for workflow simplification
+// Devices now remain in Released status until manually finalized
 
 // ===== DATA CLEANUP ENGINE =====
 
@@ -15467,10 +15325,7 @@ window.acknowledgeRefund = acknowledgeRefund;
 window.rejectRefund = rejectRefund;
 window.determineRefundTier = determineRefundTier;
 
-// Export functions
-window.checkAndAutoFinalizeReleased = checkAndAutoFinalizeReleased;
-window.getCountdownTo6PM = getCountdownTo6PM;
-window.startAutoFinalizeChecker = startAutoFinalizeChecker;
+// Auto-finalization functions removed (system simplified)
 
 // Export cleanup functions
 window.calculateDataHealthIssues = calculateDataHealthIssues;
@@ -15639,34 +15494,34 @@ function loadOfflineQueueFromStorage() {
 
 async function processOfflineQueue() {
     if (!window.offlineQueue || window.offlineQueue.length === 0) return;
-    
+
     console.log('🔄 Processing offline queue:', window.offlineQueue.length, 'items');
     const syncIndicator = document.getElementById('syncIndicator');
     if (syncIndicator) {
         syncIndicator.textContent = `⏳ Syncing ${window.offlineQueue.length} items...`;
         syncIndicator.style.display = 'block';
     }
-    
+
     const queue = [...window.offlineQueue];
     let successCount = 0;
     let failCount = 0;
-    
+
     for (const item of queue) {
         try {
             const { operationType, collection, data, offlineId } = item;
-            
+
             if (operationType === 'add') {
                 // Add lastModified timestamp for conflict resolution
                 data.lastModified = new Date().toISOString();
                 data.syncStatus = 'synced';
                 delete data.offlineId;
-                
+
                 await db.ref(collection).push(data);
-                
+
                 // Remove from queue
                 window.offlineQueue = window.offlineQueue.filter(q => q.offlineId !== offlineId);
                 successCount++;
-                
+
                 if (syncIndicator) {
                     syncIndicator.textContent = `⏳ Syncing ${queue.length - successCount - failCount} items...`;
                 }
@@ -15676,10 +15531,10 @@ async function processOfflineQueue() {
             failCount++;
         }
     }
-    
+
     // Save updated queue
     saveOfflineQueueToStorage();
-    
+
     if (syncIndicator) {
         if (failCount === 0) {
             syncIndicator.textContent = `✅ Synced ${successCount} items`;
@@ -15690,9 +15545,9 @@ async function processOfflineQueue() {
             syncIndicator.textContent = `⚠️ Synced ${successCount}, ${failCount} failed`;
         }
     }
-    
+
     console.log(`✅ Sync complete: ${successCount} success, ${failCount} failed`);
-    
+
     // Refresh current tab
     if (window.currentTabRefresh) {
         setTimeout(() => window.currentTabRefresh(), 500);
@@ -15702,11 +15557,11 @@ async function processOfflineQueue() {
 function updateOfflineIndicator() {
     const indicator = document.getElementById('offlineIndicator');
     const expenseBanner = document.getElementById('offlineExpenseBanner');
-    
+
     if (indicator) {
         indicator.style.display = window.isOnline ? 'none' : 'block';
     }
-    
+
     if (expenseBanner) {
         expenseBanner.style.display = window.isOnline ? 'none' : 'block';
     }
@@ -15723,14 +15578,14 @@ async function loadPersonalExpenses() {
                     ...child.val()
                 });
             });
-            
+
             // Filter by current user
-            window.allPersonalExpenses = expenses.filter(e => 
+            window.allPersonalExpenses = expenses.filter(e =>
                 e.userId === window.currentUser?.uid
             );
-            
+
             console.log('✅ Personal expenses loaded:', window.allPersonalExpenses.length);
-            
+
             // Auto-refresh tab if visible
             setTimeout(() => {
                 if (window.currentTabRefresh) {
@@ -15754,14 +15609,14 @@ async function loadRecurringTemplates() {
                     ...child.val()
                 });
             });
-            
+
             // Filter by current user
-            window.allRecurringTemplates = templates.filter(t => 
+            window.allRecurringTemplates = templates.filter(t =>
                 t.userId === window.currentUser?.uid
             );
-            
+
             console.log('✅ Recurring templates loaded:', window.allRecurringTemplates.length);
-            
+
             setTimeout(() => {
                 if (window.currentTabRefresh) {
                     window.currentTabRefresh();
@@ -15784,14 +15639,14 @@ async function loadCreditCards() {
                     ...child.val()
                 });
             });
-            
+
             // Filter by current user
-            window.allCreditCards = cards.filter(c => 
+            window.allCreditCards = cards.filter(c =>
                 c.userId === window.currentUser?.uid
             );
-            
+
             console.log('✅ Credit cards loaded:', window.allCreditCards.length);
-            
+
             setTimeout(() => {
                 if (window.currentTabRefresh) {
                     window.currentTabRefresh();
@@ -15814,14 +15669,14 @@ async function loadPersonalBudgets() {
                     ...child.val()
                 });
             });
-            
+
             // Filter by current user
-            window.allPersonalBudgets = budgets.filter(b => 
+            window.allPersonalBudgets = budgets.filter(b =>
                 b.userId === window.currentUser?.uid
             );
-            
+
             console.log('✅ Personal budgets loaded:', window.allPersonalBudgets.length);
-            
+
             setTimeout(() => {
                 if (window.currentTabRefresh) {
                     window.currentTabRefresh();
@@ -15844,14 +15699,14 @@ async function loadSavingsGoals() {
                     ...child.val()
                 });
             });
-            
+
             // Filter by current user
-            window.allSavingsGoals = goals.filter(g => 
+            window.allSavingsGoals = goals.filter(g =>
                 g.userId === window.currentUser?.uid
             );
-            
+
             console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);
-            
+
             setTimeout(() => {
                 if (window.currentTabRefresh) {
                     window.currentTabRefresh();
@@ -15871,19 +15726,19 @@ async function addPersonalExpense(expenseData) {
             alert('⚠️ Please fill in all required fields');
             return { success: false };
         }
-        
+
         if (expenseData.currency === 'USD' && (!expenseData.phpConversionRate || expenseData.phpConversionRate <= 0)) {
             alert('⚠️ Please enter the PHP conversion rate for USD expenses');
             return { success: false };
         }
-        
+
         // Check if date is locked
         const dateString = new Date(expenseData.date).toISOString().split('T')[0];
         if (!preventBackdating(dateString)) {
             alert('⚠️ Cannot add expense on locked date!');
             return { success: false };
         }
-        
+
         const expense = {
             userId: window.currentUser.uid,
             userName: window.currentUserData.displayName,
@@ -15902,12 +15757,12 @@ async function addPersonalExpense(expenseData) {
             lastModified: new Date().toISOString(),
             syncStatus: window.isOnline ? 'synced' : 'pending'
         };
-        
+
         if (window.isOnline) {
             // Online: Save directly to Firebase
             utils.showLoading(true);
             const newRef = await db.ref('personalExpenses').push(expense);
-            
+
             // Log activity
             await logActivity('personal_expense_added', 'personal_finance', {
                 expenseId: newRef.key,
@@ -15915,21 +15770,21 @@ async function addPersonalExpense(expenseData) {
                 amount: expense.amount,
                 currency: expense.currency
             });
-            
+
             utils.showLoading(false);
-            
-            const displayAmount = expense.currency === 'USD' 
+
+            const displayAmount = expense.currency === 'USD'
                 ? `$${expense.amount.toFixed(2)} (₱${(expense.amount * expense.phpConversionRate).toFixed(2)})`
                 : `₱${expense.amount.toFixed(2)}`;
-            
+
             alert(`✅ Expense recorded!\n\n💰 ${expense.category}: ${displayAmount}`);
-            
+
             return { success: true, expenseId: newRef.key };
         } else {
             // Offline: Add to queue
             const offlineId = 'offline_' + Date.now() + '_' + Math.random();
             expense.offlineId = offlineId;
-            
+
             window.offlineQueue.push({
                 operationType: 'add',
                 collection: 'personalExpenses',
@@ -15937,14 +15792,14 @@ async function addPersonalExpense(expenseData) {
                 offlineId: offlineId,
                 timestamp: new Date().toISOString()
             });
-            
+
             saveOfflineQueueToStorage();
-            
+
             // Add to local array for immediate UI update
             window.allPersonalExpenses.push({ id: offlineId, ...expense });
-            
+
             alert('✅ Expense saved offline!\n\n📡 Will sync when you reconnect to internet.');
-            
+
             return { success: true, expenseId: offlineId, offline: true };
         }
     } catch (error) {
@@ -15961,22 +15816,22 @@ async function recordCreditCardPayment(cardId, amount, date) {
         alert('⚠️ Credit card payments require internet connection');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const card = window.allCreditCards.find(c => c.id === cardId);
         if (!card) {
             throw new Error('Card not found');
         }
-        
+
         const paymentAmount = parseFloat(amount);
         if (paymentAmount <= 0 || paymentAmount > card.currentBalance) {
             throw new Error('Invalid payment amount');
         }
-        
+
         const newBalance = card.currentBalance - paymentAmount;
-        
+
         // Create expense record
         const expenseResult = await addPersonalExpense({
             category: 'Credit Card Payment',
@@ -15990,11 +15845,11 @@ async function recordCreditCardPayment(cardId, amount, date) {
                 newBalance: newBalance
             }
         });
-        
+
         if (!expenseResult.success) {
             throw new Error('Failed to create expense record');
         }
-        
+
         // Update card balance and add to payment history
         const paymentHistory = card.paymentHistory || [];
         paymentHistory.push({
@@ -16004,13 +15859,13 @@ async function recordCreditCardPayment(cardId, amount, date) {
             paidBy: window.currentUserData.displayName,
             expenseId: expenseResult.expenseId
         });
-        
+
         await db.ref(`personalCreditCards/${cardId}`).update({
             currentBalance: newBalance,
             paymentHistory: paymentHistory,
             lastModified: new Date().toISOString()
         });
-        
+
         // Log activity
         await logActivity('credit_card_payment', 'personal_finance', {
             cardId: cardId,
@@ -16018,11 +15873,11 @@ async function recordCreditCardPayment(cardId, amount, date) {
             amount: paymentAmount,
             newBalance: newBalance
         });
-        
+
         utils.showLoading(false);
-        
+
         alert(`✅ Payment recorded!\n\n💳 ${card.cardName}\n💰 Amount: ₱${paymentAmount.toFixed(2)}\n📊 New Balance: ₱${newBalance.toFixed(2)}`);
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error recording payment:', error);
@@ -16036,39 +15891,39 @@ async function recordCreditCardPayment(cardId, amount, date) {
 async function generateRecurringExpenses(month, year) {
     try {
         const activeTemplates = window.allRecurringTemplates.filter(t => t.isActive);
-        
+
         if (activeTemplates.length === 0) {
             alert('ℹ️ No active recurring templates found');
             return { success: false };
         }
-        
+
         // Check if already generated for this month
         const monthStart = new Date(year, month - 1, 1);
         const monthEnd = new Date(year, month, 0, 23, 59, 59);
-        
+
         const existingAutoExpenses = window.allPersonalExpenses.filter(e =>
             e.isAutoGenerated &&
             new Date(e.date) >= monthStart &&
             new Date(e.date) <= monthEnd
         );
-        
+
         if (existingAutoExpenses.length > 0) {
             const confirm = window.confirm(`⚠️ Found ${existingAutoExpenses.length} auto-generated expenses for this month.\n\nGenerate again anyway?`);
             if (!confirm) return { success: false };
         }
-        
+
         utils.showLoading(true);
         let generatedCount = 0;
-        
+
         for (const template of activeTemplates) {
             const expenseDate = new Date(year, month - 1, template.dayOfMonth);
-            
+
             // Skip if day doesn't exist in month (e.g., Feb 30)
             if (expenseDate.getMonth() !== month - 1) {
                 console.log(`⚠️ Skipping template "${template.name}" - day ${template.dayOfMonth} doesn't exist in this month`);
                 continue;
             }
-            
+
             const result = await addPersonalExpense({
                 category: template.category,
                 amount: template.amount,
@@ -16079,16 +15934,16 @@ async function generateRecurringExpenses(month, year) {
                 isAutoGenerated: true,
                 recurringTemplateId: template.id
             });
-            
+
             if (result.success) {
                 generatedCount++;
             }
         }
-        
+
         utils.showLoading(false);
-        
+
         alert(`✅ Generated ${generatedCount} recurring expenses for ${getMonthName(month)} ${year}!`);
-        
+
         return { success: true, count: generatedCount };
     } catch (error) {
         console.error('❌ Error generating recurring expenses:', error);
@@ -16104,10 +15959,10 @@ async function saveRecurringTemplate(templateData) {
         alert('⚠️ Editing templates requires internet connection');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const template = {
             userId: window.currentUser.uid,
             name: templateData.name,
@@ -16119,7 +15974,7 @@ async function saveRecurringTemplate(templateData) {
             createdAt: templateData.id ? undefined : new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        
+
         if (templateData.id) {
             // Update existing
             await db.ref(`personalRecurringTemplates/${templateData.id}`).update(template);
@@ -16127,10 +15982,10 @@ async function saveRecurringTemplate(templateData) {
             // Create new
             await db.ref('personalRecurringTemplates').push(template);
         }
-        
+
         utils.showLoading(false);
         alert('✅ Template saved!');
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error saving template:', error);
@@ -16146,20 +16001,20 @@ async function deleteRecurringTemplate(templateId) {
         alert('⚠️ Deleting templates requires internet connection');
         return { success: false };
     }
-    
+
     try {
         const template = window.allRecurringTemplates.find(t => t.id === templateId);
         if (!template) {
             throw new Error('Template not found');
         }
-        
+
         const confirm = window.confirm(`Delete template "${template.name}"?\n\nThis will not delete previously generated expenses.`);
         if (!confirm) return { success: false };
-        
+
         utils.showLoading(true);
         await db.ref(`personalRecurringTemplates/${templateId}`).remove();
         utils.showLoading(false);
-        
+
         alert('✅ Template deleted!');
         return { success: true };
     } catch (error) {
@@ -16176,10 +16031,10 @@ async function saveCreditCard(cardData) {
         alert('⚠️ Editing credit cards requires internet connection');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const card = {
             userId: window.currentUser.uid,
             cardName: cardData.cardName,
@@ -16195,7 +16050,7 @@ async function saveCreditCard(cardData) {
             createdAt: cardData.id ? undefined : new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        
+
         if (cardData.id) {
             // Update existing
             await db.ref(`personalCreditCards/${cardData.id}`).update(card);
@@ -16203,10 +16058,10 @@ async function saveCreditCard(cardData) {
             // Create new
             await db.ref('personalCreditCards').push(card);
         }
-        
+
         utils.showLoading(false);
         alert('✅ Credit card saved!');
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error saving credit card:', error);
@@ -16222,25 +16077,25 @@ async function deleteCreditCard(cardId) {
         alert('⚠️ Deleting credit cards requires internet connection');
         return { success: false };
     }
-    
+
     try {
         const card = window.allCreditCards.find(c => c.id === cardId);
         if (!card) {
             throw new Error('Card not found');
         }
-        
+
         if (card.currentBalance > 0) {
             const confirm = window.confirm(`⚠️ This card has a balance of ₱${card.currentBalance.toFixed(2)}.\n\nDelete anyway?`);
             if (!confirm) return { success: false };
         }
-        
+
         const confirm2 = window.confirm(`Delete credit card "${card.cardName}"?`);
         if (!confirm2) return { success: false };
-        
+
         utils.showLoading(true);
         await db.ref(`personalCreditCards/${cardId}`).remove();
         utils.showLoading(false);
-        
+
         alert('✅ Credit card deleted!');
         return { success: true };
     } catch (error) {
@@ -16257,22 +16112,22 @@ async function addManualContribution(goalId, amount, notes) {
         alert('⚠️ Adding contributions requires internet connection');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const goal = window.allSavingsGoals.find(g => g.id === goalId);
         if (!goal) {
             throw new Error('Goal not found');
         }
-        
+
         const contributionAmount = parseFloat(amount);
         if (contributionAmount <= 0) {
             throw new Error('Amount must be greater than zero');
         }
-        
+
         const newCurrentAmount = (goal.currentAmount || 0) + contributionAmount;
-        
+
         const contributions = goal.contributions || [];
         contributions.push({
             date: new Date().toISOString(),
@@ -16281,19 +16136,19 @@ async function addManualContribution(goalId, amount, notes) {
             addedBy: window.currentUserData.displayName,
             notes: notes || ''
         });
-        
+
         await db.ref(`savingsGoals/${goalId}`).update({
             currentAmount: newCurrentAmount,
             contributions: contributions,
             lastModified: new Date().toISOString()
         });
-        
+
         // Check if goal is now complete
         await checkGoalCompletion(goalId);
-        
+
         utils.showLoading(false);
         alert(`✅ Contribution added!\n\n🎯 ${goal.goalName}\n💰 +₱${contributionAmount.toFixed(2)}\n📊 New Total: ₱${newCurrentAmount.toFixed(2)}`);
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error adding contribution:', error);
@@ -16309,30 +16164,30 @@ async function recordWithdrawal(goalId, amount, reason) {
         alert('⚠️ Recording withdrawals requires internet connection');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const goal = window.allSavingsGoals.find(g => g.id === goalId);
         if (!goal) {
             throw new Error('Goal not found');
         }
-        
+
         const withdrawalAmount = parseFloat(amount);
         if (withdrawalAmount <= 0) {
             throw new Error('Amount must be greater than zero');
         }
-        
+
         if (withdrawalAmount > goal.currentAmount) {
             throw new Error('Withdrawal amount exceeds current savings');
         }
-        
+
         if (!reason || reason.trim() === '') {
             throw new Error('Please provide a reason for withdrawal');
         }
-        
+
         const newCurrentAmount = goal.currentAmount - withdrawalAmount;
-        
+
         const withdrawals = goal.withdrawals || [];
         withdrawals.push({
             date: new Date().toISOString(),
@@ -16340,24 +16195,24 @@ async function recordWithdrawal(goalId, amount, reason) {
             reason: reason.trim(),
             withdrawnBy: window.currentUserData.displayName
         });
-        
+
         // If goal was completed, mark as incomplete if needed
         const updates = {
             currentAmount: newCurrentAmount,
             withdrawals: withdrawals,
             lastModified: new Date().toISOString()
         };
-        
+
         if (goal.isCompleted && newCurrentAmount < goal.targetAmount) {
             updates.isCompleted = false;
             updates.completedAt = null;
         }
-        
+
         await db.ref(`savingsGoals/${goalId}`).update(updates);
-        
+
         utils.showLoading(false);
         alert(`✅ Withdrawal recorded!\n\n🎯 ${goal.goalName}\n💸 -₱${withdrawalAmount.toFixed(2)}\n📊 Remaining: ₱${newCurrentAmount.toFixed(2)}`);
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error recording withdrawal:', error);
@@ -16372,7 +16227,7 @@ async function checkGoalCompletion(goalId) {
     try {
         const goal = window.allSavingsGoals.find(g => g.id === goalId);
         if (!goal) return;
-        
+
         if (!goal.isCompleted && goal.currentAmount >= goal.targetAmount) {
             // Goal just completed!
             await db.ref(`savingsGoals/${goalId}`).update({
@@ -16380,7 +16235,7 @@ async function checkGoalCompletion(goalId) {
                 completedAt: new Date().toISOString(),
                 autoAllocate: false // Stop auto-allocation
             });
-            
+
             // Show completion modal
             if (typeof openGoalCompletionModal === 'function') {
                 openGoalCompletionModal(goal);
@@ -16397,10 +16252,10 @@ async function saveSavingsGoal(goalData) {
         alert('⚠️ Editing savings goals requires internet connection');
         return { success: false };
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         const goal = {
             userId: window.currentUser.uid,
             goalName: goalData.goalName,
@@ -16416,23 +16271,23 @@ async function saveSavingsGoal(goalData) {
             createdAt: goalData.id ? undefined : new Date().toISOString(),
             updatedAt: new Date().toISOString()
         };
-        
+
         if (goalData.id) {
             // Update existing
             await db.ref(`savingsGoals/${goalData.id}`).update(goal);
         } else {
             // Create new
             const newRef = await db.ref('savingsGoals').push(goal);
-            
+
             // Check if already complete
             if (goal.currentAmount >= goal.targetAmount) {
                 await checkGoalCompletion(newRef.key);
             }
         }
-        
+
         utils.showLoading(false);
         alert('✅ Savings goal saved!');
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error saving savings goal:', error);
@@ -16448,25 +16303,25 @@ async function deleteSavingsGoal(goalId) {
         alert('⚠️ Deleting savings goals requires internet connection');
         return { success: false };
     }
-    
+
     try {
         const goal = window.allSavingsGoals.find(g => g.id === goalId);
         if (!goal) {
             throw new Error('Goal not found');
         }
-        
+
         if (goal.currentAmount > 0) {
             const confirm = window.confirm(`⚠️ This goal has ₱${goal.currentAmount.toFixed(2)} saved.\n\nDelete anyway? (This won't delete your actual money)`);
             if (!confirm) return { success: false };
         }
-        
+
         const confirm2 = window.confirm(`Delete savings goal "${goal.goalName}"?`);
         if (!confirm2) return { success: false };
-        
+
         utils.showLoading(true);
         await db.ref(`savingsGoals/${goalId}`).remove();
         utils.showLoading(false);
-        
+
         alert('✅ Savings goal deleted!');
         return { success: true };
     } catch (error) {
@@ -16480,7 +16335,7 @@ async function deleteSavingsGoal(goalId) {
 // Helper function to get month name
 function getMonthName(month) {
     const names = ['January', 'February', 'March', 'April', 'May', 'June',
-                   'July', 'August', 'September', 'October', 'November', 'December'];
+        'July', 'August', 'September', 'October', 'November', 'December'];
     return names[month - 1] || '';
 }
 
@@ -16516,7 +16371,7 @@ function calculateNetPersonalBudget(month, year) {
     try {
         const monthStart = new Date(year, month - 1, 1);
         const monthEnd = new Date(year, month, 0, 23, 59, 59);
-        
+
         // Filter claimed repairs for the month
         const claimedRepairs = (window.allRepairs || []).filter(r =>
             r.status === 'Claimed' &&
@@ -16524,47 +16379,47 @@ function calculateNetPersonalBudget(month, year) {
             new Date(r.releasedAt) >= monthStart &&
             new Date(r.releasedAt) <= monthEnd
         );
-        
+
         // Check if current user is a technician
         const userRepairs = claimedRepairs.filter(r => r.technicianId === window.currentUser?.uid);
         const isTechnician = userRepairs.length > 0;
-        
+
         let spendingBudget = 0;
         let savingsPool = 0;
         let breakdown = {};
-        
+
         if (isTechnician) {
             // Calculate user's commission
             const userCommission = userRepairs.reduce((sum, r) => {
                 const commission = r.commission || 0;
                 return sum + commission;
             }, 0);
-            
+
             // Calculate all technicians' commissions for proportion
             const allTechCommissions = claimedRepairs.reduce((sum, r) => {
                 const commission = r.commission || 0;
                 return sum + commission;
             }, 0);
-            
+
             const userProportion = allTechCommissions > 0 ? userCommission / allTechCommissions : 0;
-            
+
             // Get overhead expenses for the month
             const overheadExpenses = (window.allOverheadExpenses || []).filter(e => {
                 if (e.deleted) return false;
                 const expenseDate = new Date(e.date);
                 return expenseDate >= monthStart && expenseDate <= monthEnd;
             });
-            
+
             const totalOverhead = overheadExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
             const overheadShare = totalOverhead * userProportion;
-            
+
             // Net after overhead
             const netAfterOverhead = userCommission - overheadShare;
-            
+
             // Split: 60% spending, 40% savings
             spendingBudget = netAfterOverhead * 0.6;
             savingsPool = netAfterOverhead * 0.4;
-            
+
             breakdown = {
                 grossCommission: userCommission,
                 overheadShare: overheadShare,
@@ -16579,15 +16434,15 @@ function calculateNetPersonalBudget(month, year) {
             const manualBudget = window.allPersonalBudgets.find(b =>
                 b.month === month && b.year === year
             );
-            
+
             spendingBudget = manualBudget ? manualBudget.manualBudgetAmount : 0;
-            
+
             // Calculate total savings pool from ALL technicians' 40%
             const allTechSavings = claimedRepairs.reduce((sum, r) => {
                 const commission = r.commission || 0;
                 return sum + commission;
             }, 0);
-            
+
             // Get overhead for all techs
             const overheadExpenses = (window.allOverheadExpenses || []).filter(e => {
                 if (e.deleted) return false;
@@ -16595,10 +16450,10 @@ function calculateNetPersonalBudget(month, year) {
                 return expenseDate >= monthStart && expenseDate <= monthEnd;
             });
             const totalOverhead = overheadExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-            
+
             const netAfterOverhead = allTechSavings - totalOverhead;
             savingsPool = netAfterOverhead * 0.4; // 40% of all techs' net goes to savings
-            
+
             breakdown = {
                 manual: true,
                 manualBudgetAmount: spendingBudget,
@@ -16607,28 +16462,28 @@ function calculateNetPersonalBudget(month, year) {
                 sharedOverhead: totalOverhead
             };
         }
-        
+
         // Calculate spending for the month
         const expenses = (window.allPersonalExpenses || []).filter(e => {
             const expenseDate = new Date(e.date);
             return expenseDate >= monthStart && expenseDate <= monthEnd;
         });
-        
+
         let totalSpent = 0;
         const spentByCategory = {};
-        
+
         expenses.forEach(e => {
-            const phpAmount = e.currency === 'USD' 
-                ? e.amount * e.phpConversionRate 
+            const phpAmount = e.currency === 'USD'
+                ? e.amount * e.phpConversionRate
                 : e.amount;
-            
+
             totalSpent += phpAmount;
             spentByCategory[e.category] = (spentByCategory[e.category] || 0) + phpAmount;
         });
-        
+
         const remaining = spendingBudget - totalSpent;
         const utilizationPercent = spendingBudget > 0 ? (totalSpent / spendingBudget) * 100 : 0;
-        
+
         return {
             spendingBudget: spendingBudget,
             savingsPool: savingsPool,
@@ -16659,25 +16514,25 @@ function calculateAverageMonthlyExpenses() {
     try {
         const today = new Date();
         const threeMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 3, 1);
-        
+
         const recentExpenses = (window.allPersonalExpenses || []).filter(e => {
             const expenseDate = new Date(e.date);
             return expenseDate >= threeMonthsAgo;
         });
-        
+
         let totalSpent = 0;
-        
+
         recentExpenses.forEach(e => {
-            const phpAmount = e.currency === 'USD' 
-                ? e.amount * e.phpConversionRate 
+            const phpAmount = e.currency === 'USD'
+                ? e.amount * e.phpConversionRate
                 : e.amount;
-            
+
             totalSpent += phpAmount;
         });
-        
+
         // Average over 3 months
         const average = totalSpent / 3;
-        
+
         return average;
     } catch (error) {
         console.error('❌ Error calculating average expenses:', error);
@@ -16691,7 +16546,7 @@ function recommendGoalAllocation(savingsPoolAmount) {
         const activeGoals = (window.allSavingsGoals || []).filter(g =>
             !g.isCompleted && g.autoAllocate
         );
-        
+
         if (activeGoals.length === 0) {
             return {
                 recommendations: [],
@@ -16699,22 +16554,22 @@ function recommendGoalAllocation(savingsPoolAmount) {
                 emergencyFundStatus: null
             };
         }
-        
+
         // Calculate recommended emergency fund (6 months expenses)
         const averageMonthlyExpenses = calculateAverageMonthlyExpenses();
         const recommendedEmergencyFund = averageMonthlyExpenses * 6;
-        
+
         // Find emergency fund goal
         const emergencyGoal = activeGoals.find(g => g.category === 'Emergency Fund');
-        
+
         let recommendations = [];
         let allocationStrategy = '';
-        
+
         if (emergencyGoal && emergencyGoal.currentAmount < emergencyGoal.targetAmount) {
             // Emergency fund not complete - prioritize it
             const emergencyAllocation = savingsPoolAmount * 0.7;
             const remainingPool = savingsPoolAmount * 0.3;
-            
+
             recommendations.push({
                 goalId: emergencyGoal.id,
                 goalName: emergencyGoal.goalName,
@@ -16722,34 +16577,34 @@ function recommendGoalAllocation(savingsPoolAmount) {
                 suggestedPercent: 70,
                 reasoning: '70% allocated to Emergency Fund (priority)'
             });
-            
+
             // Distribute remaining 30% to other goals
             const otherGoals = activeGoals.filter(g => g.id !== emergencyGoal.id);
-            
+
             if (otherGoals.length > 0) {
                 const weightedDistribution = calculateWeightedDistribution(otherGoals, remainingPool);
                 recommendations.push(...weightedDistribution);
             }
-            
+
             allocationStrategy = 'Emergency First';
         } else {
             // Emergency fund complete or doesn't exist - distribute by priority/deadline
             const weightedDistribution = calculateWeightedDistribution(activeGoals, savingsPoolAmount);
             recommendations = weightedDistribution;
-            
+
             allocationStrategy = 'Balanced Priority';
         }
-        
+
         const emergencyFundStatus = emergencyGoal ? {
             current: emergencyGoal.currentAmount,
             target: emergencyGoal.targetAmount,
             recommended: recommendedEmergencyFund,
-            monthsOfExpensesCovered: averageMonthlyExpenses > 0 
-                ? emergencyGoal.currentAmount / averageMonthlyExpenses 
+            monthsOfExpensesCovered: averageMonthlyExpenses > 0
+                ? emergencyGoal.currentAmount / averageMonthlyExpenses
                 : 0,
             percentComplete: (emergencyGoal.currentAmount / emergencyGoal.targetAmount) * 100
         } : null;
-        
+
         return {
             recommendations: recommendations,
             allocationStrategy: allocationStrategy,
@@ -16768,12 +16623,12 @@ function recommendGoalAllocation(savingsPoolAmount) {
 // Calculate weighted distribution based on priority and deadline
 function calculateWeightedDistribution(goals, poolAmount) {
     const today = new Date();
-    
+
     // Calculate weights for each goal
     const goalsWithWeights = goals.map(g => {
         // Priority weight (Priority 1 = 2.0, Priority 5 = 0.5)
         let priorityWeight = 0;
-        switch(g.priority) {
+        switch (g.priority) {
             case 1: priorityWeight = 2.0; break;
             case 2: priorityWeight = 1.5; break;
             case 3: priorityWeight = 1.0; break;
@@ -16781,43 +16636,43 @@ function calculateWeightedDistribution(goals, poolAmount) {
             case 5: priorityWeight = 0.5; break;
             default: priorityWeight = 1.0;
         }
-        
+
         // Deadline urgency multiplier
         let deadlineMultiplier = 1.0;
         if (g.deadline) {
             const deadline = new Date(g.deadline);
             const monthsUntilDeadline = (deadline - today) / (1000 * 60 * 60 * 24 * 30);
-            
+
             if (monthsUntilDeadline <= 6) {
                 deadlineMultiplier = 1.5;
             } else if (monthsUntilDeadline <= 12) {
                 deadlineMultiplier = 1.2;
             }
         }
-        
+
         const totalWeight = priorityWeight * deadlineMultiplier;
-        
+
         return {
             ...g,
             weight: totalWeight
         };
     });
-    
+
     // Calculate total weight
     const totalWeight = goalsWithWeights.reduce((sum, g) => sum + g.weight, 0);
-    
+
     // Distribute based on weight
     const recommendations = goalsWithWeights.map(g => {
         const percent = (g.weight / totalWeight) * 100;
         const amount = poolAmount * (g.weight / totalWeight);
-        
+
         let reasoning = `${percent.toFixed(1)}% - Priority ${g.priority}`;
         if (g.deadline) {
             const deadline = new Date(g.deadline);
             const monthsUntil = Math.round((deadline - today) / (1000 * 60 * 60 * 24 * 30));
             reasoning += ` (${monthsUntil} months until deadline)`;
         }
-        
+
         return {
             goalId: g.id,
             goalName: g.goalName,
@@ -16826,7 +16681,7 @@ function calculateWeightedDistribution(goals, poolAmount) {
             reasoning: reasoning
         };
     });
-    
+
     return recommendations;
 }
 
@@ -16834,28 +16689,28 @@ function calculateWeightedDistribution(goals, poolAmount) {
 async function allocateSavingsFromCommission(month, year) {
     try {
         const budget = calculateNetPersonalBudget(month, year);
-        
+
         if (budget.savingsPool <= 0) {
             console.log('ℹ️ No savings pool to allocate');
             alert('ℹ️ No savings pool available for this month');
             return { success: false, message: 'No savings pool available' };
         }
-        
+
         const allocation = recommendGoalAllocation(budget.savingsPool);
-        
+
         if (allocation.recommendations.length === 0) {
             console.log('ℹ️ No active goals to allocate to');
             return { success: false, message: 'No active goals' };
         }
-        
+
         utils.showLoading(true);
-        
+
         for (const rec of allocation.recommendations) {
             const goal = window.allSavingsGoals.find(g => g.id === rec.goalId);
             if (!goal) continue;
-            
+
             const newCurrentAmount = (goal.currentAmount || 0) + rec.suggestedAmount;
-            
+
             const contributions = goal.contributions || [];
             contributions.push({
                 date: new Date().toISOString(),
@@ -16864,7 +16719,7 @@ async function allocateSavingsFromCommission(month, year) {
                 addedBy: window.currentUserData.displayName,
                 notes: `Auto-allocated from ${getMonthName(month)} ${year} commission`
             });
-            
+
             await db.ref(`savingsGoals/${rec.goalId}`).update({
                 currentAmount: newCurrentAmount,
                 contributions: contributions,
@@ -16872,15 +16727,15 @@ async function allocateSavingsFromCommission(month, year) {
                 allocationPercent: rec.suggestedPercent,
                 lastModified: new Date().toISOString()
             });
-            
+
             // Check if goal completed
             await checkGoalCompletion(rec.goalId);
         }
-        
+
         utils.showLoading(false);
-        
+
         alert(`✅ Allocated ₱${budget.savingsPool.toFixed(2)} to ${allocation.recommendations.length} goals!`);
-        
+
         return { success: true };
     } catch (error) {
         console.error('❌ Error allocating savings:', error);
@@ -16899,55 +16754,55 @@ function analyzeLoanAffordability(proposedAmount, termMonths, annualRate) {
         const loanAmount = parseFloat(proposedAmount);
         const term = parseInt(termMonths);
         const rate = parseFloat(annualRate);
-        
+
         if (loanAmount <= 0 || term <= 0 || rate < 0) {
             throw new Error('Invalid input values');
         }
-        
+
         // Calculate monthly payment using amortization formula
         const monthlyRate = rate / 12 / 100;
         let monthlyPayment = 0;
-        
+
         if (monthlyRate === 0) {
             monthlyPayment = loanAmount / term;
         } else {
-            monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, term)) / 
-                            (Math.pow(1 + monthlyRate, term) - 1);
+            monthlyPayment = loanAmount * (monthlyRate * Math.pow(1 + monthlyRate, term)) /
+                (Math.pow(1 + monthlyRate, term) - 1);
         }
-        
+
         // Get active credit cards
         const activeCards = (window.allCreditCards || []).filter(c => c.isActive);
-        
+
         // Calculate total debt and monthly minimums
         let totalCurrentDebt = 0;
         let monthlyMinimums = 0;
-        
+
         activeCards.forEach(card => {
             const balance = card.currentBalance || 0;
             const minimumPercent = card.minimumPaymentPercent || 3;
-            
+
             totalCurrentDebt += balance;
             monthlyMinimums += balance * (minimumPercent / 100);
         });
-        
+
         // Get current month budget (60% spending portion only)
         const today = new Date();
         const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
         const monthlyBudget = budget.spendingBudget;
-        
+
         // Calculate debt-to-income ratio
         const totalMonthlyObligations = monthlyMinimums + monthlyPayment;
-        const debtToIncomeRatio = monthlyBudget > 0 
-            ? (totalMonthlyObligations / monthlyBudget) * 100 
+        const debtToIncomeRatio = monthlyBudget > 0
+            ? (totalMonthlyObligations / monthlyBudget) * 100
             : 999;
-        
+
         // Calculate remaining cash flow
         const remainingCashFlow = monthlyBudget - budget.spent - monthlyPayment - monthlyMinimums;
-        
+
         // Determine recommendation
         let recommendation = '';
         let recommendationColor = '';
-        
+
         if (debtToIncomeRatio < 40) {
             recommendation = '✅ Approved';
             recommendationColor = '#4CAF50';
@@ -16958,14 +16813,14 @@ function analyzeLoanAffordability(proposedAmount, termMonths, annualRate) {
             recommendation = '❌ Not Recommended';
             recommendationColor = '#F44336';
         }
-        
+
         const detailedMessage = `Your debt-to-income ratio would be ${debtToIncomeRatio.toFixed(1)}%. ` +
-            (debtToIncomeRatio < 40 
+            (debtToIncomeRatio < 40
                 ? `This is healthy and manageable. You would have ₱${remainingCashFlow.toFixed(2)} remaining each month.`
                 : debtToIncomeRatio < 50
                     ? `This is getting high. You would have ₱${remainingCashFlow.toFixed(2)} remaining each month. Consider paying down existing debt first.`
                     : `This is too high and risky. You would only have ₱${remainingCashFlow.toFixed(2)} remaining each month. Not recommended.`);
-        
+
         return {
             success: true,
             recommendation: recommendation,
@@ -16997,32 +16852,32 @@ function getSpendingTrendData(months = 6) {
     try {
         const today = new Date();
         const trendData = [];
-        
+
         for (let i = months - 1; i >= 0; i--) {
             const targetMonth = new Date(today.getFullYear(), today.getMonth() - i, 1);
             const month = targetMonth.getMonth() + 1;
             const year = targetMonth.getFullYear();
-            
+
             const monthStart = new Date(year, month - 1, 1);
             const monthEnd = new Date(year, month, 0, 23, 59, 59);
-            
+
             const expenses = (window.allPersonalExpenses || []).filter(e => {
                 const expenseDate = new Date(e.date);
                 return expenseDate >= monthStart && expenseDate <= monthEnd;
             });
-            
+
             let total = 0;
             const byCategory = {};
-            
+
             expenses.forEach(e => {
-                const phpAmount = e.currency === 'USD' 
-                    ? e.amount * e.phpConversionRate 
+                const phpAmount = e.currency === 'USD'
+                    ? e.amount * e.phpConversionRate
                     : e.amount;
-                
+
                 total += phpAmount;
                 byCategory[e.category] = (byCategory[e.category] || 0) + phpAmount;
             });
-            
+
             trendData.push({
                 month: month,
                 year: year,
@@ -17031,7 +16886,7 @@ function getSpendingTrendData(months = 6) {
                 byCategory: byCategory
             });
         }
-        
+
         return trendData;
     } catch (error) {
         console.error('❌ Error getting trend data:', error);
@@ -17059,22 +16914,22 @@ function getCategoryBreakdown(month, year) {
     try {
         const monthStart = new Date(year, month - 1, 1);
         const monthEnd = new Date(year, month, 0, 23, 59, 59);
-        
+
         const expenses = (window.allPersonalExpenses || []).filter(e => {
             const expenseDate = new Date(e.date);
             return expenseDate >= monthStart && expenseDate <= monthEnd;
         });
-        
+
         const byCategory = {};
-        
+
         expenses.forEach(e => {
-            const phpAmount = e.currency === 'USD' 
-                ? e.amount * e.phpConversionRate 
+            const phpAmount = e.currency === 'USD'
+                ? e.amount * e.phpConversionRate
                 : e.amount;
-            
+
             byCategory[e.category] = (byCategory[e.category] || 0) + phpAmount;
         });
-        
+
         return byCategory;
     } catch (error) {
         console.error('❌ Error getting category breakdown:', error);
@@ -17100,7 +16955,7 @@ window.getCategoryBreakdown = getCategoryBreakdown;
  */
 function trackUsage(eventType, data) {
     if (!window.currentUser || !window.currentUserData) return;
-    
+
     // Create usage event
     const usageEvent = {
         userId: window.currentUser.uid,
@@ -17110,7 +16965,7 @@ function trackUsage(eventType, data) {
         timestamp: new Date().toISOString(),
         data: data
     };
-    
+
     // Store in Firebase under usageAnalytics collection
     db.ref('usageAnalytics').push(usageEvent).catch(error => {
         console.error('❌ Error tracking usage:', error);
@@ -17147,12 +17002,12 @@ function trackFieldInteraction(fieldName, fieldType) {
     if (!window.trackedFields) {
         window.trackedFields = new Set();
     }
-    
+
     const fieldKey = `${fieldName}_${fieldType}`;
     if (window.trackedFields.has(fieldKey)) return;
-    
+
     window.trackedFields.add(fieldKey);
-    
+
     trackUsage('field_interaction', {
         fieldName: fieldName,
         fieldType: fieldType,
@@ -17170,18 +17025,18 @@ async function getUsageAnalytics(startDate, endDate, eventType = null) {
             .startAt(startDate)
             .endAt(endDate)
             .once('value');
-        
+
         const events = [];
         snapshot.forEach(child => {
             const event = child.val();
             event.id = child.key;
-            
+
             // Filter by event type if specified
             if (!eventType || event.eventType === eventType) {
                 events.push(event);
             }
         });
-        
+
         return events;
     } catch (error) {
         console.error('❌ Error getting usage analytics:', error);
@@ -17194,32 +17049,32 @@ async function getUsageAnalytics(startDate, endDate, eventType = null) {
  */
 async function getTabUsageStats(startDate, endDate) {
     const events = await getUsageAnalytics(startDate, endDate, 'tab_switch');
-    
+
     // Aggregate by tab
     const tabCounts = {};
     const tabByUser = {};
     const tabByRole = {};
-    
+
     events.forEach(event => {
         const tab = event.data.toTab;
         if (!tab) return;
-        
+
         // Overall counts
         tabCounts[tab] = (tabCounts[tab] || 0) + 1;
-        
+
         // By user
         if (!tabByUser[event.userName]) {
             tabByUser[event.userName] = {};
         }
         tabByUser[event.userName][tab] = (tabByUser[event.userName][tab] || 0) + 1;
-        
+
         // By role
         if (!tabByRole[event.userRole]) {
             tabByRole[event.userRole] = {};
         }
         tabByRole[event.userRole][tab] = (tabByRole[event.userRole][tab] || 0) + 1;
     });
-    
+
     return {
         totalEvents: events.length,
         tabCounts: tabCounts,
@@ -17237,25 +17092,25 @@ async function getTabUsageStats(startDate, endDate) {
  */
 async function getFormUsageStats(startDate, endDate) {
     const events = await getUsageAnalytics(startDate, endDate, 'form_submit');
-    
+
     // Aggregate by form
     const formCounts = {};
     const formByUser = {};
-    
+
     events.forEach(event => {
         const form = event.data.formName;
         if (!form) return;
-        
+
         // Overall counts
         formCounts[form] = (formCounts[form] || 0) + 1;
-        
+
         // By user
         if (!formByUser[event.userName]) {
             formByUser[event.userName] = {};
         }
         formByUser[event.userName][form] = (formByUser[event.userName][form] || 0) + 1;
     });
-    
+
     return {
         totalSubmissions: events.length,
         formCounts: formCounts,
@@ -17271,26 +17126,26 @@ async function getFormUsageStats(startDate, endDate) {
  */
 async function getFieldUsageStats(startDate, endDate) {
     const events = await getUsageAnalytics(startDate, endDate, 'field_interaction');
-    
+
     // Aggregate by field
     const fieldCounts = {};
     const fieldByType = {};
-    
+
     events.forEach(event => {
         const field = event.data.fieldName;
         const type = event.data.fieldType;
         if (!field) return;
-        
+
         // Overall counts
         fieldCounts[field] = (fieldCounts[field] || 0) + 1;
-        
+
         // By type
         if (!fieldByType[type]) {
             fieldByType[type] = {};
         }
         fieldByType[type][field] = (fieldByType[type][field] || 0) + 1;
     });
-    
+
     return {
         totalInteractions: events.length,
         fieldCounts: fieldCounts,
@@ -17379,7 +17234,7 @@ async function performExtraction() {
             const expectedRemittance = net * 0.40; // Correct: 40% to tech
             const actualRemittance = r.actualAmount || 0;
             const discrepancy = actualRemittance - expectedRemittance;
-            const discrepancyPercent = expectedRemittance > 0 
+            const discrepancyPercent = expectedRemittance > 0
                 ? ((Math.abs(discrepancy) / expectedRemittance) * 100)
                 : 0;
 
@@ -17392,7 +17247,7 @@ async function performExtraction() {
                         if (!rep.payments || !Array.isArray(rep.payments)) return false;
                         return rep.payments.some(p => p.id === paymentId);
                     });
-                    
+
                     if (repair) {
                         const payment = repair.payments.find(p => p.id === paymentId);
                         if (payment) {
@@ -17511,12 +17366,12 @@ function displayExtractionResults(data, startDate, endDate) {
             <div class="data-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
                 <h3 style="font-size: 14px; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase;">Accurate</h3>
                 <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${accurate}</div>
-                <div style="font-size: 14px; opacity: 0.8;">${total > 0 ? ((accurate/total)*100).toFixed(1) : 0}% of total</div>
+                <div style="font-size: 14px; opacity: 0.8;">${total > 0 ? ((accurate / total) * 100).toFixed(1) : 0}% of total</div>
             </div>
             <div class="data-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
                 <h3 style="font-size: 14px; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase;">With Discrepancies</h3>
                 <div style="font-size: 32px; font-weight: bold; margin-bottom: 5px;">${withDiscrepancy}</div>
-                <div style="font-size: 14px; opacity: 0.8;">${total > 0 ? ((withDiscrepancy/total)*100).toFixed(1) : 0}% of total</div>
+                <div style="font-size: 14px; opacity: 0.8;">${total > 0 ? ((withDiscrepancy / total) * 100).toFixed(1) : 0}% of total</div>
             </div>
             <div class="data-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: white;">
                 <h3 style="font-size: 14px; opacity: 0.9; margin-bottom: 10px; text-transform: uppercase;">Avg Discrepancy</h3>
@@ -17555,12 +17410,12 @@ function displayExtractionResults(data, startDate, endDate) {
                     </thead>
                     <tbody id="extractionTableBody">
                         ${data.map(d => {
-                            const statusClass = d.status === 'verified' ? 'status-completed' : 
-                                              d.status === 'pending' ? 'status-pending' : 'status-cancelled';
-                            const accuracyClass = d.isAccurate ? 'status-completed' : 'status-pending';
-                            const discrepancyColor = d.discrepancy > 0 ? '#28a745' : '#dc3545';
+        const statusClass = d.status === 'verified' ? 'status-completed' :
+            d.status === 'pending' ? 'status-pending' : 'status-cancelled';
+        const accuracyClass = d.isAccurate ? 'status-completed' : 'status-pending';
+        const discrepancyColor = d.discrepancy > 0 ? '#28a745' : '#dc3545';
 
-                            return `
+        return `
                                 <tr class="extraction-row" data-accurate="${d.isAccurate}" 
                                     onclick="showRemittanceDetails('${d.id}')" 
                                     style="cursor: pointer;" 
@@ -17582,7 +17437,7 @@ function displayExtractionResults(data, startDate, endDate) {
                                     </span></td>
                                 </tr>
                             `;
-                        }).join('')}
+    }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -17773,7 +17628,7 @@ function applyExtractionFilters() {
     const rows = document.querySelectorAll('.extraction-row');
     rows.forEach(row => {
         const isAccurate = row.dataset.accurate === 'true';
-        
+
         let shouldShow = true;
         if (!showAll) {
             if (showDiscrepancies && isAccurate) shouldShow = false;
@@ -17809,7 +17664,7 @@ function exportExtractionJSON() {
     };
 
     const dataStr = JSON.stringify(exportObj, null, 2);
-    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
@@ -17825,9 +17680,9 @@ function exportExtractionCSV() {
     }
 
     // Main summary CSV
-    const headers = ['Date', 'Technician', 'Status', 'Payments', 'Expenses', 'Net', 
-                   'Actual Remitted', 'Expected (40%)', 'Old Formula (60%)', 'Discrepancy', 'Discrepancy %', 'Accurate'];
-    
+    const headers = ['Date', 'Technician', 'Status', 'Payments', 'Expenses', 'Net',
+        'Actual Remitted', 'Expected (40%)', 'Old Formula (60%)', 'Discrepancy', 'Discrepancy %', 'Accurate'];
+
     const rows = window.extractedRemittanceData.map(d => {
         const oldExpected = d.net * 0.60;
         return [
@@ -17847,11 +17702,11 @@ function exportExtractionCSV() {
     });
 
     const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    
+
     // Detailed device-level CSV
-    const detailHeaders = ['Remittance Date', 'Technician', 'Customer', 'Device', 'Problem/Type', 
-                          'Total Price', 'Parts Cost', 'Supplier', 'Payment Amount', 'Payment Method', 'Payment Date'];
-    
+    const detailHeaders = ['Remittance Date', 'Technician', 'Customer', 'Device', 'Problem/Type',
+        'Total Price', 'Parts Cost', 'Supplier', 'Payment Amount', 'Payment Method', 'Payment Date'];
+
     const detailRows = [];
     window.extractedRemittanceData.forEach(r => {
         if (r.repairDetails && r.repairDetails.length > 0) {
@@ -17877,8 +17732,8 @@ function exportExtractionCSV() {
 
     // Create combined download
     const combined = `REMITTANCE SUMMARY\n${csv}\n\n\nDETAILED DEVICE BREAKDOWN\n${detailCsv}`;
-    
-    const blob = new Blob([combined], {type: 'text/csv'});
+
+    const blob = new Blob([combined], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -17919,8 +17774,8 @@ async function setBaselineCommissionRate(techId, rate, compensationType, effecti
         utils.showLoading(true);
 
         // Check if remittances exist after this date
-        const affectedRemittances = window.techRemittances.filter(r => 
-            r.techId === techId && 
+        const affectedRemittances = window.techRemittances.filter(r =>
+            r.techId === techId &&
             new Date(r.submittedAt) >= new Date(effectiveDate)
         );
 
@@ -17959,7 +17814,7 @@ async function setBaselineCommissionRate(techId, rate, compensationType, effecti
 
         utils.showLoading(false);
         alert('✅ Baseline rate set successfully\n\nRun Auto-Detect to calculate adjustments for existing remittances.');
-        
+
         return true;
     } catch (error) {
         utils.showLoading(false);
@@ -17980,14 +17835,14 @@ function getHistoricalCommissionRate(techId, targetDate) {
 
     const rateHistory = techUser.commissionRateHistory || [];
     if (rateHistory.length === 0) {
-        return { 
-            rate: techUser.commissionRate || 0.40, 
-            compensationType: techUser.compensationType || 'commission' 
+        return {
+            rate: techUser.commissionRate || 0.40,
+            compensationType: techUser.compensationType || 'commission'
         };
     }
 
     // Sort by changedAt descending
-    const sortedHistory = [...rateHistory].sort((a, b) => 
+    const sortedHistory = [...rateHistory].sort((a, b) =>
         new Date(b.changedAt) - new Date(a.changedAt)
     );
 
@@ -18025,7 +17880,7 @@ function detectRemittancesNeedingAdjustment() {
 
         const techId = remittance.techId;
         const submittedAt = remittance.submittedAt || remittance.date;
-        
+
         // Get historical rate at time of remittance submission
         const historicalRate = getHistoricalCommissionRate(techId, submittedAt);
 
@@ -18134,7 +17989,7 @@ async function applyApprovedAdjustments(approvedAdjustments) {
         utils.showLoading(true);
 
         const results = [];
-        
+
         // Group by technician
         const byTech = {};
         approvedAdjustments.forEach(adj => {
@@ -18148,7 +18003,7 @@ async function applyApprovedAdjustments(approvedAdjustments) {
         for (const techId of Object.keys(byTech)) {
             const techAdjustments = byTech[techId];
             const totalAmount = techAdjustments.reduce((sum, adj) => sum + adj.difference, 0);
-            
+
             // Accumulate adjustment
             await accumulateCommissionAdjustment(
                 techId,
@@ -18180,13 +18035,13 @@ async function applyApprovedAdjustments(approvedAdjustments) {
         sessionStorage.removeItem('stagedAdjustments');
 
         utils.showLoading(false);
-        
-        const summary = results.map(r => 
+
+        const summary = results.map(r =>
             `${r.techName}: ${r.amount >= 0 ? '+' : ''}₱${r.amount.toFixed(2)}`
         ).join('\n');
-        
+
         alert(`✅ Adjustments applied successfully:\n\n${summary}\n\nTechnicians have been notified.`);
-        
+
         return results;
     } catch (error) {
         utils.showLoading(false);
@@ -18203,7 +18058,7 @@ async function applyApprovedAdjustments(approvedAdjustments) {
 async function accumulateCommissionAdjustment(techId, adjustmentsArray) {
     return new Promise((resolve, reject) => {
         const techRef = db.ref(`users/${techId}/pendingCommissionAdjustment`);
-        
+
         techRef.transaction(current => {
             // Initialize if doesn't exist
             if (!current) {
@@ -18262,7 +18117,7 @@ async function notifyTechAdjustment(techId, amount, reason, remittanceId) {
             dismissed: false,
             appliedToRemittance: null
         });
-        
+
         console.log('📬 Notification sent to tech:', techId);
         return true;
     } catch (error) {
@@ -18327,7 +18182,7 @@ async function clearPendingAdjustment(techId, reason) {
 
         utils.showLoading(false);
         alert(`✅ Pending adjustment cleared: ₱${pendingAdjustment.totalAmount.toFixed(2)}\n\nTechnician has been notified.`);
-        
+
         return true;
     } catch (error) {
         utils.showLoading(false);
@@ -18378,14 +18233,14 @@ async function exportAdjustmentLogs(year, month) {
             log.timestamp || log.clearedAt
         ]);
 
-        const csv = [headers, ...rows].map(row => 
+        const csv = [headers, ...rows].map(row =>
             row.map(cell => `"${cell}"`).join(',')
         ).join('\n');
 
         // Download
         const monthStr = String(month).padStart(2, '0');
         const filename = `commission_adjustments_${year}-${monthStr}.csv`;
-        
+
         const blob = new Blob([csv], { type: 'text/csv' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -18419,7 +18274,7 @@ async function getStorageFilesForCleanup() {
             const filename = item.name;
             // Parse date from filename: commission_adjustments_YYYY-MM.csv
             const match = filename.match(/commission_adjustments_(\d{4})-(\d{2})\.csv/);
-            
+
             if (match) {
                 const fileYear = parseInt(match[1]);
                 const fileMonth = parseInt(match[2]);
@@ -18428,7 +18283,7 @@ async function getStorageFilesForCleanup() {
                 if (fileDate < cutoffDate) {
                     const ageMonths = Math.floor((now - fileDate) / (1000 * 60 * 60 * 24 * 30));
                     const metadata = await item.getMetadata();
-                    
+
                     filesToCleanup.push({
                         filename: filename,
                         path: item.fullPath,
@@ -18471,7 +18326,7 @@ async function cleanupOldAdjustmentLogs(downloadComplete) {
         utils.showLoading(true);
 
         const filesToCleanup = await getStorageFilesForCleanup();
-        
+
         if (filesToCleanup.length === 0) {
             utils.showLoading(false);
             alert('No files to cleanup');
@@ -18523,7 +18378,7 @@ async function cleanupOldAdjustmentLogs(downloadComplete) {
 
         utils.showLoading(false);
         alert(`✅ Cleanup complete:\n\n${deletedFiles} files deleted\n${deletedRecords} DB records removed`);
-        
+
         return true;
     } catch (error) {
         utils.showLoading(false);
@@ -18542,16 +18397,16 @@ async function cleanupOldAdjustmentLogs(downloadComplete) {
  */
 function openPartsOrderModal(repairId, suggestedPartName = '') {
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     if (!repair) {
         alert('Repair not found');
         return;
     }
 
     const content = document.getElementById('partsOrderModalContent');
-    
+
     // Get existing orders for this repair
-    const existingOrders = (window.allPartsOrders || []).filter(o => 
+    const existingOrders = (window.allPartsOrders || []).filter(o =>
         o.repairId === repairId && !['cancelled', 'received'].includes(o.status)
     );
 
@@ -18575,9 +18430,9 @@ function openPartsOrderModal(repairId, suggestedPartName = '') {
                 <select id="orderSupplier" class="input">
                     <option value="">Any available supplier</option>
                     ${(window.allSuppliers || [])
-                        .filter(s => s.active !== false && !s.deleted)
-                        .map(s => `<option value="${s.id}">${s.name || s.supplierName || 'Unnamed Supplier'}</option>`)
-                        .join('')}
+            .filter(s => s.active !== false && !s.deleted)
+            .map(s => `<option value="${s.id}">${s.name || s.supplierName || 'Unnamed Supplier'}</option>`)
+            .join('')}
                 </select>
                 <small style="color:#666;">Leave blank if admin should choose</small>
             </div>
@@ -18617,7 +18472,7 @@ function openPartsOrderModal(repairId, suggestedPartName = '') {
             </div>
         </form>
     `;
-    
+
     document.getElementById('partsOrderModal').style.display = 'block';
 }
 
@@ -18631,7 +18486,7 @@ function closePartsOrderModal() {
 function openPartsDownpayment(repairId) {
     // Store that we're collecting parts downpayment
     window.partsDownpaymentRepairId = repairId;
-    
+
     // Open payment modal with special flag
     openPaymentModal(repairId, 'parts-downpayment');
 }
@@ -18641,13 +18496,13 @@ function openPartsDownpayment(repairId) {
  */
 async function submitPartsOrder(e, repairId) {
     e.preventDefault();
-    
+
     const partName = document.getElementById('orderPartName').value.trim();
     const supplierId = document.getElementById('orderSupplier').value;
     const quantity = parseInt(document.getElementById('orderQuantity').value);
     const urgency = document.getElementById('orderUrgency').value;
     const notes = document.getElementById('orderNotes').value.trim();
-    
+
     if (!partName) {
         alert('Please enter the part name');
         return;
@@ -18669,17 +18524,17 @@ async function submitPartsOrder(e, repairId) {
     const orderData = {
         // Order identification
         orderNumber: `PO-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`,
-        
+
         // What's being ordered
         partName: partName,
         quantity: quantity,
         urgency: urgency,
         notes: notes,
-        
+
         // Supplier info
         supplierId: supplierId || null,
         supplierName: supplierName,
-        
+
         // Related repair
         repairId: repairId,
         repairDetails: {
@@ -18687,63 +18542,63 @@ async function submitPartsOrder(e, repairId) {
             device: `${repair.brand} ${repair.model}`,
             problem: repair.problem || 'N/A'
         },
-        
+
         // Requester info
         requestedBy: window.currentUser.uid,
         requestedByName: window.currentUserData.displayName,
         requestedAt: new Date().toISOString(),
-        
+
         // Status tracking
         status: 'pending', // pending → approved → ordered → received → cancelled
-        
+
         // Pricing (filled during workflow)
         estimatedPrice: null,
         actualPrice: null,
         priceVariance: null,
-        
+
         // Workflow tracking
         approvedBy: null,
         approvedByName: null,
         approvedAt: null,
         approvalNotes: null,
-        
+
         orderedBy: null,
         orderedByName: null,
         orderedAt: null,
         supplierOrderNumber: null,
         estimatedArrival: null,
-        
+
         receivedBy: null,
         receivedByName: null,
         receivedAt: null,
         receivingNotes: null,
-        
+
         cancelledBy: null,
         cancelledByName: null,
         cancelledAt: null,
         cancellationReason: null,
-        
+
         // Downpayment tracking
         paymentId: null, // Links to payment in repairs array
         downpaymentAmount: null,
-        
+
         // Technician notification
         acknowledgedByTech: false,
-        
+
         // Workaround flag
         workaroundActive: false,
-        
+
         deleted: false,
         lastUpdated: new Date().toISOString()
     };
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Create order
         const orderRef = await db.ref('partsOrders').push(orderData);
         console.log('✅ Parts order created:', orderRef.key);
-        
+
         // Update repair status to "Waiting for Parts"
         await db.ref(`repairs/${repairId}`).update({
             status: 'Waiting for Parts',
@@ -18752,17 +18607,17 @@ async function submitPartsOrder(e, repairId) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         utils.showLoading(false);
         closePartsOrderModal();
-        
+
         alert(`✅ Parts order request submitted!\n\nOrder #${orderData.orderNumber}\nPart: ${partName}\n\nAdmin will review and place the order.`);
-        
+
         // Auto-refresh
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error submitting parts order:', error);
@@ -18775,7 +18630,7 @@ async function submitPartsOrder(e, repairId) {
  */
 async function enableWorkaround(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
-    
+
     if (!repair) {
         alert('Repair not found');
         return;
@@ -18799,8 +18654,8 @@ async function enableWorkaround(repairId) {
         utils.showLoading(true);
 
         // Update all pending orders for this repair
-        const pendingOrders = (window.allPartsOrders || []).filter(o => 
-            o.repairId === repairId && 
+        const pendingOrders = (window.allPartsOrders || []).filter(o =>
+            o.repairId === repairId &&
             ['pending', 'approved', 'ordered'].includes(o.status)
         );
 
@@ -18836,7 +18691,7 @@ async function enableWorkaround(repairId) {
  */
 async function approvePartsOrder(orderId) {
     const order = (window.allPartsOrders || []).find(o => o.id === orderId);
-    
+
     if (!order) {
         alert('Order not found');
         return;
@@ -18898,7 +18753,7 @@ async function approvePartsOrder(orderId) {
  */
 async function rejectPartsOrder(orderId) {
     const order = (window.allPartsOrders || []).find(o => o.id === orderId);
-    
+
     if (!order) {
         alert('Order not found');
         return;
@@ -18936,8 +18791,8 @@ async function rejectPartsOrder(orderId) {
         });
 
         // Check if repair should go back to previous status
-        const activeOrders = (window.allPartsOrders || []).filter(o => 
-            o.repairId === order.repairId && 
+        const activeOrders = (window.allPartsOrders || []).filter(o =>
+            o.repairId === order.repairId &&
             o.id !== orderId &&
             ['pending', 'approved', 'ordered'].includes(o.status)
         );
@@ -18946,7 +18801,7 @@ async function rejectPartsOrder(orderId) {
             // No more active orders, change status back
             const repair = window.allRepairs.find(r => r.id === order.repairId);
             const newStatus = repair?.workaroundActive ? 'In Progress' : 'In Progress';
-            
+
             await db.ref(`repairs/${order.repairId}`).update({
                 status: newStatus,
                 waitingForParts: false,
@@ -18975,7 +18830,7 @@ async function rejectPartsOrder(orderId) {
  */
 async function markAsOrdered(orderId) {
     const order = (window.allPartsOrders || []).find(o => o.id === orderId);
-    
+
     if (!order) {
         alert('Order not found');
         return;
@@ -19037,7 +18892,7 @@ async function markAsOrdered(orderId) {
  */
 async function markPartsReceived(orderId) {
     const order = (window.allPartsOrders || []).find(o => o.id === orderId);
-    
+
     if (!order) {
         alert('Order not found');
         return;
@@ -19127,11 +18982,11 @@ async function markPartsReceived(orderId) {
         });
 
         // Check if all orders for this repair are completed
-        const allRepairOrders = (window.allPartsOrders || []).filter(o => 
+        const allRepairOrders = (window.allPartsOrders || []).filter(o =>
             o.repairId === order.repairId && o.id !== orderId
         );
-        
-        const stillPending = allRepairOrders.some(o => 
+
+        const stillPending = allRepairOrders.some(o =>
             ['pending', 'approved', 'ordered'].includes(o.status)
         );
 
@@ -19139,7 +18994,7 @@ async function markPartsReceived(orderId) {
         if (!stillPending) {
             const repair = window.allRepairs.find(r => r.id === order.repairId);
             const newStatus = 'In Progress';
-            
+
             await db.ref(`repairs/${order.repairId}`).update({
                 status: newStatus,
                 waitingForParts: false,
@@ -19173,7 +19028,7 @@ async function markPartsReceived(orderId) {
  */
 async function cancelPartsOrder(orderId) {
     const order = (window.allPartsOrders || []).find(o => o.id === orderId);
-    
+
     if (!order) {
         alert('Order not found');
         return;
@@ -19216,7 +19071,7 @@ async function cancelPartsOrder(orderId) {
             const repair = window.allRepairs.find(r => r.id === order.repairId);
             if (repair && repair.payments) {
                 const payment = repair.payments.find(p => p.id === order.paymentId);
-                
+
                 if (payment && payment.amount > 0) {
                     // Create refund payment (negative)
                     const refundPayment = {
@@ -19237,15 +19092,15 @@ async function cancelPartsOrder(orderId) {
                     payments.push(refundPayment);
 
                     await db.ref(`repairs/${order.repairId}/payments`).set(payments);
-                    
+
                     console.log('✅ Downpayment refunded:', payment.amount);
                 }
             }
         }
 
         // Check if repair should go back to previous status
-        const activeOrders = (window.allPartsOrders || []).filter(o => 
-            o.repairId === order.repairId && 
+        const activeOrders = (window.allPartsOrders || []).filter(o =>
+            o.repairId === order.repairId &&
             o.id !== orderId &&
             ['pending', 'approved', 'ordered'].includes(o.status)
         );
@@ -19254,7 +19109,7 @@ async function cancelPartsOrder(orderId) {
             // No more active orders
             const repair = window.allRepairs.find(r => r.id === order.repairId);
             const newStatus = 'In Progress';
-            
+
             await db.ref(`repairs/${order.repairId}`).update({
                 status: newStatus,
                 waitingForParts: false,
@@ -19265,12 +19120,12 @@ async function cancelPartsOrder(orderId) {
         }
 
         utils.showLoading(false);
-        
+
         let message = '✅ Order cancelled';
         if (order.paymentId) {
             message += '\n\n💵 Downpayment has been refunded to customer balance';
         }
-        
+
         alert(message);
 
         if (window.currentTabRefresh) {
@@ -19310,7 +19165,7 @@ async function acknowledgePartsReceived(orderId) {
  * Acknowledge all received parts for technician
  */
 async function acknowledgeAllPartsReceived() {
-    const unacknowledged = (window.allPartsOrders || []).filter(o => 
+    const unacknowledged = (window.allPartsOrders || []).filter(o =>
         o.requestedBy === window.currentUser.uid &&
         o.status === 'received' &&
         o.acknowledgedByTech === false

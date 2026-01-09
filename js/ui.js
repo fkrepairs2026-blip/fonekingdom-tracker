@@ -1308,8 +1308,8 @@ function buildBackJobReceptionTab(container) {
     // Get all completed/claimed repairs from last 90 days
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    
-    const eligibleRepairs = window.allRepairs.filter(r => 
+
+    const eligibleRepairs = window.allRepairs.filter(r =>
         (r.status === 'Claimed' || r.status === 'Completed') &&
         r.claimedAt &&
         new Date(r.claimedAt) >= ninetyDaysAgo &&
@@ -1356,11 +1356,11 @@ function buildBackJobReceptionTab(container) {
                             Showing ${eligibleRepairs.length} eligible repair(s). Use search box to filter.
                         </p>
                         ${eligibleRepairs.slice(0, 20).map(r => {
-                            const daysAgo = Math.floor((Date.now() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
-                            const hasBackJob = r.hasBackJobId;
-                            const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
-                            
-                            return `
+        const daysAgo = Math.floor((Date.now() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
+        const hasBackJob = r.hasBackJobId;
+        const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
+
+        return `
                                 <div class="repair-card" style="border-left-color:${hasBackJob ? '#f44336' : warrantyActive ? '#4caf50' : '#9e9e9e'};">
                                     <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
                                         <div style="flex:1;">
@@ -1380,9 +1380,9 @@ function buildBackJobReceptionTab(container) {
                                             ${r.warrantyPeriodDays ? `
                                                 <p style="font-size:13px;color:#666;margin-top:5px;">
                                                     🛡️ Warranty: ${r.warrantyPeriodDays} days 
-                                                    ${warrantyActive ? 
-                                                        `(expires ${utils.formatDate(r.warrantyEndDate)})` : 
-                                                        `(expired ${utils.formatDate(r.warrantyEndDate)})`}
+                                                    ${warrantyActive ?
+                    `(expires ${utils.formatDate(r.warrantyEndDate)})` :
+                    `(expired ${utils.formatDate(r.warrantyEndDate)})`}
                                                 </p>
                                             ` : ''}
                                         </div>
@@ -1413,7 +1413,7 @@ function buildBackJobReceptionTab(container) {
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+    }).join('')}
                         ${eligibleRepairs.length > 20 ? `
                             <p style="text-align:center;color:#666;margin-top:20px;">
                                 Showing first 20 results. Use search to filter more.
@@ -1431,7 +1431,7 @@ function buildBackJobReceptionTab(container) {
  */
 function filterBackJobSearchResults() {
     const searchTerm = document.getElementById('backJobSearch').value.toLowerCase().trim();
-    
+
     if (!searchTerm) {
         // Reset to show all
         if (window.currentTabRefresh) {
@@ -1443,8 +1443,8 @@ function filterBackJobSearchResults() {
     // Get eligible repairs
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
-    
-    const eligibleRepairs = window.allRepairs.filter(r => 
+
+    const eligibleRepairs = window.allRepairs.filter(r =>
         (r.status === 'Claimed' || r.status === 'Completed') &&
         r.claimedAt &&
         new Date(r.claimedAt) >= ninetyDaysAgo &&
@@ -1452,7 +1452,7 @@ function filterBackJobSearchResults() {
     );
 
     // Filter by search term
-    const filteredRepairs = eligibleRepairs.filter(r => 
+    const filteredRepairs = eligibleRepairs.filter(r =>
         r.customerName?.toLowerCase().includes(searchTerm) ||
         r.contactNumber?.includes(searchTerm) ||
         r.brand?.toLowerCase().includes(searchTerm) ||
@@ -1480,11 +1480,11 @@ function filterBackJobSearchResults() {
             Found ${filteredRepairs.length} repair(s) matching "${searchTerm}"
         </p>
         ${filteredRepairs.slice(0, 20).map(r => {
-            const daysAgo = Math.floor((Date.now() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
-            const hasBackJob = r.hasBackJobId;
-            const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
-            
-            return `
+        const daysAgo = Math.floor((Date.now() - new Date(r.claimedAt)) / (1000 * 60 * 60 * 24));
+        const hasBackJob = r.hasBackJobId;
+        const warrantyActive = r.warrantyEndDate && new Date(r.warrantyEndDate) > new Date();
+
+        return `
                 <div class="repair-card" style="border-left-color:${hasBackJob ? '#f44336' : warrantyActive ? '#4caf50' : '#9e9e9e'};">
                     <div style="display:flex;justify-content:space-between;align-items:start;gap:15px;">
                         <div style="flex:1;">
@@ -1504,9 +1504,9 @@ function filterBackJobSearchResults() {
                             ${r.warrantyPeriodDays ? `
                                 <p style="font-size:13px;color:#666;margin-top:5px;">
                                     🛡️ Warranty: ${r.warrantyPeriodDays} days 
-                                    ${warrantyActive ? 
-                                        `(expires ${utils.formatDate(r.warrantyEndDate)})` : 
-                                        `(expired ${utils.formatDate(r.warrantyEndDate)})`}
+                                    ${warrantyActive ?
+                    `(expires ${utils.formatDate(r.warrantyEndDate)})` :
+                    `(expired ${utils.formatDate(r.warrantyEndDate)})`}
                                 </p>
                             ` : ''}
                         </div>
@@ -1537,7 +1537,7 @@ function filterBackJobSearchResults() {
                     </div>
                 </div>
             `;
-        }).join('')}
+    }).join('')}
         ${filteredRepairs.length > 20 ? `
             <p style="text-align:center;color:#666;margin-top:20px;">
                 Showing first 20 results. Refine your search for better results.
@@ -1584,7 +1584,7 @@ function buildMyRequestsTab(container) {
 
     // Load pending refund acknowledgments (for technicians)
     const pendingAcknowledgments = window.refunds ?
-        window.refunds.filter(r => 
+        window.refunds.filter(r =>
             (r.status === 'approved_pending_tech' || (r.status === 'approved' && r.commissionAffected && !r.acknowledgedByTech)) &&
             r.technicianId === window.currentUser.uid
         ) : [];
@@ -1656,8 +1656,8 @@ function buildMyRequestsTab(container) {
                 ${myRefundRequests.length > 0 ? `
                     <h4 style="margin-top:20px;color:#e91e63;">🔄 My Refund Requests (${myRefundRequests.length})</h4>
                     ${myRefundRequests.sort((a, b) => new Date(b.requestedAt) - new Date(a.requestedAt)).map(refund => {
-        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-        return `
+            const repair = window.allRepairs.find(r => r.id === refund.repairId);
+            return `
                         <div style="background:${refund.status === 'completed' ? '#e8f5e9' : refund.status === 'rejected' ? '#ffebee' : '#fff3e0'};padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid ${refund.status === 'completed' ? '#4caf50' : refund.status === 'rejected' ? '#f44336' : '#ff9800'};">
                             <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
                                 <strong>🔄 Refund Request - ₱${refund.refundAmount.toFixed(2)}</strong>
@@ -1842,11 +1842,11 @@ function buildRefundRequestsTab(container) {
     const completedRefunds = (window.refunds || []).filter(r => r.status === 'completed').slice(0, 20);
     const rejectedRefunds = (window.refunds || []).filter(r => r.status === 'rejected').slice(0, 10);
     const approvedRefunds = (window.refunds || []).filter(r => r.status === 'approved' && (!r.commissionAffected || r.acknowledgedByTech));
-    const otherRefunds = (window.refunds || []).filter(r => 
-        r.status !== 'pending_approval' && 
-        r.status !== 'pending' && 
-        r.status !== 'approved_pending_tech' && 
-        r.status !== 'completed' && 
+    const otherRefunds = (window.refunds || []).filter(r =>
+        r.status !== 'pending_approval' &&
+        r.status !== 'pending' &&
+        r.status !== 'approved_pending_tech' &&
+        r.status !== 'completed' &&
         r.status !== 'rejected' &&
         r.status !== 'approved'
     );
@@ -1962,10 +1962,10 @@ function buildRefundRequestsTab(container) {
                     <h4 style="margin-top:30px;color:#f44336;">⚠️ STUCK REFUNDS - NEED RECOVERY (${stuckRefunds.length})</h4>
                     <p style="color:#666;font-size:14px;margin-bottom:15px;">These refunds were acknowledged by tech but failed to complete. Click "Retry Processing" to complete them.</p>
                     ${stuckRefunds.map(refund => {
-        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-        const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
-        const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
-        return `
+            const repair = window.allRepairs.find(r => r.id === refund.repairId);
+            const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
+            const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
+            return `
                         <div class="alert-card-danger">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                 <div>
@@ -2006,10 +2006,10 @@ function buildRefundRequestsTab(container) {
                     <h4 style="margin-top:30px;color:#ff9800;">⏳ AWAITING TECHNICIAN ACKNOWLEDGMENT (${awaitingTechRefunds.length})</h4>
                     <p style="color:#666;font-size:14px;margin-bottom:15px;">These refunds have been approved but are waiting for the technician to acknowledge the commission reversal.</p>
                     ${awaitingTechRefunds.map(refund => {
-        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-        const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
-        const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
-        return `
+                const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
+                const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
+                return `
                         <div class="alert-card-warning">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                                 <div>
@@ -2043,8 +2043,8 @@ function buildRefundRequestsTab(container) {
                 ${completedRefunds.length > 0 ? `
                     <h4 style="margin-top:30px;">✅ Recent Completed Refunds (Last 20)</h4>
                     ${completedRefunds.map(refund => {
-            const repair = window.allRepairs.find(r => r.id === refund.repairId);
-            return `
+                    const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                    return `
                         <div class="alert-card-success">
                             <div style="display:flex;justify-content:space-between;font-size:14px;">
                                 <div>
@@ -2061,8 +2061,8 @@ function buildRefundRequestsTab(container) {
                 ${rejectedRefunds.length > 0 ? `
                     <h4 style="margin-top:30px;">❌ Recent Rejected Refunds (Last 10)</h4>
                     ${rejectedRefunds.map(refund => {
-                const repair = window.allRepairs.find(r => r.id === refund.repairId);
-                return `
+                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+                        return `
                         <div class="alert-card-danger">
                             <div style="display:flex;justify-content:space-between;font-size:14px;">
                                 <div>
@@ -2103,12 +2103,12 @@ function buildRefundedDevicesTab(container) {
     window.currentTabRefresh = () => buildRefundedDevicesTab(document.getElementById('refunded-devicesTab'));
 
     // Show all refunds that are approved or completed (not pending/rejected)
-    const completedRefunds = (window.refunds || []).filter(r => 
-        r.status === 'completed' || 
-        r.status === 'approved' || 
+    const completedRefunds = (window.refunds || []).filter(r =>
+        r.status === 'completed' ||
+        r.status === 'approved' ||
         r.status === 'approved_pending_tech'
     );
-    
+
     // Sort by completion date or approval date (newest first)
     completedRefunds.sort((a, b) => {
         const dateA = new Date(a.completedAt || a.approvedAt || a.createdAt);
@@ -2156,18 +2156,18 @@ function buildRefundedDevicesTab(container) {
             ` : `
                 <div id="refundedDevicesList">
                     ${completedRefunds.map(refund => {
-                        const repair = window.allRepairs.find(r => r.id === refund.repairId);
-                        const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
-                        const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
-                        
-                        // Determine status display
-                        const statusDisplay = refund.status === 'completed' 
-                            ? { bg: '#4caf50', text: '✅ COMPLETED', date: refund.completedAt }
-                            : refund.status === 'approved_pending_tech'
-                            ? { bg: '#ff9800', text: '⏳ PENDING TECH ACK', date: refund.approvedAt }
-                            : { bg: '#2196f3', text: '✅ APPROVED', date: refund.approvedAt };
-                        
-                        return `
+        const repair = window.allRepairs.find(r => r.id === refund.repairId);
+        const usersArray = window.allUsers ? Object.values(window.allUsers) : [];
+        const tech = repair ? usersArray.find(u => u.id === refund.technicianId) : null;
+
+        // Determine status display
+        const statusDisplay = refund.status === 'completed'
+            ? { bg: '#4caf50', text: '✅ COMPLETED', date: refund.completedAt }
+            : refund.status === 'approved_pending_tech'
+                ? { bg: '#ff9800', text: '⏳ PENDING TECH ACK', date: refund.approvedAt }
+                : { bg: '#2196f3', text: '✅ APPROVED', date: refund.approvedAt };
+
+        return `
                             <div class="refund-item" data-search="${repair?.customerName} ${repair?.brand} ${repair?.model} ${refund.refundReason}">
                                 <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid ${statusDisplay.bg};">
                                     <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
@@ -2243,7 +2243,7 @@ function buildRefundedDevicesTab(container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+    }).join('')}
                 </div>
             `}
         </div>
@@ -2254,7 +2254,7 @@ function buildRefundedDevicesTab(container) {
 function filterRefundedDevices() {
     const searchTerm = document.getElementById('refundSearch')?.value.toLowerCase() || '';
     const items = document.querySelectorAll('.refund-item');
-    
+
     items.forEach(item => {
         const searchData = item.getAttribute('data-search').toLowerCase();
         if (searchData.includes(searchTerm)) {
@@ -2402,7 +2402,7 @@ function displayRepairsInContainer(repairs, container) {
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         const balance = r.total - totalPaid;
         const paymentStatus = balance === 0 && r.total > 0 ? 'verified' : (r.payments && r.payments.some(p => !p.verified)) ? 'pending' : 'unpaid';
-        
+
         // Get enhanced status display with parts info
         const enhancedStatus = getEnhancedStatusDisplay(r);
 
@@ -2474,25 +2474,25 @@ function displayRepairsInContainer(repairs, container) {
                 ` : ''}
                 
                 ${(() => {
-                    const repairOrders = (window.allPartsOrders || []).filter(o => o.repairId === r.id);
-                    if (repairOrders.length === 0) return '';
-                    
-                    return `
+                const repairOrders = (window.allPartsOrders || []).filter(o => o.repairId === r.id);
+                if (repairOrders.length === 0) return '';
+
+                return `
                         <details style="margin-top:15px;background:#f3f4f6;padding:10px;border-radius:8px;border-left:4px solid #8b5cf6;">
                             <summary style="cursor:pointer;font-weight:600;color:#8b5cf6;">📦 Parts Order History (${repairOrders.length})</summary>
                             <div style="margin-top:10px;">
                                 ${repairOrders.map(order => {
-                                    const statusColor = 
-                                        order.status === 'pending' ? '#f59e0b' :
-                                        order.status === 'approved' ? '#3b82f6' :
-                                        order.status === 'ordered' ? '#8b5cf6' :
-                                        order.status === 'received' ? '#10b981' : '#ef4444';
-                                    
-                                    const varianceIcon = !order.priceVariancePercent ? '' : 
-                                        Math.abs(order.priceVariancePercent) <= 10 ? '🟢' : 
-                                        Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
-                                    
-                                    return `
+                    const statusColor =
+                        order.status === 'pending' ? '#f59e0b' :
+                            order.status === 'approved' ? '#3b82f6' :
+                                order.status === 'ordered' ? '#8b5cf6' :
+                                    order.status === 'received' ? '#10b981' : '#ef4444';
+
+                    const varianceIcon = !order.priceVariancePercent ? '' :
+                        Math.abs(order.priceVariancePercent) <= 10 ? '🟢' :
+                            Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
+
+                    return `
                                         <div style="background:white;padding:10px;border-radius:6px;margin-bottom:8px;border-left:3px solid ${statusColor};">
                                             <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
                                                 <strong>${order.partName}</strong> (x${order.quantity})
@@ -2530,11 +2530,11 @@ function displayRepairsInContainer(repairs, container) {
                                             </div>
                                         </div>
                                     `;
-                                }).join('')}
+                }).join('')}
                             </div>
                         </details>
                     `;
-                })()}
+            })()}
                 
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
                     ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
@@ -2546,9 +2546,9 @@ function displayRepairsInContainer(repairs, container) {
                     ${r.status === 'Waiting for Parts' && !r.workaroundActive && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="enableWorkaround('${r.id}')" style="background:#f59e0b;color:white;">🔧 Work on Other Issues</button>` : ''}
                     ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
                     ${(() => {
-                        const repairExpenses = (window.techExpenses || []).filter(e => e.repairId === r.id);
-                        return repairExpenses.length > 0 ? `<button class="btn-small" onclick="viewRepairExpenses('${r.id}')" style="background:#7b1fa2;color:white;">📋 View Expenses (${repairExpenses.length})</button>` : '';
-                    })()}
+                const repairExpenses = (window.techExpenses || []).filter(e => e.repairId === r.id);
+                return repairExpenses.length > 0 ? `<button class="btn-small" onclick="viewRepairExpenses('${r.id}')" style="background:#7b1fa2;color:white;">📋 View Expenses (${repairExpenses.length})</button>` : '';
+            })()}
                     ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
                 </div>
             </div>
@@ -3312,18 +3312,6 @@ function renderForReleaseButtons(r, role) {
  */
 function renderReleasedButtons(r, role) {
     let buttons = '';
-
-    // Show countdown timer
-    if (r.releasedAt && window.getCountdownTo6PM) {
-        const countdown = window.getCountdownTo6PM(r.releasedAt);
-        buttons += `
-            <div style="background:#fff3cd;padding:10px;border-radius:6px;margin-bottom:10px;border-left:3px solid #ffc107;">
-                <span style="color:#856404;font-weight:600;font-size:13px;">
-                    ⏱️ ${countdown}
-                </span>
-            </div>
-        `;
-    }
 
     // Payment button (for unpaid/partially paid devices)
     const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
@@ -4297,9 +4285,9 @@ function buildStaffOverviewTab(container) {
             <p style="color:#666;margin-bottom:15px;">Select a user to view their personal dashboard and activity</p>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;">
                 ${users.map(user => {
-                    const activity = allUserActivity[user.id];
-                    const isClockedIn = activity?.currentStatus === 'clocked-in';
-                    return `
+        const activity = allUserActivity[user.id];
+        const isClockedIn = activity?.currentStatus === 'clocked-in';
+        return `
                         <button onclick="viewUserDashboard('${user.id}')" class="btn-secondary" 
                             style="display:flex;align-items:center;gap:10px;justify-content:space-between;">
                             <span>
@@ -4308,7 +4296,7 @@ function buildStaffOverviewTab(container) {
                             <span style="font-size:11px;opacity:0.7;">${user.role}</span>
                         </button>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
         </div>
     `;
@@ -4328,13 +4316,13 @@ function renderStaffStatusList(users, allUserActivity, groupName, icon) {
             <h4 style="color:#667eea;margin-bottom:15px;">${icon} ${groupName}</h4>
             <div style="display:grid;gap:10px;">
                 ${users.map(user => {
-                    const activity = allUserActivity[user.id];
-                    const isClockedIn = activity?.currentStatus === 'clocked-in';
-                    const lastActivity = activity?.lastActivity;
-                    const clockInTime = activity?.todayClockIn;
-                    console.log(`🔍 ${user.displayName}:`, { activity, isClockedIn, clockInTime });
+        const activity = allUserActivity[user.id];
+        const isClockedIn = activity?.currentStatus === 'clocked-in';
+        const lastActivity = activity?.lastActivity;
+        const clockInTime = activity?.todayClockIn;
+        console.log(`🔍 ${user.displayName}:`, { activity, isClockedIn, clockInTime });
 
-                    return `
+        return `
                         <div style="background:#f9f9f9;padding:15px;border-radius:8px;border-left:4px solid ${isClockedIn ? '#4caf50' : '#999'};">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <div>
@@ -4361,7 +4349,7 @@ function renderStaffStatusList(users, allUserActivity, groupName, icon) {
                             </div>
                         </div>
                     `;
-                }).join('')}
+    }).join('')}
             </div>
         </div>
     `;
@@ -4377,7 +4365,7 @@ async function loadTodayAttendance(users) {
     try {
         const today = getLocalDateString(new Date());
         const db = firebase.database();
-        
+
         const attendancePromises = users.map(async (user) => {
             const snapshot = await db.ref(`userAttendance/${user.id}/${today}`).once('value');
             return {
@@ -4402,23 +4390,23 @@ async function loadTodayAttendance(users) {
         container.innerHTML = `
             <div style="display:grid;gap:10px;">
                 ${withAttendance.map(({ user, attendance }) => {
-                    const clockIn = attendance.clockIn;
-                    const clockOut = attendance.clockOut;
-                    const duration = attendance.duration || 0;
-                    const isActive = !clockOut;
+            const clockIn = attendance.clockIn;
+            const clockOut = attendance.clockOut;
+            const duration = attendance.duration || 0;
+            const isActive = !clockOut;
 
-                    // Calculate current duration if still clocked in
-                    let displayDuration = duration;
-                    if (isActive && clockIn) {
-                        const clockInTime = new Date(clockIn);
-                        const now = new Date();
-                        displayDuration = Math.floor((now - clockInTime) / 1000);
-                    }
+            // Calculate current duration if still clocked in
+            let displayDuration = duration;
+            if (isActive && clockIn) {
+                const clockInTime = new Date(clockIn);
+                const now = new Date();
+                displayDuration = Math.floor((now - clockInTime) / 1000);
+            }
 
-                    const hours = Math.floor(displayDuration / 3600);
-                    const minutes = Math.floor((displayDuration % 3600) / 60);
+            const hours = Math.floor(displayDuration / 3600);
+            const minutes = Math.floor((displayDuration % 3600) / 60);
 
-                    return `
+            return `
                         <div style="background:#f9f9f9;padding:15px;border-radius:8px;border-left:4px solid ${isActive ? '#4caf50' : '#2196f3'};">
                             <div style="display:flex;justify-content:space-between;align-items:center;">
                                 <div>
@@ -4444,16 +4432,16 @@ async function loadTodayAttendance(users) {
                             </div>
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
 
             ${withoutAttendance.length > 0 ? `
                 <div style="margin-top:20px;padding:15px;background:#fff3cd;border-radius:8px;border-left:4px solid #ffc107;">
                     <strong>⚠️ No Clock In Today:</strong>
                     <div style="margin-top:10px;font-size:13px;">
-                        ${withoutAttendance.map(({ user }) => 
-                            `<span style="display:inline-block;background:white;padding:5px 10px;margin:5px 5px 0 0;border-radius:4px;">${user.displayName}</span>`
-                        ).join('')}
+                        ${withoutAttendance.map(({ user }) =>
+            `<span style="display:inline-block;background:white;padding:5px 10px;margin:5px 5px 0 0;border-radius:4px;">${user.displayName}</span>`
+        ).join('')}
                     </div>
                 </div>
             ` : ''}
@@ -4550,12 +4538,12 @@ async function viewUserDashboard(userId) {
                 ` : `
                     <div style="margin-top:15px;">
                         ${attendanceDates.map(date => {
-                            const record = attendanceData[date];
-                            const duration = record.duration || 0;
-                            const hours = Math.floor(duration / 3600);
-                            const minutes = Math.floor((duration % 3600) / 60);
+            const record = attendanceData[date];
+            const duration = record.duration || 0;
+            const hours = Math.floor(duration / 3600);
+            const minutes = Math.floor((duration % 3600) / 60);
 
-                            return `
+            return `
                                 <div style="background:#f9f9f9;padding:12px;margin-bottom:8px;border-radius:6px;">
                                     <div style="display:flex;justify-content:space-between;align-items:center;">
                                         <div>
@@ -4571,7 +4559,7 @@ async function viewUserDashboard(userId) {
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+        }).join('')}
                     </div>
                 `}
             </div>
@@ -6113,39 +6101,39 @@ function toggleCompletionFields() {
     const completedFields = document.getElementById('completedFields');
     const warrantyField = document.getElementById('warrantyField');
     const techAcceptSection = document.getElementById('techAcceptSection');
-    
+
     // Hide completion fields first
     if (completedFields) completedFields.style.display = 'none';
     if (warrantyField) warrantyField.style.display = 'none';
-    
+
     // Show/hide tech assignment section
     if (techAcceptSection) {
         techAcceptSection.style.display = completionMode === 'normal' ? 'block' : 'none';
     }
-    
+
     // Show completion fields for pre-completed or completed modes
     if ((completionMode === 'pre-completed' || completionMode === 'completed') && completedFields) {
         completedFields.style.display = 'block';
-        
+
         // Show warranty field only for "completed" mode
         if (completionMode === 'completed' && warrantyField) {
             warrantyField.style.display = 'block';
         }
-        
+
         // Set default dates to now
         const now = new Date();
         const nowStr = now.toISOString().slice(0, 16);
         document.getElementById('completionDate').value = nowStr;
         document.getElementById('releaseDate').value = nowStr;
-        
+
         // Validate dates on change
         document.getElementById('completionDate').addEventListener('change', validateCompletionDates);
         document.getElementById('releaseDate').addEventListener('change', validateCompletionDates);
-        
+
         // Toggle service slip upload based on verification method
         const verificationMethod = document.getElementById('verificationMethod');
         if (verificationMethod) {
-            verificationMethod.addEventListener('change', function() {
+            verificationMethod.addEventListener('change', function () {
                 const slipUploadGroup = document.getElementById('slipUploadGroup');
                 if (slipUploadGroup) {
                     slipUploadGroup.style.display = this.value === 'with-slip' ? 'block' : 'none';
@@ -6161,41 +6149,41 @@ function toggleCompletionFields() {
 function validateCompletionDates() {
     const completionMode = document.querySelector('input[name="completionMode"]:checked')?.value;
     if (completionMode === 'normal') return true;
-    
+
     const isReleased = completionMode === 'released';
     const completionDateInput = document.getElementById(isReleased ? 'releasedCompletionDate' : 'claimedCompletionDate');
     const releaseDateInput = document.getElementById(isReleased ? 'releasedReleaseDate' : 'claimedClaimDate');
     const adminOverrideInput = document.getElementById(isReleased ? 'releasedAdminDateOverride' : 'claimedAdminDateOverride');
-    
+
     if (!completionDateInput || !releaseDateInput) return false;
-    
+
     const completionDate = new Date(completionDateInput.value);
     const releaseDate = new Date(releaseDateInput.value);
     const now = new Date();
     const minDate = new Date('2025-01-01');
     const isAdminOverride = adminOverrideInput?.checked || false;
-    
+
     // Check completion not future
     if (completionDate > now) {
         alert('⚠️ Completion date cannot be in the future!');
         completionDateInput.value = '';
         return false;
     }
-    
+
     // Check release not future
     if (releaseDate > now) {
         alert('⚠️ Release/claim date cannot be in the future!');
         releaseDateInput.value = '';
         return false;
     }
-    
+
     // Check release >= completion
     if (releaseDate < completionDate) {
         alert('⚠️ Release/claim date must be after or equal to completion date!');
         releaseDateInput.value = completionDateInput.value;
         return false;
     }
-    
+
     // Check dates >= 2025 unless admin override
     if (!isAdminOverride) {
         if (completionDate < minDate) {
@@ -6209,7 +6197,7 @@ function validateCompletionDates() {
             return false;
         }
     }
-    
+
     return true;
 }
 
@@ -6223,10 +6211,10 @@ function togglePaymentFields() {
     const checkbox = document.getElementById('collectPayment');
     const fieldsDiv = document.getElementById('paymentFields');
     const amountInput = document.getElementById('paymentAmount');
-    
+
     if (fieldsDiv) {
         fieldsDiv.style.display = checkbox?.checked ? 'block' : 'none';
-        
+
         // Auto-populate amount from total
         if (checkbox?.checked && amountInput) {
             const total = parseFloat(document.getElementById('preApprovedTotal')?.value || 0);
@@ -6241,7 +6229,7 @@ function togglePaymentFields() {
 function toggleGCashRef() {
     const method = document.getElementById('paymentMethod')?.value;
     const gcashRefGroup = document.getElementById('gcashRefGroup');
-    
+
     if (gcashRefGroup) {
         gcashRefGroup.style.display = method === 'GCash' ? 'block' : 'none';
     }
@@ -8517,16 +8505,14 @@ function openAddSupplierModal() {
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
                         <h4 style="margin:0;flex:1;">${supplier.supplierName}</h4>
                         ${supplier.paymentType ? `
-                            <span style="background:${
-                                supplier.paymentType === 'shop_inventory' ? '#4caf50' :
-                                supplier.paymentType === 'tech_pays_cod' ? '#ff9800' :
-                                '#2196f3'
-                            };color:white;padding:4px 10px;border-radius:4px;font-size:0.85em;font-weight:500;">
-                                ${
-                                    supplier.paymentType === 'shop_inventory' ? '💰 Shop' :
-                                    supplier.paymentType === 'tech_pays_cod' ? '💵 COD' :
-                                    '📅 Later'
-                                }
+                            <span style="background:${supplier.paymentType === 'shop_inventory' ? '#4caf50' :
+                supplier.paymentType === 'tech_pays_cod' ? '#ff9800' :
+                    '#2196f3'
+            };color:white;padding:4px 10px;border-radius:4px;font-size:0.85em;font-weight:500;">
+                                ${supplier.paymentType === 'shop_inventory' ? '💰 Shop' :
+                supplier.paymentType === 'tech_pays_cod' ? '💵 COD' :
+                    '📅 Later'
+            }
                             </span>
                         ` : '<span style="color:#f44336;font-size:0.85em;font-weight:500;">⚠️ Unclassified</span>'}
                     </div>
@@ -8661,7 +8647,7 @@ function editSupplierForm(supplierId) {
     }
 
     const container = document.getElementById('supplierFormContainer');
-    
+
     // Handle both old and new data structures
     const supplierName = supplier.supplierName || supplier.name || '';
 
@@ -9522,7 +9508,7 @@ function exportFinancialReport() {
  */
 function buildBackJobAnalyticsSection(startDate, endDate) {
     // Get all back jobs in date range
-    const backJobs = window.allRepairs.filter(r => 
+    const backJobs = window.allRepairs.filter(r =>
         r.isBackJob &&
         r.receivedAt &&
         new Date(r.receivedAt) >= startDate &&
@@ -9531,7 +9517,7 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
     );
 
     // Get all completed repairs in date range (for rate calculation)
-    const completedRepairs = window.allRepairs.filter(r => 
+    const completedRepairs = window.allRepairs.filter(r =>
         (r.status === 'Claimed' || r.status === 'Completed') &&
         r.claimedAt &&
         new Date(r.claimedAt) >= startDate &&
@@ -9542,7 +9528,7 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
 
     // Calculate stats per technician
     const techStats = {};
-    
+
     // Count completed repairs per tech
     completedRepairs.forEach(r => {
         if (r.acceptedByName) {
@@ -9594,8 +9580,8 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
     const monthlyTrend = {};
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
-    window.allRepairs.filter(r => 
+
+    window.allRepairs.filter(r =>
         r.isBackJob &&
         r.receivedAt &&
         new Date(r.receivedAt) >= sixMonthsAgo &&
@@ -9667,11 +9653,11 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
                         </thead>
                         <tbody>
                             ${sortedTechs.map(tech => {
-                                const rateColor = tech.backJobRate < 5 ? '#4caf50' : 
-                                                 tech.backJobRate < 10 ? '#ff9800' : '#f44336';
-                                const rating = tech.backJobRate < 5 ? '⭐ Excellent' :
-                                              tech.backJobRate < 10 ? '⚠️ Acceptable' : '❌ Needs Attention';
-                                return `
+        const rateColor = tech.backJobRate < 5 ? '#4caf50' :
+            tech.backJobRate < 10 ? '#ff9800' : '#f44336';
+        const rating = tech.backJobRate < 5 ? '⭐ Excellent' :
+            tech.backJobRate < 10 ? '⚠️ Acceptable' : '❌ Needs Attention';
+        return `
                                     <tr>
                                         <td><strong>${tech.name}</strong></td>
                                         <td>${tech.completedRepairs}</td>
@@ -9687,7 +9673,7 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
                                         </td>
                                     </tr>
                                 `;
-                            }).join('')}
+    }).join('')}
                         </tbody>
                     </table>
                 </div>
@@ -9699,11 +9685,11 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
                     <h4 style="margin:0 0 15px;">📈 Back Job Trend (Last 6 Months)</h4>
                     <div style="display:flex;gap:10px;align-items:end;height:200px;padding:20px;background:var(--bg-white);border-radius:8px;">
                         ${Object.entries(monthlyTrend)
-                            .sort((a, b) => new Date(a[0]) - new Date(b[0]))
-                            .map(([month, count]) => {
-                                const maxCount = Math.max(...Object.values(monthlyTrend));
-                                const height = (count / maxCount * 150);
-                                return `
+                .sort((a, b) => new Date(a[0]) - new Date(b[0]))
+                .map(([month, count]) => {
+                    const maxCount = Math.max(...Object.values(monthlyTrend));
+                    const height = (count / maxCount * 150);
+                    return `
                                     <div style="flex:1;text-align:center;">
                                         <div style="background:#ff9800;height:${height}px;border-radius:4px 4px 0 0;margin-bottom:5px;position:relative;">
                                             <span style="position:absolute;top:-25px;left:50%;transform:translateX(-50%);font-weight:bold;color:#f44336;">${count}</span>
@@ -9711,7 +9697,7 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
                                         <div style="font-size:11px;color:#666;transform:rotate(-45deg);margin-top:20px;">${month}</div>
                                     </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                     </div>
                 </div>
             ` : ''}
@@ -9725,8 +9711,8 @@ function buildBackJobAnalyticsSection(startDate, endDate) {
 function showBackJobDetails(techId) {
     const tech = Object.values(window.allUsers || {}).find(u => u.uid === techId);
     const techName = tech ? tech.displayName : 'Unknown';
-    
-    const backJobs = window.allRepairs.filter(r => 
+
+    const backJobs = window.allRepairs.filter(r =>
         r.isBackJob &&
         r.originalTechId === techId &&
         !r.deleted
@@ -9743,8 +9729,8 @@ function showBackJobDetails(techId) {
             <p style="color:#666;margin-bottom:20px;">Total: ${backJobs.length} back job(s)</p>
             
             ${backJobs.map(r => {
-                const originalRepair = window.allRepairs.find(orig => orig.id === r.originalRepairId);
-                return `
+        const originalRepair = window.allRepairs.find(orig => orig.id === r.originalRepairId);
+        return `
                     <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:15px;border-left:4px solid #f44336;">
                         <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
                             <div>
@@ -9770,7 +9756,7 @@ function showBackJobDetails(techId) {
                         ` : ''}
                     </div>
                 `;
-            }).join('')}
+    }).join('')}
         </div>
         <div style="margin-top:20px;text-align:right;">
             <button onclick="this.closest('.modal').style.display='none'" class="btn-secondary">Close</button>
@@ -9783,7 +9769,7 @@ function showBackJobDetails(techId) {
     modal.style.display = 'block';
     modal.innerHTML = `<div class="modal-content" style="max-width:700px;">${modalContent}</div>`;
     document.body.appendChild(modal);
-    
+
     // Remove modal on background click
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
@@ -9799,7 +9785,7 @@ function exportBackJobAnalytics() {
     const startDate = window.analyticsDateRange?.start || new Date(new Date().setDate(new Date().getDate() - 30));
     const endDate = window.analyticsDateRange?.end || new Date();
 
-    const backJobs = window.allRepairs.filter(r => 
+    const backJobs = window.allRepairs.filter(r =>
         r.isBackJob &&
         r.receivedAt &&
         new Date(r.receivedAt) >= startDate &&
@@ -10551,11 +10537,11 @@ function openEditOverheadModal(expenseId) {
     document.getElementById('editOverheadId').value = expense.id;
     document.getElementById('editOverheadCategory').value = expense.category || '';
     document.getElementById('editOverheadAmount').value = expense.amount || '';
-    
+
     // Convert ISO date to YYYY-MM-DD format for input
     const dateStr = expense.date ? expense.date.split('T')[0] : '';
     document.getElementById('editOverheadDate').value = dateStr;
-    
+
     document.getElementById('editOverheadRecurring').value = expense.recurringFrequency || '';
     document.getElementById('editOverheadDescription').value = expense.description || expense.notes || '';
 
@@ -10824,7 +10810,7 @@ function saveSupplierPurchase() {
     const purchaseDate = document.getElementById('purchaseDate').value;
     const dueDate = document.getElementById('purchaseDueDate').value;
     const description = document.getElementById('purchaseDescription').value.trim();
-    
+
     // Get parts details if entered
     const partsRows = document.querySelectorAll('.parts-row');
     const partsPurchased = [];
@@ -10832,7 +10818,7 @@ function saveSupplierPurchase() {
         const partName = row.querySelector('.part-name')?.value.trim();
         const quantity = parseFloat(row.querySelector('.part-quantity')?.value);
         const unitPrice = parseFloat(row.querySelector('.part-price')?.value);
-        
+
         if (partName && quantity && unitPrice) {
             partsPurchased.push({
                 partName: partName,
@@ -10880,7 +10866,7 @@ function saveSupplierPurchase() {
             document.getElementById('purchaseAmount').value = '';
             document.getElementById('purchaseDueDate').value = '';
             document.getElementById('purchaseDescription').value = '';
-            
+
             // Clear parts rows
             document.getElementById('partsDetailsContainer').innerHTML = '';
         })
@@ -10893,12 +10879,12 @@ function saveSupplierPurchase() {
 function addPartsRow() {
     const container = document.getElementById('partsDetailsContainer');
     const rowId = 'partRow_' + Date.now();
-    
+
     const row = document.createElement('div');
     row.className = 'parts-row';
     row.id = rowId;
     row.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;margin-bottom:10px;align-items:end;';
-    
+
     row.innerHTML = `
         <div>
             <label style="font-size:0.9em;">Part Name</label>
@@ -10916,7 +10902,7 @@ function addPartsRow() {
             🗑️
         </button>
     `;
-    
+
     container.appendChild(row);
 }
 
@@ -11719,12 +11705,12 @@ function toggleTableView(tableId) {
     const cardView = document.getElementById(`${tableId.replace('-table', '')}-card-view`);
     const toggleButton = document.getElementById(`${tableId.replace('-table', '')}-view-toggle`);
     const toggleText = document.getElementById(`${tableId.replace('-table', '')}-toggle-text`);
-    
+
     if (!tableView || !cardView) return;
-    
+
     // Check current state
     const isCardView = cardView.style.display !== 'none';
-    
+
     if (isCardView) {
         // Switch to table view
         tableView.style.display = 'block';
@@ -11747,7 +11733,7 @@ function toggleTableView(tableId) {
 function initTableView(tableId) {
     const savedMode = localStorage.getItem(`${tableId}-view-mode`);
     const isMobile = window.innerWidth <= 768;
-    
+
     // Auto-switch to card view on mobile if no preference saved
     if (!savedMode && isMobile) {
         toggleTableView(tableId);
@@ -11767,16 +11753,16 @@ window.initTableView = initTableView;
 function buildUsageAnalyticsTab(container) {
     console.log('📈 Building Usage Analytics tab');
     window.currentTabRefresh = () => buildUsageAnalyticsTab(document.getElementById('usage-analyticsTab'));
-    
+
     const today = new Date().toISOString().split('T')[0];
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    
+
     // Get current filter or default to 7 days
     const currentRange = window.usageAnalyticsRange || '7days';
-    
+
     let startDate, endDate;
-    switch(currentRange) {
+    switch (currentRange) {
         case 'today':
             startDate = today;
             endDate = today + 'T23:59:59.999Z';
@@ -11833,7 +11819,7 @@ function buildUsageAnalyticsTab(container) {
 
 async function loadUsageAnalyticsData(startDate, endDate) {
     const contentDiv = document.getElementById('usageAnalyticsContent');
-    
+
     try {
         utils.showLoading(true);
 
@@ -11879,8 +11865,8 @@ async function loadUsageAnalyticsData(startDate, endDate) {
                         </thead>
                     <tbody>
                         ${tabStats.mostUsedTabs.map((tab, index) => {
-                            const percentage = ((tab.count / tabStats.totalEvents) * 100).toFixed(1);
-                            return `
+            const percentage = ((tab.count / tabStats.totalEvents) * 100).toFixed(1);
+            return `
                                 <tr>
                                     <td><strong>${index + 1}</strong></td>
                                     <td>${tab.tab}</td>
@@ -11895,7 +11881,7 @@ async function loadUsageAnalyticsData(startDate, endDate) {
                                     </td>
                                 </tr>
                             `;
-                        }).join('')}
+        }).join('')}
                     </tbody>
                 </table>
             </div>
@@ -11906,7 +11892,7 @@ async function loadUsageAnalyticsData(startDate, endDate) {
     } catch (error) {
         console.error('❌ Error loading usage analytics:', error);
         utils.showLoading(false);
-        
+
         const contentDiv = document.getElementById('usageAnalyticsContent');
         if (contentDiv) {
             const isPermissionError = error.message && error.message.includes('permission');
@@ -11936,9 +11922,9 @@ async function exportUsageAnalytics() {
 
         const currentRange = window.usageAnalyticsRange || '7days';
         const today = new Date().toISOString().split('T')[0];
-        
+
         let startDate, endDate;
-        switch(currentRange) {
+        switch (currentRange) {
             case 'today':
                 startDate = today;
                 endDate = today + 'T23:59:59.999Z';
@@ -11954,7 +11940,7 @@ async function exportUsageAnalytics() {
         }
 
         const events = await window.getUsageAnalytics(startDate, endDate);
-        
+
         const csvHeaders = ['Timestamp', 'User', 'Role', 'Event Type', 'Details'];
         const csvRows = events.map(event => {
             let details = '';
@@ -11965,7 +11951,7 @@ async function exportUsageAnalytics() {
             } else if (event.eventType === 'field_interaction') {
                 details = `${event.data.fieldName} (${event.data.fieldType})`;
             }
-            
+
             return [
                 event.timestamp,
                 event.userName,
@@ -12009,26 +11995,26 @@ window.exportUsageAnalytics = exportUsageAnalytics;
 
 function buildPersonalFinanceTab(container) {
     console.log('💰 Building Personal Finance tab');
-    
+
     // Set refresh callback
     window.currentTabRefresh = () => buildPersonalFinanceTab(
         document.getElementById('personal-financeTab')
     );
-    
+
     const today = new Date();
     const currentMonth = today.getMonth() + 1;
     const currentYear = today.getFullYear();
-    
+
     // Get current budget
     const budget = calculateNetPersonalBudget(currentMonth, currentYear);
-    
+
     // Check if recurring generated for current month
     const recurringGenerated = (window.allPersonalExpenses || []).some(e =>
         e.isAutoGenerated &&
         new Date(e.date).getMonth() + 1 === currentMonth &&
         new Date(e.date).getFullYear() === currentYear
     );
-    
+
     container.innerHTML = `
         <div class="card">
             <h2 style="margin-bottom:10px;">💰 My Personal Finance</h2>
@@ -12218,12 +12204,12 @@ function buildSavingsGoalsSection() {
     const goals = window.allSavingsGoals || [];
     const activeGoals = goals.filter(g => !g.isCompleted);
     const completedGoals = goals.filter(g => g.isCompleted);
-    
+
     const totalSavings = goals.reduce((sum, g) => sum + (g.currentAmount || 0), 0);
-    
+
     const today = new Date();
     const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
-    
+
     let html = `
         <div class="finance-section-header" style="margin-bottom:15px;">
             <div style="margin-bottom:10px;">
@@ -12239,30 +12225,30 @@ function buildSavingsGoalsSection() {
             </div>
         </div>
     `;
-    
+
     if (activeGoals.length === 0 && completedGoals.length === 0) {
         html += '<p style="text-align:center;color:#666;padding:40px 20px;font-size:14px;">No savings goals yet. Create one to start saving!</p>';
     } else {
         html += '<div class="goals-grid" style="display:flex;flex-direction:column;gap:12px;">';
-        
+
         activeGoals.forEach(goal => {
             html += buildGoalCard(goal);
         });
-        
+
         completedGoals.forEach(goal => {
             html += buildGoalCard(goal);
         });
-        
+
         html += '</div>';
     }
-    
+
     return html;
 }
 
 function buildGoalCard(goal) {
     const percentComplete = ((goal.currentAmount || 0) / goal.targetAmount) * 100;
     const isCompleted = goal.isCompleted || false;
-    
+
     return `
         <div class="goal-card" style="background:${isCompleted ? '#E8F5E9' : 'white'};border:1px solid ${isCompleted ? '#4CAF50' : '#ddd'};border-radius:8px;padding:12px;">
             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
@@ -12305,7 +12291,7 @@ function buildGoalCard(goal) {
 
 function buildCreditCardsSection() {
     const cards = (window.allCreditCards || []).filter(c => c.isActive);
-    
+
     const totalDebt = cards.reduce((sum, c) => sum + (c.currentBalance || 0), 0);
     const totalLimit = cards.reduce((sum, c) => sum + (c.creditLimit || 0), 0);
     const totalMinimums = cards.reduce((sum, c) => {
@@ -12313,7 +12299,7 @@ function buildCreditCardsSection() {
         const percent = c.minimumPaymentPercent || 3;
         return sum + (balance * percent / 100);
     }, 0);
-    
+
     let html = `
         <div class="finance-section-header" style="margin-bottom:15px;">
             <div style="margin-bottom:10px;">
@@ -12326,18 +12312,18 @@ function buildCreditCardsSection() {
             </div>
         </div>
     `;
-    
+
     if (cards.length === 0) {
         html += '<p style="text-align:center;color:#666;padding:40px;">No credit cards tracked yet.</p>';
     } else {
         html += '<div class="table-responsive"><table class="data-table"><thead><tr>';
         html += '<th>Card Name</th><th>Holder</th><th>Bank</th><th>Limit</th><th>Balance</th><th>Utilization</th><th>Due Date</th><th>Actions</th>';
         html += '</tr></thead><tbody>';
-        
+
         cards.forEach(card => {
             const utilization = (card.currentBalance / card.creditLimit) * 100;
             const holderColors = { 'Mine': '#4CAF50', 'Spouse': '#2196F3', 'Shared': '#FF9800' };
-            
+
             html += '<tr>';
             html += `<td><strong>${card.cardName}</strong></td>`;
             html += `<td><span style="background:${holderColors[card.cardHolder]};color:white;padding:2px 8px;border-radius:4px;font-size:12px;">${card.cardHolder}</span></td>`;
@@ -12355,16 +12341,16 @@ function buildCreditCardsSection() {
             html += `<button onclick="deleteCreditCard('${card.id}')" class="btn-secondary" style="font-size:12px;padding:4px 8px;">🗑️</button>`;
             html += `</td></tr>`;
         });
-        
+
         html += '</tbody></table></div>';
     }
-    
+
     return html;
 }
 
 function buildRecurringTemplatesSection(generated, month, year) {
     const templates = window.allRecurringTemplates || [];
-    
+
     let html = `
         <div class="finance-section-header" style="margin-bottom:15px;">
             <div style="margin-bottom:10px;">
@@ -12379,14 +12365,14 @@ function buildRecurringTemplatesSection(generated, month, year) {
             </div>
         </div>
     `;
-    
+
     if (templates.length === 0) {
         html += '<p style="text-align:center;color:#666;padding:40px;">No recurring templates. Add one to automate monthly bills!</p>';
     } else {
         html += '<div class="table-responsive"><table class="data-table"><thead><tr>';
         html += '<th>Name</th><th>Category</th><th>Amount</th><th>Day of Month</th><th>Status</th><th>Actions</th>';
         html += '</tr></thead><tbody>';
-        
+
         templates.forEach(template => {
             html += '<tr>';
             html += `<td><strong>${template.name}</strong></td>`;
@@ -12399,22 +12385,22 @@ function buildRecurringTemplatesSection(generated, month, year) {
             html += `<button onclick="deleteRecurringTemplate('${template.id}')" class="btn-secondary" style="font-size:12px;padding:4px 8px;" ${!window.isOnline ? 'disabled' : ''}>🗑️</button>`;
             html += `</td></tr>`;
         });
-        
+
         html += '</tbody></table></div>';
     }
-    
+
     return html;
 }
 
 function buildExpenseHistorySection(month, year) {
     const monthStart = new Date(year, month - 1, 1);
     const monthEnd = new Date(year, month, 0, 23, 59, 59);
-    
+
     const expenses = (window.allPersonalExpenses || []).filter(e => {
         const expenseDate = new Date(e.date);
         return expenseDate >= monthStart && expenseDate <= monthEnd;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+
     let html = `
         <div class="finance-section-header" style="margin-bottom:15px;">
             <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;width:100%;">
@@ -12439,19 +12425,19 @@ function buildExpenseHistorySection(month, year) {
             </div>
         </div>
     `;
-    
+
     if (expenses.length === 0) {
         html += '<p style="text-align:center;color:#666;padding:40px;">No expenses for this month.</p>';
     } else {
         html += '<div id="expenseTableContainer" class="table-responsive"><table class="data-table"><thead><tr>';
         html += '<th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Currency</th><th>PHP Equivalent</th><th>Status</th><th>Actions</th>';
         html += '</tr></thead><tbody id="expenseTableBody">';
-        
+
         expenses.forEach(expense => {
             const phpAmount = expense.currency === 'USD' ? expense.amount * expense.phpConversionRate : expense.amount;
             const isPending = expense.syncStatus === 'pending';
             const isCCPayment = expense.category === 'Credit Card Payment';
-            
+
             html += `<tr style="${isPending ? 'background:#FFF9C4;' : ''}${isCCPayment ? 'background:#E1F5FE;' : ''}">`;
             html += `<td>${new Date(expense.date).toLocaleDateString()}</td>`;
             html += `<td>${expense.category}</td>`;
@@ -12463,57 +12449,57 @@ function buildExpenseHistorySection(month, year) {
             html += `<td><button class="btn-secondary" style="font-size:12px;padding:4px 8px;" onclick="alert('Edit/delete requires online connection')" ${!window.isOnline || isPending ? 'disabled' : ''}>🗑️</button></td>`;
             html += `</tr>`;
         });
-        
+
         html += '</tbody></table></div>';
     }
-    
+
     return html;
 }
 
 function buildTrendChartsSection() {
     const trendData = getSpendingTrendData(6);
-    
+
     let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">';
-    
+
     // Spending trend chart (simple visualization)
     html += '<div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">';
     html += '<h4 style="margin-top:0;">📈 6-Month Spending Trend</h4>';
-    
+
     if (trendData.length > 0) {
         const maxAmount = Math.max(...trendData.map(d => d.total));
-        
+
         html += '<div style="display:flex;align-items:flex-end;justify-content:space-around;height:200px;gap:10px;">';
         trendData.forEach(d => {
             const height = maxAmount > 0 ? (d.total / maxAmount) * 100 : 0;
             html += `<div style="flex:1;text-align:center;">`;
             html += `<div style="background:#2196F3;height:${height}%;min-height:10px;border-radius:4px 4px 0 0;"></div>`;
-            html += `<div style="font-size:10px;margin-top:5px;color:#666;">${d.monthName.substring(0,3)}</div>`;
-            html += `<div style="font-size:11px;font-weight:bold;">₱${(d.total/1000).toFixed(1)}k</div>`;
+            html += `<div style="font-size:10px;margin-top:5px;color:#666;">${d.monthName.substring(0, 3)}</div>`;
+            html += `<div style="font-size:11px;font-weight:bold;">₱${(d.total / 1000).toFixed(1)}k</div>`;
             html += `</div>`;
         });
         html += '</div>';
     } else {
         html += '<p style="text-align:center;color:#666;padding:40px;">No data yet</p>';
     }
-    
+
     html += '</div>';
-    
+
     // Current month category breakdown
     const today = new Date();
     const categoryData = getCategoryBreakdown(today.getMonth() + 1, today.getFullYear());
     const categories = Object.keys(categoryData);
-    
+
     html += '<div style="background:white;padding:15px;border-radius:8px;border:1px solid #ddd;">';
     html += '<h4 style="margin-top:0;">🥧 This Month by Category</h4>';
-    
+
     if (categories.length > 0) {
         const total = Object.values(categoryData).reduce((sum, v) => sum + v, 0);
-        
+
         html += '<div style="display:flex;flex-direction:column;gap:10px;">';
         categories.forEach(cat => {
             const amount = categoryData[cat];
             const percent = (amount / total) * 100;
-            
+
             html += `<div>`;
             html += `<div style="display:flex;justify-content:space-between;margin-bottom:5px;">`;
             html += `<span style="font-size:14px;">${cat}</span>`;
@@ -12528,10 +12514,10 @@ function buildTrendChartsSection() {
     } else {
         html += '<p style="text-align:center;color:#666;padding:40px;">No expenses this month</p>';
     }
-    
+
     html += '</div>';
     html += '</div>';
-    
+
     return html;
 }
 
@@ -12549,7 +12535,7 @@ function openPersonalExpenseModal() {
     document.getElementById('expenseRecurring').checked = false;
     document.getElementById('creditCardSelector').style.display = 'none';
     document.getElementById('conversionRateGroup').style.display = 'none';
-    
+
     // Populate credit card selector
     const cards = (window.allCreditCards || []).filter(c => c.isActive);
     const select = document.getElementById('expenseCreditCard');
@@ -12557,7 +12543,7 @@ function openPersonalExpenseModal() {
     cards.forEach(c => {
         select.innerHTML += `<option value="${c.id}">${c.cardName} (₱${c.currentBalance.toFixed(2)})</option>`;
     });
-    
+
     updateOfflineIndicator();
     document.getElementById('personalExpenseModal').style.display = 'block';
 }
@@ -12569,7 +12555,7 @@ function closePersonalExpenseModal() {
 function handleExpenseCategoryChange() {
     const category = document.getElementById('expenseCategory').value;
     const cardSelector = document.getElementById('creditCardSelector');
-    
+
     if (category === 'Credit Card Payment') {
         cardSelector.style.display = 'block';
     } else {
@@ -12580,7 +12566,7 @@ function handleExpenseCategoryChange() {
 function handleCurrencyChange() {
     const currency = document.getElementById('expenseCurrency').value;
     const rateGroup = document.getElementById('conversionRateGroup');
-    
+
     if (currency === 'USD') {
         rateGroup.style.display = 'block';
     } else {
@@ -12593,13 +12579,13 @@ async function savePersonalExpense() {
     const amount = document.getElementById('expenseAmount').value;
     const currency = document.getElementById('expenseCurrency').value;
     const date = document.getElementById('expenseDate').value;
-    
+
     // Validate required fields
     if (!date || !category || !amount || parseFloat(amount) <= 0) {
         alert('⚠️ Please fill in all required fields (Date, Category, and Amount)');
         return;
     }
-    
+
     if (category === 'Credit Card Payment') {
         // Handle as credit card payment
         const cardId = document.getElementById('expenseCreditCard').value;
@@ -12607,7 +12593,7 @@ async function savePersonalExpense() {
             alert('⚠️ Please select a credit card');
             return;
         }
-        
+
         const result = await recordCreditCardPayment(cardId, amount, date);
         if (result.success) {
             closePersonalExpenseModal();
@@ -12623,12 +12609,12 @@ async function savePersonalExpense() {
             description: document.getElementById('expenseDescription').value,
             notes: document.getElementById('expenseNotes').value
         };
-        
+
         const result = await addPersonalExpense(expenseData);
-        
+
         if (result.success) {
             closePersonalExpenseModal();
-            
+
             // Create recurring template if checked
             if (document.getElementById('expenseRecurring').checked) {
                 const templateData = {
@@ -12639,7 +12625,7 @@ async function savePersonalExpense() {
                     dayOfMonth: new Date(date).getDate(),
                     isActive: true
                 };
-                
+
                 await saveRecurringTemplate(templateData);
             }
         }
@@ -12664,7 +12650,7 @@ function openRecurringTemplateModal(templateId = null) {
     for (let i = 1; i <= 31; i++) {
         daySelect.innerHTML += `<option value="${i}">Day ${i}</option>`;
     }
-    
+
     if (templateId) {
         const template = window.allRecurringTemplates.find(t => t.id === templateId);
         if (template) {
@@ -12683,7 +12669,7 @@ function openRecurringTemplateModal(templateId = null) {
         document.getElementById('templateDayOfMonth').value = '';
         document.getElementById('templateActive').checked = true;
     }
-    
+
     document.getElementById('recurringTemplateModal').style.display = 'block';
 }
 
@@ -12701,7 +12687,7 @@ async function saveRecurringTemplate() {
         dayOfMonth: document.getElementById('templateDayOfMonth').value,
         isActive: document.getElementById('templateActive').checked
     };
-    
+
     const result = await window.saveRecurringTemplate(templateData);
     if (result.success) {
         closeRecurringTemplateModal();
@@ -12720,7 +12706,7 @@ function openCreditCardModal(cardId = null) {
     for (let i = 1; i <= 31; i++) {
         daySelect.innerHTML += `<option value="${i}">Day ${i}</option>`;
     }
-    
+
     if (cardId) {
         const card = window.allCreditCards.find(c => c.id === cardId);
         if (card) {
@@ -12745,7 +12731,7 @@ function openCreditCardModal(cardId = null) {
         document.getElementById('cardMinimumPercent').value = '3';
         document.getElementById('cardActive').checked = true;
     }
-    
+
     document.getElementById('creditCardModal').style.display = 'block';
 }
 
@@ -12766,7 +12752,7 @@ async function saveCreditCard() {
         minimumPaymentPercent: document.getElementById('cardMinimumPercent').value,
         isActive: document.getElementById('cardActive').checked
     };
-    
+
     const result = await window.saveCreditCard(cardData);
     if (result.success) {
         closeCreditCardModal();
@@ -12801,24 +12787,24 @@ function calculateLoanAffordability() {
     const amount = document.getElementById('loanAmount').value;
     const term = document.getElementById('loanTermMonths').value;
     const rate = document.getElementById('loanInterestRate').value;
-    
+
     if (!amount || !term || !rate) {
         alert('⚠️ Please fill in all fields');
         return;
     }
-    
+
     const analysis = window.analyzeLoanAffordability(amount, term, rate);
-    
+
     if (!analysis.success) {
         alert(`Error: ${analysis.error}`);
         return;
     }
-    
+
     const resultsSection = document.getElementById('loanResultsSection');
     resultsSection.style.display = 'block';
     resultsSection.style.background = analysis.recommendationColor + '22';
     resultsSection.style.border = `2px solid ${analysis.recommendationColor}`;
-    
+
     resultsSection.innerHTML = `
         <h3 style="color:${analysis.recommendationColor};margin-top:0;">${analysis.recommendation}</h3>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
@@ -12890,7 +12876,7 @@ function openSavingsGoalModal(goalId = null) {
         document.getElementById('goalDeadline').value = '';
         document.getElementById('goalAutoAllocate').checked = true;
     }
-    
+
     document.getElementById('savingsGoalModal').style.display = 'block';
 }
 
@@ -12909,7 +12895,7 @@ async function saveSavingsGoal() {
         deadline: document.getElementById('goalDeadline').value,
         autoAllocate: document.getElementById('goalAutoAllocate').checked
     };
-    
+
     const result = await window.saveSavingsGoal(goalData);
     if (result.success) {
         closeSavingsGoalModal();
@@ -12924,7 +12910,7 @@ function editSavingsGoal(goalId) {
 function openContributionModal(goalId) {
     const goal = window.allSavingsGoals.find(g => g.id === goalId);
     if (!goal) return;
-    
+
     const html = `
         <div class="modal" id="contributionModal" style="display:block;">
             <div class="modal-content">
@@ -12949,7 +12935,7 @@ function openContributionModal(goalId) {
             </div>
         </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', html);
 }
 
@@ -12961,7 +12947,7 @@ function closeContributionModal() {
 async function saveContribution(goalId) {
     const amount = document.getElementById('contributionAmount').value;
     const notes = document.getElementById('contributionNotes').value;
-    
+
     const result = await addManualContribution(goalId, amount, notes);
     if (result.success) {
         closeContributionModal();
@@ -12974,7 +12960,7 @@ let currentWithdrawalGoalId = null;
 function openWithdrawalModal(goalId) {
     const goal = window.allSavingsGoals.find(g => g.id === goalId);
     if (!goal) return;
-    
+
     currentWithdrawalGoalId = goalId;
     document.getElementById('withdrawalGoalName').value = goal.goalName;
     document.getElementById('withdrawalMaxAmount').textContent = `Maximum: ₱${(goal.currentAmount || 0).toFixed(2)}`;
@@ -12991,7 +12977,7 @@ function closeWithdrawalModal() {
 async function saveWithdrawal() {
     const amount = document.getElementById('withdrawalAmount').value;
     const reason = document.getElementById('withdrawalReason').value;
-    
+
     const result = await recordWithdrawal(currentWithdrawalGoalId, amount, reason);
     if (result.success) {
         closeWithdrawalModal();
@@ -13011,7 +12997,7 @@ function openGoalCompletionModal(goal) {
         </div>
         <p style="color:#666;margin:15px 0;">Your monthly allocation for this goal will be redistributed to other active goals.</p>
     `;
-    
+
     document.getElementById('goalCompletionModal').style.display = 'block';
 }
 
@@ -13028,22 +13014,22 @@ function redistributeGoalAllocation() {
 function showAllocationRecommendation() {
     const today = new Date();
     const budget = calculateNetPersonalBudget(today.getMonth() + 1, today.getFullYear());
-    
+
     if (!budget.isTechnician || budget.savingsPool <= 0) {
         alert('ℹ️ No savings pool available to allocate');
         return;
     }
-    
+
     const allocation = recommendGoalAllocation(budget.savingsPool);
-    
+
     if (allocation.recommendations.length === 0) {
         alert('ℹ️ No active goals to allocate to. Create goals first!');
         return;
     }
-    
+
     let message = `💰 Savings Pool: ₱${budget.savingsPool.toFixed(2)}\n`;
     message += `📊 Strategy: ${allocation.allocationStrategy}\n\n`;
-    
+
     if (allocation.emergencyFundStatus) {
         const status = allocation.emergencyFundStatus;
         message += `🚨 Emergency Fund Status:\n`;
@@ -13052,18 +13038,18 @@ function showAllocationRecommendation() {
         message += `   Coverage: ${status.monthsOfExpensesCovered.toFixed(1)} months\n`;
         message += `   Progress: ${status.percentComplete.toFixed(1)}%\n\n`;
     }
-    
+
     message += `Recommended Allocation:\n\n`;
-    
+
     allocation.recommendations.forEach(rec => {
         message += `${rec.goalName}:\n`;
         message += `   Amount: ₱${rec.suggestedAmount.toFixed(2)}\n`;
         message += `   Percentage: ${rec.suggestedPercent.toFixed(1)}%\n`;
         message += `   ${rec.reasoning}\n\n`;
     });
-    
+
     const confirm = window.confirm(message + '\nApply this allocation?');
-    
+
     if (confirm) {
         allocateSavingsFromCommission(today.getMonth() + 1, today.getFullYear());
     }
@@ -13072,20 +13058,20 @@ function showAllocationRecommendation() {
 // Manual Budget Save
 async function saveManualBudget(month, year) {
     const amount = parseFloat(document.getElementById('manualBudgetInput').value);
-    
+
     if (isNaN(amount) || amount < 0) {
         alert('⚠️ Please enter a valid amount');
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Find existing budget or create new
-        const existingBudget = window.allPersonalBudgets.find(b => 
+        const existingBudget = window.allPersonalBudgets.find(b =>
             b.month === month && b.year === year
         );
-        
+
         if (existingBudget) {
             await db.ref(`personalBudgets/${existingBudget.id}`).update({
                 manualBudgetAmount: amount,
@@ -13100,10 +13086,10 @@ async function saveManualBudget(month, year) {
                 createdAt: new Date().toISOString()
             });
         }
-        
+
         utils.showLoading(false);
         alert(`✅ Budget saved: ₱${amount.toFixed(2)}`);
-        
+
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
         }
@@ -13118,19 +13104,19 @@ async function saveManualBudget(month, year) {
 function exportPersonalFinancesCSV(month, year) {
     const monthStart = new Date(year, month - 1, 1);
     const monthEnd = new Date(year, month, 0, 23, 59, 59);
-    
+
     const expenses = (window.allPersonalExpenses || []).filter(e => {
         const expenseDate = new Date(e.date);
         return expenseDate >= monthStart && expenseDate <= monthEnd;
     }).sort((a, b) => new Date(a.date) - new Date(b.date));
-    
+
     if (expenses.length === 0) {
         alert('ℹ️ No expenses to export for this month');
         return;
     }
-    
+
     let csv = 'Date,Category,Description,Amount,Currency,Conversion Rate,PHP Equivalent,Notes,Sync Status\n';
-    
+
     expenses.forEach(e => {
         const phpAmount = e.currency === 'USD' ? e.amount * e.phpConversionRate : e.amount;
         const row = [
@@ -13146,7 +13132,7 @@ function exportPersonalFinancesCSV(month, year) {
         ];
         csv += row.join(',') + '\n';
     });
-    
+
     // Create download
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -13157,7 +13143,7 @@ function exportPersonalFinancesCSV(month, year) {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    
+
     alert(`✅ Exported ${expenses.length} expenses to CSV`);
 }
 
@@ -13165,16 +13151,16 @@ function exportPersonalFinancesCSV(month, year) {
 function filterExpenses() {
     const searchTerm = document.getElementById('expenseSearch').value.toLowerCase();
     const categoryFilter = document.getElementById('categoryFilter').value;
-    
+
     const rows = document.querySelectorAll('#expenseTableBody tr');
-    
+
     rows.forEach(row => {
         const text = row.textContent.toLowerCase();
         const category = row.cells[1].textContent;
-        
+
         const matchesSearch = text.includes(searchTerm);
         const matchesCategory = !categoryFilter || category === categoryFilter;
-        
+
         row.style.display = (matchesSearch && matchesCategory) ? '' : 'none';
     });
 }
@@ -13184,7 +13170,7 @@ function filterExpenses() {
  */
 function buildExtractRemittanceTab(container) {
     console.log('🔍 Building Extract Remittance Data tab...');
-    
+
     // Set refresh callback
     window.currentTabRefresh = () => buildExtractRemittanceTab(container);
 
@@ -13271,7 +13257,7 @@ function populateTechFilterFromRemittances() {
         // Sort by name and populate
         const techs = Array.from(techMap.entries())
             .sort((a, b) => a[1].localeCompare(b[1]));
-        
+
         techs.forEach(([techId, techName]) => {
             const option = document.createElement('option');
             option.value = techId;
@@ -13287,16 +13273,16 @@ function setExtractionDateRange(range) {
     const today = new Date();
     const startDateInput = document.getElementById('extractStartDate');
     const endDateInput = document.getElementById('extractEndDate');
-    
+
     if (!startDateInput || !endDateInput) return;
-    
+
     const startDate = new Date(today);
     if (range === 'week') {
         startDate.setDate(today.getDate() - 7);
     } else if (range === 'month') {
         startDate.setDate(today.getDate() - 30);
     }
-    
+
     startDateInput.value = startDate.toISOString().split('T')[0];
     endDateInput.value = today.toISOString().split('T')[0];
 }
@@ -13541,7 +13527,7 @@ function renderReviewTab(container) {
                     ${data.adjustments.map(adj => `
                         <details style="background:var(--bg-white);padding:15px;border-radius:8px;margin-bottom:10px;">
                             <summary style="cursor:pointer;font-weight:600;display:flex;justify-content:space-between;align-items:center;">
-                                <span>Remittance ${adj.remittanceId.substring(0,8)}... (${new Date(adj.submittedAt).toLocaleDateString()})</span>
+                                <span>Remittance ${adj.remittanceId.substring(0, 8)}... (${new Date(adj.submittedAt).toLocaleDateString()})</span>
                                 <span style="color:${adj.difference >= 0 ? 'var(--success-color)' : 'var(--danger-color)'};">
                                     ${adj.difference >= 0 ? '+' : ''}₱${adj.difference.toFixed(2)}
                                 </span>
@@ -13562,7 +13548,7 @@ function renderReviewTab(container) {
                                     <tbody>
                                         ${adj.repairs.map(r => `
                                             <tr>
-                                                <td>${r.repairId.substring(0,8)}...</td>
+                                                <td>${r.repairId.substring(0, 8)}...</td>
                                                 <td>${r.customerName}</td>
                                                 <td>${r.device}</td>
                                                 <td>₱${r.originalCommission.toFixed(2)}</td>
@@ -13678,9 +13664,9 @@ function clearStagedAdjustments() {
 
     window.stagedAdjustments = [];
     sessionStorage.removeItem('stagedAdjustments');
-    
+
     renderReviewTab(document.getElementById('adjustment-tab-content'));
-    
+
     const reviewTab = document.getElementById('tab-review');
     if (reviewTab) {
         reviewTab.innerHTML = 'Review & Apply';
@@ -13702,7 +13688,7 @@ async function applyAllStagedAdjustments() {
     if (results) {
         // Refresh review tab
         renderReviewTab(document.getElementById('adjustment-tab-content'));
-        
+
         // Update badge
         const reviewTab = document.getElementById('tab-review');
         if (reviewTab) {
@@ -13780,12 +13766,12 @@ async function scanForCleanupFiles() {
 async function downloadAllCleanupFiles() {
     // This would need JSZip library to be added
     alert('⚠️ Download feature requires JSZip library.\n\nFor now, please manually download files from Firebase Console before cleanup.');
-    
+
     // Enable delete button after "download"
     document.getElementById('deleteBtn').disabled = false;
     document.getElementById('downloadBtn').disabled = true;
     document.getElementById('downloadBtn').textContent = '✅ Downloaded';
-    
+
     document.getElementById('cleanup-status').innerHTML = `
         <div style="background:var(--success-bg);border-left:4px solid var(--success-color);padding:15px;border-radius:8px;">
             <strong>✅ Ready for cleanup:</strong> You can now delete files from Firebase.
@@ -13813,20 +13799,20 @@ async function confirmCleanupDelete() {
  * Get enhanced status display with parts info
  */
 function getEnhancedStatusDisplay(repair) {
-    const activeOrders = (window.allPartsOrders || []).filter(o => 
-        o.repairId === repair.id && 
+    const activeOrders = (window.allPartsOrders || []).filter(o =>
+        o.repairId === repair.id &&
         ['pending', 'approved', 'ordered'].includes(o.status)
     );
-    
-    const unacknowledgedParts = (window.allPartsOrders || []).filter(o => 
-        o.repairId === repair.id && 
-        o.status === 'received' && 
+
+    const unacknowledgedParts = (window.allPartsOrders || []).filter(o =>
+        o.repairId === repair.id &&
+        o.status === 'received' &&
         !o.acknowledgedByTech
     );
-    
+
     let statusText = repair.status;
     let statusIcon = '';
-    
+
     if (unacknowledgedParts.length > 0) {
         statusIcon = ' 🎉';
     } else if (activeOrders.length > 0) {
@@ -13838,7 +13824,7 @@ function getEnhancedStatusDisplay(repair) {
             statusIcon = ' ⏳';
         }
     }
-    
+
     return { statusText, statusIcon, activeOrders: activeOrders.length, unacknowledgedParts: unacknowledgedParts.length };
 }
 
@@ -13847,15 +13833,15 @@ function getEnhancedStatusDisplay(repair) {
  */
 function buildPartsOrdersTab(container) {
     console.log('📦 Building Parts Orders tab');
-    
+
     // Set refresh callback
     window.currentTabRefresh = () => buildPartsOrdersTab(
         document.getElementById('parts-ordersTab')
     );
-    
+
     const techId = window.currentUser.uid;
     const myOrders = (window.allPartsOrders || []).filter(o => o.requestedBy === techId);
-    
+
     // Group by status
     const unacknowledged = myOrders.filter(o => o.status === 'received' && !o.acknowledgedByTech);
     const pending = myOrders.filter(o => o.status === 'pending');
@@ -13863,7 +13849,7 @@ function buildPartsOrdersTab(container) {
     const ordered = myOrders.filter(o => o.status === 'ordered');
     const received = myOrders.filter(o => o.status === 'received' && o.acknowledgedByTech);
     const cancelled = myOrders.filter(o => o.status === 'cancelled');
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>📦 Parts Orders</h2>
@@ -13916,21 +13902,21 @@ function buildPartsOrdersTab(container) {
  */
 function buildApprovePartsOrdersTab(container) {
     console.log('📦 Building Approve Parts Orders tab');
-    
+
     // Set refresh callback
     window.currentTabRefresh = () => buildApprovePartsOrdersTab(
         document.getElementById('approve-parts-ordersTab')
     );
-    
+
     const allOrders = window.allPartsOrders || [];
-    
+
     // Group by status
     const pending = allOrders.filter(o => o.status === 'pending');
     const approved = allOrders.filter(o => o.status === 'approved');
     const ordered = allOrders.filter(o => o.status === 'ordered');
     const received = allOrders.filter(o => o.status === 'received').slice(0, 20); // Last 20
     const urgent = pending.filter(o => o.urgency === 'urgent');
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>📦 Approve Parts Orders</h2>
@@ -13982,7 +13968,7 @@ function renderOrdersSection(title, orders, colorType) {
             </div>
         `;
     }
-    
+
     // Group by repair
     const byRepair = {};
     orders.forEach(order => {
@@ -13991,15 +13977,15 @@ function renderOrdersSection(title, orders, colorType) {
         }
         byRepair[order.repairId].push(order);
     });
-    
+
     let html = `
         <div class="card" style="margin-bottom:20px;">
             <h3 style="margin-bottom:15px;">${title} (${orders.length})</h3>
     `;
-    
+
     for (const [repairId, repairOrders] of Object.entries(byRepair)) {
         const firstOrder = repairOrders[0];
-        
+
         html += `
             <div class="repair-card" style="margin-bottom:15px;background:#f9fafb;padding:15px;border-radius:8px;border-left:4px solid var(--${colorType}-color);">
                 <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
@@ -14015,35 +14001,35 @@ function renderOrdersSection(title, orders, colorType) {
                 </div>
                 
                 ${repairOrders.map(order => {
-                    const urgencyIcon = order.urgency === 'urgent' ? '🔴' : order.urgency === 'normal' ? '🟡' : '🟢';
-                    const age = utils.daysAgo(order.requestedAt);
-                    
-                    let statusBadge = '';
-                    if (order.status === 'pending') {
-                        statusBadge = `<span class="badge" style="background:#f59e0b;color:white;">⏳ Pending</span>`;
-                    } else if (order.status === 'approved') {
-                        statusBadge = `<span class="badge" style="background:#3b82f6;color:white;">✅ Approved</span>`;
-                    } else if (order.status === 'ordered') {
-                        statusBadge = `<span class="badge" style="background:#8b5cf6;color:white;">📞 Ordered</span>`;
-                    } else if (order.status === 'received') {
-                        const varianceIcon = !order.priceVariancePercent ? '' : 
-                            Math.abs(order.priceVariancePercent) <= 10 ? '🟢' : 
-                            Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
-                        statusBadge = `<span class="badge" style="background:#10b981;color:white;">📦 Received ${varianceIcon}</span>`;
-                    } else if (order.status === 'cancelled') {
-                        statusBadge = `<span class="badge" style="background:#ef4444;color:white;">🚫 Cancelled</span>`;
-                    }
-                    
-                    let actionButtons = '';
-                    if (order.status === 'pending' || order.status === 'approved') {
-                        actionButtons = `<button class="btn-danger" onclick="cancelPartsOrder('${order.id}')" style="font-size:11px;padding:3px 8px;">Cancel</button>`;
-                    }
-                    
-                    if (order.status === 'received' && !order.acknowledgedByTech) {
-                        actionButtons = `<button class="btn-primary" onclick="acknowledgePartsReceived('${order.id}')" style="font-size:11px;padding:3px 8px;">Acknowledge</button>`;
-                    }
-                    
-                    return `
+            const urgencyIcon = order.urgency === 'urgent' ? '🔴' : order.urgency === 'normal' ? '🟡' : '🟢';
+            const age = utils.daysAgo(order.requestedAt);
+
+            let statusBadge = '';
+            if (order.status === 'pending') {
+                statusBadge = `<span class="badge" style="background:#f59e0b;color:white;">⏳ Pending</span>`;
+            } else if (order.status === 'approved') {
+                statusBadge = `<span class="badge" style="background:#3b82f6;color:white;">✅ Approved</span>`;
+            } else if (order.status === 'ordered') {
+                statusBadge = `<span class="badge" style="background:#8b5cf6;color:white;">📞 Ordered</span>`;
+            } else if (order.status === 'received') {
+                const varianceIcon = !order.priceVariancePercent ? '' :
+                    Math.abs(order.priceVariancePercent) <= 10 ? '🟢' :
+                        Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
+                statusBadge = `<span class="badge" style="background:#10b981;color:white;">📦 Received ${varianceIcon}</span>`;
+            } else if (order.status === 'cancelled') {
+                statusBadge = `<span class="badge" style="background:#ef4444;color:white;">🚫 Cancelled</span>`;
+            }
+
+            let actionButtons = '';
+            if (order.status === 'pending' || order.status === 'approved') {
+                actionButtons = `<button class="btn-danger" onclick="cancelPartsOrder('${order.id}')" style="font-size:11px;padding:3px 8px;">Cancel</button>`;
+            }
+
+            if (order.status === 'received' && !order.acknowledgedByTech) {
+                actionButtons = `<button class="btn-primary" onclick="acknowledgePartsReceived('${order.id}')" style="font-size:11px;padding:3px 8px;">Acknowledge</button>`;
+            }
+
+            return `
                         <div style="background:white;padding:12px;border-radius:6px;margin-top:10px;border:1px solid #e5e7eb;">
                             <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;">
                                 <div>
@@ -14085,11 +14071,11 @@ function renderOrdersSection(title, orders, colorType) {
                             ${actionButtons ? `<div style="margin-top:8px;">${actionButtons}</div>` : ''}
                         </div>
                     `;
-                }).join('')}
+        }).join('')}
             </div>
         `;
     }
-    
+
     html += `</div>`;
     return html;
 }
@@ -14106,16 +14092,16 @@ function renderAdminOrdersSection(title, orders, status) {
             </div>
         `;
     }
-    
+
     let html = `
         <div class="card" style="margin-bottom:20px;">
             <h3 style="margin-bottom:15px;">${title} (${orders.length})</h3>
     `;
-    
+
     orders.forEach(order => {
         const urgencyIcon = order.urgency === 'urgent' ? '🔴' : order.urgency === 'normal' ? '🟡' : '🟢';
         const age = utils.daysAgo(order.requestedAt);
-        
+
         let actionButtons = '';
         if (status === 'pending') {
             actionButtons = `
@@ -14133,11 +14119,11 @@ function renderAdminOrdersSection(title, orders, status) {
                 <button class="btn-secondary" onclick="cancelPartsOrder('${order.id}')">Cancel</button>
             `;
         }
-        
-        const varianceIcon = !order.priceVariancePercent ? '' : 
-            Math.abs(order.priceVariancePercent) <= 10 ? '🟢' : 
-            Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
-        
+
+        const varianceIcon = !order.priceVariancePercent ? '' :
+            Math.abs(order.priceVariancePercent) <= 10 ? '🟢' :
+                Math.abs(order.priceVariancePercent) <= 20 ? '⚠️' : '🔴';
+
         html += `
             <div class="repair-card" style="margin-bottom:15px;">
                 <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
@@ -14209,7 +14195,7 @@ function renderAdminOrdersSection(title, orders, status) {
             </div>
         `;
     });
-    
+
     html += `</div>`;
     return html;
 }
@@ -14250,10 +14236,10 @@ window.confirmCleanupDelete = confirmCleanupDelete;
  */
 function buildRetroactiveIntakesTab(container) {
     window.currentTabRefresh = () => buildRetroactiveIntakesTab(container);
-    
+
     const intakes = window.allRetroactiveIntakes || [];
     const role = window.currentUserData?.role;
-    
+
     if (role !== 'admin') {
         container.innerHTML = `
             <div class="page-header">
@@ -14263,23 +14249,23 @@ function buildRetroactiveIntakesTab(container) {
         `;
         return;
     }
-    
+
     // Calculate stats
     const today = new Date().toISOString().split('T')[0];
     const thisMonth = new Date().toISOString().slice(0, 7);
-    
+
     const totalIntakes = intakes.length;
     const thisMonthIntakes = intakes.filter(i => i.performedAt && i.performedAt.startsWith(thisMonth)).length;
     const duplicateOverrides = intakes.filter(i => i.duplicateOverridden).length;
     const excessiveFlags = intakes.filter(i => i.excessiveUsageFlag).length;
     const totalPayments = intakes.reduce((sum, i) => sum + (i.paymentCollected || 0), 0);
-    
+
     // Technician breakdown
     const techStats = {};
     intakes.forEach(intake => {
         const uid = intake.performedBy;
         if (!uid) return;
-        
+
         if (!techStats[uid]) {
             techStats[uid] = {
                 name: intake.performedByName || 'Unknown',
@@ -14289,14 +14275,14 @@ function buildRetroactiveIntakesTab(container) {
                 total: 0
             };
         }
-        
+
         techStats[uid].total++;
-        
+
         const intakeDate = intake.performedDate || intake.performedAt?.split('T')[0];
         if (intakeDate === today) techStats[uid].today++;
         if (intake.performedMonth === thisMonth) techStats[uid].thisMonth++;
     });
-    
+
     container.innerHTML = `
         <div class="page-header">
             <h2>🔄 Retroactive Intakes</h2>
@@ -14414,7 +14400,7 @@ function renderRetroactiveIntakesTable(intakes) {
     if (!intakes || intakes.length === 0) {
         return '<p style="text-align:center;padding:40px;color:#666;">No retroactive intakes found.</p>';
     }
-    
+
     return `
         <table class="data-table">
             <thead>
@@ -14432,12 +14418,12 @@ function renderRetroactiveIntakesTable(intakes) {
             </thead>
             <tbody>
                 ${intakes.map(intake => {
-                    const flags = [];
-                    if (intake.duplicateOverridden) flags.push('<span style="background:#ffc107;color:#000;padding:2px 6px;border-radius:3px;font-size:11px;">DUPLICATE</span>');
-                    if (intake.excessiveUsageFlag) flags.push('<span style="background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">EXCESSIVE</span>');
-                    if (intake.adminDateOverride) flags.push('<span style="background:#17a2b8;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">DATE OVERRIDE</span>');
-                    
-                    return `
+        const flags = [];
+        if (intake.duplicateOverridden) flags.push('<span style="background:#ffc107;color:#000;padding:2px 6px;border-radius:3px;font-size:11px;">DUPLICATE</span>');
+        if (intake.excessiveUsageFlag) flags.push('<span style="background:#dc3545;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">EXCESSIVE</span>');
+        if (intake.adminDateOverride) flags.push('<span style="background:#17a2b8;color:#fff;padding:2px 6px;border-radius:3px;font-size:11px;">DATE OVERRIDE</span>');
+
+        return `
                         <tr>
                             <td>${utils.formatDateTime(intake.performedAt)}</td>
                             <td><a href="#" onclick="viewRepairDetails('${intake.repairId}'); return false;">${intake.repairId.substring(0, 8)}</a></td>
@@ -14452,7 +14438,7 @@ function renderRetroactiveIntakesTable(intakes) {
                             </td>
                         </tr>
                     `;
-                }).join('')}
+    }).join('')}
             </tbody>
         </table>
     `;
@@ -14465,9 +14451,9 @@ function applyRetroactiveFilters() {
     const statusFilter = document.getElementById('filterStatus')?.value;
     const duplicatesOnly = document.getElementById('filterDuplicates')?.checked;
     const excessiveOnly = document.getElementById('filterExcessive')?.checked;
-    
+
     let filtered = window.allRetroactiveIntakes || [];
-    
+
     if (dateFrom) {
         filtered = filtered.filter(i => i.performedAt >= dateFrom);
     }
@@ -14487,7 +14473,7 @@ function applyRetroactiveFilters() {
     if (excessiveOnly) {
         filtered = filtered.filter(i => i.excessiveUsageFlag);
     }
-    
+
     document.getElementById('retroactiveIntakesTableContainer').innerHTML = renderRetroactiveIntakesTable(filtered);
 }
 
@@ -14507,7 +14493,7 @@ function viewRetroactiveIntakeDetails(intakeId) {
         alert('Intake not found');
         return;
     }
-    
+
     let details = `🔄 RETROACTIVE INTAKE DETAILS\n\n`;
     details += `Repair ID: ${intake.repairId}\n`;
     details += `Performed By: ${intake.performedByName} (${intake.performedByRole})\n`;
@@ -14527,7 +14513,7 @@ function viewRetroactiveIntakeDetails(intakeId) {
     if (intake.duplicateOverridden) {
         details += `Duplicate Override Reason: ${intake.duplicateOverrideReason}\n`;
     }
-    
+
     alert(details);
 }
 

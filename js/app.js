@@ -142,7 +142,7 @@ async function initializeApp() {
         console.log('✅ Savings goals loaded:', window.allSavingsGoals.length);
         console.log('🕐 Initializing attendance system...');
         initAttendanceListeners();
-        console.log('✅ Attendance system initialized');        
+        console.log('✅ Attendance system initialized');
         // Start clock reminder system for techs/cashiers
         const role = window.currentUserData.role;
         if (['technician', 'cashier'].includes(role)) {
@@ -150,17 +150,13 @@ async function initializeApp() {
                 window.startClockReminderSystem();
             }
         }
-                console.log('�🔖 Building tabs...');
+        console.log('�🔖 Building tabs...');
         buildTabs();
 
         console.log('🎨 Initializing sidebars...');
         initSidebar();
 
-        // Start auto-finalization checker for Released devices
-        if (window.startAutoFinalizeChecker) {
-            console.log('⏱️ Starting auto-finalization checker...');
-            window.startAutoFinalizeChecker();
-        }
+        // Auto-finalization system removed - devices stay Released until manual finalization
 
         // Initialize export scheduler for admin
         if (window.currentUserData.role === 'admin' && window.exportScheduler) {

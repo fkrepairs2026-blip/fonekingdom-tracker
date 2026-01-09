@@ -53,22 +53,15 @@ function buildTechnicianDashboard(userName, stats) {
         })()}
             </div>
             
-            <!-- Alerts Section -->
-            ${(stats.pendingRemittanceCount > 0 || stats.pendingApproval > 0) ? `
+            <!-- Simplified Alerts -->
+            ${(stats.pendingRemittanceCount > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
             'Pending Remittance',
             stats.pendingRemittanceCount,
             'high',
             'remittance',
-            '📤'
-        )}
-                    ${utils.createAlertCard(
-            'Pending Customer Approval',
-            stats.pendingApproval,
-            'medium',
-            'inprogress',
-            '⏳'
+            '📤 Submit your daily cash remittance'
         )}
                 </div>
             ` : ''}
@@ -133,44 +126,18 @@ function buildCashierDashboard(userName, stats) {
     )}
             </div>
             
-            <!-- Alerts Section -->
-            ${(stats.pendingRemittances > 0 || stats.overduePickup > 0) ? `
+            <!-- Simplified Alerts -->
+            ${(stats.pendingRemittances > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${utils.createAlertCard(
         'Remittances to Verify',
         stats.pendingRemittances,
         'high',
         'verify-remittance',
-        '📥'
-    )}
-                    ${utils.createAlertCard(
-        'Overdue Pickups (>3 days)',
-        stats.overduePickup,
-        'medium',
-        'forrelease',
-        '⚠️'
+        '📥 Cash remittances awaiting your verification'
     )}
                 </div>
             ` : ''}
-            
-            <!-- Quick Stats -->
-            <div style="margin-top:30px;">
-                <h3 style="margin-bottom:15px;color:var(--text-primary);">📊 Quick Overview</h3>
-                <div class="quick-stats">
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">Total Active</span>
-                        <span class="quick-stat-value">${stats.totalActive}</span>
-                    </div>
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">In Progress</span>
-                        <span class="quick-stat-value">${stats.inProgress}</span>
-                    </div>
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">Released</span>
-                        <span class="quick-stat-value">${stats.released}</span>
-                    </div>
-                </div>
-            </div>
             
             <!-- Recent Activity -->
             <div style="margin-top:30px;">
@@ -240,43 +207,22 @@ function buildManagerDashboard(userName, stats) {
     )}
             </div>
             
-            <!-- Alerts Section -->
-            ${(stats.staleInProgress > 0 || stats.overduePickup > 0 || stats.pendingRemittances > 0 || stats.pendingPartsOrders > 0 || stats.urgentPartsOrders > 0) ? `
+            <!-- Simplified Alerts - Only Critical Items -->
+            ${(stats.staleInProgress > 0 || stats.pendingRemittances > 0) ? `
                 <div class="dashboard-alerts-grid">
                     ${stats.staleInProgress > 0 ? utils.createAlertCard(
         'Stale Repairs (>5 days)',
         stats.staleInProgress,
         'high',
         'inprogress',
-        '🔴'
-    ) : ''}
-                    ${stats.overduePickup > 0 ? utils.createAlertCard(
-        'Overdue Pickups (>3 days)',
-        stats.overduePickup,
-        'medium',
-        'forrelease',
-        '⚠️'
+        '🔴 Repairs need attention'
     ) : ''}
                     ${stats.pendingRemittances > 0 ? utils.createAlertCard(
         'Pending Remittances',
         stats.pendingRemittances,
         'medium',
         'verify-remittance',
-        '📥'
-    ) : ''}
-                    ${stats.pendingPartsOrders > 0 ? utils.createAlertCard(
-        'Parts Orders Awaiting Approval',
-        stats.pendingPartsOrders,
-        'high',
-        'approve-parts-orders',
-        '📦'
-    ) : ''}
-                    ${stats.urgentPartsOrders > 0 ? utils.createAlertCard(
-        'Urgent Parts Orders',
-        stats.urgentPartsOrders,
-        'high',
-        'approve-parts-orders',
-        '🔴'
+        '📥 Need verification'
     ) : ''}
                 </div>
             ` : ''}
@@ -376,59 +322,18 @@ function buildAdminDashboard(userName, stats) {
     )}
             </div>
             
-            <!-- Admin Alerts Section (Only mod requests) -->
-            ${stats.pendingModRequests > 0 || stats.pendingPartsOrders > 0 || stats.urgentPartsOrders > 0 ? `
+            <!-- Simplified Admin Alerts -->
+            ${stats.pendingModRequests > 0 ? `
                 <div class="dashboard-alerts-grid">
-                    ${stats.pendingModRequests > 0 ? utils.createAlertCard(
+                    ${utils.createAlertCard(
         'Modification Requests',
         stats.pendingModRequests || 0,
         'high',
         'mod-requests',
-        '🔔'
-    ) : ''}
-                    ${stats.pendingPartsOrders > 0 ? utils.createAlertCard(
-        'Parts Orders Awaiting Approval',
-        stats.pendingPartsOrders || 0,
-        'high',
-        'approve-parts-orders',
-        '📦'
-    ) : ''}
-                    ${stats.urgentPartsOrders > 0 ? utils.createAlertCard(
-        'Urgent Parts Orders',
-        stats.urgentPartsOrders || 0,
-        'high',
-        'approve-parts-orders',
-        '🔴'
-    ) : ''}
+        '🔔 Awaiting admin approval'
+    )}
                 </div>
             ` : ''}
-            
-            <!-- System Overview -->
-            <div style="margin-top:30px;">
-                <h3 style="margin-bottom:15px;color:var(--text-primary);">📊 System Overview</h3>
-                <div class="quick-stats">
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">Received</span>
-                        <span class="quick-stat-value">${stats.received}</span>
-                    </div>
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">In Progress</span>
-                        <span class="quick-stat-value">${stats.inProgress}</span>
-                    </div>
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">Ready for Pickup</span>
-                        <span class="quick-stat-value">${stats.readyForPickup}</span>
-                    </div>
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">Released</span>
-                        <span class="quick-stat-value">${stats.released}</span>
-                    </div>
-                    <div class="quick-stat-item">
-                        <span class="quick-stat-label">Pending Approval</span>
-                        <span class="quick-stat-value">${stats.pendingApproval}</span>
-                    </div>
-                </div>
-            </div>
             
             <!-- Recent Activity -->
             <div style="margin-top:30px;">
