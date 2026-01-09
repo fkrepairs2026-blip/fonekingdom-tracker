@@ -58,10 +58,6 @@ async function initializeApp() {
         await loadStockMovements();
         console.log('✅ Stock movements loaded:', window.stockMovements.length);
 
-        console.log('📦 Loading modification requests...');
-        await loadModificationRequests();
-        console.log('✅ Modification requests loaded:', window.allModificationRequests.length);
-
         // Load retroactive intakes (optional - won't block if collection doesn't exist)
         try {
             console.log('📦 Loading retroactive intakes...');

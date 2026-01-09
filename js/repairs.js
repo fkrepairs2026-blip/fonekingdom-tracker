@@ -3349,23 +3349,29 @@ async function adminQuickFixWarranty(repairId, warrantyDays) {
  * Technician: Request repair deletion
  * Only for repairs assigned to the current technician
  */
-async function requestRepairDeletion(repairId) {
-    // Check if user is technician
-    if (window.currentUserData.role !== 'technician') {
-        alert('⚠️ This function is only available to technicians');
-        return;
-    }
-
-    // Find the repair
+/**
+ * Direct delete repair (Admin only, or Technician within 24 hours)
+ */
+async function deleteRepair(repairId) {
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('❌ Repair not found');
         return;
     }
 
-    // Check if repair is assigned to current user
-    if (repair.technicianId !== window.currentUser.uid) {
-        alert('⚠️ You can only request deletion of repairs assigned to you');
+    // Check permissions
+    const isAdmin = window.currentUserData.role === 'admin';
+    const isTechOwner = repair.technicianId === window.currentUser.uid;
+    const createdAt = new Date(repair.createdAt);
+    const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+    const within24Hours = hoursSinceCreation <= 24;
+
+    if (!isAdmin && !(isTechOwner && within24Hours)) {
+        if (isTechOwner && !within24Hours) {
+            alert('⚠️ You can only delete repairs within 24 hours of creation.\n\nThis repair is ' + Math.floor(hoursSinceCreation) + ' hours old.\n\nPlease contact an admin for deletion.');
+        } else {
+            alert('⚠️ You can only delete repairs assigned to you within 24 hours of creation.');
+        }
         return;
     }
 
@@ -3375,22 +3381,16 @@ async function requestRepairDeletion(repairId) {
         return;
     }
 
-    // Check if there's already a pending deletion request for this repair
-    const existingRequest = window.allModificationRequests.find(
-        r => r.repairId === repairId &&
-            r.requestType === 'deletion_request' &&
-            r.status === 'pending'
-    );
-
-    if (existingRequest) {
-        alert('⚠️ There is already a pending deletion request for this repair');
+    // Cannot delete claimed devices
+    if (repair.status === 'Claimed') {
+        alert('⚠️ Cannot delete claimed devices.\n\nClaimed devices have completed warranty tracking and should not be deleted.');
         return;
     }
 
     // Show repair details
     const repairInfo = `Customer: ${repair.customerName}\nDevice: ${repair.brand} ${repair.model}\nProblem: ${repair.problem}\nStatus: ${repair.status}`;
 
-    if (!confirm(`REQUEST DELETION\n\n${repairInfo}\n\nAre you sure you want to request deletion of this repair?\nAn admin must approve this request.`)) {
+    if (!confirm(`DELETE REPAIR\n\n${repairInfo}\n\nAre you sure you want to delete this repair?\n\nThis action cannot be undone.`)) {
         return;
     }
 
@@ -3412,42 +3412,40 @@ async function requestRepairDeletion(repairId) {
 
         const now = new Date().toISOString();
 
-        // Create deletion request
-        const requestData = {
-            repairId: repairId,
-            requestType: 'deletion_request',
-            requestedBy: window.currentUser.uid,
-            requestedByName: window.currentUserData.displayName,
-            requestedAt: now,
-            reason: reason.trim(),
-            repairDetails: {
-                customerName: repair.customerName,
-                device: `${repair.brand} ${repair.model}`,
-                status: repair.status,
-                problem: repair.problem,
-                technicianName: repair.technicianName || 'Not assigned',
-                createdAt: repair.createdAt
-            },
-            status: 'pending',
-            reviewedBy: null,
-            reviewedByName: null,
-            reviewedAt: null,
-            reviewNotes: null
-        };
+        // Soft delete - archive to deletedRepairs collection
+        await db.ref(`deletedRepairs/${repairId}`).set({
+            ...repair,
+            deleted: true,
+            deletedAt: now,
+            deletedBy: window.currentUser.uid,
+            deletedByName: window.currentUserData.displayName,
+            deletedByRole: window.currentUserData.role,
+            deletionReason: reason.trim(),
+            originalCollectionPath: 'repairs'
+        });
 
-        await db.ref('modificationRequests').push(requestData);
+        // Mark as deleted in repairs collection
+        await db.ref(`repairs/${repairId}`).update({
+            deleted: true,
+            deletedAt: now,
+            deletedBy: window.currentUser.uid,
+            deletedByName: window.currentUserData.displayName,
+            deletionReason: reason.trim()
+        });
 
         // Log activity
-        await logActivity('deletion_requested', {
+        await logActivity('repair_deleted', {
             repairId: repairId,
             customerName: repair.customerName,
             device: `${repair.brand} ${repair.model}`,
             status: repair.status,
-            reason: reason.trim()
-        }, `Deletion requested: ${repair.customerName} - ${repair.brand} ${repair.model}`);
+            reason: reason.trim(),
+            deletedByRole: window.currentUserData.role,
+            within24Hours: within24Hours
+        }, `Repair deleted: ${repair.customerName} - ${repair.brand} ${repair.model}`);
 
         utils.showLoading(false);
-        alert('✅ Deletion request submitted!\n\nAn admin will review your request.');
+        alert('✅ Repair deleted successfully!');
 
         // Auto-refresh
         if (window.currentTabRefresh) {
@@ -3456,170 +3454,8 @@ async function requestRepairDeletion(repairId) {
 
     } catch (error) {
         utils.showLoading(false);
-        console.error('Error requesting deletion:', error);
+        console.error('Error deleting repair:', error);
         alert('Error: ' + error.message);
-    }
-}
-
-/**
- * Admin: Process deletion request (approve or reject)
- */
-async function processDeletionRequest(requestId, action, notes) {
-    // Check admin role
-    if (window.currentUserData.role !== 'admin') {
-        alert('⚠️ This function is only available to administrators');
-        return;
-    }
-
-    // Find the request
-    const request = window.allModificationRequests.find(r => r.id === requestId);
-    if (!request) {
-        alert('❌ Request not found');
-        return;
-    }
-
-    if (request.status !== 'pending') {
-        alert('⚠️ This request has already been processed');
-        return;
-    }
-
-    // Find the repair
-    const repair = window.allRepairs.find(r => r.id === request.repairId);
-    if (!repair) {
-        alert('❌ Repair not found - it may have been deleted already');
-        return;
-    }
-
-    if (action === 'approve') {
-        // Confirm approval
-        const confirmMsg = `APPROVE DELETION REQUEST\n\n` +
-            `Requester: ${request.requestedByName}\n` +
-            `Customer: ${request.repairDetails.customerName}\n` +
-            `Device: ${request.repairDetails.device}\n` +
-            `Reason: ${request.reason}\n\n` +
-            `This will SOFT DELETE the repair and create a backup.\n\n` +
-            `Click OK to approve this deletion.`;
-
-        if (!confirm(confirmMsg)) {
-            return;
-        }
-
-        // Get optional admin notes
-        const adminNotes = prompt('Admin notes (optional):') || '';
-
-        try {
-            utils.showLoading(true, 'Processing deletion...');
-
-            const now = new Date().toISOString();
-
-            // Create backup in deletedRepairs
-            const backup = {
-                ...repair,
-                deletedAt: now,
-                deletedBy: window.currentUserData.displayName,
-                deletedById: window.currentUser.uid,
-                deleteReason: request.reason,
-                deletionRequestedBy: request.requestedByName,
-                deletionRequestedAt: request.requestedAt,
-                approvedBy: window.currentUserData.displayName,
-                approvedAt: now,
-                adminNotes: adminNotes,
-                backupType: 'technician_deletion_request'
-            };
-
-            await db.ref('deletedRepairs').push(backup);
-
-            // Soft delete the repair
-            await db.ref(`repairs/${request.repairId}`).update({
-                deleted: true,
-                deletedAt: now,
-                deletedBy: window.currentUserData.displayName,
-                deletedById: window.currentUser.uid,
-                deleteReason: request.reason,
-                deletionRequestId: requestId,
-                lastUpdated: now,
-                lastUpdatedBy: window.currentUserData.displayName
-            });
-
-            // Update request status
-            await db.ref(`modificationRequests/${requestId}`).update({
-                status: 'approved',
-                reviewedBy: window.currentUser.uid,
-                reviewedByName: window.currentUserData.displayName,
-                reviewedAt: now,
-                reviewNotes: adminNotes
-            });
-
-            // Log activity
-            await logActivity('deletion_approved', {
-                repairId: request.repairId,
-                customerName: request.repairDetails.customerName,
-                device: request.repairDetails.device,
-                requestedBy: request.requestedByName,
-                reason: request.reason,
-                adminNotes: adminNotes
-            }, `Deletion approved: ${request.repairDetails.customerName} - ${request.repairDetails.device}`);
-
-            utils.showLoading(false);
-            alert('✅ Deletion Request Approved!\n\nThe repair has been deleted and backed up.');
-
-            // Auto-refresh
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
-
-        } catch (error) {
-            utils.showLoading(false);
-            console.error('Error approving deletion:', error);
-            alert('Error: ' + error.message);
-        }
-
-    } else if (action === 'reject') {
-        // Get rejection reason
-        const rejectionNotes = prompt('Please enter reason for rejecting this deletion request:');
-
-        if (!rejectionNotes || !rejectionNotes.trim()) {
-            alert('❌ Rejection reason is required');
-            return;
-        }
-
-        try {
-            utils.showLoading(true);
-
-            const now = new Date().toISOString();
-
-            // Update request status
-            await db.ref(`modificationRequests/${requestId}`).update({
-                status: 'rejected',
-                reviewedBy: window.currentUser.uid,
-                reviewedByName: window.currentUserData.displayName,
-                reviewedAt: now,
-                reviewNotes: rejectionNotes.trim()
-            });
-
-            // Log activity
-            await logActivity('deletion_rejected', {
-                repairId: request.repairId,
-                customerName: request.repairDetails.customerName,
-                device: request.repairDetails.device,
-                requestedBy: request.requestedByName,
-                reason: request.reason,
-                rejectionNotes: rejectionNotes.trim()
-            }, `Deletion rejected: ${request.repairDetails.customerName} - ${request.repairDetails.device}`);
-
-            utils.showLoading(false);
-            alert('✅ Deletion Request Rejected\n\nThe requester will see your notes.');
-
-            // Auto-refresh
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
-
-        } catch (error) {
-            utils.showLoading(false);
-            console.error('Error rejecting deletion:', error);
-            alert('Error: ' + error.message);
-        }
     }
 }
 
@@ -3698,257 +3534,7 @@ async function saveAdditionalRepair(repairId) {
     // Firebase listener will auto-refresh the page
 }
 
-/**
- * Request modification for payment date (Non-admin)
- */
-function requestPaymentDateModification(repairId, paymentIndex) {
-    const repair = window.allRepairs.find(r => r.id === repairId);
-    const payment = repair.payments[paymentIndex];
-
-    const currentDate = utils.formatDate(payment.paymentDate || payment.date);
-
-    const content = document.getElementById('paymentModalContent');
-    content.innerHTML = `
-        <div class="alert-info">
-            <h4>📝 Request Payment Date Change</h4>
-            <p>You need admin approval to change payment dates</p>
-        </div>
-        
-        <div class="alert-neutral" style="padding:12px;">
-            <p><strong>Payment:</strong> ₱${payment.amount.toFixed(2)}</p>
-            <p><strong>Current Date:</strong> ${currentDate}</p>
-        </div>
-        
-        <div class="form-group">
-            <label>Requested New Date *</label>
-            <input type="date" id="requestedPaymentDate" max="${getTodayDate()}" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Reason for Change * (English or Tagalog OK)</label>
-            <textarea id="modificationReason" rows="3" required placeholder="Bakit kailangan palitan? / Why does this need to be changed?"></textarea>
-        </div>
-        
-        <div style="display:flex;gap:10px;">
-            <button onclick="submitModificationRequest('${repairId}', ${paymentIndex}, 'payment-date')" style="flex:1;background:#2196f3;color:white;">
-                📤 Submit Request
-            </button>
-            <button onclick="openPaymentModal('${repairId}')" style="flex:1;background:#666;color:white;">
-                ❌ Cancel
-            </button>
-        </div>
-        
-        <div class="alert-warning-compact" style="margin-top:15px;">
-            <p style="margin:0;font-size:13px;">⏳ Your request will be sent to admin for approval</p>
-        </div>
-    `;
-
-    document.getElementById('paymentModal').style.display = 'block';
-}
-
-/**
- * Request modification for recorded date (Non-admin)
- */
-function requestRecordedDateModification(repairId, paymentIndex) {
-    const repair = window.allRepairs.find(r => r.id === repairId);
-    const payment = repair.payments[paymentIndex];
-
-    const currentDate = utils.formatDateTime(payment.recordedDate || payment.date);
-
-    const content = document.getElementById('paymentModalContent');
-    content.innerHTML = `
-        <div class="alert-info">
-            <h4>📝 Request Recorded Date Change</h4>
-            <p>You need admin approval to change recorded dates</p>
-        </div>
-        
-        <div class="alert-neutral" style="padding:12px;">
-            <p><strong>Payment:</strong> ₱${payment.amount.toFixed(2)}</p>
-            <p><strong>Current Recorded:</strong> ${currentDate}</p>
-        </div>
-        
-        <div class="form-group">
-            <label>Requested New Recorded Date & Time *</label>
-            <input type="datetime-local" id="requestedRecordedDate" max="${isoToDateTimeLocal(new Date().toISOString())}" required>
-        </div>
-        
-        <div class="form-group">
-            <label>Reason for Change * (English or Tagalog OK)</label>
-            <textarea id="modificationReason" rows="3" required placeholder="Bakit kailangan palitan? / Why does this need to be changed?"></textarea>
-        </div>
-        
-        <div style="display:flex;gap:10px;">
-            <button onclick="submitModificationRequest('${repairId}', ${paymentIndex}, 'recorded-date')" style="flex:1;background:#2196f3;color:white;">
-                📤 Submit Request
-            </button>
-            <button onclick="openPaymentModal('${repairId}')" style="flex:1;background:#666;color:white;">
-                ❌ Cancel
-            </button>
-        </div>
-    `;
-
-    document.getElementById('paymentModal').style.display = 'block';
-}
-
-/**
- * Submit modification request
- */
-async function submitModificationRequest(repairId, paymentIndex, requestType) {
-    const repair = window.allRepairs.find(r => r.id === repairId);
-    const payment = repair.payments[paymentIndex];
-    const reason = document.getElementById('modificationReason').value.trim();
-
-    if (!reason) {
-        alert('Please provide a reason for the modification');
-        return;
-    }
-
-    let newValue;
-    let oldValue;
-
-    if (requestType === 'payment-date') {
-        const newDateInput = document.getElementById('requestedPaymentDate');
-        if (!newDateInput || !newDateInput.value) {
-            alert('Please select a new payment date');
-            return;
-        }
-        const selectedDate = new Date(newDateInput.value + 'T00:00:00');
-        newValue = selectedDate.toISOString();
-        oldValue = payment.paymentDate || payment.date;
-    } else if (requestType === 'recorded-date') {
-        const newDateInput = document.getElementById('requestedRecordedDate');
-        if (!newDateInput || !newDateInput.value) {
-            alert('Please select a new recorded date');
-            return;
-        }
-        newValue = new Date(newDateInput.value).toISOString();
-        oldValue = payment.recordedDate || payment.date;
-    }
-
-    const modRequest = {
-        repairId: repairId,
-        paymentIndex: paymentIndex,
-        requestType: requestType,
-        oldValue: oldValue,
-        newValue: newValue,
-        reason: reason,
-        repairDetails: `${repair.customerName} - ${repair.brand} ${repair.model}`,
-        paymentAmount: payment.amount,
-        requestedBy: window.currentUser.uid,
-        requestedByName: window.currentUserData.displayName,
-        requestedByRole: window.currentUserData.role,
-        requestedAt: new Date().toISOString(),
-        status: 'pending'
-    };
-
-    try {
-        await db.ref('modificationRequests').push(modRequest);
-
-        alert(`✅ Request Submitted!\n\nYour modification request has been sent to admin for approval.\n\nYou can check the status in "📝 My Requests" tab.`);
-
-        closePaymentModal();
-
-        // Switch to requests tab if available
-        if (window.switchTab) {
-            setTimeout(() => window.switchTab('requests'), 500);
-        }
-
-    } catch (error) {
-        console.error('Error submitting request:', error);
-        alert('Error: ' + error.message);
-    }
-}
-
-window.requestPaymentDateModification = requestPaymentDateModification;
-window.requestRecordedDateModification = requestRecordedDateModification;
-window.submitModificationRequest = submitModificationRequest;
-
-/**
- * Process modification request (Admin only)
- */
-async function processModificationRequest(requestId, action) {
-    if (window.currentUserData.role !== 'admin') {
-        alert('Only admin can process modification requests!');
-        return;
-    }
-
-    const request = window.allModificationRequests.find(r => r.id === requestId);
-    if (!request) {
-        alert('Request not found');
-        return;
-    }
-
-    const actionText = action === 'approve' ? 'APPROVE' : 'REJECT';
-    const adminNotes = prompt(`${actionText} this request?\n\nReason: ${request.reason}\n\nAdd admin notes (optional):`);
-
-    if (adminNotes === null) return; // Cancelled
-
-    try {
-        if (action === 'approve') {
-            // Apply the modification
-            const repair = window.allRepairs.find(r => r.id === request.repairId);
-            const payments = [...repair.payments];
-            const payment = payments[request.paymentIndex];
-
-            if (request.requestType === 'payment-date') {
-                payments[request.paymentIndex] = {
-                    ...payment,
-                    paymentDate: request.newValue,
-                    dateEditHistory: [
-                        ...(payment.dateEditHistory || []),
-                        {
-                            oldDate: request.oldValue,
-                            newDate: request.newValue,
-                            reason: request.reason,
-                            editedBy: request.requestedByName,
-                            approvedBy: window.currentUserData.displayName,
-                            editedAt: new Date().toISOString()
-                        }
-                    ]
-                };
-            } else if (request.requestType === 'recorded-date') {
-                payments[request.paymentIndex] = {
-                    ...payment,
-                    recordedDate: request.newValue,
-                    recordedDateEditHistory: [
-                        ...(payment.recordedDateEditHistory || []),
-                        {
-                            oldDate: request.oldValue,
-                            newDate: request.newValue,
-                            reason: request.reason,
-                            editedBy: request.requestedByName,
-                            approvedBy: window.currentUserData.displayName,
-                            editedAt: new Date().toISOString()
-                        }
-                    ]
-                };
-            }
-
-            await db.ref('repairs/' + request.repairId).update({
-                payments: payments,
-                lastUpdated: new Date().toISOString(),
-                lastUpdatedBy: window.currentUserData.displayName
-            });
-        }
-
-        // Update request status
-        await db.ref('modificationRequests/' + requestId).update({
-            status: action === 'approve' ? 'approved' : 'rejected',
-            processedBy: window.currentUser.uid,
-            processedByName: window.currentUserData.displayName,
-            processedAt: new Date().toISOString(),
-            adminNotes: adminNotes || null
-        });
-
-        alert(`✅ Request ${action === 'approve' ? 'Approved' : 'Rejected'}!`);
-
-    } catch (error) {
-        console.error('Error processing request:', error);
-        alert('Error: ' + error.message);
-    }
-}
-
-window.processModificationRequest = processModificationRequest;
+window.deleteRepair = deleteRepair;
 
 // Modal close functions
 function closeStatusModal() {
@@ -13614,7 +13200,7 @@ window.adminQuickFixWarranty = adminQuickFixWarranty;
 window.adminDeletePayment = adminDeletePayment;
 window.adminUnremitPayment = adminUnremitPayment;
 window.adminDeleteExpense = adminDeleteExpense;
-window.requestRepairDeletion = requestRepairDeletion;
+window.deleteRepair = deleteRepair; // Replaced requestRepairDeletion with direct delete
 
 // Admin Bulk Fix Tools exports
 window.recordMissingPaymentForDevice = recordMissingPaymentForDevice;
@@ -15451,12 +15037,6 @@ window.setMonthlyBudget = setMonthlyBudget;
 window.getMonthlyBudget = getMonthlyBudget;
 window.calculateBudgetVariance = calculateBudgetVariance;
 window.getAllBudgets = getAllBudgets;
-
-// Start checker when repairs are loaded
-if (window.allRepairs) {
-    startAutoFinalizeChecker();
-}
-window.processDeletionRequest = processDeletionRequest;
 
 // ============================================
 // PERSONAL FINANCE SYSTEM

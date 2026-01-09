@@ -559,11 +559,8 @@ const utils = {
                 stats.avgCompletionDays = 0;
             }
 
-            // Modification requests (admin only)
+            // Admin-specific stats
             if (role === 'admin') {
-                const modRequests = window.allModificationRequests || [];
-                stats.pendingModRequests = modRequests.filter(r => r.status === 'pending').length;
-
                 // Parts orders stats
                 const partsOrders = window.allPartsOrders || [];
                 stats.pendingPartsOrders = partsOrders.filter(o => o.status === 'pending').length;
@@ -1471,9 +1468,9 @@ function exportRetroactiveIntakesToCSV() {
     const statusFilter = document.getElementById('filterStatus')?.value;
     const duplicatesOnly = document.getElementById('filterDuplicates')?.checked;
     const excessiveOnly = document.getElementById('filterExcessive')?.checked;
-    
+
     let intakes = window.allRetroactiveIntakes || [];
-    
+
     // Apply same filters as table
     if (dateFrom) {
         intakes = intakes.filter(i => i.performedAt >= dateFrom);
@@ -1494,12 +1491,12 @@ function exportRetroactiveIntakesToCSV() {
     if (excessiveOnly) {
         intakes = intakes.filter(i => i.excessiveUsageFlag);
     }
-    
+
     if (intakes.length === 0) {
         alert('No records to export!');
         return;
     }
-    
+
     // CSV headers
     const headers = [
         'Date',
@@ -1524,7 +1521,7 @@ function exportRetroactiveIntakesToCSV() {
         'Excessive Flag',
         'Performed At'
     ];
-    
+
     // Convert data to CSV rows
     const rows = intakes.map(intake => {
         const performedDate = new Date(intake.performedAt);
@@ -1559,13 +1556,13 @@ function exportRetroactiveIntakesToCSV() {
             return fieldStr;
         });
     });
-    
+
     // Build CSV content
     const csvContent = [
         headers.join(','),
         ...rows.map(row => row.join(','))
     ].join('\n');
-    
+
     // Generate filename with date range
     let filename = 'retroactive-intakes';
     if (dateFrom && dateTo) {
@@ -1576,19 +1573,19 @@ function exportRetroactiveIntakesToCSV() {
         filename += `-to-${dateTo}`;
     }
     filename += `-${new Date().toISOString().split('T')[0]}.csv`;
-    
+
     // Create blob and download
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     const url = URL.createObjectURL(blob);
-    
+
     link.setAttribute('href', url);
     link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     // Show success toast
     utils.showToast(`✅ Exported ${intakes.length} records to ${filename}`, 'success');
 }

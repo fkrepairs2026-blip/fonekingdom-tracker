@@ -122,7 +122,6 @@ function buildTabs() {
                 { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab },
                 { id: 'approve-parts-orders', label: 'Approve Orders', icon: '📦', build: buildApprovePartsOrdersTab },
                 { id: 'users', label: 'Users', icon: '👤', build: buildUsersTab },
-                { id: 'mod-requests', label: 'Mod Requests', icon: '🔔', build: buildModificationRequestsTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
                 { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
                 { id: 'extract-remittance', label: 'Extract Remittance Data', icon: '🔍', build: buildExtractRemittanceTab },
@@ -1717,119 +1716,6 @@ function buildMyRequestsTab(container) {
 }
 
 /**
- * Build Modification Requests Tab (Admin only)
- */
-function buildModificationRequestsTab(container) {
-    console.log('🔔 Building Modification Requests tab');
-    window.currentTabRefresh = () => buildModificationRequestsTab(document.getElementById('mod-requestsTab'));
-
-    // Separate deletion requests from other requests
-    const pendingDeletionRequests = window.allModificationRequests ?
-        window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType === 'deletion_request') : [];
-
-    const pendingOtherRequests = window.allModificationRequests ?
-        window.allModificationRequests.filter(r => r.status === 'pending' && r.requestType !== 'deletion_request') : [];
-
-    const totalPending = pendingDeletionRequests.length + pendingOtherRequests.length;
-
-    const processedRequests = window.allModificationRequests ?
-        window.allModificationRequests.filter(r => r.status !== 'pending').slice(0, 20) : [];
-
-    container.innerHTML = `
-        <div class="card">
-            <h3>🔔 Modification Requests (${totalPending} pending)</h3>
-            <p style="color:#666;margin-bottom:15px;">Review and approve/reject modification requests from users</p>
-            
-            ${totalPending === 0 && processedRequests.length === 0 ? `
-                <div style="text-align:center;padding:40px;color:#999;">
-                    <h2 style="font-size:48px;margin:0;">✅</h2>
-                    <p>No modification requests</p>
-                </div>
-            ` : `
-                ${pendingDeletionRequests.length > 0 ? `
-                    <h4 style="margin-top:20px;color:#d32f2f;">🗑️ PENDING DELETION REQUESTS (${pendingDeletionRequests.length})</h4>
-                    ${pendingDeletionRequests.map(req => `
-                        <div class="deletion-request-card alert-card-danger">
-                            <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:10px;">
-                                <strong style="color:#d32f2f;font-size:16px;">🗑️ DELETION REQUEST</strong>
-                                <span style="background:#d32f2f;color:white;padding:3px 10px;border-radius:3px;font-size:12px;font-weight:bold;">
-                                    ⚠️ REQUIRES APPROVAL
-                                </span>
-                            </div>
-                            <div style="font-size:14px;color:#333;margin-bottom:12px;">
-                                <div><strong>Requested by:</strong> ${req.requestedByName}</div>
-                                <div><strong>Date:</strong> ${utils.formatDateTime(req.requestedAt)} (${utils.daysAgo(req.requestedAt)})</div>
-                            </div>
-                            <div style="background:white;padding:12px;border-radius:5px;margin-bottom:12px;">
-                                <div style="font-size:14px;margin-bottom:8px;">
-                                    <div><strong>Customer:</strong> ${req.repairDetails.customerName}</div>
-                                    <div><strong>Device:</strong> ${req.repairDetails.device}</div>
-                                    <div><strong>Status:</strong> <span style="background:#ff9800;color:white;padding:2px 6px;border-radius:3px;font-size:12px;">${req.repairDetails.status}</span></div>
-                                    <div><strong>Problem:</strong> ${req.repairDetails.problem}</div>
-                                </div>
-                            </div>
-                            <div class="bg-yellow-light p-10 rounded-sm" style="border-left:3px solid #f57c00;margin-bottom:12px;">
-                                <strong style="color:#e65100;">Deletion Reason:</strong>
-                                <div style="margin-top:5px;color:#333;">${req.reason}</div>
-                            </div>
-                            <div style="display:flex;gap:10px;">
-                                <button onclick="processDeletionRequest('${req.id}', 'approve')" class="btn btn-red-dark" style="flex:1;">
-                                    ✅ Approve Delete
-                                </button>
-                                <button onclick="processDeletionRequest('${req.id}', 'reject')" class="btn btn-gray" style="flex:1;">
-                                    ❌ Reject Request
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
-                ` : ''}
-                
-                ${pendingOtherRequests.length > 0 ? `
-                    <h4 style="margin-top:20px;">⏳ Other Pending Requests (${pendingOtherRequests.length})</h4>
-                    ${pendingOtherRequests.map(req => `
-                        <div class="alert-card-warning">
-                            <div style="margin-bottom:10px;">
-                                <strong>${req.requestType === 'payment-date' ? '📅 Payment Date Change' : req.requestType === 'recorded-date' ? '🕒 Recorded Date Change' : '📝 Data Modification'}</strong>
-                            </div>
-                            <div style="font-size:14px;color:#666;margin-bottom:10px;">
-                                <div><strong>Requested by:</strong> ${req.requestedByName} (${req.requestedByRole})</div>
-                                <div><strong>Repair:</strong> ${req.repairDetails || 'N/A'}</div>
-                                ${req.oldValue ? `<div><strong>From:</strong> ${req.oldValue}</div>` : ''}
-                                ${req.newValue ? `<div><strong>To:</strong> ${req.newValue}</div>` : ''}
-                                <div><strong>Reason:</strong> ${req.reason}</div>
-                                <div><strong>Requested:</strong> ${utils.formatDateTime(req.requestedAt)}</div>
-                            </div>
-                            <div style="display:flex;gap:10px;">
-                                <button onclick="processModificationRequest('${req.id}', 'approve')" class="btn btn-success">
-                                    ✅ Approve
-                                </button>
-                                <button onclick="processModificationRequest('${req.id}', 'reject')" class="btn btn-danger">
-                                    ❌ Reject
-                                </button>
-                            </div>
-                        </div>
-                    `).join('')}
-                ` : ''}
-                
-                ${processedRequests.length > 0 ? `
-                    <h4 style="margin-top:30px;">📋 Recent Processed (Last 20)</h4>
-                    ${processedRequests.map(req => `
-                        <div style="background:${req.status === 'approved' ? '#e8f5e9' : '#ffebee'};padding:12px;border-radius:5px;margin-bottom:10px;border-left:4px solid ${req.status === 'approved' ? '#4caf50' : '#f44336'};">
-                            <div style="display:flex;justify-content:space-between;font-size:14px;">
-                                <div>
-                                    <strong>${req.requestType === 'deletion_request' ? '🗑️' : req.requestType === 'payment-date' ? '📅' : req.requestType === 'recorded-date' ? '🕒' : '📝'} ${req.requestedByName}</strong> - ${req.reason.substring(0, 50)}...
-                                </div>
-                                <span style="font-size:12px;color:#666;">${utils.formatDate(req.reviewedAt || req.processedAt)}</span>
-                            </div>
-                        </div>
-                    `).join('')}
-                ` : ''}
-            `}
-        </div>
-    `;
-}
-
-/**
  * Build Refund Requests Tab (Admin/Manager only)
  */
 function buildRefundRequestsTab(container) {
@@ -3193,19 +3079,16 @@ function renderContextButtons(repair, role, context) {
 function renderStandardButtons(r, role) {
     const hidePaymentActions = role === 'technician';
 
-    // Check if there's a pending deletion request for this repair
-    const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id &&
-            req.requestType === 'deletion_request' &&
-            req.status === 'pending'
-    );
-
-    // Show delete request button for technician on their own repairs
-    const canRequestDelete = role === 'technician' &&
+    // Check if technician can delete (within 24h of creation)
+    const canTechDelete = role === 'technician' &&
         r.technicianId === window.currentUser.uid &&
         !r.deleted &&
         r.status !== 'Completed' &&
-        !hasPendingDeletion;
+        (() => {
+            const createdAt = new Date(r.createdAt);
+            const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+            return hoursSinceCreation <= 24;
+        })();
 
     return `
         ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
@@ -3218,7 +3101,7 @@ function renderStandardButtons(r, role) {
         ${r.status === 'Waiting for Parts' && !r.workaroundActive && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="enableWorkaround('${r.id}')" style="background:#f59e0b;color:white;">🔧 Work on Other Issues</button>` : ''}
         ${role === 'technician' ? `<button class="btn-small" onclick="openExpenseModal('${r.id}')" style="background:#9c27b0;color:white;">💸 Expense</button>` : ''}
         ${r.acceptedBy && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openTransferRepairModal('${r.id}')" style="background:#9c27b0;color:white;">🔄 Transfer</button>` : ''}
-        ${canRequestDelete ? `<button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">🗑️ Request Delete</button>` : ''}
+        ${canTechDelete ? `<button class="btn-small" onclick="deleteRepair('${r.id}')" style="background:#dc3545;color:white;" title="Delete within 24h">🗑️ Delete</button>` : ''}
         ${role === 'admin' ? `<button class="btn-small btn-danger" onclick="deleteRepair('${r.id}')">🗑️ Delete</button>` : ''}
     `;
 }
@@ -3276,23 +3159,20 @@ function renderForReleaseButtons(r, role) {
         `;
     }
 
-    // Technician delete request button
-    const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id &&
-            req.requestType === 'deletion_request' &&
-            req.status === 'pending'
-    );
-
+    // Technician delete button (within 24h of creation)
     if (role === 'technician' &&
         r.technicianId === window.currentUser.uid &&
         !r.deleted &&
-        r.status !== 'Completed' &&
-        !hasPendingDeletion) {
-        buttons += `
-            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">
-                🗑️ Request Delete
-            </button>
-        `;
+        r.status !== 'Completed') {
+        const createdAt = new Date(r.createdAt);
+        const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceCreation <= 24) {
+            buttons += `
+                <button class="btn-small" onclick="deleteRepair('${r.id}')" style="background:#dc3545;color:white;" title="Delete within 24h">
+                    🗑️ Delete
+                </button>
+            `;
+        }
     }
 
     // Admin delete button
@@ -3416,22 +3296,19 @@ function renderClaimedButtons(r, role) {
         </button>
     `;
 
-    // Technician delete request button
-    const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id &&
-            req.requestType === 'deletion_request' &&
-            req.status === 'pending'
-    );
-
+    // Technician delete button (within 24h of creation)
     if (role === 'technician' &&
         r.technicianId === window.currentUser.uid &&
-        !r.deleted &&
-        !hasPendingDeletion) {
-        buttons += `
-            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">
-                🗑️ Request Delete
-            </button>
-        `;
+        !r.deleted) {
+        const createdAt = new Date(r.createdAt);
+        const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceCreation <= 24) {
+            buttons += `
+                <button class="btn-small" onclick="deleteRepair('${r.id}')" style="background:#dc3545;color:white;" title="Delete within 24h">
+                    🗑️ Delete
+                </button>
+            `;
+        }
     }
 
     // Admin tools
@@ -3500,23 +3377,20 @@ function renderReceivedDeviceButtons(r, role) {
         `;
     }
 
-    // Technician delete request button
-    const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id &&
-            req.requestType === 'deletion_request' &&
-            req.status === 'pending'
-    );
-
+    // Technician delete button (within 24h of creation)
     if (role === 'technician' &&
         r.technicianId === window.currentUser.uid &&
         !r.deleted &&
-        r.status !== 'Completed' &&
-        !hasPendingDeletion) {
-        buttons += `
-            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;">
-                🗑️ Request Delete
-            </button>
-        `;
+        r.status !== 'Completed') {
+        const createdAt = new Date(r.createdAt);
+        const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceCreation <= 24) {
+            buttons += `
+                <button class="btn-small" onclick="deleteRepair('${r.id}')" style="background:#dc3545;color:white;" title="Delete within 24h">
+                    🗑️ Delete
+                </button>
+            `;
+        }
     }
 
     return buttons;
@@ -3582,23 +3456,20 @@ function renderRTODeviceButtons(r, role) {
         `;
     }
 
-    // Technician delete request button
-    const hasPendingDeletion = window.allModificationRequests.some(
-        req => req.repairId === r.id &&
-            req.requestType === 'deletion_request' &&
-            req.status === 'pending'
-    );
-
+    // Technician delete button (within 24h of creation)
     if (role === 'technician' &&
         r.technicianId === window.currentUser.uid &&
         !r.deleted &&
-        r.status !== 'Completed' &&
-        !hasPendingDeletion) {
-        buttons += `
-            <button class="btn-small" onclick="requestRepairDeletion('${r.id}')" style="background:#dc3545;color:white;padding:10px 15px;">
-                🗑️ Request Delete
-            </button>
-        `;
+        r.status !== 'Completed') {
+        const createdAt = new Date(r.createdAt);
+        const hoursSinceCreation = (Date.now() - createdAt.getTime()) / (1000 * 60 * 60);
+        if (hoursSinceCreation <= 24) {
+            buttons += `
+                <button class="btn-small" onclick="deleteRepair('${r.id}')" style="background:#dc3545;color:white;padding:10px 15px;" title="Delete within 24h">
+                    🗑️ Delete
+                </button>
+            `;
+        }
     }
 
     return buttons;
@@ -6391,7 +6262,6 @@ window.buildBackJobReceptionTab = buildBackJobReceptionTab;
 window.filterBackJobSearchResults = filterBackJobSearchResults;
 window.populateReceiveSupplierDropdown = populateReceiveSupplierDropdown;
 window.buildMyRequestsTab = buildMyRequestsTab;
-window.buildModificationRequestsTab = buildModificationRequestsTab;
 window.buildRefundRequestsTab = buildRefundRequestsTab;
 window.buildRefundedDevicesTab = buildRefundedDevicesTab;
 window.filterRefundedDevices = filterRefundedDevices;
