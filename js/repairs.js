@@ -1326,6 +1326,11 @@ This device will be marked as already repaired.
 
         // Firebase listener will auto-refresh the page
 
+    } catch (innerError) {
+        console.error('❌ Error saving device:', innerError);
+        alert('Error saving device: ' + innerError.message);
+    }
+    
     } catch (error) {
         console.error('❌ Error receiving device:', error);
         alert('Error: ' + error.message);
