@@ -1481,11 +1481,12 @@ async function openTransferRepairModal(repairId) {
         <form onsubmit="submitTransferRepair(event, '${repairId}')">
             <div class="form-group">
                 <label>Transfer to Technician: *</label>
-                <select id="transferToTech" required>
+                <select id="transferToTech" required style="padding:10px;font-size:14px;">
                     <option value="">Select technician...</option>
                     ${availableTechs.map(tech =>
-        `<option value="${tech.uid}">${tech.displayName}</option>`
+        `<option value="${tech.uid}" style="padding:8px;">${tech.displayName}</option>`
     ).join('')}
+                    <option value="__assign__" style="background:#9c27b0;color:white;font-weight:bold;">🔄 Assign this repair to me</option>
                 </select>
             </div>
             
@@ -2542,26 +2543,27 @@ async function updateRepairStatus(repairId) {
     }
 
     const isMicrosoldering = repair.isMicrosoldering || repair.repairType === 'Microsoldering';
+    const currentStatus = repair.status;
 
     const content = document.getElementById('statusModalContent');
 
     content.innerHTML = `
         <div class="form-group">
-            <label>Current Status: <strong>${repair.status}</strong></label>
+            <label>Current Status: <strong style="color:#4caf50;">${repair.status}</strong></label>
         </div>
         
         <div class="form-group">
             <label>New Status *</label>
             <select id="newStatus" onchange="toggleRTOFields()">
                 <option value="">Select Status</option>
-                <option value="Received">Received</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Waiting for Parts">Waiting for Parts</option>
-                <option value="Ready for Pickup">Ready for Pickup</option>
-                <option value="Released">Released</option>
-                <option value="Completed">Completed</option>
-                ${isMicrosoldering ? '<option value="Unsuccessful">Unsuccessful</option>' : ''}
-                <option value="RTO">RTO (Return to Owner)</option>
+                <option value="Received" ${currentStatus === 'Received' ? 'selected style="background:#4caf50;color:white;"' : ''}>Received</option>
+                <option value="In Progress" ${currentStatus === 'In Progress' ? 'selected style="background:#4caf50;color:white;"' : ''}>In Progress</option>
+                <option value="Waiting for Parts" ${currentStatus === 'Waiting for Parts' ? 'selected style="background:#4caf50;color:white;"' : ''}>Waiting for Parts</option>
+                <option value="Ready for Pickup" ${currentStatus === 'Ready for Pickup' ? 'selected style="background:#4caf50;color:white;"' : ''}>Ready for Pickup</option>
+                <option value="Released" ${currentStatus === 'Released' ? 'selected style="background:#4caf50;color:white;"' : ''}>Released</option>
+                <option value="Completed" ${currentStatus === 'Completed' ? 'selected style="background:#4caf50;color:white;"' : ''}>Completed</option>
+                ${isMicrosoldering ? `<option value="Unsuccessful" ${currentStatus === 'Unsuccessful' ? 'selected style="background:#4caf50;color:white;"' : ''}>Unsuccessful</option>` : ''}
+                <option value="RTO" ${currentStatus === 'RTO' ? 'selected style="background:#4caf50;color:white;"' : ''}>RTO (Return to Owner)</option>
             </select>
         </div>
         
