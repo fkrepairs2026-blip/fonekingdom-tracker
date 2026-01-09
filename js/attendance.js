@@ -414,20 +414,26 @@ function checkClockReminder() {
     if (!role || !['technician', 'cashier'].includes(role)) return;
     if (!window.clockReminderSettings.enabled) return;
     
-    const manilaTimeStr = new Date().toLocaleString('en-US', {
+    // Get Manila time components separately
+    const now = new Date();
+    const hours = parseInt(now.toLocaleString('en-US', {
         timeZone: 'Asia/Manila',
         hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
+        hour: '2-digit'
+    }));
+    const minutes = parseInt(now.toLocaleString('en-US', {
+        timeZone: 'Asia/Manila',
+        minute: '2-digit'
+    }));
+    const weekdayStr = now.toLocaleString('en-US', {
+        timeZone: 'Asia/Manila',
         weekday: 'short'
     });
     
-    const [weekday, time] = manilaTimeStr.split(', ');
-    const [hours, minutes] = time.split(':').map(Number);
     const currentMinutes = hours * 60 + minutes;
     
     const dayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
-    const dayOfWeek = dayMap[weekday];
+    const dayOfWeek = dayMap[weekdayStr];
     
     if (!window.clockReminderSettings.workDays.includes(dayOfWeek)) return;
     

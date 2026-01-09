@@ -228,6 +228,10 @@
       "$userId": {
         ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
       }
+    },
+    "clockReminderSettings": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     }
   }
 }
