@@ -838,47 +838,40 @@ async function submitReceiveDevice(e) {
                 }
             }
 
+            // Determine if user can auto-verify payments
+            const isTechnician = window.currentUserData.role === 'technician';
+            const isAdminOrManager = window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager';
+            const isGCash = paymentMethod === 'GCash';
+
             paymentData = {
                 amount: paymentAmount,
                 method: paymentMethod,
                 gcashReference: paymentMethod === 'GCash' ? document.getElementById('gcashRef')?.value : null,
                 notes: paymentNotes,
+                paymentDate: new Date(releaseDate || completionDate).toISOString(),
+                recordedDate: new Date().toISOString(),
                 collectedDuringIntake: true,
                 collectedAt: new Date().toISOString(),
-                receivedBy: window.currentUser.uid,
-                receivedByName: window.currentUserData.displayName
+                receivedBy: window.currentUserData.displayName,
+                receivedById: window.currentUser.uid,
+                // Remittance tracking for technician payments
+                collectedByTech: !isGCash && isTechnician,
+                techRemittanceId: null,
+                remittanceStatus: (!isGCash && isTechnician) ? 'pending' : 'n/a',
+                // Auto-verify for tech/admin/manager (cashiers need verification)
+                verified: isTechnician || isAdminOrManager,
+                verifiedBy: (isTechnician || isAdminOrManager) ? window.currentUserData.displayName : null,
+                verifiedAt: (isTechnician || isAdminOrManager) ? new Date().toISOString() : null
             };
         }
 
-        // SMART AUTO-FINALIZATION LOGIC
-        // Completed mode: Check if fully paid
-        // - If fully paid (amount >= total) → Claimed status with warranty
-        // - If unpaid or partial payment → Released status (for dealers)
-        //
-        // Pre-completed mode: Always Released status (waiting for pickup)
-
-        let finalStatus = 'Released'; // Default
+        // SIMPLIFIED STATUS LOGIC - Always use Released
+        // Cashier/Admin will manually finalize through normal workflow
+        // This prevents the bug where Claimed devices become uneditable
+        let finalStatus = 'Released';
         let shouldFinalize = false;
-
-        if (completionMode === 'completed') {
-            // Check payment against total
-            const amountPaid = paymentData ? paymentData.amount : 0;
-            const totalCost = total;
-
-            if (amountPaid >= totalCost) {
-                // Fully paid - auto-finalize to Claimed
-                finalStatus = 'Claimed';
-                shouldFinalize = true;
-            } else {
-                // Unpaid or partial - keep as Released for dealer finalization
-                finalStatus = 'Released';
-                shouldFinalize = false;
-            }
-        } else {
-            // Pre-completed mode - always Released (waiting for customer)
-            finalStatus = 'Released';
-            shouldFinalize = false;
-        }
+        
+        // Note: Even if fully paid, device stays as "Released" to maintain workflow consistency
 
         // CONFIRMATION MODAL
         const confirmDetails = `
@@ -3400,14 +3393,21 @@ async function deleteRepair(repairId) {
         return;
     }
 
-    // Cannot delete claimed devices
-    if (repair.status === 'Claimed') {
-        alert('⚠️ Cannot delete claimed devices.\n\nClaimed devices have completed warranty tracking and should not be deleted.');
-        return;
-    }
-
-    // Show repair details
+    // Show repair details with special warning for Claimed devices
     const repairInfo = `Customer: ${repair.customerName}\nDevice: ${repair.brand} ${repair.model}\nProblem: ${repair.problem}\nStatus: ${repair.status}`;
+    
+    // Extra confirmation for Claimed devices
+    if (repair.status === 'Claimed') {
+        const claimedWarning = confirm(
+            `⚠️⚠️⚠️ WARNING - CLAIMED DEVICE DELETION ⚠️⚠️⚠️\n\n` +
+            `${repairInfo}\n\n` +
+            `This device has COMPLETED WARRANTY TRACKING.\n` +
+            `Deletion should only be done for serious errors (duplicate, wrong customer, etc.)\n\n` +
+            `Consider using "Un-release Device" instead to preserve data.\n\n` +
+            `Are you ABSOLUTELY SURE you want to delete this claimed device?`
+        );
+        if (!claimedWarning) return;
+    }
 
     if (!confirm(`DELETE REPAIR\n\n${repairInfo}\n\nAre you sure you want to delete this repair?\n\nThis action cannot be undone.`)) {
         return;
@@ -11036,7 +11036,7 @@ window.fullResetToday = fullResetToday;
  */
 
 /**
- * Admin: Add payment to an already-released device
+ * Admin: Add payment to an already-released or claimed device
  */
 async function adminAddPaymentToReleased(repairId) {
     if (window.currentUserData.role !== 'admin') {
@@ -11050,16 +11050,23 @@ async function adminAddPaymentToReleased(repairId) {
         return;
     }
 
+    // Allow Released or Claimed status
+    if (repair.status !== 'Released' && repair.status !== 'Claimed') {
+        alert('⚠️ Can only add payments to Released or Claimed devices');
+        return;
+    }
+
     // Show repair details
     const totalAmount = repair.total || 0;
     const totalPaid = repair.payments ? repair.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
     const balance = totalAmount - totalPaid;
 
     const amount = prompt(
-        `💰 Add Payment to Released Device\n\n` +
+        `💰 Add Payment to ${repair.status} Device\n\n` +
         `Customer: ${repair.customerName}\n` +
         `Device: ${repair.brand} ${repair.model}\n` +
-        `Released: ${utils.formatDateTime(repair.claimedAt)}\n\n` +
+        `Status: ${repair.status}\n` +
+        `${repair.claimedAt ? 'Released: ' + utils.formatDateTime(repair.claimedAt) : ''}\n\n` +
         `Total Amount: ₱${totalAmount.toFixed(2)}\n` +
         `Already Paid: ₱${totalPaid.toFixed(2)}\n` +
         `Balance: ₱${balance.toFixed(2)}\n\n` +
@@ -11106,7 +11113,8 @@ async function adminAddPaymentToReleased(repairId) {
             verified: true,
             verifiedBy: window.currentUser.uid,
             verifiedByName: window.currentUserData.displayName,
-            verifiedAt: new Date().toISOString()
+            verifiedAt: new Date().toISOString(),
+            addedPostClaim: repair.status === 'Claimed'  // Flag for audit trail
         };
 
         const payments = repair.payments || [];
@@ -11272,9 +11280,148 @@ async function adminUnreleaseDevice(repairId) {
     }
 }
 
+/**
+ * Admin: Bulk verify unverified retroactive payments
+ * Fixes historical payments from old retroactive intakes that lack verification fields
+ */
+async function adminBulkVerifyRetroactivePayments() {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ This function is only available to administrators');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+        
+        // Find all repairs with unverified retroactive payments
+        const repairsToFix = [];
+        let totalUnverifiedPayments = 0;
+        
+        window.allRepairs.forEach(repair => {
+            if (!repair.payments || repair.payments.length === 0) return;
+            
+            const unverifiedRetroactive = repair.payments.filter(p => 
+                p.collectedDuringIntake === true && 
+                (p.verified === false || p.verified === undefined || p.verified === null)
+            );
+            
+            if (unverifiedRetroactive.length > 0) {
+                repairsToFix.push({
+                    id: repair.id,
+                    customerName: repair.customerName,
+                    device: `${repair.brand} ${repair.model}`,
+                    status: repair.status,
+                    unverifiedCount: unverifiedRetroactive.length,
+                    totalUnverified: unverifiedRetroactive.reduce((sum, p) => sum + p.amount, 0)
+                });
+                totalUnverifiedPayments += unverifiedRetroactive.length;
+            }
+        });
+        
+        utils.showLoading(false);
+        
+        if (repairsToFix.length === 0) {
+            alert('✅ No Unverified Retroactive Payments Found!\n\nAll retroactive payments are properly verified.');
+            return;
+        }
+        
+        // Show summary
+        const summary = repairsToFix.slice(0, 10).map(r => 
+            `- ${r.customerName} (${r.device}): ${r.unverifiedCount} payment(s) - ₱${r.totalUnverified.toFixed(2)}`
+        ).join('\n');
+        
+        const confirmMsg = `🔍 BULK PAYMENT VERIFICATION\n\n` +
+            `Found ${totalUnverifiedPayments} unverified payment(s) in ${repairsToFix.length} repair(s)\n\n` +
+            `Sample repairs:\n${summary}` +
+            `${repairsToFix.length > 10 ? '\n... and ' + (repairsToFix.length - 10) + ' more' : ''}\n\n` +
+            `This will:\n` +
+            `✓ Mark all retroactive payments as verified\n` +
+            `✓ Add verification timestamp and admin name\n` +
+            `✓ Enable commission calculation for these payments\n` +
+            `✓ Create audit log\n\n` +
+            `Continue with bulk verification?`;
+        
+        if (!confirm(confirmMsg)) {
+            return;
+        }
+        
+        // Perform bulk verification
+        utils.showLoading(true);
+        let successCount = 0;
+        let failCount = 0;
+        const now = new Date().toISOString();
+        
+        for (const repairInfo of repairsToFix) {
+            try {
+                const repair = window.allRepairs.find(r => r.id === repairInfo.id);
+                if (!repair) continue;
+                
+                // Update payments array
+                const updatedPayments = repair.payments.map(payment => {
+                    if (payment.collectedDuringIntake === true && 
+                        (payment.verified === false || payment.verified === undefined || payment.verified === null)) {
+                        return {
+                            ...payment,
+                            verified: true,
+                            verifiedBy: window.currentUserData.displayName,
+                            verifiedAt: now,
+                            bulkVerified: true,  // Flag for audit trail
+                            bulkVerifiedReason: 'Admin bulk verification - retroactive intake payment fix'
+                        };
+                    }
+                    return payment;
+                });
+                
+                await db.ref(`repairs/${repairInfo.id}`).update({
+                    payments: updatedPayments,
+                    lastUpdated: now,
+                    lastUpdatedBy: window.currentUserData.displayName
+                });
+                
+                successCount++;
+                
+            } catch (error) {
+                console.error(`❌ Error verifying payments for repair ${repairInfo.id}:`, error);
+                failCount++;
+            }
+        }
+        
+        // Log the bulk action
+        await logActivity('admin_bulk_verify_payments', 'admin', {
+            totalRepairs: repairsToFix.length,
+            totalPayments: totalUnverifiedPayments,
+            successCount: successCount,
+            failCount: failCount,
+            timestamp: now
+        });
+        
+        utils.showLoading(false);
+        
+        alert(
+            `✅ BULK VERIFICATION COMPLETE!\n\n` +
+            `Successfully verified: ${successCount} repair(s)\n` +
+            `Failed: ${failCount} repair(s)\n` +
+            `Total payments verified: ${totalUnverifiedPayments}\n\n` +
+            `Technicians can now claim commissions for these repairs once finalized.`
+        );
+        
+        // Reload data
+        await loadRepairs();
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error in bulk verification:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
 // Admin correction functions exports
 window.adminAddPaymentToReleased = adminAddPaymentToReleased;
 window.adminUnreleaseDevice = adminUnreleaseDevice;
+window.adminBulkVerifyRetroactivePayments = adminBulkVerifyRetroactivePayments;
 
 /**
  * ============================================

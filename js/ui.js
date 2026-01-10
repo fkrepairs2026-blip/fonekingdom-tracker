@@ -2424,6 +2424,7 @@ function displayRepairsInContainer(repairs, container) {
                 
                 <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap;">
                     ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
+                    ${(role === 'admin' && r.status === 'Claimed') ? `<button class="btn-small" onclick="adminAddPaymentToReleased('${r.id}')" style="background:#2e7d32;color:white;">💰 Admin Payment</button>` : ''}
                     ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
                     ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
                     ${(r.status === 'In Progress' || r.status === 'Waiting for Parts') && (role === 'technician' || role === 'admin' || role === 'manager') ? `<button class="btn-small" onclick="openUsePartsModal('${r.id}')" style="background:#2e7d32;color:white;">🔧 Use Parts</button>` : ''}
@@ -3092,6 +3093,7 @@ function renderStandardButtons(r, role) {
 
     return `
         ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
+        ${(role === 'admin' && (r.status === 'Released' || r.status === 'Claimed')) ? `<button class="btn-small" onclick="adminAddPaymentToReleased('${r.id}')" style="background:#2e7d32;color:white;">💰 Admin Payment</button>` : ''}
         ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
         ${r.acceptedBy && (role === 'admin' || role === 'manager' || role === 'technician') ? `<button class="btn-small" onclick="openUpdateDiagnosisModal('${r.id}')" style="background:#667eea;color:white;">📝 Update Diagnosis</button>` : ''}
         ${role === 'admin' || role === 'manager' ? `<button class="btn-small btn-warning" onclick="openAdditionalRepairModal('${r.id}')">➕ Additional</button>` : ''}
@@ -4637,7 +4639,18 @@ function buildAdminToolsTab(container) {
                 </div>
             </div>
             
-            <!-- 2. UNPAID DEVICES -->
+            <!-- 2. PAYMENT VERIFICATION -->
+            <div class="collapsible-section" style="margin-bottom:15px;">
+                <div onclick="toggleAdminSection('paymentVerification')" style="background:#f8f9fa;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #10b981;">
+                    <strong>✅ Payment Verification (Retroactive Fix)</strong>
+                    <span id="paymentVerification-icon">▼</span>
+                </div>
+                <div id="paymentVerification-content" style="display:none;padding:15px;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 5px 5px;">
+                    ${buildPaymentVerificationSection()}
+                </div>
+            </div>
+            
+            <!-- 3. UNPAID DEVICES -->
             <div class="collapsible-section" style="margin-bottom:15px;">
                 <div onclick="toggleAdminSection('unpaidDevices')" style="background:#f8f9fa;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #ffc107;">
                     <strong>💰 Unpaid Released Devices</strong>
@@ -4648,7 +4661,7 @@ function buildAdminToolsTab(container) {
                 </div>
             </div>
             
-            <!-- 3. SCHEDULED EXPORTS -->
+            <!-- 4. SCHEDULED EXPORTS -->
             <div class="collapsible-section" style="margin-bottom:15px;">
                 <div onclick="toggleAdminSection('scheduledExports')" style="background:#f8f9fa;padding:12px 15px;border-radius:5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;border-left:4px solid #2196f3;">
                     <strong>📤 Scheduled Exports</strong>
@@ -4659,7 +4672,7 @@ function buildAdminToolsTab(container) {
                 </div>
             </div>
             
-            <!-- 4. RESET FUNCTIONS -->
+            <!-- 5. RESET FUNCTIONS -->
             ${isLocked ? `
                 <div class="bg-yellow-light" style="padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
                     <strong>🔒 Today is Locked</strong>
@@ -4806,6 +4819,105 @@ window.toggleAdminSection = function (sectionId) {
         }
     }
 };
+
+/**
+ * Build Payment Verification Section for Admin Tools
+ */
+function buildPaymentVerificationSection() {
+    // Find all repairs with unverified retroactive payments
+    const repairsWithUnverified = window.allRepairs.filter(r => {
+        if (!r.payments || r.payments.length === 0) return false;
+        
+        return r.payments.some(p => 
+            p.collectedDuringIntake === true && 
+            (p.verified === false || p.verified === undefined || p.verified === null)
+        );
+    });
+    
+    const totalUnverified = repairsWithUnverified.reduce((count, r) => {
+        return count + r.payments.filter(p => 
+            p.collectedDuringIntake === true && 
+            (p.verified === false || p.verified === undefined || p.verified === null)
+        ).length;
+    }, 0);
+    
+    const totalAmount = repairsWithUnverified.reduce((sum, r) => {
+        const unverified = r.payments.filter(p => 
+            p.collectedDuringIntake === true && 
+            (p.verified === false || p.verified === undefined || p.verified === null)
+        );
+        return sum + unverified.reduce((s, p) => s + p.amount, 0);
+    }, 0);
+    
+    return `
+        <div class="payment-verification-section">
+            <h4 style="margin:0 0 15px;">✅ Retroactive Payment Verification</h4>
+            
+            <div style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:15px;">
+                <p style="margin:0 0 10px;font-size:14px;">
+                    <strong>Purpose:</strong> Fix historical payments from retroactive intakes that lack verification fields.
+                    Unverified payments prevent commission calculation for technicians.
+                </p>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-top:15px;">
+                    <div style="background:white;padding:12px;border-radius:5px;text-align:center;">
+                        <div style="font-size:24px;font-weight:bold;color:#2196f3;">
+                            ${repairsWithUnverified.length}
+                        </div>
+                        <div style="font-size:12px;color:#666;margin-top:5px;">Repairs Affected</div>
+                    </div>
+                    <div style="background:white;padding:12px;border-radius:5px;text-align:center;">
+                        <div style="font-size:24px;font-weight:bold;color:#ff9800;">
+                            ${totalUnverified}
+                        </div>
+                        <div style="font-size:12px;color:#666;margin-top:5px;">Unverified Payments</div>
+                    </div>
+                    <div style="background:white;padding:12px;border-radius:5px;text-align:center;">
+                        <div style="font-size:24px;font-weight:bold;color:#4caf50;">
+                            ₱${totalAmount.toFixed(2)}
+                        </div>
+                        <div style="font-size:12px;color:#666;margin-top:5px;">Total Amount</div>
+                    </div>
+                </div>
+            </div>
+            
+            ${repairsWithUnverified.length > 0 ? `
+                <div style="background:#fff3cd;padding:15px;border-radius:5px;margin-bottom:15px;border-left:4px solid #ffc107;">
+                    <strong>⚠️ Issue Detected</strong>
+                    <p style="margin:5px 0 0;font-size:13px;">
+                        Found ${totalUnverified} unverified payment(s) in ${repairsWithUnverified.length} repair(s). 
+                        These payments won't count toward technician commissions until verified.
+                    </p>
+                </div>
+                
+                <button 
+                    onclick="adminBulkVerifyRetroactivePayments()" 
+                    class="btn btn-success"
+                    style="width:100%;font-size:14px;padding:12px;">
+                    ✅ Bulk Verify All Retroactive Payments
+                    <br><small style="font-weight:normal;">Mark ${totalUnverified} payment(s) as verified</small>
+                </button>
+            ` : `
+                <div style="background:#d4edda;padding:15px;border-radius:5px;border-left:4px solid #4caf50;">
+                    <strong>✅ All Clear!</strong>
+                    <p style="margin:5px 0 0;font-size:13px;">
+                        No unverified retroactive payments found. All payments are properly verified.
+                    </p>
+                </div>
+            `}
+            
+            <div style="margin-top:15px;padding:10px;background:#e3f2fd;border-radius:5px;font-size:12px;">
+                <strong>💡 How It Works:</strong>
+                <ul style="margin:5px 0 0 15px;padding:0;">
+                    <li>Scans all repairs for payments with <code>collectedDuringIntake: true</code></li>
+                    <li>Identifies payments missing <code>verified: true</code> flag</li>
+                    <li>Bulk updates all found payments with verification fields</li>
+                    <li>Adds audit trail flag (<code>bulkVerified: true</code>)</li>
+                    <li>Enables commission calculation for technicians</li>
+                </ul>
+            </div>
+        </div>
+    `;
+}
 
 /**
  * Build Unpaid Devices Fix Section for Admin Tools
