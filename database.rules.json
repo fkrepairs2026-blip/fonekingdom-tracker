@@ -94,6 +94,7 @@
       }
     },
     "activityLogs": {
+      ".indexOn": ["timestamp"],
       ".read": "auth != null",
       "$logId": {
         ".write": "auth != null"
@@ -104,6 +105,16 @@
       "$eventId": {
         ".write": "auth != null"
       }
+    },
+    "loginHistory": {
+      ".read": "auth != null",
+      "$eventId": {
+        ".write": "auth != null"
+      }
+    },
+    "systemSettings": {
+      ".read": "auth != null",
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
     },
     "suppliers": {
       ".read": "auth != null",
@@ -123,6 +134,7 @@
       }
     },
     "stockMovements": {
+      ".indexOn": ["timestamp"],
       ".read": "auth != null",
       "$movementId": {
         ".write": "auth != null && (
