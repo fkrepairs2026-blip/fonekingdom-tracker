@@ -437,7 +437,32 @@ function switchTab(tabId, dateFilter = null) {
     document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
 
     // Activate current tab elements
-    const tab = document.getElementById(`tab-${tabId}`);\n    const content = document.getElementById(`${tabId}Tab`);\n    const mobileTab = document.getElementById(`mobile-tab-${tabId}`);\n    const sidebarItem = document.getElementById(`sidebar-${tabId}`);\n\n    if (tab) tab.classList.add('active');\n    if (mobileTab) mobileTab.classList.add('active');\n    if (sidebarItem) sidebarItem.classList.add('active');\n    \n    // Lazy load tab content if not already built\n    if (content) {\n        content.classList.add('active');\n        \n        if (content.dataset.built === 'false') {\n            const allTabDefinitions = [\n                mainTabs, technicianTabs, cashierTabs, managerTabs, adminTabs\n            ].flat();\n            \n            const tabDefinition = allTabDefinitions.find(t => t.id === tabId);\n            if (tabDefinition) {\n                console.log('\ud83d\udcc4 Lazy loading tab:', tabDefinition.label);\n                tabDefinition.build(content);\n                content.dataset.built = 'true';\n            }\n        }\n    }
+    const tab = document.getElementById(`tab-${tabId}`);
+    const content = document.getElementById(`${tabId}Tab`);
+    const mobileTab = document.getElementById(`mobile-tab-${tabId}`);
+    const sidebarItem = document.getElementById(`sidebar-${tabId}`);
+
+    if (tab) tab.classList.add('active');
+    if (mobileTab) mobileTab.classList.add('active');
+    if (sidebarItem) sidebarItem.classList.add('active');
+    
+    // Lazy load tab content if not already built
+    if (content) {
+        content.classList.add('active');
+        
+        if (content.dataset.built === 'false') {
+            const allTabDefinitions = [
+                mainTabs, technicianTabs, cashierTabs, managerTabs, adminTabs
+            ].flat();
+            
+            const tabDefinition = allTabDefinitions.find(t => t.id === tabId);
+            if (tabDefinition) {
+                console.log('📄 Lazy loading tab:', tabDefinition.label);
+                tabDefinition.build(content);
+                content.dataset.built = 'true';
+            }
+        }
+    }
 
     activeTab = tabId;
 
