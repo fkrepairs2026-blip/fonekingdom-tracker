@@ -445,22 +445,13 @@ function switchTab(tabId, dateFilter = null) {
     if (tab) tab.classList.add('active');
     if (mobileTab) mobileTab.classList.add('active');
     if (sidebarItem) sidebarItem.classList.add('active');
-    
+
     // Lazy load tab content if not already built
     if (content) {
         content.classList.add('active');
-        
+
         if (content.dataset.built === 'false') {
-            const allTabDefinitions = [
-                mainTabs, technicianTabs, cashierTabs, managerTabs, adminTabs
-            ].flat();
-            
-            const tabDefinition = allTabDefinitions.find(t => t.id === tabId);
-            if (tabDefinition) {
-                console.log('📄 Lazy loading tab:', tabDefinition.label);
-                tabDefinition.build(content);
-                content.dataset.built = 'true';
-            }
+            const tabDefinition = availableTabs.find(t => t.id === tabId);
         }
     }
 
@@ -4852,15 +4843,15 @@ window.toggleAdminSection = function (sectionId) {
 /**
  * Toggle debug logging on/off
  */
-window.toggleDebugLogging = function() {
+window.toggleDebugLogging = function () {
     window.debugEnabled = !window.debugEnabled;
-    
+
     if (window.debugEnabled) {
         alert('✅ Debug Logging Enabled\n\nWarning: This will slow down the app. Use only for troubleshooting.\n\nPress Ctrl+Shift+D to view logs.');
     } else {
         alert('⏸️ Debug Logging Disabled\n\nApp performance improved. Logs are paused but still viewable.');
     }
-    
+
     // Refresh admin tools tab to update button
     if (window.currentTabRefresh) {
         window.currentTabRefresh();
@@ -4874,28 +4865,28 @@ function buildPaymentVerificationSection() {
     // Find all repairs with unverified retroactive payments
     const repairsWithUnverified = window.allRepairs.filter(r => {
         if (!r.payments || r.payments.length === 0) return false;
-        
-        return r.payments.some(p => 
-            p.collectedDuringIntake === true && 
+
+        return r.payments.some(p =>
+            p.collectedDuringIntake === true &&
             (p.verified === false || p.verified === undefined || p.verified === null)
         );
     });
-    
+
     const totalUnverified = repairsWithUnverified.reduce((count, r) => {
-        return count + r.payments.filter(p => 
-            p.collectedDuringIntake === true && 
+        return count + r.payments.filter(p =>
+            p.collectedDuringIntake === true &&
             (p.verified === false || p.verified === undefined || p.verified === null)
         ).length;
     }, 0);
-    
+
     const totalAmount = repairsWithUnverified.reduce((sum, r) => {
-        const unverified = r.payments.filter(p => 
-            p.collectedDuringIntake === true && 
+        const unverified = r.payments.filter(p =>
+            p.collectedDuringIntake === true &&
             (p.verified === false || p.verified === undefined || p.verified === null)
         );
         return sum + unverified.reduce((s, p) => s + p.amount, 0);
     }, 0);
-    
+
     return `
         <div class="payment-verification-section">
             <h4 style="margin:0 0 15px;">✅ Retroactive Payment Verification</h4>
