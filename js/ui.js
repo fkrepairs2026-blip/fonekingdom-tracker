@@ -239,15 +239,21 @@ function renderSidebar() {
 
     sidebarNav.innerHTML = html;
 
-    // Build content containers for all tabs
+    // Create content containers but only build first tab (lazy loading)
     availableTabs.forEach((tab, index) => {
         const contentEl = document.createElement('div');
         contentEl.id = `${tab.id}Tab`;
         contentEl.className = 'tab-content' + (index === 0 ? ' active' : '');
+        contentEl.dataset.tabId = tab.id;
+        contentEl.dataset.built = 'false'; // Track if tab has been built
         contentsContainer.appendChild(contentEl);
 
-        console.log('📄 Building content for tab:', tab.label);
-        tab.build(contentEl);
+        // Only build first tab on initial load
+        if (index === 0) {
+            console.log('📄 Building initial tab:', tab.label);
+            tab.build(contentEl);
+            contentEl.dataset.built = 'true';
+        }
     });
 
     // Set first tab as active
@@ -431,15 +437,7 @@ function switchTab(tabId, dateFilter = null) {
     document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
 
     // Activate current tab elements
-    const tab = document.getElementById(`tab-${tabId}`);
-    const content = document.getElementById(`${tabId}Tab`);
-    const mobileTab = document.getElementById(`mobile-tab-${tabId}`);
-    const sidebarItem = document.getElementById(`sidebar-${tabId}`);
-
-    if (tab) tab.classList.add('active');
-    if (content) content.classList.add('active');
-    if (mobileTab) mobileTab.classList.add('active');
-    if (sidebarItem) sidebarItem.classList.add('active');
+    const tab = document.getElementById(`tab-${tabId}`);\n    const content = document.getElementById(`${tabId}Tab`);\n    const mobileTab = document.getElementById(`mobile-tab-${tabId}`);\n    const sidebarItem = document.getElementById(`sidebar-${tabId}`);\n\n    if (tab) tab.classList.add('active');\n    if (mobileTab) mobileTab.classList.add('active');\n    if (sidebarItem) sidebarItem.classList.add('active');\n    \n    // Lazy load tab content if not already built\n    if (content) {\n        content.classList.add('active');\n        \n        if (content.dataset.built === 'false') {\n            const allTabDefinitions = [\n                mainTabs, technicianTabs, cashierTabs, managerTabs, adminTabs\n            ].flat();\n            \n            const tabDefinition = allTabDefinitions.find(t => t.id === tabId);\n            if (tabDefinition) {\n                console.log('\ud83d\udcc4 Lazy loading tab:', tabDefinition.label);\n                tabDefinition.build(content);\n                content.dataset.built = 'true';\n            }\n        }\n    }
 
     activeTab = tabId;
 
@@ -4782,8 +4780,14 @@ function buildAdminToolsTab(container) {
                         </button>
                     </div>
                     
+                    <button onclick="toggleDebugLogging()" class="btn" style="width:100%;background:${window.debugEnabled ? '#f44336' : '#4caf50'};color:white;margin-bottom:10px;">
+                        ${window.debugEnabled ? '⏸️ Disable' : '▶️ Enable'} Debug Logging
+                        <br><small style="font-weight:normal;opacity:0.9;">${window.debugEnabled ? 'Improves performance' : 'For troubleshooting only'}</small>
+                    </button>
+                    
                     <div style="padding:10px;background:#fff9c4;border-radius:5px;font-size:12px;">
                         <strong>💡 Tip:</strong> Press <kbd>Ctrl+Shift+D</kbd> to open logs anytime
+                        <br><small style="color:#666;margin-top:5px;display:block;">Debug logging affects app performance - keep disabled unless troubleshooting</small>
                     </div>
                 </div>
             </div>
@@ -4817,6 +4821,24 @@ window.toggleAdminSection = function (sectionId) {
             content.style.display = 'none';
             icon.textContent = '▼';
         }
+    }
+};
+
+/**
+ * Toggle debug logging on/off
+ */
+window.toggleDebugLogging = function() {
+    window.debugEnabled = !window.debugEnabled;
+    
+    if (window.debugEnabled) {
+        alert('✅ Debug Logging Enabled\n\nWarning: This will slow down the app. Use only for troubleshooting.\n\nPress Ctrl+Shift+D to view logs.');
+    } else {
+        alert('⏸️ Debug Logging Disabled\n\nApp performance improved. Logs are paused but still viewable.');
+    }
+    
+    // Refresh admin tools tab to update button
+    if (window.currentTabRefresh) {
+        window.currentTabRefresh();
     }
 };
 

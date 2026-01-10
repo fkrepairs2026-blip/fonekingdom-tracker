@@ -5,7 +5,8 @@
 
 // Global debug log storage
 window.debugLogs = [];
-window.debugEnabled = true;
+// Disable debug logger by default for performance - only enable for specific developer
+window.debugEnabled = false; // Set to true only when debugging
 window.maxDebugLogs = 1000; // Keep last 1000 entries
 
 const DebugLogger = {
