@@ -452,6 +452,11 @@ function switchTab(tabId, dateFilter = null) {
 
         if (content.dataset.built === 'false') {
             const tabDefinition = availableTabs.find(t => t.id === tabId);
+            if (tabDefinition) {
+                console.log('📄 Lazy loading tab:', tabDefinition.label);
+                tabDefinition.build(content);
+                content.dataset.built = 'true';
+            }
         }
     }
 
