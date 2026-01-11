@@ -1353,6 +1353,7 @@ function getProfitDashboard(startDate, endDate) {
     const overheadByType = {
         shop: 0,
         house: 0,
+        loans: 0,
         miscellaneous: 0
     };
     
@@ -1385,7 +1386,8 @@ function getProfitDashboard(startDate, endDate) {
     console.log(`💰 Total overhead calculated: ₱${totalOverhead.toFixed(2)}`);
     console.log(`🏪 Shop overhead: ₱${overheadByType.shop.toFixed(2)}`);
     console.log(`🏠 House overhead: ₱${overheadByType.house.toFixed(2)}`);
-    console.log(`📝 Misc overhead: ₱${overheadByType.miscellaneous.toFixed(2)}`);
+    console.log(`� Loans overhead: ₱${overheadByType.loans.toFixed(2)}`);
+    console.log(`�📝 Misc overhead: ₱${overheadByType.miscellaneous.toFixed(2)}`);
     console.log(`👨‍🔧 Commissions by tech:`, commissionByTech);
     
     // Net profit = Shop Revenue - Overhead

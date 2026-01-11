@@ -10215,7 +10215,11 @@ function refreshProfitDashboard() {
                                 <span style="font-weight:bold;">₱${dashboard.summary.overheadByType.house.toFixed(2)}</span>
                             </div>
                             <div style="display:flex;justify-content:space-between;margin:3px 0;">
-                                <span>📝 Misc:</span>
+                                <span>� Loans:</span>
+                                <span style="font-weight:bold;">₱${dashboard.summary.overheadByType.loans.toFixed(2)}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin:3px 0;">
+                                <span>�📝 Misc:</span>
                                 <span style="font-weight:bold;">₱${dashboard.summary.overheadByType.miscellaneous.toFixed(2)}</span>
                             </div>
                         </div>
@@ -10404,9 +10408,10 @@ function buildOverheadExpensesTab(container) {
                 <div style="display:grid;grid-template-columns:1fr;gap:15px;margin-bottom:15px;">
                     <div>
                         <label>Expense Type *</label>
-                        <select id="overheadExpenseType" class="form-control">
+                        <select id="overheadExpenseType" class="form-control" onchange="updateOverheadCategories()">
                             <option value="Shop">🏪 Shop Expense</option>
                             <option value="House">🏠 House Expense</option>
+                            <option value="Loans">💳 Loans/Credit</option>
                             <option value="Miscellaneous">📝 Miscellaneous Expense</option>
                         </select>
                     </div>
@@ -10415,17 +10420,41 @@ function buildOverheadExpensesTab(container) {
                     <div>
                         <label>Category *</label>
                         <select id="overheadCategory" class="form-control">
-                            <option value="Rent">🏢 Rent</option>
-                            <option value="Utilities">⚡ Utilities (Electric, Water)</option>
-                            <option value="Salaries">👥 Salaries</option>
-                            <option value="Equipment">🔧 Equipment</option>
-                            <option value="Marketing">📢 Marketing</option>
-                            <option value="Insurance">🛡️ Insurance</option>
-                            <option value="Supplies">📦 Supplies</option>
-                            <option value="Maintenance">🔨 Maintenance</option>
-                            <option value="Food">🍽️ Food</option>
-                            <option value="Transportation">🚗 Transportation</option>
-                            <option value="Other">📝 Other</option>
+                            <!-- Shop categories -->
+                            <option value="Rent" data-type="Shop">🏢 Rent</option>
+                            <option value="Utilities" data-type="Shop">⚡ Utilities (Electric, Water)</option>
+                            <option value="Salaries" data-type="Shop">👥 Salaries</option>
+                            <option value="Equipment" data-type="Shop">🔧 Equipment</option>
+                            <option value="Marketing" data-type="Shop">📢 Marketing</option>
+                            <option value="Insurance" data-type="Shop">🛡️ Insurance</option>
+                            <option value="Supplies" data-type="Shop">📦 Supplies</option>
+                            <option value="Maintenance" data-type="Shop">🔨 Maintenance</option>
+                            <!-- House categories -->
+                            <option value="Groceries" data-type="House">🛒 Groceries</option>
+                            <option value="Food" data-type="House">🍽️ Food/Dining</option>
+                            <option value="House Utilities" data-type="House">💡 House Utilities</option>
+                            <option value="House Rent" data-type="House">🏠 House Rent</option>
+                            <option value="Healthcare" data-type="House">⚕️ Healthcare</option>
+                            <option value="Education" data-type="House">🎓 Education</option>
+                            <option value="Personal Care" data-type="House">💆 Personal Care</option>
+                            <option value="Clothing" data-type="House">👕 Clothing</option>
+                            <option value="House Maintenance" data-type="House">🔧 House Maintenance</option>
+                            <!-- Loans categories -->
+                            <option value="Credit Card" data-type="Loans">💳 Credit Card Payment</option>
+                            <option value="Personal Loan" data-type="Loans">💵 Personal Loan</option>
+                            <option value="Car Loan" data-type="Loans">🚗 Car Loan</option>
+                            <option value="Home Loan" data-type="Loans">🏡 Home Loan/Mortgage</option>
+                            <option value="Business Loan" data-type="Loans">💼 Business Loan</option>
+                            <option value="SSS Loan" data-type="Loans">🏦 SSS Loan</option>
+                            <option value="Pag-IBIG Loan" data-type="Loans">🏦 Pag-IBIG Loan</option>
+                            <option value="Cooperative Loan" data-type="Loans">🤝 Cooperative Loan</option>
+                            <!-- Miscellaneous categories -->
+                            <option value="Transportation" data-type="Miscellaneous">🚗 Transportation</option>
+                            <option value="Entertainment" data-type="Miscellaneous">🎬 Entertainment</option>
+                            <option value="Gifts" data-type="Miscellaneous">🎁 Gifts/Donations</option>
+                            <option value="Travel" data-type="Miscellaneous">✈️ Travel</option>
+                            <option value="Subscriptions" data-type="Miscellaneous">📱 Subscriptions</option>
+                            <option value="Other" data-type="Miscellaneous">📝 Other</option>
                         </select>
                     </div>
                     <div>
@@ -10474,7 +10503,7 @@ function buildOverheadExpensesTab(container) {
                         <div style="margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.3);">
                             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
                                 ${Object.entries(byType).map(([type, amt]) => {
-                                    const icon = type === 'Shop' ? '🏪' : type === 'House' ? '🏠' : '📝';
+                                    const icon = type === 'Shop' ? '🏪' : type === 'House' ? '🏠' : type === 'Loans' ? '💳' : '📝';
                                     return `
                                         <div>
                                             <div style="font-size:12px;opacity:0.9;">${icon} ${type}</div>
@@ -10507,6 +10536,7 @@ function buildOverheadExpensesTab(container) {
                 const allExpenses = (window.overheadExpenses || []).filter(e => !e.deleted);
                 const shopExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Shop');
                 const houseExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'House');
+                const loanExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Loans');
                 const miscExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Miscellaneous');
                 
                 return `
@@ -10578,6 +10608,48 @@ function buildOverheadExpensesTab(container) {
                                                 <td style="white-space:nowrap;">${utils.formatDate(new Date(exp.date))}</td>
                                                 <td><strong>${exp.category}</strong></td>
                                                 <td style="font-weight:bold;color:#ff9800;white-space:nowrap;">₱${exp.amount.toFixed(2)}</td>
+                                                <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;white-space:nowrap;">${exp.recurringFrequency}</span>` : '-'}</td>
+                                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${exp.description || exp.notes || '-'}</td>
+                                                <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
+                                                    <div style="display:flex;gap:5px;flex-wrap:nowrap;">
+                                                        <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="white-space:nowrap;">✏️ Edit</button>
+                                                        <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm" style="white-space:nowrap;">🗑️ Del</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `}
+                    </div>
+                    
+                    <!-- LOANS/CREDIT EXPENSES -->
+                    <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
+                        <h4 style="margin:0 0 15px;">💳 Loans/Credit Expenses (${loanExpenses.length})</h4>
+                        ${loanExpenses.length === 0 ? `
+                            <div style="text-align:center;padding:20px;color:#999;">
+                                No loan/credit expenses recorded
+                            </div>
+                        ` : `
+                            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                                <table class="repairs-table" style="min-width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th style="min-width:100px;">Date</th>
+                                            <th style="min-width:120px;">Category</th>
+                                            <th style="min-width:100px;">Amount</th>
+                                            <th style="min-width:80px;">Recurring</th>
+                                            <th style="min-width:150px;">Description</th>
+                                            <th style="min-width:150px;position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${loanExpenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => `
+                                            <tr>
+                                                <td style="white-space:nowrap;">${utils.formatDate(new Date(exp.date))}</td>
+                                                <td><strong>${exp.category}</strong></td>
+                                                <td style="font-weight:bold;color:#e91e63;white-space:nowrap;">₱${exp.amount.toFixed(2)}</td>
                                                 <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;white-space:nowrap;">${exp.recurringFrequency}</span>` : '-'}</td>
                                                 <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${exp.description || exp.notes || '-'}</td>
                                                 <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
@@ -10728,6 +10800,11 @@ function openEditOverheadModal(expenseId) {
     document.getElementById('editOverheadRecurring').value = expense.recurringFrequency || '';
     document.getElementById('editOverheadDescription').value = expense.description || expense.notes || '';
 
+    // Filter categories based on expense type
+    updateEditOverheadCategories();
+    // Re-set the category value after filtering
+    document.getElementById('editOverheadCategory').value = expense.category || '';
+
     // Show modal
     document.getElementById('editOverheadModal').style.display = 'flex';
 }
@@ -10778,6 +10855,68 @@ function saveEditedOverheadExpense() {
             utils.showLoading(false);
             alert('Error updating overhead expense: ' + error.message);
         });
+}
+
+/**
+ * Filter overhead categories based on expense type
+ */
+function updateOverheadCategories() {
+    const expenseType = document.getElementById('overheadExpenseType').value;
+    const categorySelect = document.getElementById('overheadCategory');
+    const options = categorySelect.querySelectorAll('option');
+    
+    options.forEach(option => {
+        const optionType = option.getAttribute('data-type');
+        if (!optionType) {
+            option.style.display = ''; // Show empty/default option
+        } else if (optionType === expenseType) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+        }
+    });
+    
+    // Reset to first visible option
+    const firstVisible = Array.from(options).find(opt => opt.style.display !== 'none' && opt.value);
+    if (firstVisible) {
+        categorySelect.value = firstVisible.value;
+    } else {
+        categorySelect.value = '';
+    }
+}
+
+/**
+ * Filter edit modal categories based on expense type
+ */
+function updateEditOverheadCategories() {
+    const expenseType = document.getElementById('editOverheadExpenseType').value;
+    const categorySelect = document.getElementById('editOverheadCategory');
+    const options = categorySelect.querySelectorAll('option');
+    
+    const currentValue = categorySelect.value;
+    
+    options.forEach(option => {
+        const optionType = option.getAttribute('data-type');
+        if (!optionType) {
+            option.style.display = ''; // Show empty/default option
+        } else if (optionType === expenseType) {
+            option.style.display = '';
+        } else {
+            option.style.display = 'none';
+        }
+    });
+    
+    // Check if current value is still visible
+    const currentOption = Array.from(options).find(opt => opt.value === currentValue);
+    if (currentOption && currentOption.style.display === 'none') {
+        // Reset to first visible option if current is hidden
+        const firstVisible = Array.from(options).find(opt => opt.style.display !== 'none' && opt.value);
+        if (firstVisible) {
+            categorySelect.value = firstVisible.value;
+        } else {
+            categorySelect.value = '';
+        }
+    }
 }
 
 // ===== SUPPLIER PAYABLES TAB =====
@@ -11348,6 +11487,8 @@ window.deleteOverheadExpenseById = deleteOverheadExpenseById;
 window.openEditOverheadModal = openEditOverheadModal;
 window.closeEditOverheadModal = closeEditOverheadModal;
 window.saveEditedOverheadExpense = saveEditedOverheadExpense;
+window.updateOverheadCategories = updateOverheadCategories;
+window.updateEditOverheadCategories = updateEditOverheadCategories;
 
 // Export supplier payables functions
 window.buildSupplierPayablesTab = buildSupplierPayablesTab;
