@@ -7956,20 +7956,20 @@ function buildInventoryTab(container) {
 
     // Inventory Table
     html += `
-        <div style="overflow-x:auto;">
-            <table class="repair-table" id="inventoryTable">
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+            <table class="repair-table" id="inventoryTable" style="min-width:100%;">
                 <thead>
                     <tr>
-                        <th>Part Name</th>
-                        <th>Part Number</th>
-                        <th>Category</th>
-                        <th>Brand/Model</th>
-                        <th>Quantity</th>
-                        <th>Min Stock</th>
-                        <th>Unit Cost</th>
-                        <th>Selling Price</th>
-                        <th>Total Value</th>
-                        <th>Actions</th>
+                        <th style="min-width:150px;">Part Name</th>
+                        <th style="min-width:120px;">Part Number</th>
+                        <th style="min-width:100px;">Category</th>
+                        <th style="min-width:120px;">Brand/Model</th>
+                        <th style="min-width:100px;">Quantity</th>
+                        <th style="min-width:90px;">Min Stock</th>
+                        <th style="min-width:100px;">Unit Cost</th>
+                        <th style="min-width:110px;">Selling Price</th>
+                        <th style="min-width:110px;">Total Value</th>
+                        <th style="min-width:150px;position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="inventoryTableBody">
@@ -8017,18 +8017,20 @@ function buildInventoryTab(container) {
                     <td>₱${item.unitCost.toLocaleString()}</td>
                     <td>₱${item.sellingPrice.toLocaleString()}</td>
                     <td><strong>₱${totalValue.toLocaleString()}</strong></td>
-                    <td>
-                        <button onclick="adjustStockModal('${item.id}')" class="btn-small" title="Adjust Stock">
-                            📊 Stock
-                        </button>
-                        ${canManage ? `
-                        <button onclick="editInventoryItemModal('${item.id}')" class="btn-small" title="Edit">
-                            ✏️
-                        </button>
-                        <button onclick="deleteInventoryItem('${item.id}')" class="btn-small btn-danger" title="Delete">
-                            🗑️
-                        </button>
-                        ` : ''}
+                    <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
+                        <div style="display:flex;gap:5px;flex-wrap:nowrap;">
+                            <button onclick="adjustStockModal('${item.id}')" class="btn-small" title="Adjust Stock" style="white-space:nowrap;">
+                                📊 Stock
+                            </button>
+                            ${canManage ? `
+                            <button onclick="editInventoryItemModal('${item.id}')" class="btn-small" title="Edit">
+                                ✏️
+                            </button>
+                            <button onclick="deleteInventoryItem('${item.id}')" class="btn-small btn-danger" title="Delete">
+                                🗑️
+                            </button>
+                            ` : ''}
+                        </div>
                     </td>
                 </tr>
             `;
@@ -10210,16 +10212,16 @@ function refreshProfitDashboard() {
             <!-- PROFIT BY REPAIR TYPE -->
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">📊 Profit by Repair Type</h4>
-                <div class="table-responsive">
-                    <table class="repairs-table">
+                <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                    <table class="repairs-table" style="min-width:100%;">
                         <thead>
                             <tr>
-                                <th>Repair Type</th>
-                                <th>Count</th>
-                                <th>Revenue</th>
-                                <th>Shop Revenue (60%)</th>
-                                <th>Margin</th>
-                                <th>Avg Shop Rev</th>
+                                <th style="min-width:150px;">Repair Type</th>
+                                <th style="min-width:80px;">Count</th>
+                                <th style="min-width:120px;">Revenue</th>
+                                <th style="min-width:140px;">Shop Revenue (60%)</th>
+                                <th style="min-width:100px;">Margin</th>
+                                <th style="min-width:120px;">Avg Shop Rev</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -10227,17 +10229,17 @@ function refreshProfitDashboard() {
                                 <tr>
                                     <td><strong>${type}</strong></td>
                                     <td>${data.count}</td>
-                                    <td>₱${data.totalRevenue.toFixed(2)}</td>
-                                    <td style="color:#4caf50;font-weight:bold;">
+                                    <td style="white-space:nowrap;">₱${data.totalRevenue.toFixed(2)}</td>
+                                    <td style="color:#4caf50;font-weight:bold;white-space:nowrap;">
                                         ₱${data.totalNetProfit.toFixed(2)}
                                     </td>
                                     <td>
                                         <span style="background:${data.avgProfitMargin >= 50 ? '#4caf50' : data.avgProfitMargin >= 40 ? '#ff9800' : '#f44336'};
-                                                     color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                                     color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;white-space:nowrap;">
                                             ${data.avgProfitMargin.toFixed(1)}%
                                         </span>
                                     </td>
-                                    <td>₱${data.avgProfit.toFixed(2)}</td>
+                                    <td style="white-space:nowrap;">₱${data.avgProfit.toFixed(2)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -10248,16 +10250,16 @@ function refreshProfitDashboard() {
             <!-- PROFIT BY TECHNICIAN -->
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">👨‍🔧 Profit by Technician</h4>
-                <div class="table-responsive">
-                    <table class="repairs-table">
+                <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                    <table class="repairs-table" style="min-width:100%;">
                         <thead>
                             <tr>
-                                <th>Technician</th>
-                                <th>Repairs</th>
-                                <th>Revenue</th>
-                                <th>Shop Revenue (60%)</th>
-                                <th>Margin</th>
-                                <th>Avg Shop Rev</th>
+                                <th style="min-width:150px;">Technician</th>
+                                <th style="min-width:80px;">Repairs</th>
+                                <th style="min-width:120px;">Revenue</th>
+                                <th style="min-width:140px;">Shop Revenue (60%)</th>
+                                <th style="min-width:100px;">Margin</th>
+                                <th style="min-width:120px;">Avg Shop Rev</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -10265,17 +10267,17 @@ function refreshProfitDashboard() {
                                 <tr>
                                     <td><strong>${tech}</strong></td>
                                     <td>${data.repairCount}</td>
-                                    <td>₱${data.totalRevenue.toFixed(2)}</td>
-                                    <td style="color:#4caf50;font-weight:bold;">
+                                    <td style="white-space:nowrap;">₱${data.totalRevenue.toFixed(2)}</td>
+                                    <td style="color:#4caf50;font-weight:bold;white-space:nowrap;">
                                         ₱${data.totalNetProfit.toFixed(2)}
                                     </td>
                                     <td>
                                         <span style="background:${data.avgProfitMargin >= 50 ? '#4caf50' : data.avgProfitMargin >= 40 ? '#ff9800' : '#f44336'};
-                                                     color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;">
+                                                     color:white;padding:3px 8px;border-radius:3px;font-size:12px;font-weight:bold;white-space:nowrap;">
                                             ${data.avgProfitMargin.toFixed(1)}%
                                         </span>
                                     </td>
-                                    <td>₱${data.avgProfit.toFixed(2)}</td>
+                                    <td style="white-space:nowrap;">₱${data.avgProfit.toFixed(2)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -10286,26 +10288,26 @@ function refreshProfitDashboard() {
             <!-- PROFIT TRENDS -->
             <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 <h4 style="margin:0 0 15px;">📈 Daily Profit Trends</h4>
-                <div class="table-responsive">
-                    <table class="repairs-table">
+                <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                    <table class="repairs-table" style="min-width:100%;">
                         <thead>
                             <tr>
-                                <th>Date</th>
-                                <th>Repairs</th>
-                                <th>Revenue</th>
-                                <th>Parts + Tech (40%)</th>
-                                <th>Shop Revenue (60%)</th>
-                                <th>Margin</th>
+                                <th style="min-width:100px;">Date</th>
+                                <th style="min-width:80px;">Repairs</th>
+                                <th style="min-width:120px;">Revenue</th>
+                                <th style="min-width:140px;">Parts + Tech (40%)</th>
+                                <th style="min-width:140px;">Shop Revenue (60%)</th>
+                                <th style="min-width:100px;">Margin</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${dashboard.trends.map(trend => `
                                 <tr>
-                                    <td>${utils.formatDate(new Date(trend.period))}</td>
+                                    <td style="white-space:nowrap;">${utils.formatDate(new Date(trend.period))}</td>
                                     <td>${trend.repairCount}</td>
-                                    <td>₱${trend.totalRevenue.toFixed(2)}</td>
-                                    <td>₱${trend.totalCosts.toFixed(2)}</td>
-                                    <td style="color:#4caf50;font-weight:bold;">
+                                    <td style="white-space:nowrap;">₱${trend.totalRevenue.toFixed(2)}</td>
+                                    <td style="white-space:nowrap;">₱${trend.totalCosts.toFixed(2)}</td>
+                                    <td style="color:#4caf50;font-weight:bold;white-space:nowrap;">
                                         ₱${trend.totalProfit.toFixed(2)}
                                     </td>
                                     <td>${trend.avgProfitMargin.toFixed(1)}%</td>
@@ -10373,6 +10375,16 @@ function buildOverheadExpensesTab(container) {
             <!-- ADD NEW EXPENSE -->
             <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">➕ Add New Overhead Expense</h4>
+                <div style="display:grid;grid-template-columns:1fr;gap:15px;margin-bottom:15px;">
+                    <div>
+                        <label>Expense Type *</label>
+                        <select id="overheadExpenseType" class="form-control">
+                            <option value="Shop">🏪 Shop Expense</option>
+                            <option value="House">🏠 House Expense</option>
+                            <option value="Miscellaneous">📝 Miscellaneous Expense</option>
+                        </select>
+                    </div>
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
                     <div>
                         <label>Category *</label>
@@ -10385,6 +10397,8 @@ function buildOverheadExpensesTab(container) {
                             <option value="Insurance">🛡️ Insurance</option>
                             <option value="Supplies">📦 Supplies</option>
                             <option value="Maintenance">🔨 Maintenance</option>
+                            <option value="Food">🍽️ Food</option>
+                            <option value="Transportation">🚗 Transportation</option>
                             <option value="Other">📝 Other</option>
                         </select>
                     </div>
@@ -10423,13 +10437,38 @@ function buildOverheadExpensesTab(container) {
                 <div style="font-size:32px;font-weight:bold;margin-bottom:10px;">₱${monthTotal.toFixed(2)}</div>
                 <div style="font-size:14px;opacity:0.9;">${monthExpenses.length} expense(s)</div>
                 
+                ${(() => {
+                    const byType = {};
+                    monthExpenses.forEach(exp => {
+                        const type = exp.expenseType || 'Miscellaneous';
+                        if (!byType[type]) byType[type] = 0;
+                        byType[type] += exp.amount;
+                    });
+                    return Object.keys(byType).length > 0 ? `
+                        <div style="margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.3);">
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                                ${Object.entries(byType).map(([type, amt]) => {
+                                    const icon = type === 'Shop' ? '🏪' : type === 'House' ? '🏠' : '📝';
+                                    return `
+                                        <div>
+                                            <div style="font-size:12px;opacity:0.9;">${icon} ${type}</div>
+                                            <div style="font-size:18px;font-weight:bold;">₱${amt.toFixed(2)}</div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    ` : '';
+                })()}
+                
                 ${Object.keys(byCategory).length > 0 ? `
                     <div style="margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.3);">
-                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
+                        <div style="font-size:12px;opacity:0.8;margin-bottom:10px;">By Category:</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;">
                             ${Object.entries(byCategory).map(([cat, amt]) => `
                                 <div>
-                                    <div style="font-size:12px;opacity:0.9;">${cat}</div>
-                                    <div style="font-size:18px;font-weight:bold;">₱${amt.toFixed(2)}</div>
+                                    <div style="font-size:11px;opacity:0.9;">${cat}</div>
+                                    <div style="font-size:14px;font-weight:bold;">₱${amt.toFixed(2)}</div>
                                 </div>
                             `).join('')}
                         </div>
@@ -10445,39 +10484,48 @@ function buildOverheadExpensesTab(container) {
                         No overhead expenses recorded yet
                     </div>
                 ` : `
-                    <div class="table-responsive">
-                        <table class="repairs-table">
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                        <table class="repairs-table" style="min-width:100%;">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Category</th>
-                                    <th>Amount</th>
-                                    <th>Recurring</th>
-                                    <th>Description</th>
-                                    <th>Actions</th>
+                                    <th style="min-width:100px;">Date</th>
+                                    <th style="min-width:120px;">Type</th>
+                                    <th style="min-width:120px;">Category</th>
+                                    <th style="min-width:100px;">Amount</th>
+                                    <th style="min-width:80px;">Recurring</th>
+                                    <th style="min-width:150px;">Description</th>
+                                    <th style="min-width:150px;position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${(window.overheadExpenses || [])
             .filter(e => !e.deleted)
             .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .map(exp => `
+            .map(exp => {
+                const expType = exp.expenseType || 'Miscellaneous';
+                const typeIcon = expType === 'Shop' ? '🏪' : expType === 'House' ? '🏠' : '📝';
+                const typeBadge = `<span style="background:${expType === 'Shop' ? '#2196f3' : expType === 'House' ? '#ff9800' : '#9c27b0'};color:white;padding:2px 8px;border-radius:4px;font-size:11px;white-space:nowrap;">${typeIcon} ${expType}</span>`;
+                return `
                                         <tr>
-                                            <td>${utils.formatDate(new Date(exp.date))}</td>
+                                            <td style="white-space:nowrap;">${utils.formatDate(new Date(exp.date))}</td>
+                                            <td>${typeBadge}</td>
                                             <td><strong>${exp.category}</strong></td>
-                                            <td style="font-weight:bold;color:#667eea;">₱${exp.amount.toFixed(2)}</td>
-                                            <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;">${exp.recurringFrequency}</span>` : '-'}</td>
-                                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${exp.description || exp.notes || '-'}</td>
-                                            <td>
-                                                <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="margin-right:5px;">
-                                                    ✏️ Edit
-                                                </button>
-                                                <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm">
-                                                    🗑️ Delete
-                                                </button>
+                                            <td style="font-weight:bold;color:#667eea;white-space:nowrap;">₱${exp.amount.toFixed(2)}</td>
+                                            <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;white-space:nowrap;">${exp.recurringFrequency}</span>` : '-'}</td>
+                                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${exp.description || exp.notes || '-'}</td>
+                                            <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
+                                                <div style="display:flex;gap:5px;flex-wrap:nowrap;">
+                                                    <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="white-space:nowrap;">
+                                                        ✏️ Edit
+                                                    </button>
+                                                    <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm" style="white-space:nowrap;">
+                                                        🗑️ Del
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
-                                    `).join('')}
+                                    `;
+            }).join('')}
                             </tbody>
                         </table>
                     </div>
@@ -10488,18 +10536,20 @@ function buildOverheadExpensesTab(container) {
 }
 
 function saveOverheadExpense() {
+    const expenseType = document.getElementById('overheadExpenseType').value;
     const category = document.getElementById('overheadCategory').value;
     const amount = parseFloat(document.getElementById('overheadAmount').value);
     const date = document.getElementById('overheadDate').value;
     const recurring = document.getElementById('overheadRecurring').value;
     const description = document.getElementById('overheadDescription').value.trim();
 
-    if (!category || !amount || amount <= 0 || !date) {
+    if (!expenseType || !category || !amount || amount <= 0 || !date) {
         alert('Please fill in all required fields');
         return;
     }
 
     const expense = {
+        expenseType: expenseType,
         category: category,
         amount: amount,
         date: date + 'T00:00:00.000Z',
