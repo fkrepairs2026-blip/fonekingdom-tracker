@@ -14115,6 +14115,7 @@ async function addOverheadExpense(expense) {
         utils.showLoading(true);
 
         const expenseData = {
+            expenseType: expense.expenseType || 'Miscellaneous',
             category: expense.category,
             description: expense.description,
             amount: parseFloat(expense.amount),
