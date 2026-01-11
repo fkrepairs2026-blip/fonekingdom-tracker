@@ -12764,7 +12764,7 @@ function closeCreditCardModal() {
     document.getElementById('creditCardModal').style.display = 'none';
 }
 
-async function saveCreditCard() {
+async function submitCreditCardForm() {
     const cardData = {
         id: null,
         cardName: document.getElementById('cardName').value,
@@ -12778,7 +12778,7 @@ async function saveCreditCard() {
         isActive: document.getElementById('cardActive').checked
     };
 
-    const result = await window.saveCreditCard(cardData);
+    const result = await saveCreditCard(cardData);
     if (result.success) {
         closeCreditCardModal();
     }
@@ -13323,7 +13323,7 @@ window.saveRecurringTemplate = saveRecurringTemplate;
 window.editRecurringTemplate = editRecurringTemplate;
 window.openCreditCardModal = openCreditCardModal;
 window.closeCreditCardModal = closeCreditCardModal;
-window.saveCreditCard = saveCreditCard;
+window.submitCreditCardForm = submitCreditCardForm;
 window.editCreditCard = editCreditCard;
 window.recordCardPayment = recordCardPayment;
 window.openLoanCalculatorModal = openLoanCalculatorModal;
