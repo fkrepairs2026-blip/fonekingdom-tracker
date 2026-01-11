@@ -612,14 +612,14 @@ function checkExcessiveRetroactiveIntakes(techUid) {
  */
 async function submitReceiveDevice(e) {
     e.preventDefault();
-    
+
     // Prevent double submission
     if (window.isSubmittingDevice) {
         console.warn('⚠️ Submission already in progress, ignoring duplicate');
         return;
     }
     window.isSubmittingDevice = true;
-    
+
     try {
         const form = e.target;
         const data = new FormData(form);
@@ -632,249 +632,249 @@ async function submitReceiveDevice(e) {
 
         // DEBUG: Capture form inputs
         const formInputs = {
-        customerType: data.get('customerType'),
-        customerName: data.get('customerName'),
-        shopName: data.get('shopName') || '',
-        contactNumber: data.get('contactNumber'),
-        brand: data.get('brand'),
-        model: data.get('model'),
-        imei: data.get('imei') || '',
-        deviceColor: data.get('deviceColor') || 'N/A',
-        storageCapacity: data.get('storageCapacity') || 'N/A',
-        problemType: data.get('problemType') || 'Pending Diagnosis',
-        problem: data.get('problem'),
-        estimatedCost: data.get('estimatedCost'),
-        isBackJob: isBackJob,
-        preApprovedRepairType: document.getElementById('preApprovedRepairType')?.value,
-        preApprovedPartsCost: document.getElementById('preApprovedPartsCost')?.value,
-        preApprovedLaborCost: document.getElementById('preApprovedLaborCost')?.value,
-        assignOption: data.get('assignOption'),
-        photoCount: photoData.length
-    };
+            customerType: data.get('customerType'),
+            customerName: data.get('customerName'),
+            shopName: data.get('shopName') || '',
+            contactNumber: data.get('contactNumber'),
+            brand: data.get('brand'),
+            model: data.get('model'),
+            imei: data.get('imei') || '',
+            deviceColor: data.get('deviceColor') || 'N/A',
+            storageCapacity: data.get('storageCapacity') || 'N/A',
+            problemType: data.get('problemType') || 'Pending Diagnosis',
+            problem: data.get('problem'),
+            estimatedCost: data.get('estimatedCost'),
+            isBackJob: isBackJob,
+            preApprovedRepairType: document.getElementById('preApprovedRepairType')?.value,
+            preApprovedPartsCost: document.getElementById('preApprovedPartsCost')?.value,
+            preApprovedLaborCost: document.getElementById('preApprovedLaborCost')?.value,
+            assignOption: data.get('assignOption'),
+            photoCount: photoData.length
+        };
 
-    if (window.DebugLogger) {
-        DebugLogger.log('FORM', 'Receive Device Form Submitted', formInputs);
-    }
-
-    const repair = {
-        customerType: data.get('customerType'),
-        customerName: data.get('customerName'),
-        shopName: data.get('shopName') || '',
-        contactNumber: data.get('contactNumber'),
-        brand: data.get('brand'),
-        model: data.get('model'),
-
-        // NEW: Device Details (Phase 2)
-        imei: data.get('imei') || '',
-        deviceColor: data.get('deviceColor') || 'N/A',
-        storageCapacity: data.get('storageCapacity') || 'N/A',
-        devicePasscode: data.get('devicePasscode') || '',
-
-        // Pre-Repair Checklist - filled when technician accepts repair
-        preRepairChecklist: null,
-
-        problemType: data.get('problemType') || 'Pending Diagnosis',
-        problem: data.get('problem'),
-        initialAssessment: data.get('initialAssessment')?.trim() || null,
-        repairType: 'Pending Diagnosis',
-        partType: '',
-        partSource: '',
-        partsCost: 0,
-        laborCost: 0,
-        total: 0,
-        status: 'Received',
-        photos: photoData,
-        payments: [],
-        createdAt: new Date().toISOString(),
-        createdBy: window.currentUser.uid,
-        createdByName: window.currentUserData.displayName,
-        receivedBy: window.currentUserData.displayName,
-        acceptedBy: null,
-        acceptedByName: null,
-        acceptedAt: null,
-        // Diagnosis workflow fields
-        diagnosisCreated: false,
-        diagnosisCreatedAt: null,
-        diagnosisCreatedBy: null,
-        diagnosisCreatedByName: null,
-        customerApproved: false,
-        customerApprovedAt: null,
-        customerApprovedBy: null
-
-    };
-
-    // Check if pricing was provided (auto-approve if pricing present)
-    const repairType = document.getElementById('preApprovedRepairType').value;
-    const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
-    const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
-    const total = partsCost + laborCost;
-    const hasPricing = repairType && total > 0;
-
-    // ==================== RETROACTIVE COMPLETION MODE ====================
-    // Check if retroactive completion mode is selected
-    const completionMode = data.get('completionMode') || 'normal';
-
-    if (completionMode !== 'normal') {
-        // Retroactive mode - device already completed
-        console.log('🔄 Retroactive completion mode:', completionMode);
-
-        // VALIDATION: Require pricing
-        if (!hasPricing) {
-            alert('⚠️ Pricing is required for retroactive completion mode!\n\nPlease enter:\n• Repair Type\n• Parts Cost\n• Labor Cost');
-            return;
+        if (window.DebugLogger) {
+            DebugLogger.log('FORM', 'Receive Device Form Submitted', formInputs);
         }
 
-        // VALIDATION: Check for duplicates
-        const duplicateCheck = checkDuplicateRetroactiveIntake(
-            data.get('customerName'),
-            data.get('brand'),
-            data.get('model')
-        );
+        const repair = {
+            customerType: data.get('customerType'),
+            customerName: data.get('customerName'),
+            shopName: data.get('shopName') || '',
+            contactNumber: data.get('contactNumber'),
+            brand: data.get('brand'),
+            model: data.get('model'),
 
-        if (duplicateCheck.isBlocked) {
-            // Blocked duplicate detected
-            if (window.currentUserData.role !== 'admin') {
-                // Non-admin: Cannot proceed
-                let duplicateMsg = '❌ DUPLICATE DETECTION - Cannot proceed!\n\n';
-                duplicateMsg += `Reason: ${duplicateCheck.reason}\n\n`;
-                duplicateMsg += 'Similar repairs found:\n';
-                duplicateCheck.matchingRepairs.forEach((match, idx) => {
-                    duplicateMsg += `\n${idx + 1}. ID: ${match.id.substring(0, 8)}\n`;
-                    duplicateMsg += `   Customer: ${match.customerName}\n`;
-                    duplicateMsg += `   Device: ${match.brand} ${match.model}\n`;
-                    duplicateMsg += `   Date: ${match.daysAgo} days ago\n`;
-                    duplicateMsg += `   Confidence: ${match.confidence}%\n`;
-                    duplicateMsg += `   Status: ${match.status}\n`;
-                });
-                duplicateMsg += '\nOnly admins can override this block.';
-                alert(duplicateMsg);
+            // NEW: Device Details (Phase 2)
+            imei: data.get('imei') || '',
+            deviceColor: data.get('deviceColor') || 'N/A',
+            storageCapacity: data.get('storageCapacity') || 'N/A',
+            devicePasscode: data.get('devicePasscode') || '',
+
+            // Pre-Repair Checklist - filled when technician accepts repair
+            preRepairChecklist: null,
+
+            problemType: data.get('problemType') || 'Pending Diagnosis',
+            problem: data.get('problem'),
+            initialAssessment: data.get('initialAssessment')?.trim() || null,
+            repairType: 'Pending Diagnosis',
+            partType: '',
+            partSource: '',
+            partsCost: 0,
+            laborCost: 0,
+            total: 0,
+            status: 'Received',
+            photos: photoData,
+            payments: [],
+            createdAt: new Date().toISOString(),
+            createdBy: window.currentUser.uid,
+            createdByName: window.currentUserData.displayName,
+            receivedBy: window.currentUserData.displayName,
+            acceptedBy: null,
+            acceptedByName: null,
+            acceptedAt: null,
+            // Diagnosis workflow fields
+            diagnosisCreated: false,
+            diagnosisCreatedAt: null,
+            diagnosisCreatedBy: null,
+            diagnosisCreatedByName: null,
+            customerApproved: false,
+            customerApprovedAt: null,
+            customerApprovedBy: null
+
+        };
+
+        // Check if pricing was provided (auto-approve if pricing present)
+        const repairType = document.getElementById('preApprovedRepairType').value;
+        const partsCost = parseFloat(document.getElementById('preApprovedPartsCost').value) || 0;
+        const laborCost = parseFloat(document.getElementById('preApprovedLaborCost').value) || 0;
+        const total = partsCost + laborCost;
+        const hasPricing = repairType && total > 0;
+
+        // ==================== RETROACTIVE COMPLETION MODE ====================
+        // Check if retroactive completion mode is selected
+        const completionMode = data.get('completionMode') || 'normal';
+
+        if (completionMode !== 'normal') {
+            // Retroactive mode - device already completed
+            console.log('🔄 Retroactive completion mode:', completionMode);
+
+            // VALIDATION: Require pricing
+            if (!hasPricing) {
+                alert('⚠️ Pricing is required for retroactive completion mode!\n\nPlease enter:\n• Repair Type\n• Parts Cost\n• Labor Cost');
                 return;
-            } else {
-                // Admin: Show warning and require override reason
-                const overrideReason = prompt(
-                    `⚠️ ADMIN DUPLICATE OVERRIDE REQUIRED\n\n` +
-                    `Reason: ${duplicateCheck.reason}\n\n` +
-                    `${duplicateCheck.matchingRepairs.length} similar repair(s) found in last 7 days:\n` +
-                    duplicateCheck.matchingRepairs.map((m, i) =>
-                        `${i + 1}. ${m.customerName} - ${m.brand} ${m.model} (${m.daysAgo}d ago, ${m.confidence}% match)`
-                    ).join('\n') +
-                    `\n\nEnter override reason (minimum 20 characters):`
-                );
-
-                if (!overrideReason || overrideReason.trim().length < 20) {
-                    alert('❌ Override cancelled or reason too short (minimum 20 characters required)');
-                    return;
-                }
-
-                repair.duplicateOverrideReason = overrideReason.trim();
-                repair.duplicateOverridden = true;
             }
-        }
 
-        // Get unified completion fields
-        const completionDate = document.getElementById('completionDate')?.value;
-        const releaseDate = document.getElementById('releaseDate')?.value;
-        const adminOverride = document.getElementById('adminDateOverride')?.checked || false;
-
-        // VALIDATION: Validate dates
-        const dateValidation = validateBackdateTimestamp(completionDate, releaseDate, adminOverride);
-        if (!dateValidation.valid) {
-            alert(`⚠️ Date Validation Error:\n\n${dateValidation.error}`);
-            return;
-        }
-
-        // Check for excessive usage
-        const excessiveCheck = checkExcessiveRetroactiveIntakes(window.currentUser.uid);
-        if (excessiveCheck.isExcessive) {
-            const continueExcessive = confirm(
-                `⚠️ EXCESSIVE USAGE WARNING\n\n` +
-                `You've created ${excessiveCheck.count}/${excessiveCheck.threshold} retroactive intakes today.\n\n` +
-                `Admin will be notified of this activity.\n\n` +
-                `Continue anyway?`
+            // VALIDATION: Check for duplicates
+            const duplicateCheck = checkDuplicateRetroactiveIntake(
+                data.get('customerName'),
+                data.get('brand'),
+                data.get('model')
             );
 
-            if (!continueExcessive) {
+            if (duplicateCheck.isBlocked) {
+                // Blocked duplicate detected
+                if (window.currentUserData.role !== 'admin') {
+                    // Non-admin: Cannot proceed
+                    let duplicateMsg = '❌ DUPLICATE DETECTION - Cannot proceed!\n\n';
+                    duplicateMsg += `Reason: ${duplicateCheck.reason}\n\n`;
+                    duplicateMsg += 'Similar repairs found:\n';
+                    duplicateCheck.matchingRepairs.forEach((match, idx) => {
+                        duplicateMsg += `\n${idx + 1}. ID: ${match.id.substring(0, 8)}\n`;
+                        duplicateMsg += `   Customer: ${match.customerName}\n`;
+                        duplicateMsg += `   Device: ${match.brand} ${match.model}\n`;
+                        duplicateMsg += `   Date: ${match.daysAgo} days ago\n`;
+                        duplicateMsg += `   Confidence: ${match.confidence}%\n`;
+                        duplicateMsg += `   Status: ${match.status}\n`;
+                    });
+                    duplicateMsg += '\nOnly admins can override this block.';
+                    alert(duplicateMsg);
+                    return;
+                } else {
+                    // Admin: Show warning and require override reason
+                    const overrideReason = prompt(
+                        `⚠️ ADMIN DUPLICATE OVERRIDE REQUIRED\n\n` +
+                        `Reason: ${duplicateCheck.reason}\n\n` +
+                        `${duplicateCheck.matchingRepairs.length} similar repair(s) found in last 7 days:\n` +
+                        duplicateCheck.matchingRepairs.map((m, i) =>
+                            `${i + 1}. ${m.customerName} - ${m.brand} ${m.model} (${m.daysAgo}d ago, ${m.confidence}% match)`
+                        ).join('\n') +
+                        `\n\nEnter override reason (minimum 20 characters):`
+                    );
+
+                    if (!overrideReason || overrideReason.trim().length < 20) {
+                        alert('❌ Override cancelled or reason too short (minimum 20 characters required)');
+                        return;
+                    }
+
+                    repair.duplicateOverrideReason = overrideReason.trim();
+                    repair.duplicateOverridden = true;
+                }
+            }
+
+            // Get unified completion fields
+            const completionDate = document.getElementById('completionDate')?.value;
+            const releaseDate = document.getElementById('releaseDate')?.value;
+            const adminOverride = document.getElementById('adminDateOverride')?.checked || false;
+
+            // VALIDATION: Validate dates
+            const dateValidation = validateBackdateTimestamp(completionDate, releaseDate, adminOverride);
+            if (!dateValidation.valid) {
+                alert(`⚠️ Date Validation Error:\n\n${dateValidation.error}`);
                 return;
             }
-        }
 
-        // Get additional fields
-        const verificationMethod = document.getElementById('verificationMethod')?.value || null;
-        const releaseNotes = document.getElementById('releaseNotes')?.value || '';
-        const warrantyDays = parseInt(document.getElementById('warrantyDays')?.value || 7);
+            // Check for excessive usage
+            const excessiveCheck = checkExcessiveRetroactiveIntakes(window.currentUser.uid);
+            if (excessiveCheck.isExcessive) {
+                const continueExcessive = confirm(
+                    `⚠️ EXCESSIVE USAGE WARNING\n\n` +
+                    `You've created ${excessiveCheck.count}/${excessiveCheck.threshold} retroactive intakes today.\n\n` +
+                    `Admin will be notified of this activity.\n\n` +
+                    `Continue anyway?`
+                );
 
-        // Handle service slip photo if provided
-        let serviceSlipPhoto = null;
-        const slipPhotoInput = document.getElementById('serviceSlipPhoto');
-        if (slipPhotoInput && slipPhotoInput.files && slipPhotoInput.files[0]) {
-            serviceSlipPhoto = await utils.compressImage(slipPhotoInput.files[0]);
-        }
-
-        // Handle payment collection
-        const collectPayment = document.getElementById('collectPayment')?.checked;
-        let paymentData = null;
-
-        if (collectPayment) {
-            const paymentAmount = parseFloat(document.getElementById('paymentAmount')?.value || 0);
-            const paymentMethod = document.getElementById('paymentMethod')?.value;
-            const paymentNotes = document.getElementById('paymentNotes')?.value || '';
-
-            if (!paymentMethod) {
-                alert('⚠️ Please select a payment method!');
-                return;
-            }
-
-            if (paymentAmount <= 0) {
-                alert('⚠️ Payment amount must be greater than 0!');
-                return;
-            }
-
-            // GCash validation
-            if (paymentMethod === 'GCash') {
-                const gcashRef = document.getElementById('gcashRef')?.value;
-                if (!gcashRef || gcashRef.trim().length === 0) {
-                    alert('⚠️ GCash reference number is required!');
+                if (!continueExcessive) {
                     return;
                 }
             }
 
-            // Determine if user can auto-verify payments
-            const isTechnician = window.currentUserData.role === 'technician';
-            const isAdminOrManager = window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager';
-            const isGCash = paymentMethod === 'GCash';
+            // Get additional fields
+            const verificationMethod = document.getElementById('verificationMethod')?.value || null;
+            const releaseNotes = document.getElementById('releaseNotes')?.value || '';
+            const warrantyDays = parseInt(document.getElementById('warrantyDays')?.value || 7);
 
-            paymentData = {
-                amount: paymentAmount,
-                method: paymentMethod,
-                gcashReference: paymentMethod === 'GCash' ? document.getElementById('gcashRef')?.value : null,
-                notes: paymentNotes,
-                paymentDate: new Date(releaseDate || completionDate).toISOString(),
-                recordedDate: new Date().toISOString(),
-                collectedDuringIntake: true,
-                collectedAt: new Date().toISOString(),
-                receivedBy: window.currentUserData.displayName,
-                receivedById: window.currentUser.uid,
-                // Remittance tracking for technician payments
-                collectedByTech: !isGCash && isTechnician,
-                techRemittanceId: null,
-                remittanceStatus: (!isGCash && isTechnician) ? 'pending' : 'n/a',
-                // Auto-verify for tech/admin/manager (cashiers need verification)
-                verified: isTechnician || isAdminOrManager,
-                verifiedBy: (isTechnician || isAdminOrManager) ? window.currentUserData.displayName : null,
-                verifiedAt: (isTechnician || isAdminOrManager) ? new Date().toISOString() : null
-            };
-        }
+            // Handle service slip photo if provided
+            let serviceSlipPhoto = null;
+            const slipPhotoInput = document.getElementById('serviceSlipPhoto');
+            if (slipPhotoInput && slipPhotoInput.files && slipPhotoInput.files[0]) {
+                serviceSlipPhoto = await utils.compressImage(slipPhotoInput.files[0]);
+            }
 
-        // SIMPLIFIED STATUS LOGIC - Always use Released
-        // Cashier/Admin will manually finalize through normal workflow
-        // This prevents the bug where Claimed devices become uneditable
-        let finalStatus = 'Released';
-        let shouldFinalize = false;
-        
-        // Note: Even if fully paid, device stays as "Released" to maintain workflow consistency
+            // Handle payment collection
+            const collectPayment = document.getElementById('collectPayment')?.checked;
+            let paymentData = null;
 
-        // CONFIRMATION MODAL
-        const confirmDetails = `
+            if (collectPayment) {
+                const paymentAmount = parseFloat(document.getElementById('paymentAmount')?.value || 0);
+                const paymentMethod = document.getElementById('paymentMethod')?.value;
+                const paymentNotes = document.getElementById('paymentNotes')?.value || '';
+
+                if (!paymentMethod) {
+                    alert('⚠️ Please select a payment method!');
+                    return;
+                }
+
+                if (paymentAmount <= 0) {
+                    alert('⚠️ Payment amount must be greater than 0!');
+                    return;
+                }
+
+                // GCash validation
+                if (paymentMethod === 'GCash') {
+                    const gcashRef = document.getElementById('gcashRef')?.value;
+                    if (!gcashRef || gcashRef.trim().length === 0) {
+                        alert('⚠️ GCash reference number is required!');
+                        return;
+                    }
+                }
+
+                // Determine if user can auto-verify payments
+                const isTechnician = window.currentUserData.role === 'technician';
+                const isAdminOrManager = window.currentUserData.role === 'admin' || window.currentUserData.role === 'manager';
+                const isGCash = paymentMethod === 'GCash';
+
+                paymentData = {
+                    amount: paymentAmount,
+                    method: paymentMethod,
+                    gcashReference: paymentMethod === 'GCash' ? document.getElementById('gcashRef')?.value : null,
+                    notes: paymentNotes,
+                    paymentDate: new Date(releaseDate || completionDate).toISOString(),
+                    recordedDate: new Date().toISOString(),
+                    collectedDuringIntake: true,
+                    collectedAt: new Date().toISOString(),
+                    receivedBy: window.currentUserData.displayName,
+                    receivedById: window.currentUser.uid,
+                    // Remittance tracking for technician payments
+                    collectedByTech: !isGCash && isTechnician,
+                    techRemittanceId: null,
+                    remittanceStatus: (!isGCash && isTechnician) ? 'pending' : 'n/a',
+                    // Auto-verify for tech/admin/manager (cashiers need verification)
+                    verified: isTechnician || isAdminOrManager,
+                    verifiedBy: (isTechnician || isAdminOrManager) ? window.currentUserData.displayName : null,
+                    verifiedAt: (isTechnician || isAdminOrManager) ? new Date().toISOString() : null
+                };
+            }
+
+            // SIMPLIFIED STATUS LOGIC - Always use Released
+            // Cashier/Admin will manually finalize through normal workflow
+            // This prevents the bug where Claimed devices become uneditable
+            let finalStatus = 'Released';
+            let shouldFinalize = false;
+
+            // Note: Even if fully paid, device stays as "Released" to maintain workflow consistency
+
+            // CONFIRMATION MODAL
+            const confirmDetails = `
 ⚠️ **RETROACTIVE INTAKE - BYPASS NORMAL WORKFLOW**
 
 Mode: ${completionMode === 'pre-completed' ? 'Pre-completed (Waiting to be Claimed)' : 'Completed (Released & Paid)'}
@@ -893,437 +893,437 @@ ${shouldFinalize ? '✓ Device will be auto-finalized to Claimed status (fully p
 This device will be marked as already repaired.
         `.trim();
 
-        const userConfirmed = confirm(
-            confirmDetails + '\n\n☑️ I confirm this device was already repaired before this intake.\n\nContinue?'
-        );
+            const userConfirmed = confirm(
+                confirmDetails + '\n\n☑️ I confirm this device was already repaired before this intake.\n\nContinue?'
+            );
 
-        if (!userConfirmed) {
-            console.log('❌ User cancelled retroactive intake');
-            return;
+            if (!userConfirmed) {
+                console.log('❌ User cancelled retroactive intake');
+                return;
+            }
+
+            // BUILD RETROACTIVE REPAIR OBJECT
+            const completionDateISO = new Date(completionDate).toISOString();
+            const releaseDateISO = new Date(releaseDate).toISOString();
+            const warrantyEndDate = new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000);
+
+            // Set base repair data with pricing
+            repair.repairType = repairType;
+            repair.partsCost = partsCost;
+            repair.laborCost = laborCost;
+            repair.total = total;
+
+            // Mark as retroactive intake
+            repair.retroactiveIntake = true;
+            repair.retroactiveReason = 'Device received after completion';
+            repair.adminDateOverride = adminOverride;
+            repair.duplicateDetected = duplicateCheck.matchingRepairs.length > 0;
+
+            // Set status based on auto-finalization logic
+            repair.status = finalStatus;
+
+            // Set completion fields
+            repair.completedAt = completionDateISO;
+            repair.completedBy = window.currentUserData.displayName;
+            repair.completedById = window.currentUser.uid;
+
+            // Set diagnosis as created and customer approved
+            repair.diagnosisCreated = true;
+            repair.diagnosisCreatedAt = completionDateISO;
+            repair.diagnosisCreatedBy = window.currentUser.uid;
+            repair.diagnosisCreatedByName = window.currentUserData.displayName;
+            repair.customerApproved = true;
+            repair.customerApprovedAt = completionDateISO;
+            repair.customerApprovedBy = window.currentUser.uid;
+
+            // Auto-assign to current technician
+            repair.acceptedBy = window.currentUser.uid;
+            repair.acceptedByName = window.currentUserData.displayName;
+            repair.acceptedAt = completionDateISO;
+            repair.assignmentMethod = 'retroactive-auto-assign';
+
+            // Always set released fields
+            repair.releasedAt = releaseDateISO;
+            repair.releaseDate = releaseDateISO;
+            repair.releasedBy = window.currentUserData.displayName;
+            repair.releasedById = window.currentUser.uid;
+            repair.releasedByRole = window.currentUserData.role;
+            repair.repairedBy = window.currentUserData.displayName;
+            repair.repairedById = window.currentUser.uid;
+            repair.verificationMethod = verificationMethod;
+            repair.serviceSlipPhoto = serviceSlipPhoto;
+            repair.verifiedWithSlip = verificationMethod === 'with-slip';
+            repair.releaseNotes = releaseNotes;
+
+            // If auto-finalized to Claimed, set finalization fields
+            if (shouldFinalize) {
+                repair.claimedAt = releaseDateISO;
+                repair.finalizedAt = releaseDateISO;
+                repair.finalizedBy = window.currentUserData.displayName;
+                repair.finalizedById = window.currentUser.uid;
+                repair.autoFinalized = true;
+                repair.autoFinalizedReason = 'Fully paid during retroactive intake';
+                repair.warrantyDays = warrantyDays;
+                repair.warrantyEndDate = warrantyEndDate.toISOString();
+            }
+
+            // Add payment if collected
+            if (paymentData) {
+                repair.payments = [paymentData];
+                repair.amountPaid = paymentData.amount;
+            }
+
+            // Save to Firebase
+            try {
+                const newRef = await db.ref('repairs').push(repair);
+                const repairId = newRef.key;
+
+                console.log('✅ Retroactive intake saved:', repairId);
+
+                // Save to retroactiveIntakes audit collection
+                const today = new Date();
+                const auditEntry = {
+                    repairId: repairId,
+                    performedBy: window.currentUser.uid,
+                    performedByName: window.currentUserData.displayName,
+                    performedByRole: window.currentUserData.role,
+                    performedAt: new Date().toISOString(),
+                    performedDate: today.toISOString().split('T')[0],
+                    performedWeek: `${today.getFullYear()}-W${String(Math.ceil((today - new Date(today.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000))).padStart(2, '0')}`,
+                    performedMonth: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`,
+                    originalCompletionDate: completionDateISO,
+                    backdatedReleaseDate: releaseDateISO,
+                    completionMode: completionMode,
+                    finalStatus: finalStatus,
+                    autoFinalized: shouldFinalize,
+                    customerName: repair.customerName,
+                    deviceBrand: repair.brand,
+                    deviceModel: repair.model,
+                    verificationMethod: verificationMethod || 'N/A',
+                    paymentCollected: paymentData ? paymentData.amount : null,
+                    paymentMethod: paymentData ? paymentData.method : null,
+                    warrantyDays: warrantyDays,
+                    retroactiveReason: 'Device received after completion',
+                    adminDateOverride: adminOverride,
+                    duplicateDetected: duplicateCheck.matchingRepairs.length > 0,
+                    duplicateOverridden: repair.duplicateOverridden || false,
+                    duplicateOverrideReason: repair.duplicateOverrideReason || null,
+                    duplicateMatchingRepairs: duplicateCheck.matchingRepairs.map(m => ({
+                        id: m.id,
+                        customerName: m.customerName,
+                        confidence: m.confidence,
+                        daysAgo: m.daysAgo
+                    })),
+                    techDailyCount: excessiveCheck.count + 1,
+                    excessiveUsageFlag: excessiveCheck.isExcessive
+                };
+
+                await db.ref('retroactiveIntakes').push(auditEntry);
+                console.log('✅ Audit entry saved to retroactiveIntakes collection');
+
+                // Send notification if excessive usage
+                if (excessiveCheck.isExcessive) {
+                    await db.ref('adminNotifications').push({
+                        type: 'excessive_retroactive_intakes',
+                        techUid: window.currentUser.uid,
+                        techName: window.currentUserData.displayName,
+                        count: excessiveCheck.count + 1,
+                        threshold: excessiveCheck.threshold,
+                        date: today.toISOString().split('T')[0],
+                        repairIds: [repairId],
+                        message: `${window.currentUserData.displayName} created ${excessiveCheck.count + 1} retroactive intakes today`,
+                        createdAt: new Date().toISOString(),
+                        read: false,
+                        priority: 'medium'
+                    });
+                    console.log('⚠️ Excessive usage notification sent to admins');
+                }
+
+                // Log activity with special retroactive intake marker
+                await logActivity('retroactive_intake', {
+                    repairId: repairId,
+                    originalCompletionDate: completionDateISO,
+                    backdatedTo: releaseDateISO,
+                    finalStatus: repair.status,
+                    assignedTo: window.currentUserData.displayName,
+                    paymentCollected: paymentData ? paymentData.amount : 0,
+                    verificationMethod: verificationMethod || 'warranty-finalized',
+                    duplicateCheckPassed: !duplicateCheck.isBlocked || repair.duplicateOverridden,
+                    duplicateOverridden: repair.duplicateOverridden || false,
+                    excessiveUsageFlag: excessiveCheck.isExcessive,
+                    techDailyCount: excessiveCheck.count + 1,
+                    threshold: excessiveCheck.threshold
+                }, `🔄 Retroactive intake - Device completed on ${utils.formatDate(completionDateISO)}, received on ${utils.formatDate(new Date().toISOString())}`);
+
+
+                // Success message
+                alert(
+                    `✅ Retroactive Intake Complete!\n\n` +
+                    `📱 Device: ${repair.brand} ${repair.model}\n` +
+                    `👤 Customer: ${repair.customerName}\n` +
+                    `📍 Status: ${repair.status}${shouldFinalize ? ' (Auto-finalized ✓)' : ''}\n` +
+                    `🔄 Mode: ${completionMode === 'pre-completed' ? 'Pre-completed (Waiting)' : 'Completed (Released & Paid)'}\n` +
+                    `✅ Completed: ${utils.formatDateTime(completionDateISO)}\n` +
+                    `📦 Released: ${utils.formatDateTime(releaseDateISO)}\n` +
+                    `${paymentData ? `💰 Payment: ₱${paymentData.amount.toFixed(2)} collected\n` : ''}` +
+                    `${shouldFinalize ? `🛡️ Warranty: ${warrantyDays} days (until ${new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000).toLocaleDateString()})\n` : ''}` +
+                    `\nRepair ID: ${repairId.substring(0, 8)}`
+                );
+
+                // Reset form and refresh
+                form.reset();
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+
+                return; // Exit early - skip normal workflow
+
+            } catch (error) {
+                console.error('❌ Error saving retroactive intake:', error);
+                alert('Error saving retroactive intake: ' + error.message);
+                return;
+            }
+        }
+        // ==================== END RETROACTIVE COMPLETION MODE ====================
+
+        // Handle PRE-APPROVED devices (customer already agreed to pricing)
+        if (hasPricing && !isBackJob) {
+            // Get quoted supplier info
+            const quotedSupplier = document.getElementById('receiveSupplier')?.value || null;
+
+            // Mark as pre-approved with pricing
+            repair.repairType = repairType;
+            repair.partsCost = partsCost;
+            repair.laborCost = laborCost;
+            repair.total = total;
+
+            // Quote information (for tracking vs actual)
+            repair.quotedSupplier = quotedSupplier;
+            repair.quotedPartsCost = partsCost;
+            repair.quotedDate = new Date().toISOString();
+
+            // Actual costs (to be filled later when recording actual parts cost)
+            repair.actualPartsCost = null;
+            repair.actualSupplier = null;
+            repair.costVariance = null;
+
+            // Mark diagnosis as created and customer approved
+            repair.diagnosisCreated = true;
+            repair.diagnosisCreatedAt = new Date().toISOString();
+            repair.diagnosisCreatedBy = window.currentUser.uid;
+            repair.diagnosisCreatedByName = window.currentUserData.displayName;
+            repair.customerApproved = true;
+            repair.customerApprovedAt = new Date().toISOString();
+            repair.customerApprovedBy = window.currentUser.uid;
+
+            console.log('✅ Device marked as pre-approved with pricing:', { repairType, partsCost, laborCost, total, quotedSupplier });
         }
 
-        // BUILD RETROACTIVE REPAIR OBJECT
-        const completionDateISO = new Date(completionDate).toISOString();
-        const releaseDateISO = new Date(releaseDate).toISOString();
-        const warrantyEndDate = new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000);
+        // NEW: Handle assignment options for Tech/Admin/Manager
+        const userRole = window.currentUserData.role;
+        let assignmentMethod = 'pool'; // Default for cashiers
+        let assignedTo = null;
+        let assignedToName = null;
 
-        // Set base repair data with pricing
-        repair.repairType = repairType;
-        repair.partsCost = partsCost;
-        repair.laborCost = laborCost;
-        repair.total = total;
+        if (userRole === 'technician' || userRole === 'admin' || userRole === 'manager') {
+            const assignOption = data.get('assignOption');
 
-        // Mark as retroactive intake
-        repair.retroactiveIntake = true;
-        repair.retroactiveReason = 'Device received after completion';
-        repair.adminDateOverride = adminOverride;
-        repair.duplicateDetected = duplicateCheck.matchingRepairs.length > 0;
+            if (assignOption === 'accept-myself') {
+                // Immediate self-assignment
+                assignmentMethod = 'immediate-accept';
+                assignedTo = window.currentUser.uid;
+                assignedToName = window.currentUserData.displayName;
 
-        // Set status based on auto-finalization logic
-        repair.status = finalStatus;
+                repair.status = 'In Progress';
+                repair.acceptedBy = assignedTo;
+                repair.acceptedByName = assignedToName;
+                repair.acceptedAt = new Date().toISOString();
 
-        // Set completion fields
-        repair.completedAt = completionDateISO;
-        repair.completedBy = window.currentUserData.displayName;
-        repair.completedById = window.currentUser.uid;
+            } else if (assignOption === 'assign-other') {
+                // Assign to specific tech
+                const targetTechId = document.getElementById('assignToTech')?.value;
 
-        // Set diagnosis as created and customer approved
-        repair.diagnosisCreated = true;
-        repair.diagnosisCreatedAt = completionDateISO;
-        repair.diagnosisCreatedBy = window.currentUser.uid;
-        repair.diagnosisCreatedByName = window.currentUserData.displayName;
-        repair.customerApproved = true;
-        repair.customerApprovedAt = completionDateISO;
-        repair.customerApprovedBy = window.currentUser.uid;
+                if (!targetTechId) {
+                    alert('Please select a technician to assign this repair to');
+                    return;
+                }
 
-        // Auto-assign to current technician
-        repair.acceptedBy = window.currentUser.uid;
-        repair.acceptedByName = window.currentUserData.displayName;
-        repair.acceptedAt = completionDateISO;
-        repair.assignmentMethod = 'retroactive-auto-assign';
+                const targetTech = window.allUsers[targetTechId];
+                if (!targetTech) {
+                    alert('Selected technician not found');
+                    return;
+                }
 
-        // Always set released fields
-        repair.releasedAt = releaseDateISO;
-        repair.releaseDate = releaseDateISO;
-        repair.releasedBy = window.currentUserData.displayName;
-        repair.releasedById = window.currentUser.uid;
-        repair.releasedByRole = window.currentUserData.role;
-        repair.repairedBy = window.currentUserData.displayName;
-        repair.repairedById = window.currentUser.uid;
-        repair.verificationMethod = verificationMethod;
-        repair.serviceSlipPhoto = serviceSlipPhoto;
-        repair.verifiedWithSlip = verificationMethod === 'with-slip';
-        repair.releaseNotes = releaseNotes;
+                assignmentMethod = 'assigned-by-receiver';
+                assignedTo = targetTechId;
+                assignedToName = targetTech.displayName;
 
-        // If auto-finalized to Claimed, set finalization fields
-        if (shouldFinalize) {
-            repair.claimedAt = releaseDateISO;
-            repair.finalizedAt = releaseDateISO;
-            repair.finalizedBy = window.currentUserData.displayName;
-            repair.finalizedById = window.currentUser.uid;
-            repair.autoFinalized = true;
-            repair.autoFinalizedReason = 'Fully paid during retroactive intake';
-            repair.warrantyDays = warrantyDays;
-            repair.warrantyEndDate = warrantyEndDate.toISOString();
+                repair.status = 'In Progress';
+                repair.acceptedBy = assignedTo;
+                repair.acceptedByName = assignedToName;
+                repair.acceptedAt = new Date().toISOString();
+                repair.assignedBy = window.currentUserData.displayName;
+
+            } else {
+                // Send to pool ('pool' option or default)
+                assignmentMethod = 'pool';
+            }
         }
 
-        // Add payment if collected
-        if (paymentData) {
-            repair.payments = [paymentData];
-            repair.amountPaid = paymentData.amount;
+        repair.assignmentMethod = assignmentMethod;
+
+        // Add back job information if checked (legacy code - back jobs now use dedicated tab)
+        if (isBackJob) {
+            const backJobTechElement = document.getElementById('backJobTech');
+            const backJobReasonElement = document.getElementById('backJobReason');
+
+            const backJobTech = backJobTechElement ? backJobTechElement.value : null;
+            const backJobReason = backJobReasonElement ? backJobReasonElement.value.trim() : '';
+
+            if (!backJobTech) {
+                alert('Please select the original technician for this back job');
+                return;
+            }
+
+            if (!backJobReason) {
+                alert('Please provide a reason for the back job');
+                return;
+            }
+
+            // Get tech name from selection
+            const techSelect = document.getElementById('backJobTech');
+            const techName = techSelect.options[techSelect.selectedIndex].text;
+
+            repair.isBackJob = true;
+            repair.backJobReason = backJobReason;
+            repair.originalTechId = backJobTech;
+            repair.originalTechName = techName;
+            repair.suggestedTech = backJobTech; // Suggest but don't force
+
+            // Back jobs skip diagnosis workflow - auto-approved (warranty claim)
+            repair.diagnosisCreated = true;
+            repair.diagnosisCreatedAt = new Date().toISOString();
+            repair.diagnosisCreatedBy = window.currentUser.uid;
+            repair.diagnosisCreatedByName = window.currentUserData.displayName;
+            repair.customerApproved = true; // Back jobs are pre-approved
+            repair.customerApprovedAt = new Date().toISOString();
+            repair.customerApprovedBy = window.currentUser.uid;
+
+            // If already assigned (via assignment options), keep that assignment
+            // Otherwise, if original tech is receiving, they might auto-accept via assignOption
+            // If going to pool, add note about suggested tech
+            if (repair.status === 'Received' && assignmentMethod === 'pool') {
+                repair.notes = `🔄 Back Job - Previously handled by ${techName}`;
+            }
         }
 
-        // Save to Firebase
         try {
+            if (window.DebugLogger) {
+                DebugLogger.log('REPAIR', 'Saving Device to Firebase', {
+                    customer: repair.customerName,
+                    device: `${repair.brand} ${repair.model}`,
+                    status: repair.status,
+                    repairType: repair.repairType,
+                    total: repair.total,
+                    assignmentMethod: repair.assignmentMethod,
+                    acceptedBy: repair.acceptedByName,
+                    isBackJob: repair.isBackJob || false,
+                    hasPricing: repair.total > 0
+                });
+            }
+
             const newRef = await db.ref('repairs').push(repair);
             const repairId = newRef.key;
 
-            console.log('✅ Retroactive intake saved:', repairId);
+            console.log('✅ Device received successfully!');
 
-            // Save to retroactiveIntakes audit collection
-            const today = new Date();
-            const auditEntry = {
-                repairId: repairId,
-                performedBy: window.currentUser.uid,
-                performedByName: window.currentUserData.displayName,
-                performedByRole: window.currentUserData.role,
-                performedAt: new Date().toISOString(),
-                performedDate: today.toISOString().split('T')[0],
-                performedWeek: `${today.getFullYear()}-W${String(Math.ceil((today - new Date(today.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000))).padStart(2, '0')}`,
-                performedMonth: `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`,
-                originalCompletionDate: completionDateISO,
-                backdatedReleaseDate: releaseDateISO,
-                completionMode: completionMode,
-                finalStatus: finalStatus,
-                autoFinalized: shouldFinalize,
-                customerName: repair.customerName,
-                deviceBrand: repair.brand,
-                deviceModel: repair.model,
-                verificationMethod: verificationMethod || 'N/A',
-                paymentCollected: paymentData ? paymentData.amount : null,
-                paymentMethod: paymentData ? paymentData.method : null,
-                warrantyDays: warrantyDays,
-                retroactiveReason: 'Device received after completion',
-                adminDateOverride: adminOverride,
-                duplicateDetected: duplicateCheck.matchingRepairs.length > 0,
-                duplicateOverridden: repair.duplicateOverridden || false,
-                duplicateOverrideReason: repair.duplicateOverrideReason || null,
-                duplicateMatchingRepairs: duplicateCheck.matchingRepairs.map(m => ({
-                    id: m.id,
-                    customerName: m.customerName,
-                    confidence: m.confidence,
-                    daysAgo: m.daysAgo
-                })),
-                techDailyCount: excessiveCheck.count + 1,
-                excessiveUsageFlag: excessiveCheck.isExcessive
-            };
-
-            await db.ref('retroactiveIntakes').push(auditEntry);
-            console.log('✅ Audit entry saved to retroactiveIntakes collection');
-
-            // Send notification if excessive usage
-            if (excessiveCheck.isExcessive) {
-                await db.ref('adminNotifications').push({
-                    type: 'excessive_retroactive_intakes',
-                    techUid: window.currentUser.uid,
-                    techName: window.currentUserData.displayName,
-                    count: excessiveCheck.count + 1,
-                    threshold: excessiveCheck.threshold,
-                    date: today.toISOString().split('T')[0],
-                    repairIds: [repairId],
-                    message: `${window.currentUserData.displayName} created ${excessiveCheck.count + 1} retroactive intakes today`,
-                    createdAt: new Date().toISOString(),
-                    read: false,
-                    priority: 'medium'
+            if (window.DebugLogger) {
+                DebugLogger.log('REPAIR', 'Device Received Successfully', {
+                    repairId: repairId,
+                    customer: repair.customerName,
+                    device: `${repair.brand} ${repair.model}`,
+                    status: repair.status,
+                    finalTotal: repair.total
                 });
-                console.log('⚠️ Excessive usage notification sent to admins');
             }
 
-            // Log activity with special retroactive intake marker
-            await logActivity('retroactive_intake', {
-                repairId: repairId,
-                originalCompletionDate: completionDateISO,
-                backdatedTo: releaseDateISO,
-                finalStatus: repair.status,
-                assignedTo: window.currentUserData.displayName,
-                paymentCollected: paymentData ? paymentData.amount : 0,
-                verificationMethod: verificationMethod || 'warranty-finalized',
-                duplicateCheckPassed: !duplicateCheck.isBlocked || repair.duplicateOverridden,
-                duplicateOverridden: repair.duplicateOverridden || false,
-                excessiveUsageFlag: excessiveCheck.isExcessive,
-                techDailyCount: excessiveCheck.count + 1,
-                threshold: excessiveCheck.threshold
-            }, `🔄 Retroactive intake - Device completed on ${utils.formatDate(completionDateISO)}, received on ${utils.formatDate(new Date().toISOString())}`);
+            // Log repair creation
+            await logActivity('repair_created', {
+                customerName: repair.customerName,
+                brand: repair.brand,
+                model: repair.model,
+                problemType: repair.problemType,
+                isBackJob: isBackJob || false,
+                customerPreApproved: hasPricing || false
+            }, `${repair.customerName} - ${repair.brand} ${repair.model} received by ${window.currentUserData.displayName}`);
 
+            // Show appropriate success message based on assignment
+            let successMsg = `✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n`;
 
-            // Success message
-            alert(
-                `✅ Retroactive Intake Complete!\n\n` +
-                `📱 Device: ${repair.brand} ${repair.model}\n` +
-                `👤 Customer: ${repair.customerName}\n` +
-                `📍 Status: ${repair.status}${shouldFinalize ? ' (Auto-finalized ✓)' : ''}\n` +
-                `🔄 Mode: ${completionMode === 'pre-completed' ? 'Pre-completed (Waiting)' : 'Completed (Released & Paid)'}\n` +
-                `✅ Completed: ${utils.formatDateTime(completionDateISO)}\n` +
-                `📦 Released: ${utils.formatDateTime(releaseDateISO)}\n` +
-                `${paymentData ? `💰 Payment: ₱${paymentData.amount.toFixed(2)} collected\n` : ''}` +
-                `${shouldFinalize ? `🛡️ Warranty: ${warrantyDays} days (until ${new Date(new Date(releaseDateISO).getTime() + warrantyDays * 24 * 60 * 60 * 1000).toLocaleDateString()})\n` : ''}` +
-                `\nRepair ID: ${repairId.substring(0, 8)}`
-            );
+            if (assignmentMethod === 'immediate-accept') {
+                successMsg += `🔧 Status: ACCEPTED by you!\n✅ Device is now in your "My Jobs" list.\n📍 Status: In Progress\n\n`;
+                if (hasPricing) {
+                    successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
+                } else {
+                    successMsg += `⚠️ Don't forget to:\n• Create diagnosis & set pricing\n• Get customer approval\n`;
+                }
+            } else if (assignmentMethod === 'assigned-by-receiver') {
+                successMsg += `👤 Assigned to: ${assignedToName}\n✅ They will see it in their "My Jobs" list.\n📍 Status: In Progress\n\n`;
+                if (hasPricing) {
+                    successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
+                }
+            } else {
+                successMsg += `📥 Sent to: Received Devices (pool)\n✅ Any available technician can accept it.\n\n`;
+                if (isBackJob) {
+                    successMsg += `🔄 Back Job - Original tech: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n`;
+                }
+                if (hasPricing) {
+                    successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)} (pre-approved)\n`;
+                } else {
+                    successMsg += `📋 Next: Create diagnosis & get customer approval\n`;
+                }
+            }
 
-            // Reset form and refresh
+            alert(successMsg);
+
+            // Reset form
             form.reset();
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
+            photoData = [];
+            const preview = document.getElementById('receivePreview1');
+            if (preview) {
+                preview.innerHTML = '';
+                preview.style.display = 'none';
             }
 
-            return; // Exit early - skip normal workflow
-
-        } catch (error) {
-            console.error('❌ Error saving retroactive intake:', error);
-            alert('Error saving retroactive intake: ' + error.message);
-            return;
-        }
-    }
-    // ==================== END RETROACTIVE COMPLETION MODE ====================
-
-    // Handle PRE-APPROVED devices (customer already agreed to pricing)
-    if (hasPricing && !isBackJob) {
-        // Get quoted supplier info
-        const quotedSupplier = document.getElementById('receiveSupplier')?.value || null;
-
-        // Mark as pre-approved with pricing
-        repair.repairType = repairType;
-        repair.partsCost = partsCost;
-        repair.laborCost = laborCost;
-        repair.total = total;
-
-        // Quote information (for tracking vs actual)
-        repair.quotedSupplier = quotedSupplier;
-        repair.quotedPartsCost = partsCost;
-        repair.quotedDate = new Date().toISOString();
-
-        // Actual costs (to be filled later when recording actual parts cost)
-        repair.actualPartsCost = null;
-        repair.actualSupplier = null;
-        repair.costVariance = null;
-
-        // Mark diagnosis as created and customer approved
-        repair.diagnosisCreated = true;
-        repair.diagnosisCreatedAt = new Date().toISOString();
-        repair.diagnosisCreatedBy = window.currentUser.uid;
-        repair.diagnosisCreatedByName = window.currentUserData.displayName;
-        repair.customerApproved = true;
-        repair.customerApprovedAt = new Date().toISOString();
-        repair.customerApprovedBy = window.currentUser.uid;
-
-        console.log('✅ Device marked as pre-approved with pricing:', { repairType, partsCost, laborCost, total, quotedSupplier });
-    }
-
-    // NEW: Handle assignment options for Tech/Admin/Manager
-    const userRole = window.currentUserData.role;
-    let assignmentMethod = 'pool'; // Default for cashiers
-    let assignedTo = null;
-    let assignedToName = null;
-
-    if (userRole === 'technician' || userRole === 'admin' || userRole === 'manager') {
-        const assignOption = data.get('assignOption');
-
-        if (assignOption === 'accept-myself') {
-            // Immediate self-assignment
-            assignmentMethod = 'immediate-accept';
-            assignedTo = window.currentUser.uid;
-            assignedToName = window.currentUserData.displayName;
-
-            repair.status = 'In Progress';
-            repair.acceptedBy = assignedTo;
-            repair.acceptedByName = assignedToName;
-            repair.acceptedAt = new Date().toISOString();
-
-        } else if (assignOption === 'assign-other') {
-            // Assign to specific tech
-            const targetTechId = document.getElementById('assignToTech')?.value;
-
-            if (!targetTechId) {
-                alert('Please select a technician to assign this repair to');
-                return;
+            // Reset back job fields
+            if (document.getElementById('isBackJob')) {
+                document.getElementById('isBackJob').checked = false;
+            }
+            if (document.getElementById('backJobFields')) {
+                document.getElementById('backJobFields').style.display = 'none';
             }
 
-            const targetTech = window.allUsers[targetTechId];
-            if (!targetTech) {
-                alert('Selected technician not found');
-                return;
+            // Reset pricing fields (they stay visible but need to be cleared)
+            if (document.getElementById('preApprovedRepairType')) {
+                document.getElementById('preApprovedRepairType').value = '';
+            }
+            if (document.getElementById('preApprovedPartsCost')) {
+                document.getElementById('preApprovedPartsCost').value = '0';
+            }
+            if (document.getElementById('preApprovedLaborCost')) {
+                document.getElementById('preApprovedLaborCost').value = '0';
+            }
+            if (document.getElementById('preApprovedTotal')) {
+                document.getElementById('preApprovedTotal').value = '0.00';
             }
 
-            assignmentMethod = 'assigned-by-receiver';
-            assignedTo = targetTechId;
-            assignedToName = targetTech.displayName;
+            // Firebase listener will auto-refresh the page
 
-            repair.status = 'In Progress';
-            repair.acceptedBy = assignedTo;
-            repair.acceptedByName = assignedToName;
-            repair.acceptedAt = new Date().toISOString();
-            repair.assignedBy = window.currentUserData.displayName;
-
-        } else {
-            // Send to pool ('pool' option or default)
-            assignmentMethod = 'pool';
-        }
-    }
-
-    repair.assignmentMethod = assignmentMethod;
-
-    // Add back job information if checked (legacy code - back jobs now use dedicated tab)
-    if (isBackJob) {
-        const backJobTechElement = document.getElementById('backJobTech');
-        const backJobReasonElement = document.getElementById('backJobReason');
-
-        const backJobTech = backJobTechElement ? backJobTechElement.value : null;
-        const backJobReason = backJobReasonElement ? backJobReasonElement.value.trim() : '';
-
-        if (!backJobTech) {
-            alert('Please select the original technician for this back job');
-            return;
+        } catch (innerError) {
+            console.error('❌ Error saving device:', innerError);
+            alert('Error saving device: ' + innerError.message);
         }
 
-        if (!backJobReason) {
-            alert('Please provide a reason for the back job');
-            return;
-        }
-
-        // Get tech name from selection
-        const techSelect = document.getElementById('backJobTech');
-        const techName = techSelect.options[techSelect.selectedIndex].text;
-
-        repair.isBackJob = true;
-        repair.backJobReason = backJobReason;
-        repair.originalTechId = backJobTech;
-        repair.originalTechName = techName;
-        repair.suggestedTech = backJobTech; // Suggest but don't force
-
-        // Back jobs skip diagnosis workflow - auto-approved (warranty claim)
-        repair.diagnosisCreated = true;
-        repair.diagnosisCreatedAt = new Date().toISOString();
-        repair.diagnosisCreatedBy = window.currentUser.uid;
-        repair.diagnosisCreatedByName = window.currentUserData.displayName;
-        repair.customerApproved = true; // Back jobs are pre-approved
-        repair.customerApprovedAt = new Date().toISOString();
-        repair.customerApprovedBy = window.currentUser.uid;
-
-        // If already assigned (via assignment options), keep that assignment
-        // Otherwise, if original tech is receiving, they might auto-accept via assignOption
-        // If going to pool, add note about suggested tech
-        if (repair.status === 'Received' && assignmentMethod === 'pool') {
-            repair.notes = `🔄 Back Job - Previously handled by ${techName}`;
-        }
-    }
-
-    try {
-        if (window.DebugLogger) {
-            DebugLogger.log('REPAIR', 'Saving Device to Firebase', {
-                customer: repair.customerName,
-                device: `${repair.brand} ${repair.model}`,
-                status: repair.status,
-                repairType: repair.repairType,
-                total: repair.total,
-                assignmentMethod: repair.assignmentMethod,
-                acceptedBy: repair.acceptedByName,
-                isBackJob: repair.isBackJob || false,
-                hasPricing: repair.total > 0
-            });
-        }
-
-        const newRef = await db.ref('repairs').push(repair);
-        const repairId = newRef.key;
-
-        console.log('✅ Device received successfully!');
-
-        if (window.DebugLogger) {
-            DebugLogger.log('REPAIR', 'Device Received Successfully', {
-                repairId: repairId,
-                customer: repair.customerName,
-                device: `${repair.brand} ${repair.model}`,
-                status: repair.status,
-                finalTotal: repair.total
-            });
-        }
-
-        // Log repair creation
-        await logActivity('repair_created', {
-            customerName: repair.customerName,
-            brand: repair.brand,
-            model: repair.model,
-            problemType: repair.problemType,
-            isBackJob: isBackJob || false,
-            customerPreApproved: hasPricing || false
-        }, `${repair.customerName} - ${repair.brand} ${repair.model} received by ${window.currentUserData.displayName}`);
-
-        // Show appropriate success message based on assignment
-        let successMsg = `✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n`;
-
-        if (assignmentMethod === 'immediate-accept') {
-            successMsg += `🔧 Status: ACCEPTED by you!\n✅ Device is now in your "My Jobs" list.\n📍 Status: In Progress\n\n`;
-            if (hasPricing) {
-                successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
-            } else {
-                successMsg += `⚠️ Don't forget to:\n• Create diagnosis & set pricing\n• Get customer approval\n`;
-            }
-        } else if (assignmentMethod === 'assigned-by-receiver') {
-            successMsg += `👤 Assigned to: ${assignedToName}\n✅ They will see it in their "My Jobs" list.\n📍 Status: In Progress\n\n`;
-            if (hasPricing) {
-                successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
-            }
-        } else {
-            successMsg += `📥 Sent to: Received Devices (pool)\n✅ Any available technician can accept it.\n\n`;
-            if (isBackJob) {
-                successMsg += `🔄 Back Job - Original tech: ${repair.originalTechName}\n📋 Reason: ${backJobReason}\n\n`;
-            }
-            if (hasPricing) {
-                successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)} (pre-approved)\n`;
-            } else {
-                successMsg += `📋 Next: Create diagnosis & get customer approval\n`;
-            }
-        }
-
-        alert(successMsg);
-
-        // Reset form
-        form.reset();
-        photoData = [];
-        const preview = document.getElementById('receivePreview1');
-        if (preview) {
-            preview.innerHTML = '';
-            preview.style.display = 'none';
-        }
-
-        // Reset back job fields
-        if (document.getElementById('isBackJob')) {
-            document.getElementById('isBackJob').checked = false;
-        }
-        if (document.getElementById('backJobFields')) {
-            document.getElementById('backJobFields').style.display = 'none';
-        }
-
-        // Reset pricing fields (they stay visible but need to be cleared)
-        if (document.getElementById('preApprovedRepairType')) {
-            document.getElementById('preApprovedRepairType').value = '';
-        }
-        if (document.getElementById('preApprovedPartsCost')) {
-            document.getElementById('preApprovedPartsCost').value = '0';
-        }
-        if (document.getElementById('preApprovedLaborCost')) {
-            document.getElementById('preApprovedLaborCost').value = '0';
-        }
-        if (document.getElementById('preApprovedTotal')) {
-            document.getElementById('preApprovedTotal').value = '0.00';
-        }
-
-        // Firebase listener will auto-refresh the page
-
-    } catch (innerError) {
-        console.error('❌ Error saving device:', innerError);
-        alert('Error saving device: ' + innerError.message);
-    }
-    
     } catch (error) {
         console.error('❌ Error receiving device:', error);
         alert('Error: ' + error.message);
@@ -3395,7 +3395,7 @@ async function deleteRepair(repairId) {
 
     // Show repair details with special warning for Claimed devices
     const repairInfo = `Customer: ${repair.customerName}\nDevice: ${repair.brand} ${repair.model}\nProblem: ${repair.problem}\nStatus: ${repair.status}`;
-    
+
     // Extra confirmation for Claimed devices
     if (repair.status === 'Claimed') {
         const claimedWarning = confirm(
@@ -5676,7 +5676,8 @@ function getPendingRemittanceDates(techId) {
         });
     }
 
-    // Calculate commission and unremitted balance per date (40% of net after parts and expenses)
+    // Calculate commission and unremitted balance per date
+    // Correct: Tech gets 40% of gross, Shop gets 60% of gross minus expenses/parts
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
 
@@ -5684,11 +5685,11 @@ function getPendingRemittanceDates(techId) {
         const { total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
         dateData.totalPartsCosts = partsCostsTotal;
 
-        // Calculate net revenue (payments - parts - expenses)
-        const netRevenue = dateData.totalPayments - partsCostsTotal - dateData.totalExpenses;
-        dateData.totalCommission = netRevenue > 0 ? netRevenue * 0.40 : 0;
-        // Unremitted balance = net revenue - commission (which is 60% of net)
-        dateData.unremittedBalance = netRevenue - dateData.totalCommission;
+        // Tech commission = 40% of gross payments
+        dateData.totalCommission = dateData.totalPayments * 0.40;
+        // Shop's share = 60% of gross minus expenses and parts costs
+        const shopShare = (dateData.totalPayments * 0.60) - partsCostsTotal - dateData.totalExpenses;
+        dateData.unremittedBalance = shopShare;
     });
 
     // Convert to array and sort by date (oldest first)
@@ -5785,18 +5786,16 @@ function getPendingGCashDates(techId) {
 
 /**
  * Calculate unremitted balance for a specific date
- * Returns: (totalPayments - totalExpenses - commission)
+ * Returns: Shop's 60% share minus expenses and parts costs
  */
 function getUnremittedBalance(techId, dateString) {
     const { payments, total: paymentsTotal } = getTechDailyPayments(techId, dateString);
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
     const { repairs: partsRepairs, total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
 
-    // Commission is 40% of (payments - parts costs - expenses)
-    const netRevenue = paymentsTotal - partsCostsTotal - expensesTotal;
-    const commissionDeduction = netRevenue > 0 ? netRevenue * 0.40 : 0;
-
-    const unremittedBalance = netRevenue - commissionDeduction;
+    // Correct calculation: shop gets 60% of gross - parts costs - expenses
+    const shopShare = (paymentsTotal * 0.60) - partsCostsTotal - expensesTotal;
+    const unremittedBalance = shopShare;
 
     return {
         paymentsTotal,
@@ -6374,10 +6373,10 @@ function openSingleDayRemittanceModal(dateString) {
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
     const { repairs: partsRepairs, total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
 
-    // Commission: 40% of (payments - parts costs - expenses)
-    const netRevenue = paymentsTotal - partsCostsTotal - expensesTotal;
-    const commissionDeduction = netRevenue > 0 ? netRevenue * 0.40 : 0;
-    const expectedAmount = netRevenue - commissionDeduction;
+    // Commission: 40% of gross payments, expenses deducted from shop's 60%
+    const commissionDeduction = paymentsTotal * 0.40;  // Tech keeps 40% of gross
+    const shopShare = (paymentsTotal * 0.60) - partsCostsTotal - expensesTotal;  // Shop gets 60% minus costs
+    const expectedAmount = shopShare;
 
     if (payments.length === 0 && expenses.length === 0) {
         alert('⚠️ No pending payments or expenses for this date.');
@@ -6448,39 +6447,44 @@ function openSingleDayRemittanceModal(dateString) {
                 <h3 style="margin-top:0;color:#333;">💰 Payment Breakdown</h3>
                 <div style="background:white;padding:15px;border-radius:8px;border:1px solid #eee;">
                     <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                        <span>Gross Cash Collected:</span>
+                        <span>💵 Gross Cash Collected:</span>
                         <strong>₱${paymentsTotal.toFixed(2)}</strong>
                     </div>
+                    <hr style="border:none;border-top:1px dashed #ddd;margin:10px 0;">
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>👤 Your Commission (40% of gross):</span>
+                        <strong style="color:#2196f3;">₱${commissionDeduction.toFixed(2)}</strong>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>🏦 Shop's Share (60% of gross):</span>
+                        <strong>₱${(paymentsTotal * 0.60).toFixed(2)}</strong>
+                    </div>
+                    <hr style="border:none;border-top:1px solid #ddd;margin:10px 0;">
+                    <div style="font-size:13px;color:#666;margin:10px 0;font-style:italic;">
+                        Deductions from Shop's Share:
+                    </div>
                     ${partsCostsTotal > 0 ? `
-                        <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                            <span>🔧 Less: Parts Costs</span>
+                        <div style="display:flex;justify-content:space-between;margin:10px 0;padding-left:15px;">
+                            <span>🔧 Parts Costs</span>
                             <strong style="color:#f44336;">-₱${partsCostsTotal.toFixed(2)}</strong>
                         </div>
                     ` : ''}
                     ${expensesTotal > 0 ? `
-                        <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                            <span>📦 Less: Your Expenses</span>
+                        <div style="display:flex;justify-content:space-between;margin:10px 0;padding-left:15px;">
+                            <span>📦 Your Expenses</span>
                             <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
                         </div>
                     ` : ''}
-                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                        <span>Net Revenue:</span>
-                        <strong>₱${netRevenue.toFixed(2)}</strong>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                        <span>👤 Less: Your Commission (40%)</span>
-                        <strong style="color:#2196f3;">-₱${commissionDeduction.toFixed(2)}</strong>
-                    </div>
                     <hr style="border:none;border-top:2px solid #ddd;margin:15px 0;">
                     <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;">
-                        <span>💳 Amount to Remit to Shop (60%):</span>
+                        <span>💳 Amount to Remit:</span>
                         <span style="color:#4caf50;">₱${expectedAmount.toFixed(2)}</span>
                     </div>
                 </div>
                 
                 <p style="margin-top:15px;font-size:13px;color:#666;background:#e8f5e9;padding:12px;border-radius:6px;border-left:4px solid #4caf50;">
-                    ✓ <strong>Your 40% Commission (₱${commissionDeduction.toFixed(2)})</strong> is automatically deducted. 
-                    Shop will credit this via your selected payment method.
+                    ✓ <strong>Your 40% Commission (₱${commissionDeduction.toFixed(2)})</strong> is calculated from gross collections. 
+                    Expenses are deducted from the shop's 60% share only.
                 </p>
             </div>
             
@@ -6762,11 +6766,13 @@ function openRemittanceModal() {
         alert(message);
     }
 
-    // FIXED CALCULATION: Cash remittance applies 60/40 split
-    // Commission (40%) is deducted from the remittance at submission time
-    // Technician remits 60%, keeps 40% as commission
-    const commissionDeduction = paymentsTotal * 0.40;  // 40% commission on gross cash
-    const expectedAmount = (paymentsTotal - expensesTotal) - commissionDeduction;  // 60% of (collected - expenses)
+    // CORRECT CALCULATION: 60/40 split on gross payments, expenses from shop's share
+    // Tech keeps: 40% of gross payments as commission
+    // Shop gets: 60% of gross payments - expenses
+    // Tech remits: Shop's share (60% - expenses)
+    const commissionDeduction = paymentsTotal * 0.40;  // Tech keeps 40% of gross
+    const shopShare = (paymentsTotal * 0.60) - expensesTotal;  // Shop gets 60% minus expenses
+    const expectedAmount = shopShare;
 
     // Build summary
     let summary = `
@@ -6819,24 +6825,35 @@ function openRemittanceModal() {
                     <span>💵 Gross Cash Collected:</span>
                     <strong>₱${paymentsTotal.toFixed(2)}</strong>
                 </div>
+                <hr style="border:none;border-top:1px dashed #ddd;margin:10px 0;">
                 <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                    <span>📦 Less: Your Expenses</span>
-                    <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
+                    <span>👤 Your Commission (40% of gross):</span>
+                    <strong style="color:#2196f3;">₱${(paymentsTotal * 0.40).toFixed(2)}</strong>
                 </div>
                 <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                    <span>👤 Less: Your Commission (40%)</span>
-                    <strong style="color:#2196f3;">-₱${(paymentsTotal * 0.40).toFixed(2)}</strong>
+                    <span>🏦 Shop's Share (60% of gross):</span>
+                    <strong>₱${(paymentsTotal * 0.60).toFixed(2)}</strong>
                 </div>
+                ${expensesTotal > 0 ? `
+                    <hr style="border:none;border-top:1px solid #ddd;margin:10px 0;">
+                    <div style="font-size:13px;color:#666;margin:10px 0;font-style:italic;">
+                        Deductions from Shop's Share:
+                    </div>
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;padding-left:15px;">
+                        <span>📦 Your Expenses</span>
+                        <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
+                    </div>
+                ` : ''}
                 <hr style="border:none;border-top:2px solid #ddd;margin:15px 0;">
                 <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;">
-                    <span>💳 Amount to Remit to Shop (60%):</span>
+                    <span>💳 Amount to Remit:</span>
                     <span style="color:#4caf50;">₱${expectedAmount.toFixed(2)}</span>
                 </div>
             </div>
             
             <p style="margin-top:15px;font-size:13px;color:#666;background:#e8f5e9;padding:12px;border-radius:6px;border-left:4px solid #4caf50;">
-                ✓ <strong>Your 40% Commission (₱${(paymentsTotal * 0.40).toFixed(2)})</strong> is automatically deducted from your remittance. 
-                Shop will credit this to you at end of day via your selected payment method.
+                ✓ <strong>Your 40% Commission (₱${(paymentsTotal * 0.40).toFixed(2)})</strong> is calculated from gross collections. 
+                Expenses are deducted from the shop's 60% share only.
             </p>
         </div>
         
@@ -7072,22 +7089,23 @@ async function confirmRemittance() {
         return;
     }
 
-    // CORRECT CALCULATION: Technician gets 40% of NET, Shop gets 60%
-    // Formula: expectedAmount = (payments - expenses - commission) + pendingAdjustment
-    const netAfterExpenses = paymentsTotal - expensesTotal;
-    const technicianShare = netAfterExpenses * 0.40;  // Technician gets 40%
-    const shopShare = netAfterExpenses * 0.60;  // Shop gets 60%
-    const baseExpected = technicianShare - commissionTotal; // Base expected before adjustment
+    // CORRECT CALCULATION: 60/40 split on GROSS payments, expenses from shop's share
+    // Tech keeps: 40% of gross payments as commission
+    // Shop gets: 60% of gross payments - expenses
+    // Tech remits: Shop's share + any pending adjustment
+    const technicianShare = paymentsTotal * 0.40;  // Technician keeps 40% of gross
+    const shopShare = (paymentsTotal * 0.60) - expensesTotal;  // Shop gets 60% minus expenses
+    const baseExpected = shopShare; // Base expected before adjustment
     const expectedAmount = baseExpected + adjustmentAmount; // Add/subtract pending adjustment
     const discrepancy = actualAmount - expectedAmount;
 
     DebugLogger.log('REMITTANCE', 'Remittance Amount Calculation', {
         paymentsTotal: paymentsTotal,
         expensesTotal: expensesTotal,
-        netAfterExpenses: netAfterExpenses,
-        technicianShare: technicianShare,
-        shopShare: shopShare,
-        commissionTotal: commissionTotal,
+        technicianShare: technicianShare,  // 40% of gross
+        shopShareBeforeExpenses: paymentsTotal * 0.60,  // 60% of gross
+        shopShare: shopShare,  // 60% minus expenses
+        commissionTotal: totalCommission,  // Should match technicianShare if using standard rates
         baseExpected: baseExpected,
         pendingAdjustment: adjustmentAmount,
         expectedAmount: expectedAmount,
@@ -7798,14 +7816,17 @@ async function submitMultipleDayRemittance(recipientId, recipient, notes) {
             });
         });
 
-        const expectedRemittance = totalPayments - totalExpenses - totalCommission;
+        // Correct calculation: Shop's 60% minus expenses
+        const shopShare = (totalPayments * 0.60) - totalExpenses;
+        const expectedRemittance = shopShare;
 
         // Confirm with user
         const confirmMsg = `Catch-up Remittance:\n\n` +
             `Dates: ${pendingDates.map(d => utils.formatDate(d.dateString)).join(', ')}\n` +
             `Payments: ₱${totalPayments.toFixed(2)}\n` +
+            `Your Commission (40%): ₱${totalCommission.toFixed(2)}\n` +
+            `Shop Share (60%): ₱${(totalPayments * 0.60).toFixed(2)}\n` +
             `Expenses: -₱${totalExpenses.toFixed(2)}\n` +
-            `Commission (40%): -₱${totalCommission.toFixed(2)}\n` +
             `Amount to Remit: ₱${expectedRemittance.toFixed(2)}\n\nConfirm?`;
 
         if (!confirm(confirmMsg)) {
@@ -11292,19 +11313,19 @@ async function adminBulkVerifyRetroactivePayments() {
 
     try {
         utils.showLoading(true);
-        
+
         // Find all repairs with unverified retroactive payments
         const repairsToFix = [];
         let totalUnverifiedPayments = 0;
-        
+
         window.allRepairs.forEach(repair => {
             if (!repair.payments || repair.payments.length === 0) return;
-            
-            const unverifiedRetroactive = repair.payments.filter(p => 
-                p.collectedDuringIntake === true && 
+
+            const unverifiedRetroactive = repair.payments.filter(p =>
+                p.collectedDuringIntake === true &&
                 (p.verified === false || p.verified === undefined || p.verified === null)
             );
-            
+
             if (unverifiedRetroactive.length > 0) {
                 repairsToFix.push({
                     id: repair.id,
@@ -11317,19 +11338,19 @@ async function adminBulkVerifyRetroactivePayments() {
                 totalUnverifiedPayments += unverifiedRetroactive.length;
             }
         });
-        
+
         utils.showLoading(false);
-        
+
         if (repairsToFix.length === 0) {
             alert('✅ No Unverified Retroactive Payments Found!\n\nAll retroactive payments are properly verified.');
             return;
         }
-        
+
         // Show summary
-        const summary = repairsToFix.slice(0, 10).map(r => 
+        const summary = repairsToFix.slice(0, 10).map(r =>
             `- ${r.customerName} (${r.device}): ${r.unverifiedCount} payment(s) - ₱${r.totalUnverified.toFixed(2)}`
         ).join('\n');
-        
+
         const confirmMsg = `🔍 BULK PAYMENT VERIFICATION\n\n` +
             `Found ${totalUnverifiedPayments} unverified payment(s) in ${repairsToFix.length} repair(s)\n\n` +
             `Sample repairs:\n${summary}` +
@@ -11340,25 +11361,25 @@ async function adminBulkVerifyRetroactivePayments() {
             `✓ Enable commission calculation for these payments\n` +
             `✓ Create audit log\n\n` +
             `Continue with bulk verification?`;
-        
+
         if (!confirm(confirmMsg)) {
             return;
         }
-        
+
         // Perform bulk verification
         utils.showLoading(true);
         let successCount = 0;
         let failCount = 0;
         const now = new Date().toISOString();
-        
+
         for (const repairInfo of repairsToFix) {
             try {
                 const repair = window.allRepairs.find(r => r.id === repairInfo.id);
                 if (!repair) continue;
-                
+
                 // Update payments array
                 const updatedPayments = repair.payments.map(payment => {
-                    if (payment.collectedDuringIntake === true && 
+                    if (payment.collectedDuringIntake === true &&
                         (payment.verified === false || payment.verified === undefined || payment.verified === null)) {
                         return {
                             ...payment,
@@ -11371,21 +11392,21 @@ async function adminBulkVerifyRetroactivePayments() {
                     }
                     return payment;
                 });
-                
+
                 await db.ref(`repairs/${repairInfo.id}`).update({
                     payments: updatedPayments,
                     lastUpdated: now,
                     lastUpdatedBy: window.currentUserData.displayName
                 });
-                
+
                 successCount++;
-                
+
             } catch (error) {
                 console.error(`❌ Error verifying payments for repair ${repairInfo.id}:`, error);
                 failCount++;
             }
         }
-        
+
         // Log the bulk action
         await logActivity('admin_bulk_verify_payments', 'admin', {
             totalRepairs: repairsToFix.length,
@@ -11394,9 +11415,9 @@ async function adminBulkVerifyRetroactivePayments() {
             failCount: failCount,
             timestamp: now
         });
-        
+
         utils.showLoading(false);
-        
+
         alert(
             `✅ BULK VERIFICATION COMPLETE!\n\n` +
             `Successfully verified: ${successCount} repair(s)\n` +
@@ -11404,13 +11425,13 @@ async function adminBulkVerifyRetroactivePayments() {
             `Total payments verified: ${totalUnverifiedPayments}\n\n` +
             `Technicians can now claim commissions for these repairs once finalized.`
         );
-        
+
         // Reload data
         await loadRepairs();
         if (window.currentTabRefresh) {
             window.currentTabRefresh();
         }
-        
+
     } catch (error) {
         utils.showLoading(false);
         console.error('❌ Error in bulk verification:', error);
@@ -12603,13 +12624,15 @@ function debugDailyRemittance(dateString = null) {
         console.log(`  - ${e.description}: ₱${e.amount} (${e.category})`);
     });
 
-    // Summary
-    const expectedAmount = paymentsTotal - commissionTotal - expensesTotal;
+    // Summary - Correct calculation: shop's 60% minus expenses
+    const shopShare = (paymentsTotal * 0.60) - expensesTotal;
+    const expectedAmount = shopShare;
     console.log('\nSUMMARY:');
-    console.log('  Payments:', paymentsTotal);
-    console.log('  Commission:', commissionTotal);
+    console.log('  Total Payments:', paymentsTotal);
+    console.log('  Tech Commission (40%):', commissionTotal);
+    console.log('  Shop Share (60%):', paymentsTotal * 0.60);
     console.log('  Expenses:', expensesTotal);
-    console.log('  AMOUNT TO REMIT:', expectedAmount);
+    console.log('  AMOUNT TO REMIT (Shop Share - Expenses):', expectedAmount);
 
     // Check for submitted remittance
     const remittance = window.techRemittances.find(r => {
