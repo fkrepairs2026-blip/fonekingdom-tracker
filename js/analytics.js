@@ -1349,7 +1349,44 @@ function getProfitDashboard(startDate, endDate) {
     const totalOverhead = window.calculateOverheadForPeriod ? 
         window.calculateOverheadForPeriod(startDate, endDate) : 0;
     
+    // Calculate overhead by type
+    const overheadByType = {
+        shop: 0,
+        house: 0,
+        miscellaneous: 0
+    };
+    
+    if (window.overheadExpenses) {
+        window.overheadExpenses
+            .filter(expense => !expense.deleted)
+            .forEach(expense => {
+                const expenseDate = new Date(expense.date);
+                if (expenseDate >= startDate && expenseDate <= endDate) {
+                    const type = (expense.expenseType || 'Miscellaneous').toLowerCase();
+                    if (overheadByType.hasOwnProperty(type)) {
+                        overheadByType[type] += expense.amount;
+                    } else {
+                        overheadByType.miscellaneous += expense.amount;
+                    }
+                }
+            });
+    }
+    
+    // Calculate commission by technician
+    const commissionByTech = {};
+    allProfits.forEach(profit => {
+        const techName = profit.technicianName || 'Unknown';
+        if (!commissionByTech[techName]) {
+            commissionByTech[techName] = 0;
+        }
+        commissionByTech[techName] += profit.techCommission;
+    });
+    
     console.log(`💰 Total overhead calculated: ₱${totalOverhead.toFixed(2)}`);
+    console.log(`🏪 Shop overhead: ₱${overheadByType.shop.toFixed(2)}`);
+    console.log(`🏠 House overhead: ₱${overheadByType.house.toFixed(2)}`);
+    console.log(`📝 Misc overhead: ₱${overheadByType.miscellaneous.toFixed(2)}`);
+    console.log(`👨‍🔧 Commissions by tech:`, commissionByTech);
     
     // Net profit = Shop Revenue - Overhead
     const totalNetProfit = totalShopRevenue - totalOverhead;
@@ -1365,13 +1402,16 @@ function getProfitDashboard(startDate, endDate) {
             totalOverhead: totalOverhead,
             totalNetProfit: totalNetProfit,
             avgProfitMargin: avgProfitMargin,
-            avgProfitPerRepair: allProfits.length > 0 ? totalNetProfit / allProfits.length : 0
+            avgProfitPerRepair: allProfits.length > 0 ? totalNetProfit / allProfits.length : 0,
+            overheadByType: overheadByType,
+            commissionByTech: commissionByTech
         },
         byType: getProfitByRepairType(startDate, endDate),
         byTechnician: getProfitByTechnician(startDate, endDate),
         trends: getProfitTrends(startDate, endDate, 'daily'),
         overhead: {
             total: totalOverhead,
+            byType: overheadByType,
             perRepair: allProfits.length > 0 ? totalOverhead / allProfits.length : 0,
             percentage: totalRevenue > 0 ? (totalOverhead / totalRevenue) * 100 : 0
         }

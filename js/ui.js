@@ -10188,12 +10188,38 @@ function refreshProfitDashboard() {
                     <div class="stat-label">Tech Commission (Paid Out)</div>
                     <div class="stat-value">₱${dashboard.summary.totalCommission.toFixed(2)}</div>
                     <div class="stat-sublabel">${((dashboard.summary.totalCommission / dashboard.summary.totalRevenue) * 100).toFixed(1)}% of revenue</div>
+                    ${dashboard.summary.commissionByTech && Object.keys(dashboard.summary.commissionByTech).length > 0 ? `
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.3);font-size:11px;">
+                            ${Object.entries(dashboard.summary.commissionByTech).map(([tech, amt]) => 
+                                `<div style="display:flex;justify-content:space-between;margin:3px 0;">
+                                    <span>${tech}:</span>
+                                    <span style="font-weight:bold;">₱${amt.toFixed(2)}</span>
+                                </div>`
+                            ).join('')}
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <div class="stat-card" style="background:linear-gradient(135deg,#30cfd0 0%,#330867 100%);color:white;">
                     <div class="stat-label">Overhead (Total Period)</div>
                     <div class="stat-value">₱${dashboard.summary.totalOverhead.toFixed(2)}</div>
                     <div class="stat-sublabel">${dashboard.summary.repairCount > 0 ? '₱' + (dashboard.summary.totalOverhead / dashboard.summary.repairCount).toFixed(2) + ' avg per repair' : 'No repairs'}</div>
+                    ${dashboard.summary.overheadByType ? `
+                        <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.3);font-size:11px;">
+                            <div style="display:flex;justify-content:space-between;margin:3px 0;">
+                                <span>🏪 Shop:</span>
+                                <span style="font-weight:bold;">₱${dashboard.summary.overheadByType.shop.toFixed(2)}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin:3px 0;">
+                                <span>🏠 House:</span>
+                                <span style="font-weight:bold;">₱${dashboard.summary.overheadByType.house.toFixed(2)}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin:3px 0;">
+                                <span>📝 Misc:</span>
+                                <span style="font-weight:bold;">₱${dashboard.summary.overheadByType.miscellaneous.toFixed(2)}</span>
+                            </div>
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <div class="stat-card" style="background:linear-gradient(135deg,${dashboard.summary.totalNetProfit >= 0 ? '#11998e 0%,#38ef7d 100%' : '#eb3349 0%,#f45c43 100%'});color:white;">
@@ -10476,60 +10502,141 @@ function buildOverheadExpensesTab(container) {
                 ` : ''}
             </div>
             
-            <!-- EXPENSE LIST -->
-            <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-                <h4 style="margin:0 0 15px;">📋 All Overhead Expenses</h4>
-                ${(window.overheadExpenses || []).filter(e => !e.deleted).length === 0 ? `
-                    <div style="text-align:center;padding:40px;color:#999;">
-                        No overhead expenses recorded yet
-                    </div>
-                ` : `
-                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
-                        <table class="repairs-table" style="min-width:100%;">
-                            <thead>
-                                <tr>
-                                    <th style="min-width:100px;">Date</th>
-                                    <th style="min-width:120px;">Type</th>
-                                    <th style="min-width:120px;">Category</th>
-                                    <th style="min-width:100px;">Amount</th>
-                                    <th style="min-width:80px;">Recurring</th>
-                                    <th style="min-width:150px;">Description</th>
-                                    <th style="min-width:150px;position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${(window.overheadExpenses || [])
-            .filter(e => !e.deleted)
-            .sort((a, b) => new Date(b.date) - new Date(a.date))
-            .map(exp => {
-                const expType = exp.expenseType || 'Miscellaneous';
-                const typeIcon = expType === 'Shop' ? '🏪' : expType === 'House' ? '🏠' : '📝';
-                const typeBadge = `<span style="background:${expType === 'Shop' ? '#2196f3' : expType === 'House' ? '#ff9800' : '#9c27b0'};color:white;padding:2px 8px;border-radius:4px;font-size:11px;white-space:nowrap;">${typeIcon} ${expType}</span>`;
+            <!-- EXPENSE LISTS BY TYPE -->
+            ${(() => {
+                const allExpenses = (window.overheadExpenses || []).filter(e => !e.deleted);
+                const shopExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Shop');
+                const houseExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'House');
+                const miscExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Miscellaneous');
+                
                 return `
+                    <!-- SHOP EXPENSES -->
+                    <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
+                        <h4 style="margin:0 0 15px;">🏪 Shop Expenses (${shopExpenses.length})</h4>
+                        ${shopExpenses.length === 0 ? `
+                            <div style="text-align:center;padding:20px;color:#999;">
+                                No shop expenses recorded
+                            </div>
+                        ` : `
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                                <table class="repairs-table" style="min-width:100%;">
+                                    <thead>
                                         <tr>
-                                            <td style="white-space:nowrap;">${utils.formatDate(new Date(exp.date))}</td>
-                                            <td>${typeBadge}</td>
-                                            <td><strong>${exp.category}</strong></td>
-                                            <td style="font-weight:bold;color:#667eea;white-space:nowrap;">₱${exp.amount.toFixed(2)}</td>
-                                            <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;white-space:nowrap;">${exp.recurringFrequency}</span>` : '-'}</td>
-                                            <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${exp.description || exp.notes || '-'}</td>
-                                            <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
-                                                <div style="display:flex;gap:5px;flex-wrap:nowrap;">
-                                                    <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="white-space:nowrap;">
-                                                        ✏️ Edit
-                                                    </button>
-                                                    <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm" style="white-space:nowrap;">
-                                                        🗑️ Del
-                                                    </button>
-                                                </div>
-                                            </td>
+                                            <th style="min-width:100px;">Date</th>
+                                            <th style="min-width:120px;">Category</th>
+                                            <th style="min-width:100px;">Amount</th>
+                                            <th style="min-width:80px;">Recurring</th>
+                                            <th style="min-width:150px;">Description</th>
+                                            <th style="min-width:150px;position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">Actions</th>
                                         </tr>
-                                    `;
-            }).join('')}
-                            </tbody>
-                        </table>
+                                    </thead>
+                                    <tbody>
+                                        ${shopExpenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => `
+                                            <tr>
+                                                <td style="white-space:nowrap;">${utils.formatDate(new Date(exp.date))}</td>
+                                                <td><strong>${exp.category}</strong></td>
+                                                <td style="font-weight:bold;color:#2196f3;white-space:nowrap;">₱${exp.amount.toFixed(2)}</td>
+                                                <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;white-space:nowrap;">${exp.recurringFrequency}</span>` : '-'}</td>
+                                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${exp.description || exp.notes || '-'}</td>
+                                                <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
+                                                    <div style="display:flex;gap:5px;flex-wrap:nowrap;">
+                                                        <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="white-space:nowrap;">✏️ Edit</button>
+                                                        <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm" style="white-space:nowrap;">🗑️ Del</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `}
                     </div>
-                `}
+                    
+                    <!-- HOUSE EXPENSES -->
+                    <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
+                        <h4 style="margin:0 0 15px;">🏠 House Expenses (${houseExpenses.length})</h4>
+                        ${houseExpenses.length === 0 ? `
+                            <div style="text-align:center;padding:20px;color:#999;">
+                                No house expenses recorded
+                            </div>
+                        ` : `
+                            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                                <table class="repairs-table" style="min-width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th style="min-width:100px;">Date</th>
+                                            <th style="min-width:120px;">Category</th>
+                                            <th style="min-width:100px;">Amount</th>
+                                            <th style="min-width:80px;">Recurring</th>
+                                            <th style="min-width:150px;">Description</th>
+                                            <th style="min-width:150px;position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${houseExpenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => `
+                                            <tr>
+                                                <td style="white-space:nowrap;">${utils.formatDate(new Date(exp.date))}</td>
+                                                <td><strong>${exp.category}</strong></td>
+                                                <td style="font-weight:bold;color:#ff9800;white-space:nowrap;">₱${exp.amount.toFixed(2)}</td>
+                                                <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;white-space:nowrap;">${exp.recurringFrequency}</span>` : '-'}</td>
+                                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${exp.description || exp.notes || '-'}</td>
+                                                <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
+                                                    <div style="display:flex;gap:5px;flex-wrap:nowrap;">
+                                                        <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="white-space:nowrap;">✏️ Edit</button>
+                                                        <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm" style="white-space:nowrap;">🗑️ Del</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `}
+                    </div>
+                    
+                    <!-- MISCELLANEOUS EXPENSES -->
+                    <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                        <h4 style="margin:0 0 15px;">📝 Miscellaneous Expenses (${miscExpenses.length})</h4>
+                        ${miscExpenses.length === 0 ? `
+                            <div style="text-align:center;padding:20px;color:#999;">
+                                No miscellaneous expenses recorded
+                            </div>
+                        ` : `
+                            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                                <table class="repairs-table" style="min-width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th style="min-width:100px;">Date</th>
+                                            <th style="min-width:120px;">Category</th>
+                                            <th style="min-width:100px;">Amount</th>
+                                            <th style="min-width:80px;">Recurring</th>
+                                            <th style="min-width:150px;">Description</th>
+                                            <th style="min-width:150px;position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${miscExpenses.sort((a, b) => new Date(b.date) - new Date(a.date)).map(exp => `
+                                            <tr>
+                                                <td style="white-space:nowrap;">${utils.formatDate(new Date(exp.date))}</td>
+                                                <td><strong>${exp.category}</strong></td>
+                                                <td style="font-weight:bold;color:#9c27b0;white-space:nowrap;">₱${exp.amount.toFixed(2)}</td>
+                                                <td>${exp.recurringFrequency ? `<span style="background:#4caf50;color:white;padding:2px 6px;border-radius:3px;font-size:11px;white-space:nowrap;">${exp.recurringFrequency}</span>` : '-'}</td>
+                                                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;">${exp.description || exp.notes || '-'}</td>
+                                                <td style="position:sticky;right:0;background:white;box-shadow:-2px 0 4px rgba(0,0,0,0.05);">
+                                                    <div style="display:flex;gap:5px;flex-wrap:nowrap;">
+                                                        <button onclick="openEditOverheadModal('${exp.id}')" class="btn btn-secondary btn-sm" style="white-space:nowrap;">✏️ Edit</button>
+                                                        <button onclick="deleteOverheadExpenseById('${exp.id}')" class="btn btn-danger btn-sm" style="white-space:nowrap;">🗑️ Del</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `}
+                    </div>
+                `;
+            })()}
             </div>
         </div>
     `;
@@ -10610,6 +10717,7 @@ function openEditOverheadModal(expenseId) {
 
     // Populate modal fields
     document.getElementById('editOverheadId').value = expense.id;
+    document.getElementById('editOverheadExpenseType').value = expense.expenseType || 'Miscellaneous';
     document.getElementById('editOverheadCategory').value = expense.category || '';
     document.getElementById('editOverheadAmount').value = expense.amount || '';
 
@@ -10630,18 +10738,20 @@ function closeEditOverheadModal() {
 
 function saveEditedOverheadExpense() {
     const expenseId = document.getElementById('editOverheadId').value;
+    const expenseType = document.getElementById('editOverheadExpenseType').value;
     const category = document.getElementById('editOverheadCategory').value;
     const amount = parseFloat(document.getElementById('editOverheadAmount').value);
     const date = document.getElementById('editOverheadDate').value;
     const recurring = document.getElementById('editOverheadRecurring').value;
     const description = document.getElementById('editOverheadDescription').value.trim();
 
-    if (!category || !amount || amount <= 0 || !date) {
+    if (!expenseType || !category || !amount || amount <= 0 || !date) {
         alert('Please fill in all required fields');
         return;
     }
 
     const updates = {
+        expenseType: expenseType,
         category: category,
         amount: amount,
         date: date + 'T00:00:00.000Z',
