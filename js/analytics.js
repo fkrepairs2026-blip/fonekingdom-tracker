@@ -1108,6 +1108,7 @@ function calculateRepairProfit(repair, startDate, endDate) {
         repairId: repair.id,
         customerName: repair.customerName,
         repairType: repair.problemType,
+        technicianName: repair.acceptedByName || 'Unknown',
         revenue: revenue,
         partsCost: partsCost,
         techCommission: techCommission,
