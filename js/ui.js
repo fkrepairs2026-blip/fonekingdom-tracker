@@ -2901,6 +2901,22 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
             
             <div style="margin-top:15px;"><strong>Full Problem Description:</strong><br>${r.problem || r.problemDescription || 'N/A'}</div>
             
+            ${r.photos && r.photos.length > 0 ? `
+                <div style="margin-top:15px;background:#f5f5f5;padding:12px;border-radius:8px;border-left:4px solid #673ab7;">
+                    <strong style="color:#673ab7;">📸 Device Photos (${r.photos.length})</strong>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:10px;">
+                        ${r.photos.map((photo, index) => `
+                            <div style="cursor:pointer;border:2px solid #ddd;border-radius:8px;overflow:hidden;" onclick="viewFullImage('${photo}', '${r.customerName} - Photo ${index + 1}')">
+                                <img src="${photo}" alt="Device photo ${index + 1}" style="width:100%;height:150px;object-fit:cover;" />
+                                <div style="background:#673ab7;color:white;text-align:center;padding:5px;font-size:12px;">
+                                    Photo ${index + 1}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+            
             ${r.initialAssessment ? `
                 <div style="margin-top:15px;background:#e3f2fd;padding:12px;border-radius:8px;border-left:4px solid #2196f3;">
                     <strong style="color:#1976d2;">📋 Initial Assessment:</strong><br>
@@ -6404,6 +6420,88 @@ function changeRemittanceDate(dateOrAction) {
     }
 }
 
+/**
+ * View full-size image in modal
+ */
+function viewFullImage(imageData, title) {
+    // Create modal dynamically
+    const modal = document.createElement('div');
+    modal.id = 'imageViewerModal';
+    modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    `;
+
+    modal.innerHTML = `
+        <div style="position:absolute;top:10px;right:10px;">
+            <button onclick="closeImageViewer()" style="background:#fff;border:none;padding:10px 15px;border-radius:5px;cursor:pointer;font-size:18px;font-weight:bold;">
+                ✕
+            </button>
+        </div>
+        <div style="text-align:center;color:white;margin-bottom:15px;font-weight:bold;font-size:16px;">
+            ${title}
+        </div>
+        <img src="${imageData}" alt="${title}" style="max-width:90%;max-height:85vh;object-fit:contain;border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.5);" />
+        <div style="margin-top:15px;">
+            <button onclick="downloadImage('${imageData}', '${title}')" style="background:#2196f3;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;font-size:14px;margin-right:10px;">
+                💾 Download
+            </button>
+            <button onclick="closeImageViewer()" style="background:#666;color:white;border:none;padding:10px 20px;border-radius:5px;cursor:pointer;font-size:14px;">
+                Close
+            </button>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeImageViewer();
+        }
+    });
+
+    // Close on Escape key
+    document.addEventListener('keydown', function escapeHandler(e) {
+        if (e.key === 'Escape') {
+            closeImageViewer();
+            document.removeEventListener('keydown', escapeHandler);
+        }
+    });
+}
+
+/**
+ * Close image viewer modal
+ */
+function closeImageViewer() {
+    const modal = document.getElementById('imageViewerModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+/**
+ * Download image
+ */
+function downloadImage(imageData, title) {
+    const link = document.createElement('a');
+    link.href = imageData;
+    link.download = `${title}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 // Export to global scope
 window.buildTabs = buildTabs;
 window.switchTab = switchTab;
@@ -6432,6 +6530,9 @@ window.toggleDateGroup = toggleDateGroup;
 window.renderExpandedRepairDetails = renderExpandedRepairDetails;
 window.renderForReleaseButtons = renderForReleaseButtons;
 window.renderReleasedButtons = renderReleasedButtons;
+window.viewFullImage = viewFullImage;
+window.closeImageViewer = closeImageViewer;
+window.downloadImage = downloadImage;
 window.renderClaimedButtons = renderClaimedButtons;
 window.toggleRepairDetails = toggleRepairDetails;
 window.buildDashboardTab = buildDashboardTab;
