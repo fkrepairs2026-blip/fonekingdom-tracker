@@ -9079,22 +9079,24 @@ function buildAnalyticsTab(container) {
         
         <!-- Date Range Selector -->
         <div class="analytics-controls" style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
-            <div style="display:flex;gap:15px;flex-wrap:wrap;align-items:center;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;">
                 <div>
                     <label style="display:block;margin-bottom:5px;font-weight:600;">Start Date</label>
                     <input type="date" id="analyticsStartDate" value="${startDate.toISOString().split('T')[0]}" 
-                           style="padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-white);color:var(--text-primary);">
+                           style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-white);color:var(--text-primary);">
                 </div>
                 <div>
                     <label style="display:block;margin-bottom:5px;font-weight:600;">End Date</label>
                     <input type="date" id="analyticsEndDate" value="${endDate.toISOString().split('T')[0]}"
-                           style="padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-white);color:var(--text-primary);">
+                           style="width:100%;padding:10px;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-white);color:var(--text-primary);">
                 </div>
-                <div style="display:flex;gap:10px;align-items:flex-end;">
-                    <button onclick="updateAnalyticsDateRange()" class="btn-primary">Apply</button>
-                    <button onclick="setQuickDateRange('7days')" class="btn-secondary">Last 7 Days</button>
-                    <button onclick="setQuickDateRange('30days')" class="btn-secondary">Last 30 Days</button>
-                    <button onclick="setQuickDateRange('thisMonth')" class="btn-secondary">This Month</button>
+                <div style="grid-column:1/-1;">
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <button onclick="updateAnalyticsDateRange()" class="btn-primary" style="flex:1;min-width:80px;">Apply</button>
+                        <button onclick="setQuickDateRange('7days')" class="btn-secondary" style="flex:1;min-width:80px;">7 Days</button>
+                        <button onclick="setQuickDateRange('30days')" class="btn-secondary" style="flex:1;min-width:80px;">30 Days</button>
+                        <button onclick="setQuickDateRange('thisMonth')" class="btn-secondary" style="flex:1;min-width:80px;">Month</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -9124,17 +9126,17 @@ function buildAnalyticsTab(container) {
         
         <!-- Revenue by Type -->
         <div style="background:var(--bg-secondary);padding:20px;border-radius:12px;margin-bottom:25px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
                 <h3 style="margin:0;">📊 Revenue by Repair Type</h3>
                 <button onclick="exportRevenueByType()" class="btn-small">📥 Export CSV</button>
             </div>
-            <div class="table-responsive">
-                <table class="repair-table">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="repair-table" style="min-width:400px;">
                     <thead>
                         <tr>
-                            <th>Repair Type</th>
-                            <th>Revenue</th>
-                            <th>% of Total</th>
+                            <th style="min-width:150px;">Repair Type</th>
+                            <th style="min-width:120px;">Revenue</th>
+                            <th style="min-width:100px;">% of Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -10119,7 +10121,7 @@ function buildProfitDashboardTab(container) {
             
             <!-- DATE RANGE SELECTOR -->
             <div style="background:#f8f9fa;padding:15px;border-radius:5px;margin-bottom:20px;">
-                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end;">
                     <div>
                         <label>Start Date</label>
                         <input type="date" id="profitStartDate" value="${startStr}" class="form-control">
@@ -10128,12 +10130,12 @@ function buildProfitDashboardTab(container) {
                         <label>End Date</label>
                         <input type="date" id="profitEndDate" value="${endStr}" class="form-control">
                     </div>
-                    <div>
-                        <button onclick="refreshProfitDashboard()" class="btn btn-primary">
+                    <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                        <button onclick="refreshProfitDashboard()" class="btn btn-primary" style="flex:1;min-width:100px;">
                             🔄 Refresh
                         </button>
-                        <button onclick="exportCurrentProfitReport()" class="btn btn-success">
-                            📊 Export CSV
+                        <button onclick="exportCurrentProfitReport()" class="btn btn-success" style="flex:1;min-width:100px;">
+                            📊 Export
                         </button>
                     </div>
                 </div>
@@ -10190,12 +10192,12 @@ function refreshProfitDashboard() {
                     <div class="stat-sublabel">${((dashboard.summary.totalCommission / dashboard.summary.totalRevenue) * 100).toFixed(1)}% of revenue</div>
                     ${dashboard.summary.commissionByTech && Object.keys(dashboard.summary.commissionByTech).length > 0 ? `
                         <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.3);font-size:11px;">
-                            ${Object.entries(dashboard.summary.commissionByTech).map(([tech, amt]) => 
-                                `<div style="display:flex;justify-content:space-between;margin:3px 0;">
+                            ${Object.entries(dashboard.summary.commissionByTech).map(([tech, amt]) =>
+            `<div style="display:flex;justify-content:space-between;margin:3px 0;">
                                     <span>${tech}:</span>
                                     <span style="font-weight:bold;">₱${amt.toFixed(2)}</span>
                                 </div>`
-                            ).join('')}
+        ).join('')}
                         </div>
                     ` : ''}
                 </div>
@@ -10493,28 +10495,28 @@ function buildOverheadExpensesTab(container) {
                 <div style="font-size:14px;opacity:0.9;">${monthExpenses.length} expense(s)</div>
                 
                 ${(() => {
-                    const byType = {};
-                    monthExpenses.forEach(exp => {
-                        const type = exp.expenseType || 'Miscellaneous';
-                        if (!byType[type]) byType[type] = 0;
-                        byType[type] += exp.amount;
-                    });
-                    return Object.keys(byType).length > 0 ? `
+            const byType = {};
+            monthExpenses.forEach(exp => {
+                const type = exp.expenseType || 'Miscellaneous';
+                if (!byType[type]) byType[type] = 0;
+                byType[type] += exp.amount;
+            });
+            return Object.keys(byType).length > 0 ? `
                         <div style="margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.3);">
                             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
                                 ${Object.entries(byType).map(([type, amt]) => {
-                                    const icon = type === 'Shop' ? '🏪' : type === 'House' ? '🏠' : type === 'Loans' ? '💳' : '📝';
-                                    return `
+                const icon = type === 'Shop' ? '🏪' : type === 'House' ? '🏠' : type === 'Loans' ? '💳' : '📝';
+                return `
                                         <div>
                                             <div style="font-size:12px;opacity:0.9;">${icon} ${type}</div>
                                             <div style="font-size:18px;font-weight:bold;">₱${amt.toFixed(2)}</div>
                                         </div>
                                     `;
-                                }).join('')}
+            }).join('')}
                             </div>
                         </div>
                     ` : '';
-                })()}
+        })()}
                 
                 ${Object.keys(byCategory).length > 0 ? `
                     <div style="margin-top:15px;padding-top:15px;border-top:1px solid rgba(255,255,255,0.3);">
@@ -10533,13 +10535,13 @@ function buildOverheadExpensesTab(container) {
             
             <!-- EXPENSE LISTS BY TYPE -->
             ${(() => {
-                const allExpenses = (window.overheadExpenses || []).filter(e => !e.deleted);
-                const shopExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Shop');
-                const houseExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'House');
-                const loanExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Loans');
-                const miscExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Miscellaneous');
-                
-                return `
+            const allExpenses = (window.overheadExpenses || []).filter(e => !e.deleted);
+            const shopExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Shop');
+            const houseExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'House');
+            const loanExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Loans');
+            const miscExpenses = allExpenses.filter(e => (e.expenseType || 'Miscellaneous') === 'Miscellaneous');
+
+            return `
                     <!-- SHOP EXPENSES -->
                     <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
                         <h4 style="margin:0 0 15px;">🏪 Shop Expenses (${shopExpenses.length})</h4>
@@ -10708,7 +10710,7 @@ function buildOverheadExpensesTab(container) {
                         `}
                     </div>
                 `;
-            })()}
+        })()}
             </div>
         </div>
     `;
@@ -10864,7 +10866,7 @@ function updateOverheadCategories() {
     const expenseType = document.getElementById('overheadExpenseType').value;
     const categorySelect = document.getElementById('overheadCategory');
     const options = categorySelect.querySelectorAll('option');
-    
+
     options.forEach(option => {
         const optionType = option.getAttribute('data-type');
         if (!optionType) {
@@ -10875,7 +10877,7 @@ function updateOverheadCategories() {
             option.style.display = 'none';
         }
     });
-    
+
     // Reset to first visible option
     const firstVisible = Array.from(options).find(opt => opt.style.display !== 'none' && opt.value);
     if (firstVisible) {
@@ -10892,9 +10894,9 @@ function updateEditOverheadCategories() {
     const expenseType = document.getElementById('editOverheadExpenseType').value;
     const categorySelect = document.getElementById('editOverheadCategory');
     const options = categorySelect.querySelectorAll('option');
-    
+
     const currentValue = categorySelect.value;
-    
+
     options.forEach(option => {
         const optionType = option.getAttribute('data-type');
         if (!optionType) {
@@ -10905,7 +10907,7 @@ function updateEditOverheadCategories() {
             option.style.display = 'none';
         }
     });
-    
+
     // Check if current value is still visible
     const currentOption = Array.from(options).find(opt => opt.value === currentValue);
     if (currentOption && currentOption.style.display === 'none') {
@@ -10955,7 +10957,7 @@ function buildSupplierPayablesTab(container) {
             <!-- ADD NEW PURCHASE -->
             <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">➕ Record New Purchase</h4>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:15px;">
                     <div>
                         <label>Supplier *</label>
                         <input type="text" id="purchaseSupplier" class="form-control" placeholder="Supplier name">
@@ -10965,7 +10967,7 @@ function buildSupplierPayablesTab(container) {
                         <input type="text" id="purchaseInvoice" class="form-control" placeholder="INV-001">
                     </div>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:15px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-bottom:15px;">
                     <div>
                         <label>Amount *</label>
                         <input type="number" id="purchaseAmount" class="form-control" placeholder="0.00" step="0.01" min="0">
@@ -11029,14 +11031,14 @@ function buildSupplierPayablesTab(container) {
             ${Object.keys(bySupplier).length > 0 ? `
                 <div style="background:white;padding:20px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);margin-bottom:20px;">
                     <h4 style="margin:0 0 15px;">📊 Outstanding by Supplier</h4>
-                    <div class="table-responsive">
-                        <table class="repairs-table">
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                        <table class="repairs-table" style="min-width:500px;">
                             <thead>
                                 <tr>
-                                    <th>Supplier</th>
-                                    <th>Invoices</th>
-                                    <th>Outstanding</th>
-                                    <th>Overdue</th>
+                                    <th style="min-width:150px;">Supplier</th>
+                                    <th style="min-width:80px;">Invoices</th>
+                                    <th style="min-width:120px;">Outstanding</th>
+                                    <th style="min-width:80px;">Overdue</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -11064,19 +11066,19 @@ function buildSupplierPayablesTab(container) {
                         No supplier purchases recorded yet
                     </div>
                 ` : `
-                    <div class="table-responsive">
-                        <table class="repairs-table">
+                    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                        <table class="repairs-table" style="min-width:900px;">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Supplier</th>
-                                    <th>Invoice</th>
-                                    <th>Amount</th>
-                                    <th>Paid</th>
-                                    <th>Outstanding</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
+                                    <th style="min-width:90px;">Date</th>
+                                    <th style="min-width:120px;">Supplier</th>
+                                    <th style="min-width:100px;">Invoice</th>
+                                    <th style="min-width:100px;">Amount</th>
+                                    <th style="min-width:90px;">Paid</th>
+                                    <th style="min-width:110px;">Outstanding</th>
+                                    <th style="min-width:100px;">Due Date</th>
+                                    <th style="min-width:80px;">Status</th>
+                                    <th style="min-width:140px;position:sticky;right:0;background:white;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -11105,7 +11107,7 @@ function buildSupplierPayablesTab(container) {
                                                         ${purchase.paymentStatus.toUpperCase()}
                                                     </span>
                                                 </td>
-                                                <td>
+                                                <td style="position:sticky;right:0;background:white;white-space:nowrap;">
                                                     ${purchase.paymentStatus !== 'paid' ? `
                                                         <button onclick="showRecordPaymentModal('${purchase.id}')" class="btn btn-success btn-sm">
                                                             💵 Pay
@@ -11513,7 +11515,7 @@ function buildFinancialReportsTab(container) {
             <!-- PROFIT & LOSS STATEMENT -->
             <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">📊 Profit & Loss Statement</h4>
-                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
                     <div>
                         <label>Start Date</label>
                         <input type="date" id="plStartDate" class="form-control" value="${currentYear}-01-01">
@@ -11522,9 +11524,9 @@ function buildFinancialReportsTab(container) {
                         <label>End Date</label>
                         <input type="date" id="plEndDate" class="form-control" value="${new Date().toISOString().split('T')[0]}">
                     </div>
-                    <div style="display:flex;align-items:end;gap:10px;">
-                        <button onclick="generatePLStatement()" class="btn btn-primary">📊 Generate</button>
-                        <button onclick="exportPLStatementCSV()" class="btn btn-success">💾 Export CSV</button>
+                    <div style="display:flex;align-items:end;gap:5px;flex-wrap:wrap;">
+                        <button onclick="generatePLStatement()" class="btn btn-primary" style="flex:1;min-width:100px;">📊 Generate</button>
+                        <button onclick="exportPLStatementCSV()" class="btn btn-success" style="flex:1;min-width:100px;">💾 Export</button>
                     </div>
                 </div>
                 <div id="plStatementContent"></div>
@@ -11533,7 +11535,7 @@ function buildFinancialReportsTab(container) {
             <!-- QUARTERLY SUMMARY -->
             <div style="background:#f8f9fa;padding:20px;border-radius:8px;margin-bottom:20px;">
                 <h4 style="margin:0 0 15px;">📅 Quarterly Summary</h4>
-                <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin-bottom:15px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:15px;">
                     <div>
                         <label>Year</label>
                         <select id="quarterYear" class="form-control">
@@ -11550,9 +11552,9 @@ function buildFinancialReportsTab(container) {
     ).join('')}
                         </select>
                     </div>
-                    <div style="display:flex;align-items:end;gap:10px;">
-                        <button onclick="generateQuarterlySummary()" class="btn btn-primary">📊 Generate</button>
-                        <button onclick="exportQuarterlySummaryCSV()" class="btn btn-success">💾 Export CSV</button>
+                    <div style="display:flex;align-items:end;gap:5px;flex-wrap:wrap;">
+                        <button onclick="generateQuarterlySummary()" class="btn btn-primary" style="flex:1;min-width:100px;">📊 Generate</button>
+                        <button onclick="exportQuarterlySummaryCSV()" class="btn btn-success" style="flex:1;min-width:100px;">💾 Export</button>
                     </div>
                 </div>
                 <div id="quarterlySummaryContent"></div>
@@ -11561,7 +11563,7 @@ function buildFinancialReportsTab(container) {
             <!-- ANNUAL SUMMARY -->
             <div style="background:#f8f9fa;padding:20px;border-radius:8px;">
                 <h4 style="margin:0 0 15px;">📆 Annual Summary</h4>
-                <div style="display:grid;grid-template-columns:1fr auto;gap:10px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;">
                     <div>
                         <label>Year</label>
                         <select id="annualYear" class="form-control">
@@ -11570,8 +11572,8 @@ function buildFinancialReportsTab(container) {
     ).join('')}
                         </select>
                     </div>
-                    <div style="display:flex;align-items:end;gap:10px;">
-                        <button onclick="exportAnnualPLStatementCSV()" class="btn btn-success">💾 Export Annual P&L</button>
+                    <div style="display:flex;align-items:end;">
+                        <button onclick="exportAnnualPLStatementCSV()" class="btn btn-success" style="width:100%;">💾 Export Annual P&L</button>
                     </div>
                 </div>
             </div>

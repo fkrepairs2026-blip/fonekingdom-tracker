@@ -38,7 +38,7 @@ function buildHistoricalReviewTab(container) {
             <!-- Filters Section -->
             <div style="background:var(--bg-white);border:1px solid var(--border-color);border-radius:10px;padding:20px;margin-bottom:20px;">
                 <h3 style="margin-top:0;">🔍 Filters</h3>
-                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;">
                     <div>
                         <label style="display:block;margin-bottom:5px;font-weight:600;">Start Date</label>
                         <input type="date" id="historyStartDate" value="${startDateStr}" 
@@ -59,13 +59,15 @@ function buildHistoricalReviewTab(container) {
                             ).join('')}
                         </select>
                     </div>
-                    <div style="display:flex;align-items:flex-end;gap:10px;">
-                        <button onclick="applyHistoricalFilters()" class="btn-primary" style="flex:1;">
-                            Apply Filters
-                        </button>
-                        <button onclick="quickDateRange('today')" class="btn-small" title="Today">Today</button>
-                        <button onclick="quickDateRange('week')" class="btn-small" title="This Week">Week</button>
-                        <button onclick="quickDateRange('month')" class="btn-small" title="This Month">Month</button>
+                    <div style="grid-column:1/-1;">
+                        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+                            <button onclick="applyHistoricalFilters()" class="btn-primary" style="flex:1;min-width:100px;">
+                                Apply Filters
+                            </button>
+                            <button onclick="quickDateRange('today')" class="btn-small" style="flex:1;min-width:60px;">Today</button>
+                            <button onclick="quickDateRange('week')" class="btn-small" style="flex:1;min-width:60px;">Week</button>
+                            <button onclick="quickDateRange('month')" class="btn-small" style="flex:1;min-width:60px;">Month</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -419,18 +421,18 @@ function updateRepairsHistoryTab(repairs) {
     const html = `
         <div style="margin-top:20px;">
             <h3>🔧 Repairs (${repairs.length})</h3>
-            <div style="overflow-x:auto;">
-                <table class="data-table">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="data-table" style="min-width:800px;">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Customer</th>
-                            <th>Device</th>
-                            <th>Problem</th>
-                            <th>Status</th>
-                            <th>Received By</th>
-                            <th>Accepted By</th>
-                            <th>Total</th>
+                            <th style="min-width:90px;">Date</th>
+                            <th style="min-width:120px;">Customer</th>
+                            <th style="min-width:120px;">Device</th>
+                            <th style="min-width:150px;">Problem</th>
+                            <th style="min-width:100px;">Status</th>
+                            <th style="min-width:120px;">Received By</th>
+                            <th style="min-width:120px;">Accepted By</th>
+                            <th style="min-width:100px;">Total</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -474,18 +476,18 @@ function updatePaymentsHistoryTab(payments) {
     const html = `
         <div style="margin-top:20px;">
             <h3>💰 Payments (${payments.length})</h3>
-            <div style="overflow-x:auto;">
-                <table class="data-table">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="data-table" style="min-width:900px;">
                     <thead>
                         <tr>
-                            <th>Payment Date</th>
-                            <th>Customer</th>
-                            <th>Device</th>
-                            <th>Amount</th>
-                            <th>Method</th>
-                            <th>Received By</th>
-                            <th>Verified</th>
-                            <th>Remittance Status</th>
+                            <th style="min-width:100px;">Payment Date</th>
+                            <th style="min-width:120px;">Customer</th>
+                            <th style="min-width:120px;">Device</th>
+                            <th style="min-width:100px;">Amount</th>
+                            <th style="min-width:80px;">Method</th>
+                            <th style="min-width:120px;">Received By</th>
+                            <th style="min-width:80px;">Verified</th>
+                            <th style="min-width:120px;">Remittance Status</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -529,19 +531,19 @@ function updateRemittancesHistoryTab(remittances) {
     const html = `
         <div style="margin-top:20px;">
             <h3>📤 Remittances (${remittances.length})</h3>
-            <div style="overflow-x:auto;">
-                <table class="data-table">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="data-table" style="min-width:1000px;">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Technician</th>
-                            <th>Payments Collected</th>
-                            <th>Expenses</th>
-                            <th>Expected Amount</th>
-                            <th>Actual Amount</th>
-                            <th>Discrepancy</th>
-                            <th>Status</th>
-                            <th>Verified By</th>
+                            <th style="min-width:90px;">Date</th>
+                            <th style="min-width:120px;">Technician</th>
+                            <th style="min-width:130px;">Payments Collected</th>
+                            <th style="min-width:100px;">Expenses</th>
+                            <th style="min-width:130px;">Expected Amount</th>
+                            <th style="min-width:120px;">Actual Amount</th>
+                            <th style="min-width:110px;">Discrepancy</th>
+                            <th style="min-width:90px;">Status</th>
+                            <th style="min-width:120px;">Verified By</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -593,15 +595,15 @@ function updateExpensesHistoryTab(expenses) {
     const html = `
         <div style="margin-top:20px;">
             <h3>💸 Expenses (${expenses.length})</h3>
-            <div style="overflow-x:auto;">
-                <table class="data-table">
+            <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;">
+                <table class="data-table" style="min-width:600px;">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Technician</th>
-                            <th>Category</th>
-                            <th>Description</th>
-                            <th>Amount</th>
+                            <th style="min-width:90px;">Date</th>
+                            <th style="min-width:120px;">Technician</th>
+                            <th style="min-width:120px;">Category</th>
+                            <th style="min-width:200px;">Description</th>
+                            <th style="min-width:100px;">Amount</th>
                         </tr>
                     </thead>
                     <tbody>
