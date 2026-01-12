@@ -121,6 +121,7 @@ function buildTabs() {
                 { id: 'staff-overview', label: 'Staff Overview', icon: '👥', build: buildStaffOverviewTab },
                 { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab },
                 { id: 'approve-parts-orders', label: 'Approve Orders', icon: '📦', build: buildApprovePartsOrdersTab },
+                { id: 'photo-gallery', label: 'Photo Gallery', icon: '📸', build: buildPhotoGalleryTab },
                 { id: 'users', label: 'Users', icon: '👤', build: buildUsersTab },
                 { id: 'refund-requests', label: 'Refund Requests', icon: '🔄', build: buildRefundRequestsTab },
                 { id: 'refunded-devices', label: 'Refunded Devices', icon: '💸', build: buildRefundedDevicesTab },
@@ -6421,6 +6422,177 @@ function changeRemittanceDate(dateOrAction) {
 }
 
 /**
+ * Build Photo Gallery Tab (Admin only)
+ */
+function buildPhotoGalleryTab(container) {
+    console.log('📸 Building Photo Gallery tab');
+    window.currentTabRefresh = () => buildPhotoGalleryTab(document.getElementById('photoGalleryTab'));
+
+    const role = window.currentUserData?.role;
+    if (role !== 'admin') {
+        container.innerHTML = '<div class="card"><h3>⚠️ Access Denied</h3><p>This page is for administrators only.</p></div>';
+        return;
+    }
+
+    // Get all repairs with photos
+    const repairsWithPhotos = window.allRepairs.filter(r => r.photos && r.photos.length > 0 && !r.deleted);
+
+    // Group photos by technician
+    const photosByTech = {};
+    repairsWithPhotos.forEach(repair => {
+        const techName = repair.receivedBy || 'Unknown';
+        if (!photosByTech[techName]) {
+            photosByTech[techName] = [];
+        }
+        repair.photos.forEach((photo, index) => {
+            photosByTech[techName].push({
+                photo: photo,
+                repairId: repair.id,
+                customerName: repair.customerName,
+                brand: repair.brand,
+                model: repair.model,
+                receivedAt: repair.receivedAt,
+                photoIndex: index
+            });
+        });
+    });
+
+    const techNames = Object.keys(photosByTech).sort();
+    const totalPhotos = repairsWithPhotos.reduce((sum, r) => sum + (r.photos?.length || 0), 0);
+
+    container.innerHTML = `
+        <div class="card">
+            <h2>📸 Device Photo Gallery</h2>
+            <p style="color:#666;margin-bottom:20px;">All photos uploaded during device intake</p>
+            
+            <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin-bottom:20px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;text-align:center;">
+                    <div>
+                        <div style="font-size:32px;font-weight:bold;color:#673ab7;">${totalPhotos}</div>
+                        <div style="color:#666;font-size:14px;">Total Photos</div>
+                    </div>
+                    <div>
+                        <div style="font-size:32px;font-weight:bold;color:#2196f3;">${repairsWithPhotos.length}</div>
+                        <div style="color:#666;font-size:14px;">Repairs with Photos</div>
+                    </div>
+                    <div>
+                        <div style="font-size:32px;font-weight:bold;color:#4caf50;">${techNames.length}</div>
+                        <div style="color:#666;font-size:14px;">Staff Members</div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <input type="text" 
+                       id="photoGallerySearch" 
+                       placeholder="🔍 Search by customer name, device, or staff name..." 
+                       onkeyup="filterPhotoGallery()" 
+                       style="width:100%;padding:12px;border:1px solid #ddd;border-radius:5px;font-size:14px;">
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="margin-right:15px;">
+                    <strong>Filter by Staff:</strong>
+                </label>
+                <select id="techFilterSelect" onchange="filterPhotoGallery()" style="padding:8px;border:1px solid #ddd;border-radius:5px;font-size:14px;">
+                    <option value="">All Staff (${techNames.length})</option>
+                    ${techNames.map(techName => `
+                        <option value="${techName}">${techName} (${photosByTech[techName].length})</option>
+                    `).join('')}
+                </select>
+            </div>
+
+            ${techNames.length === 0 ? `
+                <div style="text-align:center;padding:40px;color:#999;">
+                    <h2 style="font-size:48px;margin:0;">📷</h2>
+                    <p>No photos uploaded yet</p>
+                </div>
+            ` : `
+                <div id="photoGalleryContent">
+                    ${techNames.map(techName => {
+                        const photos = photosByTech[techName];
+                        return `
+                            <div class="photo-gallery-section" data-tech="${techName}" style="margin-bottom:40px;">
+                                <h3 style="background:#673ab7;color:white;padding:12px;border-radius:8px;margin-bottom:15px;">
+                                    👤 ${techName} (${photos.length} photo${photos.length !== 1 ? 's' : ''})
+                                </h3>
+                                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:15px;">
+                                    ${photos.map(item => `
+                                        <div class="photo-item" 
+                                             data-customer="${item.customerName}" 
+                                             data-device="${item.brand} ${item.model}"
+                                             style="cursor:pointer;border:2px solid #ddd;border-radius:8px;overflow:hidden;background:white;box-shadow:0 2px 5px rgba(0,0,0,0.1);transition:transform 0.2s;"
+                                             onmouseover="this.style.transform='scale(1.05)'"
+                                             onmouseout="this.style.transform='scale(1)'"
+                                             onclick="viewFullImage('${item.photo}', '${item.customerName} - ${item.brand} ${item.model}')">
+                                            <img src="${item.photo}" 
+                                                 alt="${item.customerName}" 
+                                                 style="width:100%;height:200px;object-fit:cover;" />
+                                            <div style="padding:10px;">
+                                                <div style="font-weight:bold;font-size:14px;color:#333;margin-bottom:3px;">
+                                                    ${item.customerName}
+                                                </div>
+                                                <div style="font-size:13px;color:#666;margin-bottom:5px;">
+                                                    ${item.brand} ${item.model}
+                                                </div>
+                                                <div style="font-size:12px;color:#999;">
+                                                    ${utils.formatDate(item.receivedAt)}
+                                                </div>
+                                                <button onclick="event.stopPropagation();switchTab('all');setTimeout(() => { const search = document.getElementById('repairSearch'); if (search) { search.value = '${item.repairId}'; search.dispatchEvent(new Event('keyup')); } }, 300);" 
+                                                        style="margin-top:8px;width:100%;padding:5px;background:#2196f3;color:white;border:none;border-radius:4px;font-size:12px;cursor:pointer;">
+                                                    🔍 View Repair
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `}
+        </div>
+    `;
+}
+
+/**
+ * Filter photo gallery by search and staff
+ */
+function filterPhotoGallery() {
+    const searchTerm = document.getElementById('photoGallerySearch')?.value.toLowerCase() || '';
+    const selectedTech = document.getElementById('techFilterSelect')?.value || '';
+    
+    const sections = document.querySelectorAll('.photo-gallery-section');
+    
+    sections.forEach(section => {
+        const techName = section.getAttribute('data-tech');
+        const items = section.querySelectorAll('.photo-item');
+        
+        // Check if section should be visible based on tech filter
+        if (selectedTech && techName !== selectedTech) {
+            section.style.display = 'none';
+            return;
+        }
+        
+        let visibleCount = 0;
+        items.forEach(item => {
+            const customer = item.getAttribute('data-customer').toLowerCase();
+            const device = item.getAttribute('data-device').toLowerCase();
+            
+            if (searchTerm === '' || customer.includes(searchTerm) || device.includes(searchTerm)) {
+                item.style.display = 'block';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        // Hide section if no visible items
+        section.style.display = visibleCount > 0 ? 'block' : 'none';
+    });
+}
+
+/**
  * View full-size image in modal
  */
 function viewFullImage(imageData, title) {
@@ -6530,6 +6702,8 @@ window.toggleDateGroup = toggleDateGroup;
 window.renderExpandedRepairDetails = renderExpandedRepairDetails;
 window.renderForReleaseButtons = renderForReleaseButtons;
 window.renderReleasedButtons = renderReleasedButtons;
+window.buildPhotoGalleryTab = buildPhotoGalleryTab;
+window.filterPhotoGallery = filterPhotoGallery;
 window.viewFullImage = viewFullImage;
 window.closeImageViewer = closeImageViewer;
 window.downloadImage = downloadImage;
