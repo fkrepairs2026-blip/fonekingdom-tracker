@@ -28,6 +28,48 @@ window.allRetroactiveIntakes = [];
 window.systemSettings = { retroactiveIntakeThreshold: 5 };
 
 /**
+ * Handle photo upload and preview for device intake
+ */
+async function handlePhotoUpload(input, previewId) {
+    const file = input.files[0];
+    if (!file) return;
+    
+    try {
+        // Show loading
+        utils.showLoading(true);
+        
+        // Compress image
+        const compressed = await utils.compressImage(file, 800);
+        
+        // Add to photo data array
+        photoData.push(compressed);
+        
+        // Show preview
+        const previewDiv = document.getElementById(previewId);
+        if (previewDiv) {
+            previewDiv.style.display = 'block';
+            previewDiv.innerHTML = `
+                <img src="${compressed}" style="max-width:200px;border-radius:8px;border:2px solid #4caf50;">
+                <p style="color:#4caf50;margin:5px 0 0 0;font-size:13px;">✅ Photo added successfully</p>
+            `;
+        }
+        
+        utils.showLoading(false);
+        
+        if (utils.showToast) {
+            utils.showToast('✅ Photo added', 'success', 2000);
+        }
+        
+        console.log(`📸 Photo added. Total photos: ${photoData.length}`);
+        
+    } catch (error) {
+        utils.showLoading(false);
+        alert('Error uploading photo: ' + error.message);
+        console.error('Photo upload error:', error);
+    }
+}
+
+/**
  * Load all repairs from Firebase
  */
 async function loadRepairs() {
