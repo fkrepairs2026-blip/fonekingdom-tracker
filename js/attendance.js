@@ -369,13 +369,33 @@ window.clockOut = clockOut;
 // Helper to go to remittance tab from modal
 function goToRemittanceTab() {
     document.getElementById('remittanceRequiredModal').style.display = 'none';
-    if (window.buildRemittanceTab) {
-        window.buildRemittanceTab(document.getElementById('mainTabContent'));
+    // Use buildTab function which properly switches tabs
+    if (window.buildTab) {
+        window.buildTab('remittance');
+    } else if (window.buildDailyRemittanceTab) {
+        // Fallback: find the remittance tab container
+        const remittanceContainer = document.getElementById('remittanceTab');
+        if (remittanceContainer) {
+            window.buildDailyRemittanceTab(remittanceContainer);
+            // Switch to the tab visually
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            const remittanceBtn = document.querySelector('[data-tab="remittance"]');
+            if (remittanceBtn) remittanceBtn.classList.add('active');
+            
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            if (remittanceContainer) remittanceContainer.classList.add('active');
+        }
     } else {
         alert('Remittance tab not available. Please contact admin.');
     }
 }
+
+function closeRemittanceModal() {
+    document.getElementById('remittanceRequiredModal').style.display = 'none';
+}
+
 window.goToRemittanceTab = goToRemittanceTab;
+window.closeRemittanceModal = closeRemittanceModal;
 window.getUserAttendanceStatus = getUserAttendanceStatus;
 /**
  * Clock Reminder System

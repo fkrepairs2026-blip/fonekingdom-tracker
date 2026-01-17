@@ -270,11 +270,19 @@
 
     <!-- Remittance Required Modal -->
     <div id="remittanceRequiredModal" class="modal">
-        <div class="modal-content" style="max-width:400px;">
-            <h3>Remittance Required</h3>
-            <p style="font-size:16px;">You have pending cash collections for today.<br><b>Please submit your remittance
-                    before clocking out.</b></p>
-            <button onclick="goToRemittanceTab()" class="btn-primary" style="margin-top:16px;">Remit Cash Now</button>
+        <div class="modal-content" style="max-width:450px;">
+            <h3>💰 Remittance Required</h3>
+            <p style="font-size:16px;margin:15px 0;">You have pending cash collections for today.</p>
+            <p style="font-size:14px;color:#666;margin-bottom:20px;">Please submit your daily remittance before clocking out to ensure accurate cash tracking.</p>
+            
+            <div style="display:flex;gap:10px;flex-direction:column;">
+                <button onclick="goToRemittanceTab()" class="btn-primary">
+                    💸 Submit Remittance Now
+                </button>
+                <button onclick="closeRemittanceModal()" class="btn-secondary">
+                    ❌ Cancel (Stay Clocked In)
+                </button>
+            </div>
         </div>
     </div>
 
