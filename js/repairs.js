@@ -6073,7 +6073,7 @@ function getPendingRemittanceDates(techId) {
     }
 
     // Calculate commission and unremitted balance per date
-    // Correct: Tech gets 40% of gross, Shop gets 60% of gross minus expenses/parts
+    // Correct: Commission is on NET amount (after parts costs deducted)
     Object.keys(dateMap).forEach(dateString => {
         const dateData = dateMap[dateString];
 
@@ -6081,11 +6081,13 @@ function getPendingRemittanceDates(techId) {
         const { total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
         dateData.totalPartsCosts = partsCostsTotal;
 
-        // Tech commission = 40% of gross payments
-        dateData.totalCommission = dateData.totalPayments * 0.40;
-        // Shop's share = 60% of gross minus expenses and parts costs
-        const shopShare = (dateData.totalPayments * 0.60) - partsCostsTotal - dateData.totalExpenses;
-        dateData.unremittedBalance = shopShare;
+        // Calculate net revenue (payments minus parts costs and expenses)
+        const netRevenue = dateData.totalPayments - partsCostsTotal - dateData.totalExpenses;
+        
+        // Tech commission = 40% of net revenue
+        dateData.totalCommission = netRevenue * 0.40;
+        // Shop's share = 60% of net revenue
+        dateData.unremittedBalance = netRevenue * 0.60;
     });
 
     // Convert to array and sort by date (oldest first)
