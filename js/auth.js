@@ -434,6 +434,85 @@ async function openProfileModal() {
     historySnapshot.forEach(child => {
         loginHistory.unshift(child.val());
     });
+    
+    // Get badges data for technicians/cashiers
+    let badgesHTML = '';
+    if (['technician', 'cashier'].includes(window.currentUserData.role)) {
+        const badges = window.currentUserBadges || await (async () => {
+            const snapshot = await db.ref(`routineBadges/${window.currentUser.uid}`).once('value');
+            return snapshot.val() || {
+                currentStreak: 0,
+                longestStreak: 0,
+                totalDaysCompleted: 0,
+                badges: [],
+                totalCashEarned: 0,
+                totalCashPaid: 0
+            };
+        })();
+        
+        const pendingCash = badges.totalCashEarned - badges.totalCashPaid;
+        const badgeList = Object.values(badges.badges || {});
+        
+        badgesHTML = `
+            <div class="profile-section">
+                <h4>🏆 Achievements & Badges</h4>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:15px;margin-bottom:20px;">
+                    <div style="text-align:center;padding:15px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border-radius:10px;">
+                        <div style="font-size:32px;">🔥</div>
+                        <div style="font-size:24px;font-weight:bold;">${badges.currentStreak || 0}</div>
+                        <div style="font-size:12px;opacity:0.8;">Current Streak</div>
+                    </div>
+                    <div style="text-align:center;padding:15px;background:linear-gradient(135deg,#48bb78,#38a169);color:white;border-radius:10px;">
+                        <div style="font-size:32px;">🏆</div>
+                        <div style="font-size:24px;font-weight:bold;">${badges.longestStreak || 0}</div>
+                        <div style="font-size:12px;opacity:0.8;">Longest Streak</div>
+                    </div>
+                    <div style="text-align:center;padding:15px;background:linear-gradient(135deg,#f6ad55,#ed8936);color:white;border-radius:10px;">
+                        <div style="font-size:32px;">🏅</div>
+                        <div style="font-size:24px;font-weight:bold;">${badgeList.length}</div>
+                        <div style="font-size:12px;opacity:0.8;">Total Badges</div>
+                    </div>
+                </div>
+                
+                <div style="background:#f0f7ff;padding:15px;border-radius:10px;margin-bottom:15px;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <div>
+                            <div style="font-size:12px;color:#666;">💰 Pending Cash Rewards</div>
+                            <div style="font-size:24px;font-weight:bold;color:#f6ad55;">₱${pendingCash.toLocaleString()}</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:12px;color:#666;">💵 Paid Out</div>
+                            <div style="font-size:20px;font-weight:bold;color:#48bb78;">₱${badges.totalCashPaid.toLocaleString()}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:11px;color:#999;text-align:center;">
+                        <em>Coming Soon: Cash rewards converted during holiday seasons</em>
+                    </div>
+                </div>
+                
+                ${badgeList.length > 0 ? `
+                    <h5 style="margin-top:20px;margin-bottom:10px;">📜 Badge History</h5>
+                    <div style="max-height:200px;overflow-y:auto;">
+                        ${badgeList.map(badge => `
+                            <div style="display:flex;align-items:center;padding:10px;background:#fff;border:2px solid ${badge.isPaid ? '#48bb78' : '#f6ad55'};border-radius:8px;margin-bottom:8px;">
+                                <div style="font-size:32px;margin-right:12px;">🏆</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:bold;">${badge.type}</div>
+                                    <div style="font-size:11px;color:#666;">${utils.formatDate(badge.earnedAt)} • ${badge.season} Season</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-size:18px;font-weight:bold;color:#f6ad55;">₱${badge.cashValue}</div>
+                                    <div style="font-size:10px;color:${badge.isPaid ? '#48bb78' : '#999'};">
+                                        ${badge.isPaid ? '✅ Paid' : '⏳ Pending'}
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : '<p style="text-align:center;color:#999;padding:20px;">No badges earned yet. Complete your daily routine to earn badges!</p>'}
+            </div>
+        `;
+    }
 
     const currentAvatar = window.currentUserData.profilePicture || utils.getDefaultAvatar(window.currentUserData.displayName);
 
@@ -462,6 +541,8 @@ async function openProfileModal() {
             <p><strong>Created:</strong> ${utils.formatDate(window.currentUserData.createdAt)}</p>
             <p><strong>Last Login:</strong> ${utils.formatDateTime(window.currentUserData.lastLogin || new Date().toISOString())}</p>
         </div>
+        
+        ${badgesHTML}
         
         <div class="profile-section">
             <h4>📊 Login History (Last 20)</h4>

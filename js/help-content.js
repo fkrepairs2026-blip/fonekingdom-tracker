@@ -735,6 +735,280 @@ function generateHelpBox(topicKey, lang) {
     return html;
 }
 
+// ===== DAILY ROUTINE TASK DEFINITIONS =====
+
+helpContent.dailyRoutine = {
+    title: {
+        en: "Daily Routine Checklist",
+        tl: "Daily Routine Checklist"
+    },
+    description: {
+        en: "Standard daily tasks for maintaining a well-organized cellphone repair shop",
+        tl: "Mga karaniwang gawain araw-araw para sa maayos na cellphone repair shop"
+    },
+    
+    // Task definitions organized by frequency
+    tasks: [
+        // DAILY TASKS - Opening
+        {
+            id: 'task_clock_in',
+            frequency: 'daily',
+            category: 'opening',
+            title_en: 'Clock in on time',
+            title_tl: 'Mag-clock in sa tamang oras',
+            description_en: 'Arrive and clock in by 8:00 AM',
+            description_tl: 'Dumating at mag-clock in bago mag-8:00 AM',
+            isOptional: false
+        },
+        {
+            id: 'task_check_inventory',
+            frequency: 'daily',
+            category: 'opening',
+            title_en: 'Check parts inventory',
+            title_tl: 'Tingnan ang imbentaryo ng parts',
+            description_en: 'Review low stock items and pending orders',
+            description_tl: 'Suriin ang mga parts na maubos na at pending na order',
+            isOptional: false
+        },
+        {
+            id: 'task_review_jobs',
+            frequency: 'daily',
+            category: 'opening',
+            title_en: 'Review pending jobs',
+            title_tl: 'Tingnan ang pending na trabaho',
+            description_en: 'Check your assigned repairs and prioritize',
+            description_tl: 'Tingnan ang mga repair na nakatakda sa iyo at unahin',
+            isOptional: false
+        },
+        {
+            id: 'task_workspace_setup',
+            frequency: 'daily',
+            category: 'opening',
+            title_en: 'Set up workstation',
+            title_tl: 'Ihanda ang workstation',
+            description_en: 'Organize tools, clean workspace, check equipment',
+            description_tl: 'Ayusin ang mga tool, linisin ang workspace, tingnan ang equipment',
+            isOptional: false
+        },
+        
+        // DAILY TASKS - Operations
+        {
+            id: 'task_cleanliness',
+            frequency: 'daily',
+            category: 'operations',
+            title_en: 'Maintain workspace cleanliness',
+            title_tl: 'Panatilihing malinis ang workspace',
+            description_en: 'Keep work area clean and organized throughout the day',
+            description_tl: 'Panatilihing malinis at maayos ang work area buong araw',
+            isOptional: false
+        },
+        {
+            id: 'task_device_handling',
+            frequency: 'daily',
+            category: 'operations',
+            title_en: 'Handle devices with care',
+            title_tl: 'Mag-ingat sa paghawak ng devices',
+            description_en: 'Use ESD protection, avoid scratches, document condition',
+            description_tl: 'Gumamit ng ESD protection, iwasang magasgas, isulat ang kondisyon',
+            isOptional: false
+        },
+        {
+            id: 'task_customer_updates',
+            frequency: 'daily',
+            category: 'operations',
+            title_en: 'Provide customer updates',
+            title_tl: 'Mag-update sa customer',
+            description_en: 'Communicate repair status to customers',
+            description_tl: 'Ipaalam ang status ng repair sa mga customer',
+            isOptional: false
+        },
+        {
+            id: 'task_quality_check',
+            frequency: 'daily',
+            category: 'operations',
+            title_en: 'Quality check repairs',
+            title_tl: 'Suriin ang kalidad ng repair',
+            description_en: 'Test all functions before marking complete',
+            description_tl: 'Subukan lahat ng function bago sabihing tapos na',
+            isOptional: false
+        },
+        
+        // DAILY TASKS - Closing
+        {
+            id: 'task_remittance',
+            frequency: 'daily',
+            category: 'closing',
+            title_en: 'Submit daily remittance',
+            title_tl: 'Ipasa ang arawang remittance',
+            description_en: 'Record all payments and expenses, submit remittance',
+            description_tl: 'Isulat lahat ng bayad at gastos, ipasa ang remittance',
+            isOptional: false
+        },
+        {
+            id: 'task_organize_parts',
+            frequency: 'daily',
+            category: 'closing',
+            title_en: 'Organize parts and tools',
+            title_tl: 'Ayusin ang parts at tools',
+            description_en: 'Return parts to proper storage, organize tools',
+            description_tl: 'Ibalik ang parts sa tamang lugar, ayusin ang mga tool',
+            isOptional: false
+        },
+        {
+            id: 'task_cleanup',
+            frequency: 'daily',
+            category: 'closing',
+            title_en: 'End-of-day cleanup',
+            title_tl: 'Paglilinis sa katapusan ng araw',
+            description_en: 'Clean workstation, dispose of waste properly',
+            description_tl: 'Linisin ang workstation, itapon ng maayos ang basura',
+            isOptional: false
+        },
+        {
+            id: 'task_clock_out',
+            frequency: 'daily',
+            category: 'closing',
+            title_en: 'Clock out properly',
+            title_tl: 'Mag-clock out ng maayos',
+            description_en: 'Complete all tasks before clocking out',
+            description_tl: 'Tapusin lahat ng gawain bago mag-clock out',
+            isOptional: false
+        },
+        
+        // WEEKLY TASKS
+        {
+            id: 'task_deep_clean',
+            frequency: 'weekly',
+            category: 'maintenance',
+            title_en: 'Deep clean workstation',
+            title_tl: 'Masinsinang linis ng workstation',
+            description_en: 'Thorough cleaning of work area, equipment, tools',
+            description_tl: 'Masinsinang paglilinis ng work area, equipment, tools',
+            isOptional: false
+        },
+        {
+            id: 'task_inventory_organize',
+            frequency: 'weekly',
+            category: 'maintenance',
+            title_en: 'Organize parts inventory',
+            title_tl: 'Ayusin ang imbentaryo ng parts',
+            description_en: 'Sort, label, and arrange parts in proper storage',
+            description_tl: 'Ayusin, lagyan ng label, at isaayos ang mga parts',
+            isOptional: false
+        },
+        {
+            id: 'task_tools_check',
+            frequency: 'weekly',
+            category: 'maintenance',
+            title_en: 'Check tools and equipment',
+            title_tl: 'Tingnan ang tools at equipment',
+            description_en: 'Inspect tools for damage, test equipment functionality',
+            description_tl: 'Suriin ang tools kung may sira, subukan ang equipment',
+            isOptional: false
+        },
+        {
+            id: 'task_review_performance',
+            frequency: 'weekly',
+            category: 'review',
+            title_en: 'Review week performance',
+            title_tl: 'Suriin ang performance ng linggo',
+            description_en: 'Check completed jobs, customer feedback, areas for improvement',
+            description_tl: 'Tingnan ang natapos na trabaho, feedback ng customer, ano pa ang pwedeng gawing mas maganda',
+            isOptional: false
+        },
+        
+        // MONTHLY TASKS
+        {
+            id: 'task_inventory_audit',
+            frequency: 'monthly',
+            category: 'audit',
+            title_en: 'Full inventory audit',
+            title_tl: 'Kumpletong audit ng imbentaryo',
+            description_en: 'Count all parts, verify records, report discrepancies',
+            description_tl: 'Bilangin lahat ng parts, i-verify ang records, iulat ang mga pagkakaiba',
+            isOptional: false
+        },
+        {
+            id: 'task_customer_feedback',
+            frequency: 'monthly',
+            category: 'review',
+            title_en: 'Review customer feedback',
+            title_tl: 'Suriin ang feedback ng customer',
+            description_en: 'Analyze customer reviews and complaints, identify patterns',
+            description_tl: 'Suriin ang mga review at reklamo ng customer, hanapin ang pattern',
+            isOptional: false
+        },
+        {
+            id: 'task_equipment_maintenance',
+            frequency: 'monthly',
+            category: 'maintenance',
+            title_en: 'Equipment maintenance check',
+            title_tl: 'Maintenance check ng equipment',
+            description_en: 'Thorough inspection and maintenance of all repair equipment',
+            description_tl: 'Masinsinang inspeksyon at maintenance ng lahat ng repair equipment',
+            isOptional: false
+        }
+    ]
+};
+
+// Shop task templates (admin-configurable)
+helpContent.shopTaskTemplatesContent = {
+    daily: [
+        {
+            title_en: 'Check email for customer inquiries',
+            title_tl: 'Tingnan ang email para sa tanong ng customer',
+            description_en: 'Respond to customer emails and messages',
+            frequency: 'daily'
+        },
+        {
+            title_en: 'Update repair status board',
+            title_tl: 'I-update ang status board ng repair',
+            description_en: 'Keep whiteboard or digital board updated with current repairs',
+            frequency: 'daily'
+        },
+        {
+            title_en: 'Sanitize customer devices',
+            title_tl: 'I-sanitize ang devices ng customer',
+            description_en: 'Clean and disinfect devices before and after handling',
+            frequency: 'daily'
+        }
+    ],
+    weekly: [
+        {
+            title_en: 'Order low stock parts',
+            title_tl: 'Umorder ng parts na maubos na',
+            description_en: 'Review inventory and place orders for low stock items',
+            frequency: 'weekly'
+        },
+        {
+            title_en: 'Backup repair records',
+            title_tl: 'Mag-backup ng mga record ng repair',
+            description_en: 'Ensure all repair data is backed up',
+            frequency: 'weekly'
+        },
+        {
+            title_en: 'Team meeting attendance',
+            title_tl: 'Dumalo sa team meeting',
+            description_en: 'Attend weekly team meeting to discuss issues and updates',
+            frequency: 'weekly'
+        }
+    ],
+    monthly: [
+        {
+            title_en: 'Skills training or learning',
+            title_tl: 'Mag-aral ng bagong skills',
+            description_en: 'Watch repair tutorials, learn new techniques',
+            frequency: 'monthly'
+        },
+        {
+            title_en: 'Calibrate testing equipment',
+            title_tl: 'I-calibrate ang testing equipment',
+            description_en: 'Ensure all testing tools are properly calibrated',
+            frequency: 'monthly'
+        }
+    ]
+};
+
 // Export functions
 window.getHelpText = getHelpText;
 window.generateHelpBox = generateHelpBox;

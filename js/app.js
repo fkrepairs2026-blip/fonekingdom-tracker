@@ -139,11 +139,25 @@ async function initializeApp() {
         console.log('🕐 Initializing attendance system...');
         initAttendanceListeners();
         console.log('✅ Attendance system initialized');
+        
+        // Initialize daily routine system
+        console.log('📋 Initializing daily routine system...');
+        initializeDailyRoutineListeners();
+        console.log('✅ Daily routine system initialized');
+        
         // Start clock reminder system for techs/cashiers
         const role = window.currentUserData.role;
         if (['technician', 'cashier'].includes(role)) {
             if (window.startClockReminderSystem) {
                 window.startClockReminderSystem();
+            }
+            
+            // Start daily routine reminder system
+            if (window.checkAndShowReminder) {
+                // Check every 30 minutes (1800000ms)
+                setInterval(() => {
+                    window.checkAndShowReminder();
+                }, 1800000);
             }
         }
         console.log('�🔖 Building tabs...');
@@ -207,6 +221,16 @@ async function initializeApp() {
                 console.log('✓ User has seen onboarding before');
             }
         }, 1000); // Delay to ensure UI is fully rendered
+        
+        // Show daily routine modal for technicians/cashiers after 5 seconds
+        if (['technician', 'cashier'].includes(window.currentUserData.role)) {
+            setTimeout(() => {
+                if (window.checkAndShowDailyRoutine) {
+                    console.log('📋 Checking if should show daily routine...');
+                    window.checkAndShowDailyRoutine();
+                }
+            }, 5000);
+        }
 
     } catch (error) {
         console.error('❌ Error initializing app:', error);

@@ -119,7 +119,9 @@ function buildTabs() {
         if (role === 'admin') {
             sections.admin.tabs.push(
                 { id: 'staff-overview', label: 'Staff Overview', icon: '👥', build: buildStaffOverviewTab },
-                { id: 'verify-remittance', label: 'Verify Remittance', icon: '✅', build: buildRemittanceVerificationTab },
+                { id: 'daily-compliance', label: 'Daily Compliance', icon: '✅', build: buildDailyComplianceTab },
+                { id: 'shop-templates', label: 'Shop Task Templates', icon: '📋', build: buildShopTaskTemplatesTab },
+                { id: 'verify-remittance', label: 'Verify Remittance', icon: '💰', build: buildRemittanceVerificationTab },
                 { id: 'approve-parts-orders', label: 'Approve Orders', icon: '📦', build: buildApprovePartsOrdersTab },
                 { id: 'photo-gallery', label: 'Photo Gallery', icon: '📸', build: buildPhotoGalleryTab },
                 { id: 'users', label: 'Users', icon: '👤', build: buildUsersTab },
@@ -260,6 +262,15 @@ function renderSidebar() {
     // Set first tab as active
     if (availableTabs.length > 0) {
         activeTab = availableTabs[0].id;
+    }
+
+    // Show Daily Routine menu item for technicians and cashiers
+    const role = window.currentUserData?.role;
+    if (['technician', 'cashier'].includes(role)) {
+        const dailyRoutineMenuItem = document.getElementById('dailyRoutineMenuItem');
+        if (dailyRoutineMenuItem) {
+            dailyRoutineMenuItem.style.display = 'block';
+        }
     }
 
     // Render mobile bottom nav (keep 4-5 most important tabs)
@@ -15258,6 +15269,683 @@ function showRepairDetailsModal(repairId) {
         }, 100);
     }
 }
+
+// ===== DAILY COMPLIANCE TAB (ADMIN) =====
+
+/**
+ * Build Daily Compliance Tab
+ * Shows today's routine completion for all technicians/cashiers
+ */
+async function buildDailyComplianceTab(container) {
+    window.currentTabRefresh = () => buildDailyComplianceTab(
+        document.getElementById('daily-complianceTab')
+    );
+    
+    const lang = window.selectedLanguage || 'en';
+    const html = `
+        <div class="tab-header">
+            <h2>✅ ${lang === 'en' ? 'Daily Compliance Dashboard' : 'Daily Compliance Dashboard'}</h2>
+            <p>${lang === 'en' ? 'Monitor daily routine completion across all staff' : 'Subaybayan ang pag-kumpleto ng daily routine ng lahat ng staff'}</p>
+        </div>
+        
+        <div class="compliance-tabs">
+            <button class="compliance-tab-btn active" onclick="showComplianceView('today')">
+                📅 ${lang === 'en' ? 'Today' : 'Ngayon'}
+            </button>
+            <button class="compliance-tab-btn" onclick="showComplianceView('weekly')">
+                📊 ${lang === 'en' ? 'Weekly Trends' : 'Lingguhang Trend'}
+            </button>
+            <button class="compliance-tab-btn" onclick="showComplianceView('monthly')">
+                📈 ${lang === 'en' ? 'Monthly Stats' : 'Buwanang Stats'}
+            </button>
+            <button class="compliance-tab-btn" onclick="showComplianceView('leaderboard')">
+                🏆 ${lang === 'en' ? 'Leaderboard' : 'Leaderboard'}
+            </button>
+            <button class="compliance-tab-btn" onclick="showComplianceView('payout')">
+                💰 ${lang === 'en' ? 'Seasonal Payouts' : 'Seasonal Payouts'}
+            </button>
+        </div>
+        
+        <div id="complianceViewContainer" style="margin-top:20px;">
+            <!-- View content populated by showComplianceView() -->
+        </div>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Show today view by default
+    showComplianceView('today');
+}
+
+/**
+ * Show specific compliance view
+ */
+async function showComplianceView(viewName) {
+    const container = document.getElementById('complianceViewContainer');
+    if (!container) return;
+    
+    // Update active tab button
+    document.querySelectorAll('.compliance-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    container.innerHTML = '<p style="text-align:center;padding:40px;"><span class="spinner"></span> Loading...</p>';
+    
+    try {
+        let html = '';
+        
+        if (viewName === 'today') {
+            html = await renderTodayComplianceView();
+        } else if (viewName === 'weekly') {
+            html = await renderWeeklyTrendsView();
+        } else if (viewName === 'monthly') {
+            html = await renderMonthlyStatsView();
+        } else if (viewName === 'leaderboard') {
+            html = await renderLeaderboardView();
+        } else if (viewName === 'payout') {
+            html = await renderPayoutView();
+        }
+        
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error showing compliance view:', error);
+        container.innerHTML = `<p style="color:red;">Error loading view: ${error.message}</p>`;
+    }
+}
+
+/**
+ * Render today's compliance view
+ */
+async function renderTodayComplianceView() {
+    const data = await getAllUsersCompliance();
+    const lang = window.selectedLanguage || 'en';
+    
+    if (data.length === 0) {
+        return `<p style="text-align:center;padding:40px;color:#999;">No staff data available</p>`;
+    }
+    
+    // Sort by completion percentage (desc)
+    data.sort((a, b) => b.completionPercentage - a.completionPercentage);
+    
+    let html = `
+        <div class="compliance-summary-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-bottom:20px;">
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-value">${data.filter(d => d.completionPercentage === 100).length}</div>
+                <div class="stat-label">Completed Today</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚠️</div>
+                <div class="stat-value">${data.filter(d => d.completionPercentage < 50).length}</div>
+                <div class="stat-label">Below 50%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">${Math.round(data.reduce((sum, d) => sum + d.completionPercentage, 0) / data.length)}%</div>
+                <div class="stat-label">Average Completion</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔥</div>
+                <div class="stat-value">${Math.max(...data.map(d => d.currentStreak))}</div>
+                <div class="stat-label">Longest Streak</div>
+            </div>
+        </div>
+        
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Completion</th>
+                        <th>Streak</th>
+                        <th>Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    data.forEach(user => {
+        const statusClass = user.completionPercentage >= 100 ? 'status-completed' :
+                           user.completionPercentage >= 70 ? 'status-ready' :
+                           user.completionPercentage >= 50 ? 'status-waiting-parts' : 'status-unsuccessful';
+        
+        const lastUpdated = user.lastUpdated ? utils.formatDateTime(user.lastUpdated) : 'Not started';
+        const graceIcon = user.isGraceDay ? ' 🛡️' : '';
+        
+        html += `
+            <tr>
+                <td><strong>${user.userName}</strong></td>
+                <td><span class="badge badge-sm">${user.role}</span></td>
+                <td>
+                    <div style="display:flex;align-items:center;gap:10px;">
+                        <div style="flex:1;background:#e0e0e0;height:20px;border-radius:10px;overflow:hidden;">
+                            <div class="${statusClass}" style="width:${user.completionPercentage}%;height:100%;"></div>
+                        </div>
+                        <strong>${user.completionPercentage}%</strong>
+                    </div>
+                </td>
+                <td><span style="font-size:18px;">🔥</span> ${user.currentStreak}${graceIcon}</td>
+                <td style="font-size:12px;color:#666;">${lastUpdated}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    return html;
+}
+
+/**
+ * Render weekly trends view
+ */
+async function renderWeeklyTrendsView() {
+    const users = Object.values(window.allUsers || {})
+        .filter(u => u.status === 'active' && ['technician', 'cashier'].includes(u.role));
+    
+    let html = '<div style="display:flex;flex-direction:column;gap:20px;">';
+    
+    for (const user of users) {
+        const trend = await calculateWeeklyTrend(user.id);
+        
+        html += `
+            <div class="compliance-trend-card" style="background:#fff;padding:20px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+                <h3 style="margin-bottom:15px;">${user.displayName || user.email}</h3>
+                <div style="display:flex;align-items:flex-end;gap:10px;height:150px;">
+        `;
+        
+        trend.forEach(day => {
+            const height = day.percentage * 1.5; // Scale to 150px max
+            const color = day.percentage >= 80 ? '#48bb78' : day.percentage >= 50 ? '#f6ad55' : '#fc8181';
+            const graceIcon = day.isGraceDay ? '🛡️' : '';
+            
+            html += `
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+                    <div style="width:100%;height:${height}px;background:${color};border-radius:5px 5px 0 0;"></div>
+                    <div style="font-size:11px;margin-top:5px;">${day.percentage}%${graceIcon}</div>
+                    <div style="font-size:10px;color:#666;">${new Date(day.date).toLocaleDateString('en-US', {weekday: 'short'})}</div>
+                </div>
+            `;
+        });
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    html += '</div>';
+    
+    return html;
+}
+
+/**
+ * Render monthly stats view
+ */
+async function renderMonthlyStatsView() {
+    const users = Object.values(window.allUsers || {})
+        .filter(u => u.status === 'active' && ['technician', 'cashier'].includes(u.role));
+    
+    let html = `
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Avg Completion</th>
+                        <th>Current Streak</th>
+                        <th>Longest Streak</th>
+                        <th>Total Badges</th>
+                        <th>Pending Cash</th>
+                        <th>Paid Cash</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    for (const user of users) {
+        const stats = await calculateMonthlyStats(user.id);
+        
+        html += `
+            <tr>
+                <td><strong>${user.displayName || user.email}</strong></td>
+                <td>${stats.avgCompletion}%</td>
+                <td>🔥 ${stats.currentStreak}</td>
+                <td>🏆 ${stats.longestStreak}</td>
+                <td>🏅 ${stats.totalBadges}</td>
+                <td>₱${stats.pendingCash.toLocaleString()}</td>
+                <td style="color:green;">₱${stats.paidCash.toLocaleString()}</td>
+            </tr>
+        `;
+    }
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    return html;
+}
+
+/**
+ * Render leaderboard view
+ */
+async function renderLeaderboardView() {
+    const leaderboard = await getBadgeLeaderboard();
+    
+    let html = `
+        <div style="max-width:800px;margin:0 auto;">
+            <div class="leaderboard-podium" style="display:flex;justify-content:center;gap:20px;margin-bottom:30px;align-items:flex-end;">
+    `;
+    
+    // Top 3 podium
+    if (leaderboard[1]) {
+        html += `
+            <div class="podium-place" style="text-align:center;padding:20px;background:#c0c0c0;border-radius:10px;width:150px;">
+                <div style="font-size:40px;">🥈</div>
+                <div style="font-weight:bold;margin:10px 0;">${leaderboard[1].userName}</div>
+                <div style="font-size:24px;">🔥 ${leaderboard[1].currentStreak}</div>
+            </div>
+        `;
+    }
+    
+    if (leaderboard[0]) {
+        html += `
+            <div class="podium-place" style="text-align:center;padding:30px;background:linear-gradient(135deg,#ffd700,#ffed4e);border-radius:10px;width:170px;box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+                <div style="font-size:50px;">👑</div>
+                <div style="font-weight:bold;margin:10px 0;font-size:18px;">${leaderboard[0].userName}</div>
+                <div style="font-size:28px;">🔥 ${leaderboard[0].currentStreak}</div>
+            </div>
+        `;
+    }
+    
+    if (leaderboard[2]) {
+        html += `
+            <div class="podium-place" style="text-align:center;padding:20px;background:#cd7f32;border-radius:10px;width:150px;">
+                <div style="font-size:40px;">🥉</div>
+                <div style="font-weight:bold;margin:10px 0;">${leaderboard[2].userName}</div>
+                <div style="font-size:24px;">🔥 ${leaderboard[2].currentStreak}</div>
+            </div>
+        `;
+    }
+    
+    html += `
+            </div>
+            <div class="leaderboard-list">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Rank</th>
+                            <th>Name</th>
+                            <th>Current Streak</th>
+                            <th>Longest Streak</th>
+                            <th>Total Badges</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    `;
+    
+    leaderboard.forEach((user, index) => {
+        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+        
+        html += `
+            <tr>
+                <td style="font-size:20px;"><strong>${medal}</strong></td>
+                <td><strong>${user.userName}</strong></td>
+                <td>🔥 ${user.currentStreak}</td>
+                <td>🏆 ${user.longestStreak}</td>
+                <td>🏅 ${user.totalBadges}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    
+    return html;
+}
+
+/**
+ * Render seasonal payout view
+ */
+async function renderPayoutView() {
+    const currentSeason = getCurrentSeason();
+    const summary = await getSeasonalPayoutSummary(currentSeason);
+    const payouts = await getPendingBadgePayouts(currentSeason);
+    
+    let html = `
+        <div class="payout-header" style="background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:30px;border-radius:10px;margin-bottom:20px;">
+            <h2 style="margin-bottom:10px;">💰 ${currentSeason} Season Payouts</h2>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px;margin-top:20px;">
+                <div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:8px;">
+                    <div style="font-size:12px;opacity:0.8;">Total Users</div>
+                    <div style="font-size:28px;font-weight:bold;">${summary.totalUsers}</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:8px;">
+                    <div style="font-size:12px;opacity:0.8;">Total Badges</div>
+                    <div style="font-size:28px;font-weight:bold;">${summary.totalBadges}</div>
+                </div>
+                <div style="background:rgba(255,255,255,0.2);padding:15px;border-radius:8px;">
+                    <div style="font-size:12px;opacity:0.8;">Total Cash</div>
+                    <div style="font-size:28px;font-weight:bold;">₱${summary.totalCashAmount.toLocaleString()}</div>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <button class="btn-primary" onclick="bulkApproveSeasonalPayouts('${currentSeason}')" style="margin-right:10px;">
+                ✅ Approve All Pending
+            </button>
+            <button class="btn-secondary" onclick="generatePayoutReport('${currentSeason}')">
+                📊 Download Report
+            </button>
+        </div>
+    `;
+    
+    if (payouts.length === 0) {
+        html += '<p style="text-align:center;padding:40px;color:#999;">No pending payouts for this season</p>';
+    } else {
+        html += `
+            <div class="data-table-container">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="selectAllPayouts" onchange="toggleAllPayouts(this.checked)"></th>
+                            <th>Name</th>
+                            <th>Badges</th>
+                            <th>Total Cash</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+        
+        payouts.forEach(payout => {
+            html += `
+                <tr>
+                    <td><input type="checkbox" class="payout-checkbox" data-user-id="${payout.userId}" data-season="${currentSeason}"></td>
+                    <td><strong>${payout.userName}</strong></td>
+                    <td>${payout.badges.length} badges</td>
+                    <td style="font-size:18px;font-weight:bold;color:green;">₱${payout.totalCash.toLocaleString()}</td>
+                    <td>
+                        <button class="btn-sm btn-primary" onclick="approveSeasonalPayout('${payout.userId}', '${currentSeason}')">
+                            ✅ Approve
+                        </button>
+                    </td>
+                </tr>
+            `;
+        });
+        
+        html += `
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+/**
+ * Bulk approve seasonal payouts
+ */
+async function bulkApproveSeasonalPayouts(season) {
+    const checkboxes = document.querySelectorAll('.payout-checkbox:checked');
+    if (checkboxes.length === 0) {
+        alert('Please select at least one user to approve');
+        return;
+    }
+    
+    if (!confirm(`Approve payouts for ${checkboxes.length} users?`)) {
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        for (const checkbox of checkboxes) {
+            const userId = checkbox.dataset.userId;
+            await approveSeasonalPayout(userId, season);
+        }
+        
+        utils.showLoading(false);
+        utils.showToast('✅ All payouts approved!', 'success');
+        
+        // Refresh view
+        showComplianceView('payout');
+    } catch (error) {
+        console.error('Error bulk approving:', error);
+        utils.showLoading(false);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Toggle all payout checkboxes
+ */
+function toggleAllPayouts(checked) {
+    document.querySelectorAll('.payout-checkbox').forEach(cb => {
+        cb.checked = checked;
+    });
+}
+
+// ===== SHOP TASK TEMPLATES TAB (ADMIN) =====
+
+/**
+ * Build Shop Task Templates Tab
+ */
+async function buildShopTaskTemplatesTab(container) {
+    window.currentTabRefresh = () => buildShopTaskTemplatesTab(
+        document.getElementById('shop-templatesTab')
+    );
+    
+    const lang = window.selectedLanguage || 'en';
+    const templates = window.shopTaskTemplates || [];
+    
+    // Group by frequency
+    const daily = templates.filter(t => t.frequency === 'daily');
+    const weekly = templates.filter(t => t.frequency === 'weekly');
+    const monthly = templates.filter(t => t.frequency === 'monthly');
+    
+    let html = `
+        <div class="tab-header">
+            <h2>📋 ${lang === 'en' ? 'Shop Task Templates' : 'Shop Task Templates'}</h2>
+            <p>${lang === 'en' ? 'Manage optional tasks that technicians can add to their daily routine' : 'Pamahalaan ang opsyonal na gawain na maaaring idagdag ng mga technician'}</p>
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <button class="btn-primary" onclick="showAddTemplateForm()">
+                + ${lang === 'en' ? 'Add New Template' : 'Magdagdag ng Template'}
+            </button>
+        </div>
+        
+        <div id="addTemplateFormContainer"></div>
+        
+        <h3>📅 Daily Templates (${daily.length})</h3>
+        ${renderTemplateTable(daily, 'daily')}
+        
+        <h3 style="margin-top:30px;">📊 Weekly Templates (${weekly.length})</h3>
+        ${renderTemplateTable(weekly, 'weekly')}
+        
+        <h3 style="margin-top:30px;">📈 Monthly Templates (${monthly.length})</h3>
+        ${renderTemplateTable(monthly, 'monthly')}
+    `;
+    
+    container.innerHTML = html;
+}
+
+/**
+ * Render template table
+ */
+function renderTemplateTable(templates, frequency) {
+    if (templates.length === 0) {
+        return '<p style="color:#999;padding:20px;">No templates yet. Add one above!</p>';
+    }
+    
+    let html = `
+        <div class="data-table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Description</th>
+                        <th>Used By</th>
+                        <th>Created By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    templates.forEach(template => {
+        html += `
+            <tr>
+                <td><strong>${template.title}</strong></td>
+                <td style="max-width:300px;">${template.description || '-'}</td>
+                <td>${template.usedByCount || 0} users</td>
+                <td><span class="badge badge-sm">${template.createdBy || 'Admin'}</span></td>
+                <td>
+                    <button class="btn-sm btn-secondary" onclick="editTemplateModal('${template.id}')">
+                        ✏️ Edit
+                    </button>
+                    <button class="btn-sm btn-danger" onclick="deleteShopTaskTemplate('${template.id}')">
+                        🗑️ Delete
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    return html;
+}
+
+/**
+ * Show add template form
+ */
+function showAddTemplateForm() {
+    const container = document.getElementById('addTemplateFormContainer');
+    const lang = window.selectedLanguage || 'en';
+    
+    container.innerHTML = `
+        <div class="form-card" style="background:#f0f7ff;padding:20px;border-radius:10px;margin-bottom:20px;border:2px solid #667eea;">
+            <h3>${lang === 'en' ? 'Add New Template' : 'Magdagdag ng Template'}</h3>
+            <form id="addTemplateForm" onsubmit="saveNewTemplate(event)">
+                <div class="form-group">
+                    <label>Title (English)</label>
+                    <input type="text" id="templateTitleEn" required maxlength="100" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Title (Tagalog)</label>
+                    <input type="text" id="templateTitleTl" maxlength="100" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="templateDesc" rows="3" class="form-input"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Frequency</label>
+                    <select id="templateFrequency" class="form-input">
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:10px;">
+                    <button type="submit" class="btn-primary">✅ Save Template</button>
+                    <button type="button" class="btn-secondary" onclick="hideAddTemplateForm()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    `;
+}
+
+/**
+ * Hide add template form
+ */
+function hideAddTemplateForm() {
+    document.getElementById('addTemplateFormContainer').innerHTML = '';
+}
+
+/**
+ * Save new template
+ */
+async function saveNewTemplate(event) {
+    event.preventDefault();
+    
+    const title = document.getElementById('templateTitleEn').value.trim();
+    const titleTl = document.getElementById('templateTitleTl').value.trim();
+    const description = document.getElementById('templateDesc').value.trim();
+    const frequency = document.getElementById('templateFrequency').value;
+    
+    if (!title) {
+        alert('Please enter a title');
+        return;
+    }
+    
+    const fullTitle = titleTl ? `${title} / ${titleTl}` : title;
+    
+    const success = await addShopTaskTemplate(fullTitle, description, frequency);
+    if (success) {
+        hideAddTemplateForm();
+        // Refresh tab
+        if (window.currentTabRefresh) {
+            setTimeout(() => window.currentTabRefresh(), 500);
+        }
+    }
+}
+
+/**
+ * Edit template modal
+ */
+function editTemplateModal(templateId) {
+    const template = window.shopTaskTemplates.find(t => t.id === templateId);
+    if (!template) {
+        alert('Template not found');
+        return;
+    }
+    
+    const newTitle = prompt('Edit title:', template.title);
+    if (!newTitle) return;
+    
+    const newDesc = prompt('Edit description:', template.description || '');
+    const newFreq = prompt('Edit frequency (daily/weekly/monthly):', template.frequency);
+    
+    if (!['daily', 'weekly', 'monthly'].includes(newFreq)) {
+        alert('Invalid frequency');
+        return;
+    }
+    
+    editShopTaskTemplate(templateId, newTitle, newDesc, newFreq);
+}
+
+// Export Daily Compliance functions
+window.buildDailyComplianceTab = buildDailyComplianceTab;
+window.showComplianceView = showComplianceView;
+window.bulkApproveSeasonalPayouts = bulkApproveSeasonalPayouts;
+window.toggleAllPayouts = toggleAllPayouts;
+
+// Export Shop Templates functions
+window.buildShopTaskTemplatesTab = buildShopTaskTemplatesTab;
+window.showAddTemplateForm = showAddTemplateForm;
+window.hideAddTemplateForm = hideAddTemplateForm;
+window.saveNewTemplate = saveNewTemplate;
+window.editTemplateModal = editTemplateModal;
 
 // Export Staff Overview functions
 window.buildStaffOverviewTab = buildStaffOverviewTab;

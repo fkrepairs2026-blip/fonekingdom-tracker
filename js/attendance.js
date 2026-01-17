@@ -638,6 +638,13 @@ function skipMissedClockOut() {
 async function acceptClockInPrompt() {
     document.getElementById('welcomeClockInModal').style.display = 'none';
     await clockIn();
+    
+    // Show daily routine modal after clock-in (3 seconds delay)
+    if (window.showDailyRoutineModal && window.checkAndShowDailyRoutine) {
+        setTimeout(() => {
+            window.checkAndShowDailyRoutine();
+        }, 3000);
+    }
 }
 
 function dismissClockInPrompt() {
