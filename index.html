@@ -273,8 +273,9 @@
         <div class="modal-content" style="max-width:450px;">
             <h3>💰 Remittance Required</h3>
             <p style="font-size:16px;margin:15px 0;">You have pending cash collections for today.</p>
-            <p style="font-size:14px;color:#666;margin-bottom:20px;">Please submit your daily remittance before clocking out to ensure accurate cash tracking.</p>
-            
+            <p style="font-size:14px;color:#666;margin-bottom:20px;">Please submit your daily remittance before clocking
+                out to ensure accurate cash tracking.</p>
+
             <div style="display:flex;gap:10px;flex-direction:column;">
                 <button onclick="goToRemittanceTab()" class="btn-primary">
                     💸 Submit Remittance Now
@@ -472,34 +473,38 @@
         <div class="modal-content" style="max-width:800px;">
             <h3>📦 Select Inventory Items Used</h3>
             <input type="hidden" id="invSelectRepairId">
-            
-            <div style="background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ffc107;">
+
+            <div
+                style="background:#fff3cd;padding:12px;border-radius:8px;margin-bottom:15px;border-left:4px solid #ffc107;">
                 <strong>ℹ️ Inventory Deduction</strong><br>
-                <small>Select the items you used from stock. Selected items will be automatically deducted from inventory when saved.</small>
+                <small>Select the items you used from stock. Selected items will be automatically deducted from
+                    inventory when saved.</small>
             </div>
-            
+
             <!-- Search bar -->
             <div class="form-group">
-                <input type="text" id="invSearchInput" placeholder="🔍 Search items by name, model, or category..." 
-                       onkeyup="filterInventoryItems()" style="width:100%;padding:10px;font-size:14px;">
+                <input type="text" id="invSearchInput" placeholder="🔍 Search items by name, model, or category..."
+                    onkeyup="filterInventoryItems()" style="width:100%;padding:10px;font-size:14px;">
             </div>
-            
+
             <!-- Selected items summary -->
-            <div id="selectedItemsSummary" style="background:#e3f2fd;padding:12px;border-radius:8px;margin-bottom:15px;display:none;">
+            <div id="selectedItemsSummary"
+                style="background:#e3f2fd;padding:12px;border-radius:8px;margin-bottom:15px;display:none;">
                 <strong>Selected Items:</strong>
                 <div id="selectedItemsList" style="margin-top:8px;"></div>
                 <div style="margin-top:8px;font-size:16px;font-weight:bold;">
                     Total Cost: ₱<span id="selectedItemsTotal">0.00</span>
                 </div>
             </div>
-            
+
             <!-- Available inventory items -->
-            <div id="inventoryItemsList" style="max-height:400px;overflow-y:auto;border:1px solid #ddd;border-radius:8px;padding:10px;">
+            <div id="inventoryItemsList"
+                style="max-height:400px;overflow-y:auto;border:1px solid #ddd;border-radius:8px;padding:10px;">
                 <div style="text-align:center;padding:40px;color:#999;">
                     Loading inventory items...
                 </div>
             </div>
-            
+
             <div class="form-actions" style="margin-top:20px;">
                 <button onclick="saveSelectedInventoryItems()" class="btn-primary">✅ Save & Deduct from Stock</button>
                 <button onclick="closeInventorySelectionModal()" class="btn-secondary">Cancel</button>

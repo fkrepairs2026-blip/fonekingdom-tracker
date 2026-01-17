@@ -6595,8 +6595,8 @@ function buildPhotoGalleryTab(container) {
             ` : `
                 <div id="photoGalleryContent">
                     ${techNames.map(techName => {
-                        const photos = photosByTech[techName];
-                        return `
+        const photos = photosByTech[techName];
+        return `
                             <div class="photo-gallery-section" data-tech="${techName}" style="margin-bottom:40px;">
                                 <h3 style="background:#673ab7;color:white;padding:12px;border-radius:8px;margin-bottom:15px;">
                                     👤 ${techName} (${photos.length} photo${photos.length !== 1 ? 's' : ''})
@@ -6633,7 +6633,7 @@ function buildPhotoGalleryTab(container) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+    }).join('')}
                 </div>
             `}
         </div>
@@ -6646,24 +6646,24 @@ function buildPhotoGalleryTab(container) {
 function filterPhotoGallery() {
     const searchTerm = document.getElementById('photoGallerySearch')?.value.toLowerCase() || '';
     const selectedTech = document.getElementById('techFilterSelect')?.value || '';
-    
+
     const sections = document.querySelectorAll('.photo-gallery-section');
-    
+
     sections.forEach(section => {
         const techName = section.getAttribute('data-tech');
         const items = section.querySelectorAll('.photo-item');
-        
+
         // Check if section should be visible based on tech filter
         if (selectedTech && techName !== selectedTech) {
             section.style.display = 'none';
             return;
         }
-        
+
         let visibleCount = 0;
         items.forEach(item => {
             const customer = item.getAttribute('data-customer').toLowerCase();
             const device = item.getAttribute('data-device').toLowerCase();
-            
+
             if (searchTerm === '' || customer.includes(searchTerm) || device.includes(searchTerm)) {
                 item.style.display = 'block';
                 visibleCount++;
@@ -6671,7 +6671,7 @@ function filterPhotoGallery() {
                 item.style.display = 'none';
             }
         });
-        
+
         // Hide section if no visible items
         section.style.display = visibleCount > 0 ? 'block' : 'none';
     });

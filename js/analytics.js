@@ -595,15 +595,15 @@ function exportArrayToCSV(data, filename) {
             const keys = Object.keys(row);
             const values = keys.map(key => {
                 let value = row[key];
-                
+
                 // Convert undefined/null to empty string
                 if (value === undefined || value === null) {
                     value = '';
                 }
-                
+
                 // Convert to string
                 value = String(value);
-                
+
                 // Escape commas and quotes
                 if (value.includes(',') || value.includes('"') || value.includes('\n')) {
                     return `"${value.replace(/"/g, '""')}"`;

@@ -25,7 +25,7 @@ function initAttendanceListeners() {
     db.ref('userActivity').on('value', (snapshot) => {
         window.allUserActivity = snapshot.val() || {};
         console.log('👥 User activity updated:', Object.keys(window.allUserActivity).length, 'users');
-        
+
         // Update UI if on relevant tab (increased delay for state propagation)
         if (window.currentTabRefresh) {
             setTimeout(() => {
@@ -202,10 +202,10 @@ async function getUserAttendanceStatus(userId = null) {
     try {
         const db = firebase.database();
         const targetUserId = userId || window.currentUser.uid;
-        
+
         const activitySnapshot = await db.ref(`userActivity/${targetUserId}`).once('value');
         return activitySnapshot.val() || { currentStatus: 'clocked-out' };
-        
+
     } catch (error) {
         console.error('❌ Error getting attendance status:', error);
         return { currentStatus: 'clocked-out' };
@@ -220,7 +220,7 @@ async function getUserAttendanceRecords(userId, startDate, endDate) {
         const db = firebase.database();
         const snapshot = await db.ref(`userAttendance/${userId}`).once('value');
         const allRecords = snapshot.val() || {};
-        
+
         // Filter by date range
         const filtered = {};
         Object.keys(allRecords).forEach(date => {
@@ -228,9 +228,9 @@ async function getUserAttendanceRecords(userId, startDate, endDate) {
                 filtered[date] = allRecords[date];
             }
         });
-        
+
         return filtered;
-        
+
     } catch (error) {
         console.error('❌ Error getting attendance records:', error);
         return {};
@@ -243,7 +243,7 @@ async function getUserAttendanceRecords(userId, startDate, endDate) {
 function formatDuration(seconds) {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (hours === 0) {
         return `${minutes}m`;
     }
@@ -258,14 +258,14 @@ async function getTodayWorkHours() {
         const db = firebase.database();
         const userId = window.currentUser.uid;
         const today = getLocalDateString(new Date());
-        
+
         const snapshot = await db.ref(`userAttendance/${userId}/${today}`).once('value');
         const attendance = snapshot.val();
-        
+
         if (!attendance || !attendance.clockIn) {
             return { clockedIn: false, duration: 0 };
         }
-        
+
         // If clocked in but not yet clocked out, calculate current duration
         if (attendance.clockIn && !attendance.clockOut) {
             const clockInTime = new Date(attendance.clockIn);
@@ -273,15 +273,15 @@ async function getTodayWorkHours() {
             const duration = Math.floor((now - clockInTime) / 1000);
             return { clockedIn: true, duration: duration, clockIn: attendance.clockIn };
         }
-        
+
         // If clocked out, return stored duration
-        return { 
-            clockedIn: false, 
+        return {
+            clockedIn: false,
             duration: attendance.duration || 0,
             clockIn: attendance.clockIn,
             clockOut: attendance.clockOut
         };
-        
+
     } catch (error) {
         console.error('❌ Error getting today work hours:', error);
         return { clockedIn: false, duration: 0 };
@@ -322,15 +322,15 @@ async function getAttendanceSummary(userId, year, month) {
         const db = firebase.database();
         const snapshot = await db.ref(`userAttendance/${userId}`).once('value');
         const allRecords = snapshot.val() || {};
-        
+
         // Filter by month
         const monthStr = String(month).padStart(2, '0');
         const prefix = `${year}-${monthStr}`;
-        
+
         const filtered = {};
         let totalDuration = 0;
         let daysPresent = 0;
-        
+
         Object.keys(allRecords).forEach(date => {
             if (date.startsWith(prefix)) {
                 filtered[date] = allRecords[date];
@@ -340,14 +340,14 @@ async function getAttendanceSummary(userId, year, month) {
                 }
             }
         });
-        
+
         return {
             records: filtered,
             totalDuration: totalDuration,
             daysPresent: daysPresent,
             averageDuration: daysPresent > 0 ? totalDuration / daysPresent : 0
         };
-        
+
     } catch (error) {
         console.error('❌ Error getting attendance summary:', error);
         return { records: {}, totalDuration: 0, daysPresent: 0, averageDuration: 0 };
@@ -381,7 +381,7 @@ function goToRemittanceTab() {
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             const remittanceBtn = document.querySelector('[data-tab="remittance"]');
             if (remittanceBtn) remittanceBtn.classList.add('active');
-            
+
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             if (remittanceContainer) remittanceContainer.classList.add('active');
         }
@@ -433,7 +433,7 @@ function checkClockReminder() {
     const role = window.currentUserData?.role;
     if (!role || !['technician', 'cashier'].includes(role)) return;
     if (!window.clockReminderSettings.enabled) return;
-    
+
     // Get Manila time components separately
     const now = new Date();
     const hours = parseInt(now.toLocaleString('en-US', {
@@ -449,32 +449,32 @@ function checkClockReminder() {
         timeZone: 'Asia/Manila',
         weekday: 'short'
     });
-    
+
     const currentMinutes = hours * 60 + minutes;
-    
+
     const dayMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
     const dayOfWeek = dayMap[weekdayStr];
-    
+
     if (!window.clockReminderSettings.workDays.includes(dayOfWeek)) return;
-    
+
     const [clockInHour, clockInMin] = window.clockReminderSettings.clockInTime.split(':').map(Number);
     const clockInMinutes = clockInHour * 60 + clockInMin;
     const clockInWindowEnd = clockInMinutes + window.clockReminderSettings.reminderWindow;
-    
+
     const [clockOutHour, clockOutMin] = window.clockReminderSettings.clockOutTime.split(':').map(Number);
     const clockOutMinutes = clockOutHour * 60 + clockOutMin;
     const clockOutWindowEnd = clockOutMinutes + window.clockReminderSettings.reminderWindow;
-    
+
     const userId = window.currentUser?.uid;
     if (!userId) return;
-    
+
     const userActivity = window.allUserActivity?.[userId];
     const isClockedIn = userActivity?.currentStatus === 'clocked-in';
-    
+
     if (!isClockedIn && currentMinutes >= clockInMinutes && currentMinutes <= clockInWindowEnd) {
         const lastReminder = sessionStorage.getItem(`lastClockInReminder_${userId}`);
         const now = Date.now();
-        
+
         if (!lastReminder || (now - parseInt(lastReminder)) > 15 * 60 * 1000) {
             const timeStr = window.clockReminderSettings.clockInTime;
             utils.showToast(
@@ -486,11 +486,11 @@ function checkClockReminder() {
             console.log('⏰ Clock-in reminder shown');
         }
     }
-    
+
     if (isClockedIn && currentMinutes >= clockOutMinutes && currentMinutes <= clockOutWindowEnd) {
         const lastReminder = sessionStorage.getItem(`lastClockOutReminder_${userId}`);
         const now = Date.now();
-        
+
         if (!lastReminder || (now - parseInt(lastReminder)) > 15 * 60 * 1000) {
             const timeStr = window.clockReminderSettings.clockOutTime;
             utils.showToast(
@@ -507,14 +507,14 @@ function checkClockReminder() {
 async function startClockReminderSystem() {
     console.log('⏰ Initializing clock reminder system...');
     await loadClockReminderSettings();
-    
+
     if (clockReminderInterval) {
         clearInterval(clockReminderInterval);
     }
-    
+
     clockReminderInterval = setInterval(checkClockReminder, 300000);
     setTimeout(checkClockReminder, 10000);
-    
+
     console.log('✅ Clock reminder system started');
 }
 
@@ -522,7 +522,7 @@ async function saveClockReminderSettings(settings) {
     if (window.currentUserData?.role !== 'admin') {
         throw new Error('Only admins can modify clock reminder settings');
     }
-    
+
     try {
         await db.ref('clockReminderSettings').set({
             enabled: settings.enabled !== false,
@@ -533,7 +533,7 @@ async function saveClockReminderSettings(settings) {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         window.clockReminderSettings = { ...settings };
         console.log('✅ Clock reminder settings saved');
         return true;
