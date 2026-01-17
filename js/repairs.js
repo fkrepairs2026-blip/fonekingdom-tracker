@@ -5934,7 +5934,7 @@ function getTechDailyPayments(techId, date) {
     let total = 0;
 
     window.allRepairs.forEach(repair => {
-        if (repair.payments) {
+        if (!repair.deleted && repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentDate = new Date(payment.recordedDate || payment.paymentDate);
                 const paymentDateString = getLocalDateString(paymentDate);
@@ -5973,7 +5973,7 @@ function getAllPendingPayments(techId) {
     let total = 0;
 
     window.allRepairs.forEach(repair => {
-        if (repair.payments) {
+        if (!repair.deleted && repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentMethod = payment.method || 'Cash';
 
@@ -6016,7 +6016,7 @@ function getPendingRemittanceDates(techId) {
     const dateMap = {};
 
     window.allRepairs.forEach(repair => {
-        if (repair.payments) {
+        if (!repair.deleted && repair.payments) {
             repair.payments.forEach((payment, index) => {
                 const paymentMethod = payment.method || 'Cash';
 
