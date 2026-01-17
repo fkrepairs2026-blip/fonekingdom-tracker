@@ -585,7 +585,7 @@ function getAdvancePaymentAnalytics(startDate, endDate) {
 /**
  * Export data to CSV
  */
-function exportToCSV(data, filename) {
+function exportArrayToCSV(data, filename) {
     let csv = '';
 
     if (Array.isArray(data) && data.length > 0) {
@@ -753,7 +753,7 @@ async function exportDailySummary(date = null) {
         exportData.push({ 'Metric': 'Net Revenue', 'Value': totalPayments - totalExpenses });
 
         // Export to CSV
-        exportToCSV(exportData, `daily_summary_${dateString}`);
+        exportArrayToCSV(exportData, `daily_summary_${dateString}`);
 
         console.log(`✅ Daily summary exported: ${totalRecords} records`);
 
@@ -823,7 +823,7 @@ async function exportWeeklyReport(startDate = null) {
         const recordCount = exportData.length;
 
         // Export to CSV
-        exportToCSV(exportData, `weekly_report_${startString}_to_${endString}`);
+        exportArrayToCSV(exportData, `weekly_report_${startString}_to_${endString}`);
 
         console.log(`✅ Weekly report exported`);
 
@@ -1032,7 +1032,7 @@ async function exportMonthlyArchive(year = null, month = null) {
         exportData.push(...partsOrdersData);
 
         // Export to CSV
-        exportToCSV(exportData, `monthly_archive_${monthString}`);
+        exportArrayToCSV(exportData, `monthly_archive_${monthString}`);
 
         console.log(`✅ Monthly archive exported: ${totalRecords} records`);
 
@@ -1052,7 +1052,7 @@ window.getRepairTypeAnalytics = getRepairTypeAnalytics;
 window.getInventoryAnalytics = getInventoryAnalytics;
 window.getFinancialReport = getFinancialReport;
 window.getAdvancePaymentAnalytics = getAdvancePaymentAnalytics;
-window.exportToCSV = exportToCSV;
+window.exportArrayToCSV = exportArrayToCSV;
 
 // Export scheduled export functions
 window.exportDailySummary = exportDailySummary;
@@ -1471,7 +1471,7 @@ function exportProfitReport(startDate, endDate) {
     });
 
     const filename = `profit_report_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`;
-    exportToCSV(exportData, filename);
+    exportArrayToCSV(exportData, filename);
 }
 
 // ===== PROFIT & LOSS STATEMENT =====
@@ -1683,7 +1683,7 @@ function exportQuarterlyReport(year, quarter) {
     });
 
     const filename = `quarterly_report_Q${quarter}_${year}`;
-    exportToCSV(exportData, filename);
+    exportArrayToCSV(exportData, filename);
 }
 
 /**
@@ -1740,7 +1740,7 @@ function exportAnnualPLStatement(year) {
     exportData.push({ '  Net Income per Repair': '', 'Amount': pl.netIncome.perRepair.toFixed(2) });
 
     const filename = `profit_loss_statement_${year}`;
-    exportToCSV(exportData, filename);
+    exportArrayToCSV(exportData, filename);
 }
 
 // Export profit functions
