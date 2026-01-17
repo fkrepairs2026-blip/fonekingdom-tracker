@@ -2281,7 +2281,7 @@ function buildAllRepairsTab(container) {
     setTimeout(() => {
         const listContainer = document.getElementById('allRepairsList');
         if (listContainer) {
-            displayGroupedRepairsList(repairs, listContainer, 'all', 'recordedDate');
+            displaySearchableRepairsList(repairs, listContainer);
         }
     }, 0);
 }
