@@ -7198,10 +7198,6 @@ function openRemittanceModal() {
         alert(message);
     }
 
-    // Get all pending payments and expenses
-    const { payments, total: paymentsTotal } = getAllPendingPayments(techId);
-    const { expenses, total: expensesTotal } = getAllPendingExpenses(techId);
-    
     // Get all parts costs for these dates
     let totalPartsCosts = 0;
     const dateSet = new Set(payments.map(p => p.dateString));
