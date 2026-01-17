@@ -2176,6 +2176,7 @@ function buildUnpaidTab(container) {
     window.currentTabRefresh = () => buildUnpaidTab(document.getElementById('unpaidTab'));
 
     const unpaidRepairs = window.allRepairs.filter(r => {
+        if (r.deleted) return false;
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         return (r.total - totalPaid) > 0;
     });
@@ -2201,7 +2202,7 @@ function buildPendingPaymentsTab(container) {
     window.currentTabRefresh = () => buildPendingPaymentsTab(document.getElementById('pendingTab'));
 
     const pendingRepairs = window.allRepairs.filter(r =>
-        r.payments && r.payments.some(p => !p.verified)
+        !r.deleted && r.payments && r.payments.some(p => !p.verified)
     );
 
     container.innerHTML = `
@@ -2225,6 +2226,7 @@ function buildPaidTab(container) {
     window.currentTabRefresh = () => buildPaidTab(document.getElementById('paidTab'));
 
     const paidRepairs = window.allRepairs.filter(r => {
+        if (r.deleted) return false;
         const totalPaid = (r.payments || []).filter(p => p.verified).reduce((sum, p) => sum + p.amount, 0);
         return (r.total - totalPaid) === 0 && r.total > 0;
     });
@@ -2252,7 +2254,8 @@ function buildAllRepairsTab(container) {
         buildAllRepairsTab(document.getElementById('allTab'));
     };
 
-    const repairs = window.allRepairs || [];
+    // Filter out deleted repairs
+    const repairs = (window.allRepairs || []).filter(r => !r.deleted);
 
     container.innerHTML = `
         <div class="card">
