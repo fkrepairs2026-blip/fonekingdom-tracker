@@ -1309,8 +1309,8 @@ function getProfitTrends(startDate, endDate, interval = 'daily') {
 
     // Calculate averages and sort by period
     Object.values(dataByPeriod).forEach(data => {
-        data.avgProfitMargin = data.totalProfit > 0 ?
-            (data.totalProfit / data.totalProfit) * 100 : 0;
+        data.avgProfitMargin = data.totalRevenue > 0 ?
+            (data.totalProfit / data.totalRevenue) * 100 : 0;
     });
 
     return Object.values(dataByPeriod).sort((a, b) =>

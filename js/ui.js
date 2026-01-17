@@ -10687,8 +10687,8 @@ function refreshProfitDashboard() {
                                 <th style="min-width:100px;">Date</th>
                                 <th style="min-width:80px;">Repairs</th>
                                 <th style="min-width:120px;">Revenue</th>
-                                <th style="min-width:140px;">Parts + Tech (40%)</th>
-                                <th style="min-width:140px;">Shop Revenue (60%)</th>
+                                <th style="min-width:140px;">Parts + Commission</th>
+                                <th style="min-width:140px;">Shop Revenue</th>
                                 <th style="min-width:100px;">Margin</th>
                             </tr>
                         </thead>
