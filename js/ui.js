@@ -2772,7 +2772,10 @@ function filterAllRepairs(query) {
 
     // Show/hide empty date groups
     document.querySelectorAll('.date-group').forEach(group => {
-        const visibleItems = group.querySelectorAll('.searchable-repair-item[style="display: block;"]');
+        const visibleItems = Array.from(group.querySelectorAll('.searchable-repair-item')).filter(item => {
+            const display = item.style.display;
+            return !display || display === 'block' || display === '';
+        });
         group.style.display = visibleItems.length > 0 ? 'block' : 'none';
     });
 }
@@ -7955,9 +7958,9 @@ function buildTechnicianLogsTab(container) {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - 7);
 
-    // Filter data for selected technician
+    // Filter data for selected technician (exclude deleted repairs)
     const techPayments = window.allRepairs
-        .filter(r => r.payments && r.payments.some(p => p.receivedById === selectedTech.id))
+        .filter(r => !r.deleted && r.payments && r.payments.some(p => p.receivedById === selectedTech.id))
         .map(r => {
             return r.payments
                 .map((p, actualIndex) => ({
