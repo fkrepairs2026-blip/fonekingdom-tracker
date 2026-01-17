@@ -6908,14 +6908,6 @@ function openSingleDayRemittanceModal(dateString) {
                         <span>🏦 Shop's Share (60% of net):</span>
                         <strong>₱${shopShare.toFixed(2)}</strong>
                     </div>
-                        </div>
-                    ` : ''}
-                    ${expensesTotal > 0 ? `
-                        <div style="display:flex;justify-content:space-between;margin:10px 0;padding-left:15px;">
-                            <span>📦 Your Expenses</span>
-                            <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
-                        </div>
-                    ` : ''}
                     <hr style="border:none;border-top:2px solid #ddd;margin:15px 0;">
                     <div style="display:flex;justify-content:space-between;font-size:18px;font-weight:bold;">
                         <span>💳 Amount to Remit:</span>
@@ -6924,8 +6916,7 @@ function openSingleDayRemittanceModal(dateString) {
                 </div>
                 
                 <p style="margin-top:15px;font-size:13px;color:#666;background:#e8f5e9;padding:12px;border-radius:6px;border-left:4px solid #4caf50;">
-                    ✓ <strong>Your 40% Commission (₱${commissionDeduction.toFixed(2)})</strong> is calculated from gross collections. 
-                    Expenses are deducted from the shop's 60% share only.
+                    ✓ <strong>Your 40% Commission (₱${commissionDeduction.toFixed(2)})</strong> is calculated from net revenue after parts costs. 
                 </p>
             </div>
             
