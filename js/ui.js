@@ -2728,14 +2728,13 @@ function filterAllRepairs(query) {
     const statsSpan = document.getElementById('allRepairsSearchStats');
 
     if (!searchLower) {
-        // Show all items
-        allItems.forEach(item => item.style.display = 'block');
+        // Show all items by removing display style
+        allItems.forEach(item => item.style.display = '');
         if (statsDiv) statsDiv.style.display = 'none';
 
-        // Show/hide empty date groups
+        // Show all date groups when search is cleared
         document.querySelectorAll('.date-group').forEach(group => {
-            const visibleItems = group.querySelectorAll('.searchable-repair-item[style*="display: block"], .searchable-repair-item:not([style*="display"])');
-            group.style.display = visibleItems.length > 0 ? 'block' : 'none';
+            group.style.display = 'block';
         });
         return;
     }
