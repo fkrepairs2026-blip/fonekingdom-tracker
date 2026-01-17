@@ -5835,8 +5835,14 @@ function getUnremittedBalance(techId, dateString) {
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
     const { repairs: partsRepairs, total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
 
-    // Correct calculation: shop gets 60% of gross - parts costs - expenses
-    const shopShare = (paymentsTotal * 0.60) - partsCostsTotal - expensesTotal;
+    // Calculate net revenue (payments - parts costs - expenses)
+    const netRevenue = paymentsTotal - partsCostsTotal - expensesTotal;
+    
+    // Calculate commission deduction (technician's 40% share of net revenue)
+    const commissionDeduction = netRevenue * 0.40;
+    
+    // Correct calculation: shop gets 60% of net revenue
+    const shopShare = netRevenue * 0.60;
     const unremittedBalance = shopShare;
 
     return {
