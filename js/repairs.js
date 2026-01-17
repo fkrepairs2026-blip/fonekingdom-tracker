@@ -5389,8 +5389,17 @@ function loadAvailableInventoryItems() {
         const selectedItem = window.selectedInventoryItems.find(sel => sel.itemId === item.id);
         const selectedQty = selectedItem ? selectedItem.quantity : 0;
         
+        // Safe property access with defaults
+        const itemName = item.name || 'Unnamed Item';
+        const itemCategory = item.category || 'Uncategorized';
+        const itemUnit = item.unit || 'unit';
+        const itemModels = item.compatibleModels || '';
+        
+        // Build search string safely
+        const searchString = `${itemName.toLowerCase()} ${itemCategory.toLowerCase()} ${itemModels.toLowerCase()}`;
+        
         html += `
-            <div class="inventory-item-card" data-item-id="${item.id}" data-search="${item.name.toLowerCase()} ${item.category.toLowerCase()} ${(item.compatibleModels || '').toLowerCase()}">
+            <div class="inventory-item-card" data-item-id="${item.id}" data-search="${searchString}">
                 <div style="display:flex;gap:15px;align-items:center;">
                     <input type="checkbox" 
                            id="inv_${item.id}" 
@@ -5400,14 +5409,14 @@ function loadAvailableInventoryItems() {
                     
                     <div style="flex:1;">
                         <div style="font-weight:bold;font-size:15px;margin-bottom:4px;">
-                            ${item.name}
+                            ${itemName}
                         </div>
                         <div style="font-size:13px;color:#666;">
-                            ${item.category} • Stock: ${item.quantity} ${item.unit}
-                            ${item.compatibleModels ? ` • ${item.compatibleModels}` : ''}
+                            ${itemCategory} • Stock: ${item.quantity || 0} ${itemUnit}
+                            ${itemModels ? ` • ${itemModels}` : ''}
                         </div>
                         <div style="font-size:14px;color:#2e7d32;font-weight:bold;margin-top:4px;">
-                            ₱${parseFloat(item.cost || 0).toFixed(2)} per ${item.unit}
+                            ₱${parseFloat(item.cost || 0).toFixed(2)} per ${itemUnit}
                         </div>
                     </div>
                     
@@ -5462,11 +5471,11 @@ function toggleInventoryItem(itemId) {
         if (item) {
             window.selectedInventoryItems.push({
                 itemId: item.id,
-                itemName: item.name,
+                itemName: item.name || 'Unnamed Item',
                 quantity: 1,
                 unitCost: parseFloat(item.cost || 0),
-                unit: item.unit,
-                category: item.category
+                unit: item.unit || 'unit',
+                category: item.category || 'Uncategorized'
             });
         }
         qtyControls.style.display = 'flex';
