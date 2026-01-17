@@ -5329,7 +5329,7 @@ async function savePartsCost() {
 /**
  * Open modal to select inventory items used for a repair
  */
-function openInventorySelectionModal(repairId, totalCost) {
+async function openInventorySelectionModal(repairId, totalCost) {
     console.log('📦 Opening inventory selection modal for repair:', repairId);
     
     document.getElementById('invSelectRepairId').value = repairId;
@@ -5343,10 +5343,35 @@ function openInventorySelectionModal(repairId, totalCost) {
         window.selectedInventoryItems = [...repair.inventoryItemsUsed];
     }
     
+    // Show modal first with loading state
+    document.getElementById('inventorySelectionModal').style.display = 'flex';
+    const container = document.getElementById('inventoryItemsList');
+    container.innerHTML = `
+        <div style="text-align:center;padding:40px;color:#999;">
+            <p style="font-size:48px;margin:0;">📦</p>
+            <p>Loading inventory items...</p>
+        </div>
+    `;
+    
+    // Load inventory if not already loaded
+    if (!window.allInventoryItems || window.allInventoryItems.length === 0) {
+        try {
+            await loadInventory();
+        } catch (error) {
+            console.error('Error loading inventory:', error);
+            container.innerHTML = `
+                <div style="text-align:center;padding:40px;color:#d32f2f;">
+                    <p style="font-size:48px;margin:0;">❌</p>
+                    <p>Error loading inventory</p>
+                    <small>${error.message}</small>
+                </div>
+            `;
+            return;
+        }
+    }
+    
     loadAvailableInventoryItems();
     updateSelectedItemsSummary();
-    
-    document.getElementById('inventorySelectionModal').style.display = 'flex';
 }
 
 /**
@@ -5389,14 +5414,19 @@ function loadAvailableInventoryItems() {
         const selectedItem = window.selectedInventoryItems.find(sel => sel.itemId === item.id);
         const selectedQty = selectedItem ? selectedItem.quantity : 0;
         
-        // Safe property access with defaults
-        const itemName = item.name || 'Unnamed Item';
+        // Safe property access with defaults - use correct field names
+        const itemName = item.partName || 'Unnamed Item';
         const itemCategory = item.category || 'Uncategorized';
-        const itemUnit = item.unit || 'unit';
-        const itemModels = item.compatibleModels || '';
+        const itemPartNumber = item.partNumber || '';
+        const itemBrand = item.brand || '';
+        const itemModel = item.model || '';
+        const itemCost = parseFloat(item.unitCost || 0);
+        
+        // Build display info
+        const brandModelInfo = [itemBrand, itemModel].filter(x => x).join(' ');
         
         // Build search string safely
-        const searchString = `${itemName.toLowerCase()} ${itemCategory.toLowerCase()} ${itemModels.toLowerCase()}`;
+        const searchString = `${itemName.toLowerCase()} ${itemCategory.toLowerCase()} ${itemPartNumber.toLowerCase()} ${brandModelInfo.toLowerCase()}`;
         
         html += `
             <div class="inventory-item-card" data-item-id="${item.id}" data-search="${searchString}">
@@ -5412,11 +5442,11 @@ function loadAvailableInventoryItems() {
                             ${itemName}
                         </div>
                         <div style="font-size:13px;color:#666;">
-                            ${itemCategory} • Stock: ${item.quantity || 0} ${itemUnit}
-                            ${itemModels ? ` • ${itemModels}` : ''}
+                            ${itemCategory} • PN: ${itemPartNumber} • Stock: ${item.quantity || 0} pcs
+                            ${brandModelInfo ? ` • ${brandModelInfo}` : ''}
                         </div>
                         <div style="font-size:14px;color:#2e7d32;font-weight:bold;margin-top:4px;">
-                            ₱${parseFloat(item.cost || 0).toFixed(2)} per ${itemUnit}
+                            ₱${itemCost.toFixed(2)} per pc
                         </div>
                     </div>
                     
@@ -5471,10 +5501,10 @@ function toggleInventoryItem(itemId) {
         if (item) {
             window.selectedInventoryItems.push({
                 itemId: item.id,
-                itemName: item.name || 'Unnamed Item',
+                itemName: item.partName || 'Unnamed Item',
+                partNumber: item.partNumber || '',
                 quantity: 1,
-                unitCost: parseFloat(item.cost || 0),
-                unit: item.unit || 'unit',
+                unitCost: parseFloat(item.unitCost || 0),
                 category: item.category || 'Uncategorized'
             });
         }
@@ -5549,7 +5579,7 @@ function updateSelectedItemsSummary() {
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:white;border-radius:6px;">
                 <div>
                     <strong>${item.itemName}</strong><br>
-                    <small style="color:#666;">${item.quantity} ${item.unit} × ₱${item.unitCost.toFixed(2)}</small>
+                    <small style="color:#666;">${item.quantity} pcs × ₱${item.unitCost.toFixed(2)}</small>
                 </div>
                 <div style="font-weight:bold;color:#2e7d32;">
                     ₱${itemTotal.toFixed(2)}
