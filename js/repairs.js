@@ -6677,8 +6677,8 @@ function getTechDailyPartsCosts(techId, date) {
     let total = 0;
 
     window.allRepairs.forEach(repair => {
-        // Only include repairs assigned to this technician
-        if (repair.acceptedBy === techId && repair.payments) {
+        // Only include repairs assigned to this technician (exclude deleted)
+        if (!repair.deleted && repair.acceptedBy === techId && repair.payments) {
             // Check if tech collected any payment on this date
             const hasPaymentOnDate = repair.payments.some(payment => {
                 // Only count verified payments collected by tech
