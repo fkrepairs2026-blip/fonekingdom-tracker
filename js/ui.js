@@ -15205,6 +15205,60 @@ function viewRetroactiveIntakeDetails(intakeId) {
     alert(details);
 }
 
+/**
+ * Show repair details in a modal/expanded view
+ * Used by searchable repair lists
+ */
+function showRepairDetailsModal(repairId) {
+    console.log('🔍 Showing repair details for:', repairId);
+    
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) {
+        console.warn('⚠️ Repair not found:', repairId);
+        alert('Repair not found');
+        return;
+    }
+
+    // Get the repair item element
+    const repairItem = document.querySelector(`[data-repair-id="${repairId}"]`);
+    if (!repairItem) {
+        console.warn('⚠️ Repair item element not found');
+        return;
+    }
+
+    // Check if already expanded
+    const isExpanded = repairItem.classList.contains('expanded');
+    
+    // Collapse all other items
+    document.querySelectorAll('.searchable-repair-item').forEach(item => {
+        item.classList.remove('expanded');
+    });
+
+    // Toggle this item
+    if (!isExpanded) {
+        repairItem.classList.add('expanded');
+        
+        // Create expanded details if they don't exist
+        let detailsDiv = repairItem.querySelector('.repair-details-expanded');
+        if (!detailsDiv) {
+            detailsDiv = document.createElement('div');
+            detailsDiv.className = 'repair-details-expanded';
+            detailsDiv.style.cssText = 'margin-top:15px;padding:15px;background:#f9f9f9;border-radius:8px;border-left:4px solid #667eea;';
+            
+            const role = window.currentUserData.role;
+            detailsDiv.innerHTML = renderExpandedRepairDetails(repair, role, 'all');
+            repairItem.appendChild(detailsDiv);
+        } else {
+            detailsDiv.style.display = 'block';
+        }
+        
+        // Scroll into view
+        setTimeout(() => {
+            repairItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
+    }
+}
+
 // Export Staff Overview functions
 window.buildStaffOverviewTab = buildStaffOverviewTab;
 window.renderStaffStatusList = renderStaffStatusList;
@@ -15214,3 +15268,4 @@ window.buildRetroactiveIntakesTab = buildRetroactiveIntakesTab;
 window.applyRetroactiveFilters = applyRetroactiveFilters;
 window.clearRetroactiveFilters = clearRetroactiveFilters;
 window.viewRetroactiveIntakeDetails = viewRetroactiveIntakeDetails;
+window.showRepairDetailsModal = showRepairDetailsModal;
