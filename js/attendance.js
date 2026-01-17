@@ -149,12 +149,42 @@ async function clockOut() {
 
         // Get today's attendance
         const attendanceSnapshot = await db.ref(`userAttendance/${userId}/${today}`).once('value');
-        const todayAttendance = attendanceSnapshot.val();
+        let todayAttendance = attendanceSnapshot.val();
 
+        // Handle stale clock-in from previous day
         if (!todayAttendance || !todayAttendance.clockIn) {
-            utils.showLoading(false);
-            alert('No clock-in record found for today!');
-            return;
+            // Check if they have a stale clock-in (todayClockIn is from a previous day)
+            const clockInDate = currentActivity.todayClockIn ? getLocalDateString(new Date(currentActivity.todayClockIn)) : null;
+            
+            if (clockInDate && clockInDate !== today) {
+                // Auto-create today's clock-in record for seamless transition
+                await db.ref(`userAttendance/${userId}/${today}`).set({
+                    clockIn: now,
+                    clockOut: null,
+                    duration: 0,
+                    breaks: [],
+                    userName: window.currentUserData.displayName,
+                    userRole: window.currentUserData.role,
+                    autoCreated: true,
+                    note: `Auto-created from stale clock-in on ${clockInDate}`
+                });
+                
+                // Update activity to reflect current session
+                await db.ref(`userActivity/${userId}`).update({
+                    todayClockIn: now,
+                    lastActivity: now
+                });
+                
+                todayAttendance = {
+                    clockIn: now,
+                    userName: window.currentUserData.displayName,
+                    userRole: window.currentUserData.role
+                };
+            } else {
+                utils.showLoading(false);
+                alert('No clock-in record found for today!');
+                return;
+            }
         }
 
         // Calculate duration (in seconds)
@@ -397,6 +427,71 @@ function closeRemittanceModal() {
 window.goToRemittanceTab = goToRemittanceTab;
 window.closeRemittanceModal = closeRemittanceModal;
 window.getUserAttendanceStatus = getUserAttendanceStatus;
+
+/**
+ * Smart Clock-In Prompt System
+ * Shows welcome message and asks if user wants to clock in on first login of the day
+ */
+async function showSmartClockInPrompt() {
+    try {
+        // Only show for technicians and cashiers
+        const role = window.currentUserData?.role;
+        if (role !== 'technician' && role !== 'cashier') {
+            return;
+        }
+
+        const userId = window.currentUser.uid;
+        const today = getLocalDateString(new Date());
+
+        // Check if already shown today
+        const shownKey = `clockInPromptShown_${userId}_${today}`;
+        if (localStorage.getItem(shownKey) === 'true') {
+            return;
+        }
+
+        // Check if already clocked in
+        const activitySnapshot = await firebase.database().ref(`userActivity/${userId}`).once('value');
+        const currentActivity = activitySnapshot.val();
+        
+        if (currentActivity && currentActivity.currentStatus === 'clocked-in') {
+            // Already clocked in, check if it's from today
+            const clockInDate = currentActivity.todayClockIn ? getLocalDateString(new Date(currentActivity.todayClockIn)) : null;
+            if (clockInDate === today) {
+                return; // Already clocked in today, no prompt needed
+            }
+        }
+
+        // Check if already have attendance record for today
+        const attendanceSnapshot = await firebase.database().ref(`userAttendance/${userId}/${today}`).once('value');
+        if (attendanceSnapshot.exists() && attendanceSnapshot.val().clockIn) {
+            return; // Already has clock-in for today
+        }
+
+        // Show the prompt
+        document.getElementById('welcomeUserName').textContent = `${window.currentUserData.displayName}!`;
+        document.getElementById('welcomeClockInModal').style.display = 'block';
+
+        // Mark as shown for today
+        localStorage.setItem(shownKey, 'true');
+
+    } catch (error) {
+        console.error('❌ Error showing clock-in prompt:', error);
+    }
+}
+
+async function acceptClockInPrompt() {
+    document.getElementById('welcomeClockInModal').style.display = 'none';
+    await clockIn();
+}
+
+function dismissClockInPrompt() {
+    document.getElementById('welcomeClockInModal').style.display = 'none';
+}
+
+window.showSmartClockInPrompt = showSmartClockInPrompt;
+window.acceptClockInPrompt = acceptClockInPrompt;
+window.dismissClockInPrompt = dismissClockInPrompt;
+
 /**
  * Clock Reminder System
  * Reminds techs/cashiers to clock in/out at configured times
