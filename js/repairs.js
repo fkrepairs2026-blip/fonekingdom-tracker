@@ -5940,12 +5940,12 @@ function getTechDailyPayments(techId, date) {
                 const paymentDateString = getLocalDateString(paymentDate);
                 const paymentMethod = payment.method || 'Cash'; // Default to Cash for old payments
 
-                // Only include CASH payments in remittance
+                // Include CASH and BANK TRANSFER payments in remittance
                 // GCash goes directly to shop, no remittance needed
                 if (payment.collectedByTech &&
                     payment.receivedById === techId &&
                     paymentDateString === targetDateString && // String comparison - no timezone issues
-                    paymentMethod === 'Cash' &&
+                    (paymentMethod === 'Cash' || paymentMethod === 'Bank Transfer') &&
                     payment.remittanceStatus === 'pending') {
                     payments.push({
                         repairId: repair.id,
@@ -5977,10 +5977,10 @@ function getAllPendingPayments(techId) {
             repair.payments.forEach((payment, index) => {
                 const paymentMethod = payment.method || 'Cash';
 
-                // Include ALL pending cash payments regardless of date
+                // Include ALL pending cash and bank transfer payments regardless of date
                 if (payment.collectedByTech &&
                     payment.receivedById === techId &&
-                    paymentMethod === 'Cash' &&
+                    (paymentMethod === 'Cash' || paymentMethod === 'Bank Transfer') &&
                     payment.remittanceStatus === 'pending' &&
                     !payment.techRemittanceId) {
 
@@ -6020,10 +6020,10 @@ function getPendingRemittanceDates(techId) {
             repair.payments.forEach((payment, index) => {
                 const paymentMethod = payment.method || 'Cash';
 
-                // Only Cash payments that are pending
+                // Only Cash and Bank Transfer payments that are pending
                 if (payment.collectedByTech &&
                     payment.receivedById === techId &&
-                    paymentMethod === 'Cash' &&
+                    (paymentMethod === 'Cash' || paymentMethod === 'Bank Transfer') &&
                     payment.remittanceStatus === 'pending' &&
                     !payment.techRemittanceId) {
 
