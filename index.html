@@ -288,6 +288,31 @@
         </div>
     </div>
 
+    <!-- Missed Clock-Out Modal -->
+    <div id="missedClockOutModal" class="modal">
+        <div class="modal-content" style="max-width:550px;">
+            <h3 style="color:#ff9800;">⚠️ Missed Clock-Out Detected</h3>
+            <p style="font-size:16px;margin:15px 0;">You forgot to clock out on:</p>
+            <div style="background:#f5f5f5;padding:15px;border-radius:8px;margin:15px 0;">
+                <p style="font-size:18px;font-weight:bold;margin:5px 0;" id="missedClockOutDate"></p>
+                <p style="font-size:14px;color:#666;">Clock-in: <span id="missedClockOutTime"></span></p>
+            </div>
+            
+            <p style="font-size:14px;color:#666;margin-bottom:20px;">Would you like to set your clock-out time now?</p>
+
+            <div style="display:flex;gap:10px;flex-direction:column;">
+                <button onclick="useDefault6pmClockOut()" class="btn-primary">
+                    ✅ Use Default (6:00 PM)
+                </button>
+                <button onclick="skipMissedClockOut()" class="btn-secondary">
+                    ⏭️ Skip (Admin will fix later)
+                </button>
+            </div>
+            
+            <p style="font-size:12px;color:#999;margin-top:15px;">Note: Auto clock-out happens at 6pm if you forget</p>
+        </div>
+    </div>
+
     <!-- Remittance Required Modal -->
     <div id="remittanceRequiredModal" class="modal">
         <div class="modal-content" style="max-width:450px;">

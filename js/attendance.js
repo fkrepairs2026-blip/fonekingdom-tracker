@@ -443,6 +443,13 @@ async function showSmartClockInPrompt() {
         const userId = window.currentUser.uid;
         const today = getLocalDateString(new Date());
 
+        // First, check for missed clock-out from previous days
+        const missedClockOut = await checkMissedClockOut(userId);
+        if (missedClockOut) {
+            showMissedClockOutModal(missedClockOut);
+            return; // Handle missed clock-out first
+        }
+
         // Check if already shown today
         const shownKey = `clockInPromptShown_${userId}_${today}`;
         if (localStorage.getItem(shownKey) === 'true') {
@@ -479,6 +486,155 @@ async function showSmartClockInPrompt() {
     }
 }
 
+/**
+ * Check if user has any missed clock-outs from previous days
+ */
+async function checkMissedClockOut(userId) {
+    try {
+        const db = firebase.database();
+        const today = getLocalDateString(new Date());
+        
+        // Get all attendance records for this user
+        const snapshot = await db.ref(`userAttendance/${userId}`).once('value');
+        const records = snapshot.val() || {};
+
+        // Find the most recent day with clock-in but no clock-out
+        for (const [date, record] of Object.entries(records).reverse()) {
+            if (date >= today) continue; // Skip today and future dates
+            
+            if (record.clockIn && !record.clockOut) {
+                return {
+                    date: date,
+                    clockIn: record.clockIn,
+                    userName: record.userName
+                };
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('❌ Error checking missed clock-out:', error);
+        return null;
+    }
+}
+
+/**
+ * Show modal for missed clock-out correction
+ */
+function showMissedClockOutModal(missedData) {
+    const modal = document.getElementById('missedClockOutModal');
+    if (!modal) return;
+
+    const dateFormatted = new Date(missedData.date).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+    });
+
+    document.getElementById('missedClockOutDate').textContent = dateFormatted;
+    document.getElementById('missedClockOutTime').textContent = utils.formatDateTime(missedData.clockIn);
+    
+    // Store data for correction
+    window.missedClockOutData = missedData;
+    
+    modal.style.display = 'block';
+}
+
+/**
+ * Set missed clock-out time
+ */
+async function setMissedClockOut(clockOutTime) {
+    try {
+        const data = window.missedClockOutData;
+        if (!data) {
+            alert('Error: No missed clock-out data found');
+            return;
+        }
+
+        utils.showLoading(true);
+
+        // Default to 6:00 PM if not provided
+        if (!clockOutTime) {
+            const date = new Date(data.date + 'T18:00:00');
+            clockOutTime = date.toISOString();
+        }
+
+        const clockInTime = new Date(data.clockIn);
+        const clockOutTimeObj = new Date(clockOutTime);
+        const duration = Math.floor((clockOutTimeObj - clockInTime) / 1000);
+
+        if (duration < 0) {
+            utils.showLoading(false);
+            alert('Clock-out time cannot be before clock-in time');
+            return;
+        }
+
+        // Update attendance record
+        await firebase.database().ref(`userAttendance/${window.currentUser.uid}/${data.date}`).update({
+            clockOut: clockOutTime,
+            duration: duration,
+            manualClockOut: true,
+            manualClockOutReason: 'Corrected via missed clock-out prompt',
+            correctedAt: new Date().toISOString(),
+            correctedBy: window.currentUserData.displayName
+        });
+
+        // Update activity status if still showing clocked-in from that old session
+        const activitySnapshot = await firebase.database().ref(`userActivity/${window.currentUser.uid}`).once('value');
+        const activity = activitySnapshot.val();
+        
+        if (activity && activity.currentStatus === 'clocked-in') {
+            const clockInDate = activity.todayClockIn ? getLocalDateString(new Date(activity.todayClockIn)) : null;
+            if (clockInDate === data.date) {
+                await firebase.database().ref(`userActivity/${window.currentUser.uid}`).update({
+                    currentStatus: 'clocked-out',
+                    lastActivity: new Date().toISOString(),
+                    todayClockIn: null
+                });
+            }
+        }
+
+        utils.showLoading(false);
+        document.getElementById('missedClockOutModal').style.display = 'none';
+        
+        const hours = Math.floor(duration / 3600);
+        const minutes = Math.floor((duration % 3600) / 60);
+        alert(`✅ Clock-out time set successfully!\n\nWork duration: ${hours}h ${minutes}m`);
+
+        // Clear stored data and show welcome prompt
+        window.missedClockOutData = null;
+        setTimeout(() => showSmartClockInPrompt(), 500);
+
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error setting missed clock-out:', error);
+        alert('Error setting clock-out time: ' + error.message);
+    }
+}
+
+/**
+ * Use default 6pm for missed clock-out
+ */
+function useDefault6pmClockOut() {
+    const data = window.missedClockOutData;
+    if (!data) return;
+    
+    // Create 6:00 PM timestamp for that date
+    const date = new Date(data.date + 'T18:00:00+08:00'); // Manila timezone
+    setMissedClockOut(date.toISOString());
+}
+
+/**
+ * Skip missed clock-out correction (admin can fix later)
+ */
+function skipMissedClockOut() {
+    document.getElementById('missedClockOutModal').style.display = 'none';
+    window.missedClockOutData = null;
+    
+    // Show welcome prompt after skipping
+    setTimeout(() => showSmartClockInPrompt(), 500);
+}
+
 async function acceptClockInPrompt() {
     document.getElementById('welcomeClockInModal').style.display = 'none';
     await clockIn();
@@ -491,6 +647,9 @@ function dismissClockInPrompt() {
 window.showSmartClockInPrompt = showSmartClockInPrompt;
 window.acceptClockInPrompt = acceptClockInPrompt;
 window.dismissClockInPrompt = dismissClockInPrompt;
+window.setMissedClockOut = setMissedClockOut;
+window.useDefault6pmClockOut = useDefault6pmClockOut;
+window.skipMissedClockOut = skipMissedClockOut;
 
 /**
  * Clock Reminder System
@@ -599,6 +758,93 @@ function checkClockReminder() {
     }
 }
 
+/**
+ * Auto Clock-Out System
+ * Automatically clocks out users who forgot to clock out at end of day (6pm Manila time)
+ */
+async function checkAutoClockOut() {
+    try {
+        // Get Manila time
+        const now = new Date();
+        const hours = parseInt(now.toLocaleString('en-US', {
+            timeZone: 'Asia/Manila',
+            hour12: false,
+            hour: '2-digit'
+        }));
+        const minutes = parseInt(now.toLocaleString('en-US', {
+            timeZone: 'Asia/Manila',
+            minute: '2-digit'
+        }));
+
+        // Only run at 6:00 PM Manila time (within 10-minute window)
+        if (hours !== 18 || minutes > 10) {
+            return;
+        }
+
+        console.log('🕐 Checking for auto clock-out at 6pm...');
+
+        const db = firebase.database();
+        const today = getLocalDateString(new Date());
+        
+        // Get all user activities
+        const activitySnapshot = await db.ref('userActivity').once('value');
+        const allActivity = activitySnapshot.val() || {};
+
+        let autoClockOutCount = 0;
+
+        for (const [userId, activity] of Object.entries(allActivity)) {
+            // Only auto-clock out technicians and cashiers who are still clocked in
+            if (activity.currentStatus !== 'clocked-in') continue;
+            
+            const userRole = activity.userRole;
+            if (!['technician', 'cashier'].includes(userRole)) continue;
+
+            // Check if clock-in is from today
+            const clockInDate = activity.todayClockIn ? getLocalDateString(new Date(activity.todayClockIn)) : null;
+            if (clockInDate !== today) continue;
+
+            // Check if they have an attendance record for today without clock-out
+            const attendanceSnapshot = await db.ref(`userAttendance/${userId}/${today}`).once('value');
+            const attendance = attendanceSnapshot.val();
+            
+            if (attendance && attendance.clockIn && !attendance.clockOut) {
+                // Auto clock-out at 6pm
+                const clockOutTime = new Date();
+                clockOutTime.setHours(18, 0, 0, 0); // Set to exactly 6:00 PM
+                const clockOutISO = clockOutTime.toISOString();
+
+                const clockInTime = new Date(attendance.clockIn);
+                const duration = Math.floor((clockOutTime - clockInTime) / 1000);
+
+                // Update attendance record
+                await db.ref(`userAttendance/${userId}/${today}`).update({
+                    clockOut: clockOutISO,
+                    duration: duration,
+                    autoClockOut: true,
+                    autoClockOutReason: 'Automatic clock-out at 6:00 PM'
+                });
+
+                // Update activity status
+                await db.ref(`userActivity/${userId}`).update({
+                    currentStatus: 'clocked-out',
+                    lastActivity: clockOutISO,
+                    todayClockIn: null
+                });
+
+                autoClockOutCount++;
+                console.log(`✅ Auto clocked-out: ${activity.userName} at 6:00 PM (${formatDuration(duration)})`);
+            }
+        }
+
+        if (autoClockOutCount > 0) {
+            console.log(`🕐 Auto clock-out completed: ${autoClockOutCount} user(s)`);
+        }
+
+    } catch (error) {
+        console.error('❌ Error in auto clock-out:', error);
+    }
+}
+
 async function startClockReminderSystem() {
     console.log('⏰ Initializing clock reminder system...');
     await loadClockReminderSettings();
@@ -607,10 +853,16 @@ async function startClockReminderSystem() {
         clearInterval(clockReminderInterval);
     }
 
-    clockReminderInterval = setInterval(checkClockReminder, 300000);
+    // Check reminders every 5 minutes, auto clock-out every 5 minutes (will only trigger at 6pm)
+    clockReminderInterval = setInterval(() => {
+        checkClockReminder();
+        checkAutoClockOut();
+    }, 300000);
+    
     setTimeout(checkClockReminder, 10000);
+    setTimeout(checkAutoClockOut, 15000); // Check auto clock-out 15 seconds after startup
 
-    console.log('✅ Clock reminder system started');
+    console.log('✅ Clock reminder system started (includes auto clock-out at 6pm)');
 }
 
 async function saveClockReminderSettings(settings) {
