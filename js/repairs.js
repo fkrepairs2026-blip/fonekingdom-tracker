@@ -6804,9 +6804,10 @@ function openSingleDayRemittanceModal(dateString) {
     const { expenses, total: expensesTotal } = getTechDailyExpenses(techId, dateString);
     const { repairs: partsRepairs, total: partsCostsTotal } = getTechDailyPartsCosts(techId, dateString);
 
-    // Commission: 40% of gross payments, expenses deducted from shop's 60%
-    const commissionDeduction = paymentsTotal * 0.40;  // Tech keeps 40% of gross
-    const shopShare = (paymentsTotal * 0.60) - partsCostsTotal - expensesTotal;  // Shop gets 60% minus costs
+    // CORRECT: Commission on NET revenue (after parts costs deducted)
+    const netRevenue = paymentsTotal - partsCostsTotal - expensesTotal;
+    const commissionDeduction = netRevenue * 0.40;  // Tech keeps 40% of net
+    const shopShare = netRevenue * 0.60;  // Shop gets 60% of net
     const expectedAmount = shopShare;
 
     if (payments.length === 0 && expenses.length === 0) {
@@ -6881,23 +6882,32 @@ function openSingleDayRemittanceModal(dateString) {
                         <span>💵 Gross Cash Collected:</span>
                         <strong>₱${paymentsTotal.toFixed(2)}</strong>
                     </div>
+                    ${partsCostsTotal > 0 ? `
+                        <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                            <span>🔧 Parts Costs:</span>
+                            <strong style="color:#f44336;">-₱${partsCostsTotal.toFixed(2)}</strong>
+                        </div>
+                    ` : ''}
+                    ${expensesTotal > 0 ? `
+                        <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                            <span>💸 Expenses:</span>
+                            <strong style="color:#f44336;">-₱${expensesTotal.toFixed(2)}</strong>
+                        </div>
+                    ` : ''}
                     <hr style="border:none;border-top:1px dashed #ddd;margin:10px 0;">
                     <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                        <span>👤 Your Commission (40% of gross):</span>
+                        <span>📊 Net Revenue:</span>
+                        <strong style="color:#4caf50;">₱${netRevenue.toFixed(2)}</strong>
+                    </div>
+                    <hr style="border:none;border-top:1px solid #ddd;margin:10px 0;">
+                    <div style="display:flex;justify-content:space-between;margin:10px 0;">
+                        <span>👤 Your Commission (40% of net):</span>
                         <strong style="color:#2196f3;">₱${commissionDeduction.toFixed(2)}</strong>
                     </div>
                     <div style="display:flex;justify-content:space-between;margin:10px 0;">
-                        <span>🏦 Shop's Share (60% of gross):</span>
-                        <strong>₱${(paymentsTotal * 0.60).toFixed(2)}</strong>
+                        <span>🏦 Shop's Share (60% of net):</span>
+                        <strong>₱${shopShare.toFixed(2)}</strong>
                     </div>
-                    <hr style="border:none;border-top:1px solid #ddd;margin:10px 0;">
-                    <div style="font-size:13px;color:#666;margin:10px 0;font-style:italic;">
-                        Deductions from Shop's Share:
-                    </div>
-                    ${partsCostsTotal > 0 ? `
-                        <div style="display:flex;justify-content:space-between;margin:10px 0;padding-left:15px;">
-                            <span>🔧 Parts Costs</span>
-                            <strong style="color:#f44336;">-₱${partsCostsTotal.toFixed(2)}</strong>
                         </div>
                     ` : ''}
                     ${expensesTotal > 0 ? `
@@ -7197,12 +7207,22 @@ function openRemittanceModal() {
         alert(message);
     }
 
-    // CORRECT CALCULATION: 60/40 split on gross payments, expenses from shop's share
-    // Tech keeps: 40% of gross payments as commission
-    // Shop gets: 60% of gross payments - expenses
-    // Tech remits: Shop's share (60% - expenses)
-    const commissionDeduction = paymentsTotal * 0.40;  // Tech keeps 40% of gross
-    const shopShare = (paymentsTotal * 0.60) - expensesTotal;  // Shop gets 60% minus expenses
+    // Get all pending payments and expenses
+    const { payments, total: paymentsTotal } = getAllPendingPayments(techId);
+    const { expenses, total: expensesTotal } = getAllPendingExpenses(techId);
+    
+    // Get all parts costs for these dates
+    let totalPartsCosts = 0;
+    const dateSet = new Set(payments.map(p => p.dateString));
+    dateSet.forEach(dateStr => {
+        const { total: dayPartsCosts } = getTechDailyPartsCosts(techId, dateStr);
+        totalPartsCosts += dayPartsCosts;
+    });
+
+    // CORRECT: Commission on NET revenue (after parts costs and expenses)
+    const netRevenue = paymentsTotal - totalPartsCosts - expensesTotal;
+    const commissionDeduction = netRevenue * 0.40;  // Tech keeps 40% of net
+    const shopShare = netRevenue * 0.60;  // Shop gets 60% of net
     const expectedAmount = shopShare;
 
     // Build summary
@@ -7520,22 +7540,29 @@ async function confirmRemittance() {
         return;
     }
 
-    // CORRECT CALCULATION: 60/40 split on GROSS payments, expenses from shop's share
-    // Tech keeps: 40% of gross payments as commission
-    // Shop gets: 60% of gross payments - expenses
-    // Tech remits: Shop's share + any pending adjustment
-    const technicianShare = paymentsTotal * 0.40;  // Technician keeps 40% of gross
-    const shopShare = (paymentsTotal * 0.60) - expensesTotal;  // Shop gets 60% minus expenses
+    // Get all parts costs for remittance dates
+    let totalPartsCosts = 0;
+    const dateSet = new Set(payments.map(p => p.dateString));
+    dateSet.forEach(dateStr => {
+        const { total: dayPartsCosts } = getTechDailyPartsCosts(techId, dateStr);
+        totalPartsCosts += dayPartsCosts;
+    });
+
+    // CORRECT: Commission on NET revenue (after parts costs and expenses)
+    const netRevenue = paymentsTotal - totalPartsCosts - expensesTotal;
+    const technicianShare = netRevenue * 0.40;  // Technician keeps 40% of net
+    const shopShare = netRevenue * 0.60;  // Shop gets 60% of net
     const baseExpected = shopShare; // Base expected before adjustment
     const expectedAmount = baseExpected + adjustmentAmount; // Add/subtract pending adjustment
     const discrepancy = actualAmount - expectedAmount;
 
     DebugLogger.log('REMITTANCE', 'Remittance Amount Calculation', {
         paymentsTotal: paymentsTotal,
+        totalPartsCosts: totalPartsCosts,
         expensesTotal: expensesTotal,
-        technicianShare: technicianShare,  // 40% of gross
-        shopShareBeforeExpenses: paymentsTotal * 0.60,  // 60% of gross
-        shopShare: shopShare,  // 60% minus expenses
+        netRevenue: netRevenue,
+        technicianShare: technicianShare,  // 40% of net
+        shopShare: shopShare,  // 60% of net
         commissionTotal: totalCommission,  // Should match technicianShare if using standard rates
         baseExpected: baseExpected,
         pendingAdjustment: adjustmentAmount,
