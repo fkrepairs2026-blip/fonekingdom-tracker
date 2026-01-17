@@ -300,8 +300,8 @@ function renderMobileBottomNav() {
             { id: 'staff-overview', icon: '👥', label: 'Staff' },
             { id: 'profit-dashboard', icon: '💰', label: 'Profit' },
             { id: 'dashboard', icon: '🏠', label: 'Home' },
-            { id: 'usage-analytics', icon: '📊', label: 'Analytics' },
-            { id: 'personal-finance', icon: '💳', label: 'Finances' }
+            { id: 'overhead-expenses', icon: '💸', label: 'Overhead' },
+            { id: 'verify-remittance', icon: '✅', label: 'Verify' }
         );
     } else if (role === 'manager') {
         quickTabs.push(
@@ -4161,6 +4161,41 @@ function buildSuppliersTab(container) {
 }
 
 /**
+ * Calculate total profit for a given period
+ * @param {string} period - 'today', 'week', 'month', or 'previousMonth'
+ * @returns {number} Total net profit
+ */
+function calculateProfitForPeriod(period) {
+    const now = new Date();
+    let startDate, endDate;
+
+    if (period === 'today') {
+        startDate = new Date(now.setHours(0, 0, 0, 0));
+        endDate = new Date(now.setHours(23, 59, 59, 999));
+    } else if (period === 'week') {
+        const dayOfWeek = now.getDay();
+        const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Monday start
+        startDate = new Date(now.setDate(diff));
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date();
+    } else if (period === 'month') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date();
+    } else if (period === 'previousMonth') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    }
+
+    // Use analytics function if available
+    if (window.getProfitDashboard) {
+        const dashboard = window.getProfitDashboard(startDate, endDate);
+        return dashboard.summary.totalNetProfit || 0;
+    }
+
+    return 0;
+}
+
+/**
  * Build Staff Overview Tab (Admin only)
  * Shows real-time staff status, attendance, and activity
  */
@@ -4199,13 +4234,21 @@ function buildStaffOverviewTab(container) {
                 <h3>${clockedInTechs + clockedInCashiers}</h3>
                 <p>🟢 Clocked In</p>
             </div>
-            <div class="stat-card alert-card-warning">
-                <h3>${technicians.length}</h3>
-                <p>🔧 Technicians</p>
+            <div class="stat-card" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);color:white;">
+                <h3>₱${calculateProfitForPeriod('today').toLocaleString('en-PH', { minimumFractionDigits: 2 })}</h3>
+                <p>💰 Today's Profit</p>
             </div>
-            <div class="stat-card alert-card-info">
-                <h3>${cashiers.length}</h3>
-                <p>💳 Cashiers</p>
+            <div class="stat-card" style="background:linear-gradient(135deg, #51cf66 0%, #2f9e44 100%);color:white;">
+                <h3>₱${calculateProfitForPeriod('week').toLocaleString('en-PH', { minimumFractionDigits: 2 })}</h3>
+                <p>📅 This Week</p>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);color:white;">
+                <h3>₱${calculateProfitForPeriod('month').toLocaleString('en-PH', { minimumFractionDigits: 2 })}</h3>
+                <p>📊 This Month</p>
+            </div>
+            <div class="stat-card" style="background:linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%);color:white;">
+                <h3>₱${calculateProfitForPeriod('previousMonth').toLocaleString('en-PH', { minimumFractionDigits: 2 })}</h3>
+                <p>📈 Previous Month</p>
             </div>
         </div>
 
