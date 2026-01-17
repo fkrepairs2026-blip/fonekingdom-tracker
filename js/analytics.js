@@ -583,22 +583,29 @@ function getAdvancePaymentAnalytics(startDate, endDate) {
 // ===== EXPORT FUNCTIONS =====
 
 /**
- * Export data to CSV
+ * Export data to CSV - handles mixed-structure objects for reports
  */
 function exportArrayToCSV(data, filename) {
     let csv = '';
 
     if (Array.isArray(data) && data.length > 0) {
-        // Get headers from first object
-        const headers = Object.keys(data[0]);
-        csv += headers.join(',') + '\n';
-
-        // Add rows
+        // For mixed-structure reports, each row can have different keys
+        // Don't use fixed headers - output each row's keys/values
         data.forEach(row => {
-            const values = headers.map(header => {
-                const value = row[header];
+            const keys = Object.keys(row);
+            const values = keys.map(key => {
+                let value = row[key];
+                
+                // Convert undefined/null to empty string
+                if (value === undefined || value === null) {
+                    value = '';
+                }
+                
+                // Convert to string
+                value = String(value);
+                
                 // Escape commas and quotes
-                if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                if (value.includes(',') || value.includes('"') || value.includes('\n')) {
                     return `"${value.replace(/"/g, '""')}"`;
                 }
                 return value;
