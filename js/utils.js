@@ -473,11 +473,16 @@ const utils = {
 
             // Remittance status
             const techRemittances = window.techRemittances || [];
-            const myPendingRemittances = techRemittances.filter(r =>
+            const mySubmittedRemittances = techRemittances.filter(r =>
                 r.techId === currentUserId && r.status === 'pending'
             );
-            stats.pendingRemittanceCount = myPendingRemittances.length;
-            stats.pendingRemittanceAmount = myPendingRemittances.reduce((sum, r) =>
+            
+            // Check for unsubmitted remittances (payments not yet remitted)
+            const unsubmittedDates = window.getPendingRemittanceDates ? window.getPendingRemittanceDates(currentUserId) : [];
+            
+            stats.submittedRemittanceCount = mySubmittedRemittances.length;
+            stats.unsubmittedRemittanceCount = unsubmittedDates.length;
+            stats.pendingRemittanceAmount = mySubmittedRemittances.reduce((sum, r) =>
                 sum + (parseFloat(r.actualAmount) || 0), 0
             );
 
@@ -640,7 +645,8 @@ const utils = {
         const colors = {
             high: 'linear-gradient(135deg, #ff6b6b 0%, #c92a2a 100%)',
             medium: 'linear-gradient(135deg, #ffd93d 0%, #f59e0b 100%)',
-            low: 'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)'
+            low: 'linear-gradient(135deg, #51cf66 0%, #2f9e44 100%)',
+            info: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
         };
 
         const gradient = colors[urgency] || colors.medium;
