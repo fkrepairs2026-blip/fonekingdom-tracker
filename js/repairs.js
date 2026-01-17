@@ -5306,6 +5306,13 @@ async function savePartsCost() {
 
         alert(message);
         closePartsCostModal();
+        
+        // If supplier is "Stock", prompt to select inventory items
+        if (actualSupplier === 'Stock') {
+            setTimeout(() => {
+                openInventorySelectionModal(repairId, actualAmount);
+            }, 500);
+        }
 
         setTimeout(() => {
             if (window.currentTabRefresh) {
@@ -5317,6 +5324,309 @@ async function savePartsCost() {
         console.error('Error saving parts cost:', error);
         alert('Error: ' + error.message);
     }
+}
+
+/**
+ * Open modal to select inventory items used for a repair
+ */
+function openInventorySelectionModal(repairId, totalCost) {
+    console.log('📦 Opening inventory selection modal for repair:', repairId);
+    
+    document.getElementById('invSelectRepairId').value = repairId;
+    
+    // Initialize selected items array
+    window.selectedInventoryItems = [];
+    
+    // Load existing selected items if any
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (repair && repair.inventoryItemsUsed) {
+        window.selectedInventoryItems = [...repair.inventoryItemsUsed];
+    }
+    
+    loadAvailableInventoryItems();
+    updateSelectedItemsSummary();
+    
+    document.getElementById('inventorySelectionModal').style.display = 'flex';
+}
+
+/**
+ * Load and display available inventory items
+ */
+function loadAvailableInventoryItems() {
+    const container = document.getElementById('inventoryItemsList');
+    
+    if (!window.allInventoryItems || window.allInventoryItems.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#999;">
+                <p style="font-size:48px;margin:0;">📦</p>
+                <p>No inventory items available</p>
+                <small>Add items to inventory first</small>
+            </div>
+        `;
+        return;
+    }
+    
+    // Filter out deleted items and items with 0 quantity
+    const availableItems = window.allInventoryItems.filter(item => 
+        !item.deleted && item.quantity > 0
+    );
+    
+    if (availableItems.length === 0) {
+        container.innerHTML = `
+            <div style="text-align:center;padding:40px;color:#999;">
+                <p style="font-size:48px;margin:0;">📦</p>
+                <p>No items in stock</p>
+                <small>All items are out of stock</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '<div style="display:grid;gap:10px;">';
+    
+    availableItems.forEach(item => {
+        const isSelected = window.selectedInventoryItems.some(sel => sel.itemId === item.id);
+        const selectedItem = window.selectedInventoryItems.find(sel => sel.itemId === item.id);
+        const selectedQty = selectedItem ? selectedItem.quantity : 0;
+        
+        html += `
+            <div class="inventory-item-card" data-item-id="${item.id}" data-search="${item.name.toLowerCase()} ${item.category.toLowerCase()} ${(item.compatibleModels || '').toLowerCase()}">
+                <div style="display:flex;gap:15px;align-items:center;">
+                    <input type="checkbox" 
+                           id="inv_${item.id}" 
+                           onchange="toggleInventoryItem('${item.id}')"
+                           ${isSelected ? 'checked' : ''}
+                           style="width:20px;height:20px;cursor:pointer;">
+                    
+                    <div style="flex:1;">
+                        <div style="font-weight:bold;font-size:15px;margin-bottom:4px;">
+                            ${item.name}
+                        </div>
+                        <div style="font-size:13px;color:#666;">
+                            ${item.category} • Stock: ${item.quantity} ${item.unit}
+                            ${item.compatibleModels ? ` • ${item.compatibleModels}` : ''}
+                        </div>
+                        <div style="font-size:14px;color:#2e7d32;font-weight:bold;margin-top:4px;">
+                            ₱${parseFloat(item.cost || 0).toFixed(2)} per ${item.unit}
+                        </div>
+                    </div>
+                    
+                    <div style="display:${isSelected ? 'flex' : 'none'};align-items:center;gap:8px;" id="qty_controls_${item.id}">
+                        <button type="button" onclick="changeItemQuantity('${item.id}', -1)" class="btn-small" style="width:30px;padding:4px;">-</button>
+                        <input type="number" 
+                               id="qty_${item.id}" 
+                               value="${selectedQty || 1}" 
+                               min="1" 
+                               max="${item.quantity}"
+                               onchange="updateItemQuantity('${item.id}', this.value)"
+                               style="width:60px;text-align:center;padding:4px;">
+                        <button type="button" onclick="changeItemQuantity('${item.id}', 1)" class="btn-small" style="width:30px;padding:4px;">+</button>
+                        <span style="font-size:12px;color:#666;">of ${item.quantity}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+/**
+ * Filter inventory items by search term
+ */
+function filterInventoryItems() {
+    const searchTerm = document.getElementById('invSearchInput').value.toLowerCase();
+    const items = document.querySelectorAll('.inventory-item-card');
+    
+    items.forEach(item => {
+        const searchData = item.getAttribute('data-search');
+        if (searchData.includes(searchTerm)) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+/**
+ * Toggle inventory item selection
+ */
+function toggleInventoryItem(itemId) {
+    const checkbox = document.getElementById(`inv_${itemId}`);
+    const qtyControls = document.getElementById(`qty_controls_${itemId}`);
+    
+    if (checkbox.checked) {
+        // Add to selected items
+        const item = window.allInventoryItems.find(i => i.id === itemId);
+        if (item) {
+            window.selectedInventoryItems.push({
+                itemId: item.id,
+                itemName: item.name,
+                quantity: 1,
+                unitCost: parseFloat(item.cost || 0),
+                unit: item.unit,
+                category: item.category
+            });
+        }
+        qtyControls.style.display = 'flex';
+        document.getElementById(`qty_${itemId}`).value = 1;
+    } else {
+        // Remove from selected items
+        window.selectedInventoryItems = window.selectedInventoryItems.filter(i => i.itemId !== itemId);
+        qtyControls.style.display = 'none';
+    }
+    
+    updateSelectedItemsSummary();
+}
+
+/**
+ * Change item quantity by delta
+ */
+function changeItemQuantity(itemId, delta) {
+    const input = document.getElementById(`qty_${itemId}`);
+    const item = window.allInventoryItems.find(i => i.id === itemId);
+    if (!item) return;
+    
+    let newQty = parseInt(input.value) + delta;
+    if (newQty < 1) newQty = 1;
+    if (newQty > item.quantity) newQty = item.quantity;
+    
+    input.value = newQty;
+    updateItemQuantity(itemId, newQty);
+}
+
+/**
+ * Update item quantity
+ */
+function updateItemQuantity(itemId, quantity) {
+    const selectedItem = window.selectedInventoryItems.find(i => i.itemId === itemId);
+    const item = window.allInventoryItems.find(i => i.id === itemId);
+    
+    if (selectedItem && item) {
+        let qty = parseInt(quantity);
+        if (qty < 1) qty = 1;
+        if (qty > item.quantity) qty = item.quantity;
+        
+        selectedItem.quantity = qty;
+        document.getElementById(`qty_${itemId}`).value = qty;
+        updateSelectedItemsSummary();
+    }
+}
+
+/**
+ * Update selected items summary
+ */
+function updateSelectedItemsSummary() {
+    const summary = document.getElementById('selectedItemsSummary');
+    const list = document.getElementById('selectedItemsList');
+    const total = document.getElementById('selectedItemsTotal');
+    
+    if (window.selectedInventoryItems.length === 0) {
+        summary.style.display = 'none';
+        return;
+    }
+    
+    summary.style.display = 'block';
+    
+    let totalCost = 0;
+    let html = '<div style="display:grid;gap:8px;">';
+    
+    window.selectedInventoryItems.forEach(item => {
+        const itemTotal = item.quantity * item.unitCost;
+        totalCost += itemTotal;
+        
+        html += `
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:white;border-radius:6px;">
+                <div>
+                    <strong>${item.itemName}</strong><br>
+                    <small style="color:#666;">${item.quantity} ${item.unit} × ₱${item.unitCost.toFixed(2)}</small>
+                </div>
+                <div style="font-weight:bold;color:#2e7d32;">
+                    ₱${itemTotal.toFixed(2)}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    list.innerHTML = html;
+    total.textContent = totalCost.toFixed(2);
+}
+
+/**
+ * Save selected inventory items and deduct from stock
+ */
+async function saveSelectedInventoryItems() {
+    const repairId = document.getElementById('invSelectRepairId').value;
+    
+    if (window.selectedInventoryItems.length === 0) {
+        const skip = confirm('No items selected. Do you want to skip inventory tracking for this repair?');
+        if (skip) {
+            closeInventorySelectionModal();
+        }
+        return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        // Save to repair record
+        await db.ref(`repairs/${repairId}`).update({
+            inventoryItemsUsed: window.selectedInventoryItems,
+            inventoryLinkedAt: new Date().toISOString(),
+            inventoryLinkedBy: window.currentUserData.displayName,
+            lastUpdated: new Date().toISOString(),
+            lastUpdatedBy: window.currentUserData.displayName
+        });
+        
+        // Deduct from inventory
+        for (const item of window.selectedInventoryItems) {
+            const inventoryItem = window.allInventoryItems.find(i => i.id === item.itemId);
+            if (inventoryItem) {
+                const newQuantity = inventoryItem.quantity - item.quantity;
+                
+                await db.ref(`inventory/${item.itemId}`).update({
+                    quantity: newQuantity,
+                    lastUpdated: new Date().toISOString()
+                });
+                
+                // Log adjustment
+                await db.ref(`inventory/${item.itemId}/adjustments`).push({
+                    type: 'used',
+                    quantity: -item.quantity,
+                    newQuantity: newQuantity,
+                    reason: `Used for repair ${repairId}`,
+                    repairId: repairId,
+                    recordedBy: window.currentUserData.displayName,
+                    recordedAt: new Date().toISOString()
+                });
+            }
+        }
+        
+        utils.showLoading(false);
+        alert(`✅ Inventory items linked and deducted!\n\n${window.selectedInventoryItems.length} item(s) deducted from stock.`);
+        closeInventorySelectionModal();
+        
+        setTimeout(() => {
+            if (window.currentTabRefresh) {
+                window.currentTabRefresh();
+            }
+        }, 300);
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('Error saving inventory items:', error);
+        alert('Error: ' + error.message);
+    }
+}
+
+/**
+ * Close inventory selection modal
+ */
+function closeInventorySelectionModal() {
+    document.getElementById('inventorySelectionModal').style.display = 'none';
+    document.getElementById('invSearchInput').value = '';
+    window.selectedInventoryItems = [];
 }
 
 function closePartsCostModal() {
@@ -11815,6 +12125,15 @@ window.openAddSupplierFromReceive = openAddSupplierFromReceive;
 window.openAddSupplierQuick = openAddSupplierQuick;
 window.openPartsCostModal = openPartsCostModal;
 window.savePartsCost = savePartsCost;
+window.openInventorySelectionModal = openInventorySelectionModal;
+window.loadAvailableInventoryItems = loadAvailableInventoryItems;
+window.filterInventoryItems = filterInventoryItems;
+window.toggleInventoryItem = toggleInventoryItem;
+window.changeItemQuantity = changeItemQuantity;
+window.updateItemQuantity = updateItemQuantity;
+window.updateSelectedItemsSummary = updateSelectedItemsSummary;
+window.saveSelectedInventoryItems = saveSelectedInventoryItems;
+window.closeInventorySelectionModal = closeInventorySelectionModal;
 
 // ===== USER MANAGEMENT FUNCTIONS =====
 

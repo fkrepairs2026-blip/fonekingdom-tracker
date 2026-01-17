@@ -6873,3 +6873,38 @@ input:checked+.toggle-slider:before {
         font-size: 16px !important;
     }
 }
+/* ===== INVENTORY SELECTION MODAL STYLES ===== */
+.inventory-item-card {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.inventory-item-card:hover {
+    background: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.inventory-item-card input[type="checkbox"]:checked ~ * {
+    background: #e3f2fd;
+}
+
+#inventoryItemsList::-webkit-scrollbar {
+    width: 8px;
+}
+
+#inventoryItemsList::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+#inventoryItemsList::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+#inventoryItemsList::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

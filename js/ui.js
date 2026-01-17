@@ -2993,6 +2993,43 @@ function renderExpandedRepairDetails(repair, role, context = 'default') {
                 <div style="margin-top:15px;"><strong>📦 Parts Supplier:</strong> ${r.partsCostSupplier}</div>
             ` : ''}
             
+            ${r.inventoryItemsUsed && r.inventoryItemsUsed.length > 0 ? `
+                <details style="margin-top:15px;background:#e8f5e9;padding:12px;border-radius:8px;border-left:4px solid #4caf50;">
+                    <summary style="cursor:pointer;font-weight:600;color:#2e7d32;">📦 Inventory Items Used (${r.inventoryItemsUsed.length})</summary>
+                    <div style="margin-top:12px;display:grid;gap:8px;">
+                        ${r.inventoryItemsUsed.map(item => `
+                            <div style="background:white;padding:10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+                                <div>
+                                    <strong>${item.itemName}</strong><br>
+                                    <small style="color:#666;">${item.category} • ${item.quantity} ${item.unit}</small>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-weight:bold;color:#2e7d32;">₱${(item.quantity * item.unitCost).toFixed(2)}</div>
+                                    <small style="color:#999;">₱${item.unitCost.toFixed(2)}/${item.unit}</small>
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div style="padding:10px;background:white;border-radius:6px;display:flex;justify-content:space-between;border-top:2px solid #4caf50;">
+                            <strong>Total Stock Cost:</strong>
+                            <strong style="color:#2e7d32;">₱${r.inventoryItemsUsed.reduce((sum, item) => sum + (item.quantity * item.unitCost), 0).toFixed(2)}</strong>
+                        </div>
+                        <small style="color:#666;font-size:12px;margin-top:4px;">
+                            🕐 Linked ${window.utils.daysAgo(r.inventoryLinkedAt)} by ${r.inventoryLinkedBy}
+                        </small>
+                    </div>
+                </details>
+            ` : r.actualSupplier === 'Stock' ? `
+                <div style="margin-top:15px;background:#fff3cd;padding:12px;border-radius:8px;border-left:4px solid #ffc107;">
+                    <strong>⚠️ Stock items not yet linked</strong><br>
+                    <small style="color:#666;">Supplier marked as "From Stock" but inventory items haven't been specified.</small>
+                    ${['admin', 'manager'].includes(window.currentUserData.role) ? `
+                        <button onclick="openInventorySelectionModal('${r.id}', ${r.actualPartsCost || 0})" class="btn-small" style="margin-top:8px;background:#ff9800;">
+                            📦 Link Inventory Items
+                        </button>
+                    ` : ''}
+                </div>
+            ` : ''}
+            
             ${context === 'rto' ? renderRTOSpecificInfo(r) : ''}
             
             ${r.preRepairChecklist ? `

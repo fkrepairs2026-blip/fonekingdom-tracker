@@ -7,27 +7,27 @@
  */
 function buildHistoricalReviewTab(container) {
     console.log('📅 Building historical review tab...');
-    
+
     window.currentTabRefresh = () => buildHistoricalReviewTab(
         document.getElementById('historicalReviewTab')
     );
-    
+
     if (!container) {
         console.warn('Container not found for historical review');
         return;
     }
-    
+
     const role = window.currentUserData.role;
     const currentUserId = window.currentUser.uid;
-    
+
     // Get default date range (last 7 days)
     const today = new Date();
     const lastWeek = new Date(today);
     lastWeek.setDate(today.getDate() - 7);
-    
+
     const startDateStr = getLocalDateString(lastWeek);
     const endDateStr = getLocalDateString(today);
-    
+
     const html = `
         <div class="historical-review-container">
             <div class="page-header">
@@ -54,9 +54,9 @@ function buildHistoricalReviewTab(container) {
                         <select id="historyUserFilter" 
                                 style="width:100%;padding:8px;border:1px solid var(--border-color);border-radius:5px;">
                             <option value="all">All Users</option>
-                            ${Object.values(window.allUsers || {}).map(user => 
-                                `<option value="${user.uid}">${user.displayName} (${user.role})</option>`
-                            ).join('')}
+                            ${Object.values(window.allUsers || {}).map(user =>
+        `<option value="${user.uid}">${user.displayName} (${user.role})</option>`
+    ).join('')}
                         </select>
                     </div>
                     <div style="grid-column:1/-1;">
@@ -126,9 +126,9 @@ function buildHistoricalReviewTab(container) {
             </div>
         </div>
     `;
-    
+
     container.innerHTML = html;
-    
+
     // Apply initial filters
     setTimeout(() => applyHistoricalFilters(), 100);
 }
@@ -139,8 +139,8 @@ function buildHistoricalReviewTab(container) {
 function quickDateRange(range) {
     const today = new Date();
     let startDate = new Date();
-    
-    switch(range) {
+
+    switch (range) {
         case 'today':
             startDate = today;
             break;
@@ -151,10 +151,10 @@ function quickDateRange(range) {
             startDate.setMonth(today.getMonth() - 1);
             break;
     }
-    
+
     document.getElementById('historyStartDate').value = getLocalDateString(startDate);
     document.getElementById('historyEndDate').value = getLocalDateString(today);
-    
+
     applyHistoricalFilters();
 }
 
@@ -167,7 +167,7 @@ function switchHistoryTab(tabName) {
         btn.classList.remove('active');
     });
     event.target.classList.add('active');
-    
+
     // Update tab content
     document.querySelectorAll('.history-tab-content').forEach(content => {
         content.style.display = 'none';
@@ -180,30 +180,30 @@ function switchHistoryTab(tabName) {
  */
 function applyHistoricalFilters() {
     console.log('🔍 Applying historical filters...');
-    
+
     const startDateStr = document.getElementById('historyStartDate').value;
     const endDateStr = document.getElementById('historyEndDate').value;
     const selectedUserId = document.getElementById('historyUserFilter').value;
-    
+
     if (!startDateStr || !endDateStr) {
         alert('Please select both start and end dates');
         return;
     }
-    
+
     const startDate = new Date(startDateStr + 'T00:00:00');
     const endDate = new Date(endDateStr + 'T23:59:59');
-    
+
     if (startDate > endDate) {
         alert('Start date must be before end date');
         return;
     }
-    
+
     // Get filtered data
     const filteredData = getFilteredHistoricalData(startDate, endDate, selectedUserId);
-    
+
     // Update summary
     updateHistorySummary(filteredData, startDateStr, endDateStr, selectedUserId);
-    
+
     // Update each tab
     updateRepairsHistoryTab(filteredData.repairs);
     updatePaymentsHistoryTab(filteredData.payments);
@@ -216,18 +216,18 @@ function applyHistoricalFilters() {
  */
 function getFilteredHistoricalData(startDate, endDate, userId) {
     console.log('📊 Filtering historical data...', { startDate, endDate, userId });
-    
+
     const data = {
         repairs: [],
         payments: [],
         remittances: [],
         expenses: []
     };
-    
+
     // Filter repairs
     (window.allRepairs || []).forEach(repair => {
         if (repair.deleted) return;
-        
+
         const createdDate = new Date(repair.createdAt);
         if (createdDate >= startDate && createdDate <= endDate) {
             // User filter
@@ -236,11 +236,11 @@ function getFilteredHistoricalData(startDate, endDate, userId) {
             }
         }
     });
-    
+
     // Filter payments (from repairs)
     (window.allRepairs || []).forEach(repair => {
         if (repair.deleted || !repair.payments) return;
-        
+
         repair.payments.forEach((payment, index) => {
             const paymentDate = new Date(payment.paymentDate || payment.recordedDate);
             if (paymentDate >= startDate && paymentDate <= endDate) {
@@ -257,7 +257,7 @@ function getFilteredHistoricalData(startDate, endDate, userId) {
             }
         });
     });
-    
+
     // Filter remittances
     (window.techRemittances || []).forEach(remittance => {
         const remitDate = new Date(remittance.date || remittance.submittedAt);
@@ -268,7 +268,7 @@ function getFilteredHistoricalData(startDate, endDate, userId) {
             }
         }
     });
-    
+
     // Filter expenses
     (window.allExpenses || []).forEach(expense => {
         const expenseDate = new Date(expense.date);
@@ -279,7 +279,7 @@ function getFilteredHistoricalData(startDate, endDate, userId) {
             }
         }
     });
-    
+
     console.log('✅ Filtered data:', data);
     return data;
 }
@@ -288,34 +288,34 @@ function getFilteredHistoricalData(startDate, endDate, userId) {
  * Update summary statistics section
  */
 function updateHistorySummary(data, startDateStr, endDateStr, userId) {
-    const userLabel = userId === 'all' ? 'All Users' : 
+    const userLabel = userId === 'all' ? 'All Users' :
         (window.allUsers[userId]?.displayName || 'Selected User');
-    
+
     // Calculate totals
-    const repairsReceived = data.repairs.filter(r => 
-        new Date(r.createdAt) >= new Date(startDateStr) && 
+    const repairsReceived = data.repairs.filter(r =>
+        new Date(r.createdAt) >= new Date(startDateStr) &&
         new Date(r.createdAt) <= new Date(endDateStr)
     ).length;
-    
+
     const repairsCompleted = data.repairs.filter(r => r.status === 'Completed' || r.status === 'Claimed').length;
-    const repairsInProgress = data.repairs.filter(r => 
-        r.status === 'In Progress' || 
-        r.status === 'Waiting for Parts' || 
+    const repairsInProgress = data.repairs.filter(r =>
+        r.status === 'In Progress' ||
+        r.status === 'Waiting for Parts' ||
         r.status === 'Pending Customer Approval'
     ).length;
-    
+
     const totalPayments = data.payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     const cashPayments = data.payments.filter(p => p.method === 'Cash').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     const gcashPayments = data.payments.filter(p => p.method === 'GCash').reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-    
+
     const totalRemittances = data.remittances.reduce((sum, r) => sum + (parseFloat(r.actualAmount) || 0), 0);
     const approvedRemittances = data.remittances.filter(r => r.status === 'approved').length;
     const pendingRemittances = data.remittances.filter(r => r.status === 'pending').length;
-    
+
     const totalExpenses = data.expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
-    
+
     const netRevenue = totalPayments - totalExpenses;
-    
+
     const summaryHtml = `
         <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;border-radius:10px;padding:20px;margin-bottom:20px;">
             <h3 style="margin-top:0;color:white;">📊 Summary Statistics</h3>
@@ -351,10 +351,10 @@ function updateHistorySummary(data, startDateStr, endDateStr, userId) {
                     <span style="font-size:24px;">💰</span>
                     <h4 style="margin:0;">Payments</h4>
                 </div>
-                <div style="font-size:24px;font-weight:bold;color:#4caf50;">₱${totalPayments.toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                <div style="font-size:24px;font-weight:bold;color:#4caf50;">₱${totalPayments.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">
-                    Cash: ₱${cashPayments.toLocaleString('en-PH', {minimumFractionDigits: 2})}<br>
-                    GCash: ₱${gcashPayments.toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                    Cash: ₱${cashPayments.toLocaleString('en-PH', { minimumFractionDigits: 2 })}<br>
+                    GCash: ₱${gcashPayments.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </div>
             </div>
             
@@ -364,7 +364,7 @@ function updateHistorySummary(data, startDateStr, endDateStr, userId) {
                     <span style="font-size:24px;">📤</span>
                     <h4 style="margin:0;">Remittances</h4>
                 </div>
-                <div style="font-size:24px;font-weight:bold;color:#2196f3;">₱${totalRemittances.toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                <div style="font-size:24px;font-weight:bold;color:#2196f3;">₱${totalRemittances.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">
                     Approved: ${approvedRemittances}<br>
                     Pending: ${pendingRemittances}
@@ -377,7 +377,7 @@ function updateHistorySummary(data, startDateStr, endDateStr, userId) {
                     <span style="font-size:24px;">💸</span>
                     <h4 style="margin:0;">Expenses</h4>
                 </div>
-                <div style="font-size:24px;font-weight:bold;color:#ff9800;">₱${totalExpenses.toLocaleString('en-PH', {minimumFractionDigits: 2})}</div>
+                <div style="font-size:24px;font-weight:bold;color:#ff9800;">₱${totalExpenses.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">
                     Count: ${data.expenses.length}
                 </div>
@@ -390,7 +390,7 @@ function updateHistorySummary(data, startDateStr, endDateStr, userId) {
                     <h4 style="margin:0;">Net Revenue</h4>
                 </div>
                 <div style="font-size:24px;font-weight:bold;color:${netRevenue >= 0 ? '#4caf50' : '#f44336'};">
-                    ₱${netRevenue.toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                    ₱${netRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </div>
                 <div style="font-size:12px;color:var(--text-secondary);margin-top:5px;">
                     Payments - Expenses
@@ -398,7 +398,7 @@ function updateHistorySummary(data, startDateStr, endDateStr, userId) {
             </div>
         </div>
     `;
-    
+
     document.getElementById('historySummary').innerHTML = summaryHtml;
 }
 
@@ -407,7 +407,7 @@ function updateHistorySummary(data, startDateStr, endDateStr, userId) {
  */
 function updateRepairsHistoryTab(repairs) {
     const container = document.getElementById('historyRepairsTab');
-    
+
     if (repairs.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:40px;color:var(--text-secondary);">
@@ -417,7 +417,7 @@ function updateRepairsHistoryTab(repairs) {
         `;
         return;
     }
-    
+
     const html = `
         <div style="margin-top:20px;">
             <h3>🔧 Repairs (${repairs.length})</h3>
@@ -445,7 +445,7 @@ function updateRepairsHistoryTab(repairs) {
                                 <td><span class="status-badge status-${repair.status.toLowerCase().replace(/\s+/g, '-')}">${repair.status}</span></td>
                                 <td>${repair.receivedBy || 'N/A'}</td>
                                 <td>${repair.acceptedByName || 'Not assigned'}</td>
-                                <td>₱${(parseFloat(repair.total) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td>₱${(parseFloat(repair.total) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -453,7 +453,7 @@ function updateRepairsHistoryTab(repairs) {
             </div>
         </div>
     `;
-    
+
     container.innerHTML = html;
 }
 
@@ -462,7 +462,7 @@ function updateRepairsHistoryTab(repairs) {
  */
 function updatePaymentsHistoryTab(payments) {
     const container = document.getElementById('historyPaymentsTab');
-    
+
     if (payments.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:40px;color:var(--text-secondary);">
@@ -472,7 +472,7 @@ function updatePaymentsHistoryTab(payments) {
         `;
         return;
     }
-    
+
     const html = `
         <div style="margin-top:20px;">
             <h3>💰 Payments (${payments.length})</h3>
@@ -496,7 +496,7 @@ function updatePaymentsHistoryTab(payments) {
                                 <td>${new Date(payment.paymentDate || payment.recordedDate).toLocaleDateString()}</td>
                                 <td>${payment.customerName}</td>
                                 <td>${payment.device}</td>
-                                <td style="font-weight:bold;">₱${(parseFloat(payment.amount) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td style="font-weight:bold;">₱${(parseFloat(payment.amount) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                                 <td>${payment.method}</td>
                                 <td>${payment.receivedByName || payment.receivedBy}</td>
                                 <td>${payment.verified ? '✅ Yes' : '⏳ Pending'}</td>
@@ -508,7 +508,7 @@ function updatePaymentsHistoryTab(payments) {
             </div>
         </div>
     `;
-    
+
     container.innerHTML = html;
 }
 
@@ -517,7 +517,7 @@ function updatePaymentsHistoryTab(payments) {
  */
 function updateRemittancesHistoryTab(remittances) {
     const container = document.getElementById('historyRemittancesTab');
-    
+
     if (remittances.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:40px;color:var(--text-secondary);">
@@ -527,7 +527,7 @@ function updateRemittancesHistoryTab(remittances) {
         `;
         return;
     }
-    
+
     const html = `
         <div style="margin-top:20px;">
             <h3>📤 Remittances (${remittances.length})</h3>
@@ -548,31 +548,31 @@ function updateRemittancesHistoryTab(remittances) {
                     </thead>
                     <tbody>
                         ${remittances.map(remittance => {
-                            const discrepancy = parseFloat(remittance.discrepancy) || 0;
-                            const discrepancyColor = discrepancy === 0 ? '#4caf50' : discrepancy > 0 ? '#2196f3' : '#f44336';
-                            
-                            return `
+        const discrepancy = parseFloat(remittance.discrepancy) || 0;
+        const discrepancyColor = discrepancy === 0 ? '#4caf50' : discrepancy > 0 ? '#2196f3' : '#f44336';
+
+        return `
                             <tr>
                                 <td>${new Date(remittance.date || remittance.submittedAt).toLocaleDateString()}</td>
                                 <td>${remittance.techName}</td>
-                                <td>₱${(parseFloat(remittance.totalPaymentsCollected) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                                <td>₱${(parseFloat(remittance.totalExpenses) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                                <td>₱${(parseFloat(remittance.expectedAmount) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
-                                <td style="font-weight:bold;">₱${(parseFloat(remittance.actualAmount) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td>₱${(parseFloat(remittance.totalPaymentsCollected) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                                <td>₱${(parseFloat(remittance.totalExpenses) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                                <td>₱${(parseFloat(remittance.expectedAmount) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                                <td style="font-weight:bold;">₱${(parseFloat(remittance.actualAmount) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                                 <td style="color:${discrepancyColor};font-weight:bold;">
-                                    ${discrepancy > 0 ? '+' : ''}₱${discrepancy.toLocaleString('en-PH', {minimumFractionDigits: 2})}
+                                    ${discrepancy > 0 ? '+' : ''}₱${discrepancy.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                                 </td>
                                 <td><span class="status-badge status-${remittance.status}">${remittance.status}</span></td>
                                 <td>${remittance.verifiedBy ? window.allUsers[remittance.verifiedBy]?.displayName || remittance.verifiedBy : 'N/A'}</td>
                             </tr>
                             `;
-                        }).join('')}
+    }).join('')}
                     </tbody>
                 </table>
             </div>
         </div>
     `;
-    
+
     container.innerHTML = html;
 }
 
@@ -581,7 +581,7 @@ function updateRemittancesHistoryTab(remittances) {
  */
 function updateExpensesHistoryTab(expenses) {
     const container = document.getElementById('historyExpensesTab');
-    
+
     if (expenses.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:40px;color:var(--text-secondary);">
@@ -591,7 +591,7 @@ function updateExpensesHistoryTab(expenses) {
         `;
         return;
     }
-    
+
     const html = `
         <div style="margin-top:20px;">
             <h3>💸 Expenses (${expenses.length})</h3>
@@ -613,7 +613,7 @@ function updateExpensesHistoryTab(expenses) {
                                 <td>${expense.techName}</td>
                                 <td>${expense.category}</td>
                                 <td>${expense.description || 'N/A'}</td>
-                                <td style="font-weight:bold;">₱${(parseFloat(expense.amount) || 0).toLocaleString('en-PH', {minimumFractionDigits: 2})}</td>
+                                <td style="font-weight:bold;">₱${(parseFloat(expense.amount) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -621,7 +621,7 @@ function updateExpensesHistoryTab(expenses) {
             </div>
         </div>
     `;
-    
+
     container.innerHTML = html;
 }
 
@@ -632,12 +632,12 @@ function exportHistoricalData(format) {
     const startDateStr = document.getElementById('historyStartDate').value;
     const endDateStr = document.getElementById('historyEndDate').value;
     const selectedUserId = document.getElementById('historyUserFilter').value;
-    
+
     const startDate = new Date(startDateStr + 'T00:00:00');
     const endDate = new Date(endDateStr + 'T23:59:59');
-    
+
     const data = getFilteredHistoricalData(startDate, endDate, selectedUserId);
-    
+
     if (format === 'csv') {
         exportToCSV(data, startDateStr, endDateStr);
     } else if (format === 'print') {
@@ -651,32 +651,32 @@ function exportHistoricalData(format) {
 function exportToCSV(data, startDate, endDate) {
     let csv = `Fonekingdom Historical Report\n`;
     csv += `Date Range: ${startDate} to ${endDate}\n\n`;
-    
+
     // Repairs CSV
     csv += `REPAIRS\n`;
     csv += `Date,Customer,Device,Problem,Status,Received By,Accepted By,Total\n`;
     data.repairs.forEach(repair => {
         csv += `"${new Date(repair.createdAt).toLocaleDateString()}","${repair.customerName}","${repair.brand} ${repair.model}","${(repair.problem || '').replace(/"/g, '""')}","${repair.status}","${repair.receivedBy}","${repair.acceptedByName || 'N/A'}","₱${parseFloat(repair.total || 0).toFixed(2)}"\n`;
     });
-    
+
     csv += `\n\nPAYMENTS\n`;
     csv += `Date,Customer,Device,Amount,Method,Received By,Verified,Remittance Status\n`;
     data.payments.forEach(payment => {
         csv += `"${new Date(payment.paymentDate || payment.recordedDate).toLocaleDateString()}","${payment.customerName}","${payment.device}","₱${parseFloat(payment.amount || 0).toFixed(2)}","${payment.method}","${payment.receivedByName}","${payment.verified ? 'Yes' : 'No'}","${payment.remittanceStatus || 'pending'}"\n`;
     });
-    
+
     csv += `\n\nREMITTANCES\n`;
     csv += `Date,Technician,Payments Collected,Expenses,Expected,Actual,Discrepancy,Status\n`;
     data.remittances.forEach(remittance => {
         csv += `"${new Date(remittance.date || remittance.submittedAt).toLocaleDateString()}","${remittance.techName}","₱${parseFloat(remittance.totalPaymentsCollected || 0).toFixed(2)}","₱${parseFloat(remittance.totalExpenses || 0).toFixed(2)}","₱${parseFloat(remittance.expectedAmount || 0).toFixed(2)}","₱${parseFloat(remittance.actualAmount || 0).toFixed(2)}","₱${parseFloat(remittance.discrepancy || 0).toFixed(2)}","${remittance.status}"\n`;
     });
-    
+
     csv += `\n\nEXPENSES\n`;
     csv += `Date,Technician,Category,Description,Amount\n`;
     data.expenses.forEach(expense => {
         csv += `"${new Date(expense.date).toLocaleDateString()}","${expense.techName}","${expense.category}","${(expense.description || '').replace(/"/g, '""')}","₱${parseFloat(expense.amount || 0).toFixed(2)}"\n`;
     });
-    
+
     // Download CSV
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
@@ -687,7 +687,7 @@ function exportToCSV(data, startDate, endDate) {
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
-    
+
     alert('✅ CSV exported successfully!');
 }
 
@@ -695,15 +695,15 @@ function exportToCSV(data, startDate, endDate) {
  * Print report
  */
 function printReport(data, startDate, endDate, userId) {
-    const userLabel = userId === 'all' ? 'All Users' : 
+    const userLabel = userId === 'all' ? 'All Users' :
         (window.allUsers[userId]?.displayName || 'Selected User');
-    
+
     const printWindow = window.open('', '', 'width=800,height=600');
-    
+
     const totalPayments = data.payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
     const totalExpenses = data.expenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
     const netRevenue = totalPayments - totalExpenses;
-    
+
     printWindow.document.write(`
         <html>
         <head>
@@ -729,9 +729,9 @@ function printReport(data, startDate, endDate, userId) {
             <div class="summary">
                 <h3>Summary Statistics</h3>
                 <p><strong>Total Repairs:</strong> ${data.repairs.length}</p>
-                <p><strong>Total Payments:</strong> ₱${totalPayments.toLocaleString('en-PH', {minimumFractionDigits: 2})}</p>
-                <p><strong>Total Expenses:</strong> ₱${totalExpenses.toLocaleString('en-PH', {minimumFractionDigits: 2})}</p>
-                <p><strong>Net Revenue:</strong> ₱${netRevenue.toLocaleString('en-PH', {minimumFractionDigits: 2})}</p>
+                <p><strong>Total Payments:</strong> ₱${totalPayments.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                <p><strong>Total Expenses:</strong> ₱${totalExpenses.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                <p><strong>Net Revenue:</strong> ₱${netRevenue.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
             </div>
             
             <h2>Repairs (${data.repairs.length})</h2>
@@ -786,6 +786,6 @@ function printReport(data, startDate, endDate, userId) {
         </body>
         </html>
     `);
-    
+
     printWindow.document.close();
 }

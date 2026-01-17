@@ -1204,7 +1204,7 @@ function getProfitByTechnician(startDate, endDate) {
         if (!profit) return;
 
         const tech = repair.acceptedBy;
-        const techName = window.allUsers && window.allUsers[tech] ? 
+        const techName = window.allUsers && window.allUsers[tech] ?
             window.allUsers[tech].displayName : tech;
 
         if (!byTech[techName]) {
@@ -1341,15 +1341,15 @@ function getProfitDashboard(startDate, endDate) {
     const totalPartsCost = allProfits.reduce((sum, p) => sum + p.partsCost, 0);
     const totalTechCommission = allProfits.reduce((sum, p) => sum + p.techCommission, 0);
     const totalShopRevenue = allProfits.reduce((sum, p) => sum + p.shopRevenue, 0);
-    
+
     console.log(`📊 Profit Dashboard - Calculating for period: ${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]}`);
     console.log(`📦 window.overheadExpenses available:`, !!window.overheadExpenses);
     console.log(`📦 window.overheadExpenses count:`, window.overheadExpenses ? window.overheadExpenses.length : 0);
-    
+
     // Get TOTAL overhead for period (not per repair)
-    const totalOverhead = window.calculateOverheadForPeriod ? 
+    const totalOverhead = window.calculateOverheadForPeriod ?
         window.calculateOverheadForPeriod(startDate, endDate) : 0;
-    
+
     // Calculate overhead by type
     const overheadByType = {
         shop: 0,
@@ -1357,7 +1357,7 @@ function getProfitDashboard(startDate, endDate) {
         loans: 0,
         miscellaneous: 0
     };
-    
+
     if (window.overheadExpenses) {
         window.overheadExpenses
             .filter(expense => !expense.deleted)
@@ -1373,7 +1373,7 @@ function getProfitDashboard(startDate, endDate) {
                 }
             });
     }
-    
+
     // Calculate commission by technician
     const commissionByTech = {};
     allProfits.forEach(profit => {
@@ -1383,14 +1383,14 @@ function getProfitDashboard(startDate, endDate) {
         }
         commissionByTech[techName] += profit.techCommission;
     });
-    
+
     console.log(`💰 Total overhead calculated: ₱${totalOverhead.toFixed(2)}`);
     console.log(`🏪 Shop overhead: ₱${overheadByType.shop.toFixed(2)}`);
     console.log(`🏠 House overhead: ₱${overheadByType.house.toFixed(2)}`);
     console.log(`� Loans overhead: ₱${overheadByType.loans.toFixed(2)}`);
     console.log(`�📝 Misc overhead: ₱${overheadByType.miscellaneous.toFixed(2)}`);
     console.log(`👨‍🔧 Commissions by tech:`, commissionByTech);
-    
+
     // Net profit = Shop Revenue - Overhead
     const totalNetProfit = totalShopRevenue - totalOverhead;
     const avgProfitMargin = totalShopRevenue > 0 ? (totalNetProfit / totalShopRevenue) * 100 : 0;
@@ -1485,23 +1485,23 @@ function generateProfitLossStatement(startDate, endDate) {
     if (!window.allRepairs) {
         return null;
     }
-    
+
     // Revenue section
     const completedRepairs = window.allRepairs.filter(r => {
         if (!r.claimedAt || r.deleted) return false;
         const claimedDate = new Date(r.claimedAt);
         return claimedDate >= startDate && claimedDate <= endDate;
     });
-    
+
     const totalRevenue = completedRepairs.reduce((sum, r) => {
         return sum + (r.payments || []).filter(p => p.verified).reduce((s, p) => s + p.amount, 0);
     }, 0);
-    
+
     // Cost of Goods Sold (COGS)
     const totalPartsCost = completedRepairs.reduce((sum, r) => {
         return sum + (window.getRepairPartsCost ? window.getRepairPartsCost(r) : (r.partsCost || 0));
     }, 0);
-    
+
     const totalCommission = completedRepairs.reduce((sum, r) => {
         if (r.acceptedBy && window.calculateRepairCommission) {
             const commissionResult = window.calculateRepairCommission(r, r.acceptedBy);
@@ -1511,11 +1511,11 @@ function generateProfitLossStatement(startDate, endDate) {
     }, 0);
     const grossProfit = totalRevenue - totalPartsCost - totalCommission;
     const grossMargin = totalRevenue > 0 ? (grossProfit / totalRevenue) * 100 : 0;
-    
+
     // Operating Expenses
-    const totalOverhead = window.calculateOverheadForPeriod ? 
+    const totalOverhead = window.calculateOverheadForPeriod ?
         window.calculateOverheadForPeriod(startDate, endDate) : 0;
-    
+
     // Breakdown overhead by category
     const overheadByCategory = {};
     if (window.overheadExpenses) {
@@ -1530,12 +1530,12 @@ function generateProfitLossStatement(startDate, endDate) {
             }
         });
     }
-    
+
     // Net Income
     const operatingIncome = grossProfit - totalOverhead;
     const netIncome = operatingIncome; // Simplified: no other income/expenses
     const netMargin = totalRevenue > 0 ? (netIncome / totalRevenue) * 100 : 0;
-    
+
     return {
         period: {
             start: startDate,
@@ -1586,27 +1586,27 @@ function getQuarterlySummary(year, quarter) {
         3: [6, 7, 8],   // Jul, Aug, Sep
         4: [9, 10, 11]  // Oct, Nov, Dec
     };
-    
+
     const months = quarterMonths[quarter];
     const startDate = new Date(year, months[0], 1);
     const endDate = new Date(year, months[2] + 1, 0, 23, 59, 59);
-    
+
     const pl = generateProfitLossStatement(startDate, endDate);
-    
+
     // Get monthly breakdown
     const monthlyData = [];
     months.forEach((monthIndex, i) => {
         const monthStart = new Date(year, monthIndex, 1);
         const monthEnd = new Date(year, monthIndex + 1, 0, 23, 59, 59);
         const monthPL = generateProfitLossStatement(monthStart, monthEnd);
-        
+
         monthlyData.push({
             month: new Date(year, monthIndex, 1).toLocaleString('default', { month: 'long' }),
             monthIndex: monthIndex + 1,
             data: monthPL
         });
     });
-    
+
     return {
         year: year,
         quarter: quarter,
@@ -1622,7 +1622,7 @@ function getQuarterlySummary(year, quarter) {
 function exportQuarterlyReport(year, quarter) {
     const summary = getQuarterlySummary(year, quarter);
     const exportData = [];
-    
+
     // Header
     exportData.push({
         'QUARTERLY REPORT': '',
@@ -1631,14 +1631,14 @@ function exportQuarterlyReport(year, quarter) {
         'To': utils.formatDate(summary.summary.period.end)
     });
     exportData.push({});
-    
+
     // Revenue
     exportData.push({ '=== REVENUE ===': '' });
     exportData.push({ 'Metric': 'Total Revenue', 'Amount': summary.summary.revenue.totalRevenue });
     exportData.push({ 'Metric': 'Repair Count', 'Amount': summary.summary.revenue.repairCount });
     exportData.push({ 'Metric': 'Average per Repair', 'Amount': summary.summary.revenue.averagePerRepair.toFixed(2) });
     exportData.push({});
-    
+
     // COGS
     exportData.push({ '=== COST OF GOODS SOLD ===': '' });
     exportData.push({ 'Item': 'Parts Cost', 'Amount': summary.summary.cogs.partsCost });
@@ -1646,13 +1646,13 @@ function exportQuarterlyReport(year, quarter) {
     exportData.push({ 'Item': 'Total COGS', 'Amount': summary.summary.cogs.total });
     exportData.push({ 'Item': '% of Revenue', 'Amount': `${summary.summary.cogs.percentOfRevenue.toFixed(2)}%` });
     exportData.push({});
-    
+
     // Gross Profit
     exportData.push({ '=== GROSS PROFIT ===': '' });
     exportData.push({ 'Metric': 'Amount', 'Amount': summary.summary.grossProfit.amount });
     exportData.push({ 'Metric': 'Margin', 'Amount': `${summary.summary.grossProfit.margin.toFixed(2)}%` });
     exportData.push({});
-    
+
     // Operating Expenses
     exportData.push({ '=== OPERATING EXPENSES ===': '' });
     Object.entries(summary.summary.operatingExpenses.byCategory).forEach(([cat, amt]) => {
@@ -1660,14 +1660,14 @@ function exportQuarterlyReport(year, quarter) {
     });
     exportData.push({ 'Category': 'Total Operating Expenses', 'Amount': summary.summary.operatingExpenses.total });
     exportData.push({});
-    
+
     // Net Income
     exportData.push({ '=== NET INCOME ===': '' });
     exportData.push({ 'Metric': 'Operating Income', 'Amount': summary.summary.operatingIncome.amount });
     exportData.push({ 'Metric': 'Net Income', 'Amount': summary.summary.netIncome.amount });
     exportData.push({ 'Metric': 'Net Margin', 'Amount': `${summary.summary.netIncome.margin.toFixed(2)}%` });
     exportData.push({});
-    
+
     // Monthly Breakdown
     exportData.push({ '=== MONTHLY BREAKDOWN ===': '' });
     exportData.push({ 'Month': '', 'Revenue': '', 'COGS': '', 'Overhead': '', 'Net Income': '', 'Margin %': '' });
@@ -1681,7 +1681,7 @@ function exportQuarterlyReport(year, quarter) {
             'Margin %': m.data.netIncome.margin.toFixed(2)
         });
     });
-    
+
     const filename = `quarterly_report_Q${quarter}_${year}`;
     exportToCSV(exportData, filename);
 }
@@ -1693,34 +1693,34 @@ function exportAnnualPLStatement(year) {
     const startDate = new Date(year, 0, 1);
     const endDate = new Date(year, 11, 31, 23, 59, 59);
     const pl = generateProfitLossStatement(startDate, endDate);
-    
+
     const exportData = [];
-    
+
     // Header
     exportData.push({
         'PROFIT & LOSS STATEMENT': '',
         'Period': `January 1, ${year} - December 31, ${year}`
     });
     exportData.push({});
-    
+
     // Revenue
     exportData.push({ 'REVENUE': '' });
     exportData.push({ '  Total Revenue': '', 'Amount': pl.revenue.totalRevenue });
     exportData.push({ '  Number of Repairs': '', 'Amount': pl.revenue.repairCount });
     exportData.push({});
-    
+
     // COGS
     exportData.push({ 'COST OF GOODS SOLD': '' });
     exportData.push({ '  Parts Cost': '', 'Amount': pl.cogs.partsCost });
     exportData.push({ '  Technician Commission': '', 'Amount': pl.cogs.commission });
     exportData.push({ '  Total COGS': '', 'Amount': pl.cogs.total });
     exportData.push({});
-    
+
     // Gross Profit
     exportData.push({ 'GROSS PROFIT': '', 'Amount': pl.grossProfit.amount });
     exportData.push({ '  Gross Margin': '', 'Amount': `${pl.grossProfit.margin.toFixed(2)}%` });
     exportData.push({});
-    
+
     // Operating Expenses
     exportData.push({ 'OPERATING EXPENSES': '' });
     Object.entries(pl.operatingExpenses.byCategory).forEach(([cat, amt]) => {
@@ -1728,17 +1728,17 @@ function exportAnnualPLStatement(year) {
     });
     exportData.push({ '  Total Operating Expenses': '', 'Amount': pl.operatingExpenses.total });
     exportData.push({});
-    
+
     // Operating Income
     exportData.push({ 'OPERATING INCOME': '', 'Amount': pl.operatingIncome.amount });
     exportData.push({ '  Operating Margin': '', 'Amount': `${pl.operatingIncome.margin.toFixed(2)}%` });
     exportData.push({});
-    
+
     // Net Income
     exportData.push({ 'NET INCOME': '', 'Amount': pl.netIncome.amount });
     exportData.push({ '  Net Margin': '', 'Amount': `${pl.netIncome.margin.toFixed(2)}%` });
     exportData.push({ '  Net Income per Repair': '', 'Amount': pl.netIncome.perRepair.toFixed(2) });
-    
+
     const filename = `profit_loss_statement_${year}`;
     exportToCSV(exportData, filename);
 }
