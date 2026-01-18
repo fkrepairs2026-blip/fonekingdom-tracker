@@ -15301,9 +15301,6 @@ async function buildDailyComplianceTab(container) {
             <button class="compliance-tab-btn" onclick="showComplianceView('leaderboard')">
                 🏆 ${lang === 'en' ? 'Leaderboard' : 'Leaderboard'}
             </button>
-            <button class="compliance-tab-btn" onclick="showComplianceView('payout')">
-                💰 ${lang === 'en' ? 'Seasonal Payouts' : 'Seasonal Payouts'}
-            </button>
         </div>
         
         <div id="complianceViewContainer" style="margin-top:20px;">
@@ -15343,8 +15340,6 @@ async function showComplianceView(viewName) {
             html = await renderMonthlyStatsView();
         } else if (viewName === 'leaderboard') {
             html = await renderLeaderboardView();
-        } else if (viewName === 'payout') {
-            html = await renderPayoutView();
         }
         
         container.innerHTML = html;
@@ -15501,8 +15496,6 @@ async function renderMonthlyStatsView() {
                         <th>Current Streak</th>
                         <th>Longest Streak</th>
                         <th>Total Badges</th>
-                        <th>Pending Cash</th>
-                        <th>Paid Cash</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -15518,8 +15511,6 @@ async function renderMonthlyStatsView() {
                 <td>🔥 ${stats.currentStreak}</td>
                 <td>🏆 ${stats.longestStreak}</td>
                 <td>🏅 ${stats.totalBadges}</td>
-                <td>₱${stats.pendingCash.toLocaleString()}</td>
-                <td style="color:green;">₱${stats.paidCash.toLocaleString()}</td>
             </tr>
         `;
     }

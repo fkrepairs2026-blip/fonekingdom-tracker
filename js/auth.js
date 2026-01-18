@@ -445,12 +445,10 @@ async function openProfileModal() {
                 longestStreak: 0,
                 totalDaysCompleted: 0,
                 badges: [],
-                totalCashEarned: 0,
-                totalCashPaid: 0
+                totalBadgesEarned: 0
             };
         })();
         
-        const pendingCash = badges.totalCashEarned - badges.totalCashPaid;
         const badgeList = Object.values(badges.badges || {});
         
         badgesHTML = `
@@ -474,37 +472,18 @@ async function openProfileModal() {
                     </div>
                 </div>
                 
-                <div style="background:#f0f7ff;padding:15px;border-radius:10px;margin-bottom:15px;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                        <div>
-                            <div style="font-size:12px;color:#666;">💰 Pending Cash Rewards</div>
-                            <div style="font-size:24px;font-weight:bold;color:#f6ad55;">₱${pendingCash.toLocaleString()}</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:12px;color:#666;">💵 Paid Out</div>
-                            <div style="font-size:20px;font-weight:bold;color:#48bb78;">₱${badges.totalCashPaid.toLocaleString()}</div>
-                        </div>
-                    </div>
-                    <div style="font-size:11px;color:#999;text-align:center;">
-                        <em>Coming Soon: Cash rewards converted during holiday seasons</em>
-                    </div>
-                </div>
-                
                 ${badgeList.length > 0 ? `
                     <h5 style="margin-top:20px;margin-bottom:10px;">📜 Badge History</h5>
                     <div style="max-height:200px;overflow-y:auto;">
                         ${badgeList.map(badge => `
-                            <div style="display:flex;align-items:center;padding:10px;background:#fff;border:2px solid ${badge.isPaid ? '#48bb78' : '#f6ad55'};border-radius:8px;margin-bottom:8px;">
+                            <div style="display:flex;align-items:center;padding:10px;background:#fff;border:2px solid #667eea;border-radius:8px;margin-bottom:8px;">
                                 <div style="font-size:32px;margin-right:12px;">🏆</div>
                                 <div style="flex:1;">
                                     <div style="font-weight:bold;">${badge.type}</div>
                                     <div style="font-size:11px;color:#666;">${utils.formatDate(badge.earnedAt)} • ${badge.season} Season</div>
                                 </div>
                                 <div style="text-align:right;">
-                                    <div style="font-size:18px;font-weight:bold;color:#f6ad55;">₱${badge.cashValue}</div>
-                                    <div style="font-size:10px;color:${badge.isPaid ? '#48bb78' : '#999'};">
-                                        ${badge.isPaid ? '✅ Paid' : '⏳ Pending'}
-                                    </div>
+                                    <div style="font-size:24px;">✅</div>
                                 </div>
                             </div>
                         `).join('')}

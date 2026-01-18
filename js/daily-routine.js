@@ -44,8 +44,7 @@ function initializeDailyRoutineListeners() {
                 totalDaysCompleted: 0,
                 graceUsedThisWeek: { weekStartDate: null, graceDaysUsed: 0 },
                 badges: [],
-                totalCashEarned: 0,
-                totalCashPaid: 0
+                totalBadgesEarned: 0
             };
         });
     }
@@ -505,15 +504,15 @@ async function updateStreak(userId, completionPct) {
  */
 async function checkStreakBadges(userId, streak) {
     const badgeThresholds = [
-        { days: 3, name: '3-Day Streak', cash: 50 },
-        { days: 7, name: '7-Day Streak', cash: 150 },
-        { days: 30, name: '30-Day Streak', cash: 300 },
-        { days: 90, name: 'Monthly Champion', cash: 500 }
+        { days: 3, name: '3-Day Streak' },
+        { days: 7, name: '7-Day Streak' },
+        { days: 30, name: '30-Day Streak' },
+        { days: 90, name: 'Monthly Champion' }
     ];
     
     for (const threshold of badgeThresholds) {
         if (streak === threshold.days) {
-            await awardBadge(userId, threshold.name, threshold.cash);
+            await awardBadge(userId, threshold.name);
         }
     }
 }
@@ -521,7 +520,7 @@ async function checkStreakBadges(userId, streak) {
 /**
  * Award badge to user
  */
-async function awardBadge(userId, badgeType, cashValue) {
+async function awardBadge(userId, badgeType) {
     try {
         const db = firebase.database();
         const season = getCurrentSeason();
@@ -529,18 +528,15 @@ async function awardBadge(userId, badgeType, cashValue) {
         const badgeData = {
             type: badgeType,
             earnedAt: new Date().toISOString(),
-            cashValue: cashValue,
-            season: season,
-            isPaid: false,
-            paidAt: null
+            season: season
         };
         
         // Add badge to array
         await db.ref(`routineBadges/${userId}/badges`).push(badgeData);
         
-        // Update total cash earned
-        await db.ref(`routineBadges/${userId}/totalCashEarned`).transaction((current) => {
-            return (current || 0) + cashValue;
+        // Update total badges earned counter
+        await db.ref(`routineBadges/${userId}/totalBadgesEarned`).transaction((current) => {
+            return (current || 0) + 1;
         });
         
         // Show celebration
@@ -570,10 +566,8 @@ function showBadgeCelebration(badge) {
     if (!overlay) return;
     
     const badgeName = document.getElementById('celebrationBadgeName');
-    const badgeCash = document.getElementById('celebrationBadgeCash');
     
     if (badgeName) badgeName.textContent = badge.type;
-    if (badgeCash) badgeCash.textContent = `₱${badge.cashValue}`;
     
     overlay.style.display = 'flex';
     
@@ -1114,8 +1108,7 @@ async function loadUserBadges(userId) {
             longestStreak: 0,
             totalDaysCompleted: 0,
             badges: [],
-            totalCashEarned: 0,
-            totalCashPaid: 0
+            totalBadgesEarned: 0
         };
     } catch (error) {
         console.error('Error loading badges:', error);
@@ -1189,9 +1182,7 @@ async function calculateMonthlyStats(userId) {
         avgCompletion: avgCompletion,
         currentStreak: badges.currentStreak || 0,
         longestStreak: badges.longestStreak || 0,
-        totalBadges: badges.badges?.length || 0,
-        pendingCash: badges.totalCashEarned - badges.totalCashPaid,
-        paidCash: badges.totalCashPaid || 0
+        totalBadges: badges.badges?.length || 0
     };
 }
 
