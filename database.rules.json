@@ -258,6 +258,34 @@
           root.child('users').child(auth.uid).child('role').val() === 'technician'
         )"
     }
+  },
+  "dailyRoutineState": {
+    ".read": "auth != null",
+    "$userId": {
+      "$dateString": {
+        ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    }
+  },
+  "userCustomTasks": {
+    ".read": "auth != null",
+    "$userId": {
+      "$taskId": {
+        ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      }
+    }
+  },
+  "routineBadges": {
+    ".read": "auth != null",
+    "$userId": {
+      ".write": "auth.uid === $userId || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    }
+  },
+  "shopTaskTemplates": {
+    ".read": "auth != null",
+    "$templateId": {
+      ".write": "auth != null && root.child('users').child(auth.uid).child('role').val() === 'admin'"
+    }
   }
 }
 }
