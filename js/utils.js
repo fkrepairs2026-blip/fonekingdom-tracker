@@ -476,10 +476,10 @@ const utils = {
             const mySubmittedRemittances = techRemittances.filter(r =>
                 r.techId === currentUserId && r.status === 'pending'
             );
-            
+
             // Check for unsubmitted remittances (payments not yet remitted)
             const unsubmittedDates = window.getPendingRemittanceDates ? window.getPendingRemittanceDates(currentUserId) : [];
-            
+
             stats.submittedRemittanceCount = mySubmittedRemittances.length;
             stats.unsubmittedRemittanceCount = unsubmittedDates.length;
             stats.pendingRemittanceAmount = mySubmittedRemittances.reduce((sum, r) =>

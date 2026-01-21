@@ -33,17 +33,17 @@ window.systemSettings = { retroactiveIntakeThreshold: 5 };
 async function handlePhotoUpload(input, previewId) {
     const file = input.files[0];
     if (!file) return;
-    
+
     try {
         // Show loading
         utils.showLoading(true);
-        
+
         // Compress image
         const compressed = await utils.compressImage(file, 800);
-        
+
         // Add to photo data array
         photoData.push(compressed);
-        
+
         // Show preview
         const previewDiv = document.getElementById(previewId);
         if (previewDiv) {
@@ -53,15 +53,15 @@ async function handlePhotoUpload(input, previewId) {
                 <p style="color:#4caf50;margin:5px 0 0 0;font-size:13px;">✅ Photo added successfully</p>
             `;
         }
-        
+
         utils.showLoading(false);
-        
+
         if (utils.showToast) {
             utils.showToast('✅ Photo added', 'success', 2000);
         }
-        
+
         console.log(`📸 Photo added. Total photos: ${photoData.length}`);
-        
+
     } catch (error) {
         utils.showLoading(false);
         alert('Error uploading photo: ' + error.message);
@@ -5248,7 +5248,7 @@ async function savePartsCost() {
             if (window.loadTechExpenses) {
                 await window.loadTechExpenses();
             }
-            
+
             // Check for existing auto-generated expense for this repair
             const existingExpense = (window.techExpenses || []).find(e =>
                 e.repairId === repairId &&
@@ -5311,7 +5311,7 @@ async function savePartsCost() {
 
         alert(message);
         closePartsCostModal();
-        
+
         // If supplier is "Stock", prompt to select inventory items
         if (actualSupplier === 'Stock') {
             setTimeout(() => {
@@ -5336,18 +5336,18 @@ async function savePartsCost() {
  */
 async function openInventorySelectionModal(repairId, totalCost) {
     console.log('📦 Opening inventory selection modal for repair:', repairId);
-    
+
     document.getElementById('invSelectRepairId').value = repairId;
-    
+
     // Initialize selected items array
     window.selectedInventoryItems = [];
-    
+
     // Load existing selected items if any
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (repair && repair.inventoryItemsUsed) {
         window.selectedInventoryItems = [...repair.inventoryItemsUsed];
     }
-    
+
     // Show modal first with loading state
     document.getElementById('inventorySelectionModal').style.display = 'flex';
     const container = document.getElementById('inventoryItemsList');
@@ -5357,7 +5357,7 @@ async function openInventorySelectionModal(repairId, totalCost) {
             <p>Loading inventory items...</p>
         </div>
     `;
-    
+
     // Load inventory if not already loaded
     if (!window.allInventoryItems || window.allInventoryItems.length === 0) {
         try {
@@ -5374,7 +5374,7 @@ async function openInventorySelectionModal(repairId, totalCost) {
             return;
         }
     }
-    
+
     loadAvailableInventoryItems();
     updateSelectedItemsSummary();
 }
@@ -5384,7 +5384,7 @@ async function openInventorySelectionModal(repairId, totalCost) {
  */
 function loadAvailableInventoryItems() {
     const container = document.getElementById('inventoryItemsList');
-    
+
     if (!window.allInventoryItems || window.allInventoryItems.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:40px;color:#999;">
@@ -5395,12 +5395,12 @@ function loadAvailableInventoryItems() {
         `;
         return;
     }
-    
+
     // Filter out deleted items and items with 0 quantity
-    const availableItems = window.allInventoryItems.filter(item => 
+    const availableItems = window.allInventoryItems.filter(item =>
         !item.deleted && item.quantity > 0
     );
-    
+
     if (availableItems.length === 0) {
         container.innerHTML = `
             <div style="text-align:center;padding:40px;color:#999;">
@@ -5411,14 +5411,14 @@ function loadAvailableInventoryItems() {
         `;
         return;
     }
-    
+
     let html = '<div style="display:grid;gap:10px;">';
-    
+
     availableItems.forEach(item => {
         const isSelected = window.selectedInventoryItems.some(sel => sel.itemId === item.id);
         const selectedItem = window.selectedInventoryItems.find(sel => sel.itemId === item.id);
         const selectedQty = selectedItem ? selectedItem.quantity : 0;
-        
+
         // Safe property access with defaults - use correct field names
         const itemName = item.partName || 'Unnamed Item';
         const itemCategory = item.category || 'Uncategorized';
@@ -5426,13 +5426,13 @@ function loadAvailableInventoryItems() {
         const itemBrand = item.brand || '';
         const itemModel = item.model || '';
         const itemCost = parseFloat(item.unitCost || 0);
-        
+
         // Build display info
         const brandModelInfo = [itemBrand, itemModel].filter(x => x).join(' ');
-        
+
         // Build search string safely
         const searchString = `${itemName.toLowerCase()} ${itemCategory.toLowerCase()} ${itemPartNumber.toLowerCase()} ${brandModelInfo.toLowerCase()}`;
-        
+
         html += `
             <div class="inventory-item-card" data-item-id="${item.id}" data-search="${searchString}">
                 <div style="display:flex;gap:15px;align-items:center;">
@@ -5471,7 +5471,7 @@ function loadAvailableInventoryItems() {
             </div>
         `;
     });
-    
+
     html += '</div>';
     container.innerHTML = html;
 }
@@ -5482,7 +5482,7 @@ function loadAvailableInventoryItems() {
 function filterInventoryItems() {
     const searchTerm = document.getElementById('invSearchInput').value.toLowerCase();
     const items = document.querySelectorAll('.inventory-item-card');
-    
+
     items.forEach(item => {
         const searchData = item.getAttribute('data-search');
         if (searchData.includes(searchTerm)) {
@@ -5499,7 +5499,7 @@ function filterInventoryItems() {
 function toggleInventoryItem(itemId) {
     const checkbox = document.getElementById(`inv_${itemId}`);
     const qtyControls = document.getElementById(`qty_controls_${itemId}`);
-    
+
     if (checkbox.checked) {
         // Add to selected items
         const item = window.allInventoryItems.find(i => i.id === itemId);
@@ -5520,7 +5520,7 @@ function toggleInventoryItem(itemId) {
         window.selectedInventoryItems = window.selectedInventoryItems.filter(i => i.itemId !== itemId);
         qtyControls.style.display = 'none';
     }
-    
+
     updateSelectedItemsSummary();
 }
 
@@ -5531,11 +5531,11 @@ function changeItemQuantity(itemId, delta) {
     const input = document.getElementById(`qty_${itemId}`);
     const item = window.allInventoryItems.find(i => i.id === itemId);
     if (!item) return;
-    
+
     let newQty = parseInt(input.value) + delta;
     if (newQty < 1) newQty = 1;
     if (newQty > item.quantity) newQty = item.quantity;
-    
+
     input.value = newQty;
     updateItemQuantity(itemId, newQty);
 }
@@ -5546,12 +5546,12 @@ function changeItemQuantity(itemId, delta) {
 function updateItemQuantity(itemId, quantity) {
     const selectedItem = window.selectedInventoryItems.find(i => i.itemId === itemId);
     const item = window.allInventoryItems.find(i => i.id === itemId);
-    
+
     if (selectedItem && item) {
         let qty = parseInt(quantity);
         if (qty < 1) qty = 1;
         if (qty > item.quantity) qty = item.quantity;
-        
+
         selectedItem.quantity = qty;
         document.getElementById(`qty_${itemId}`).value = qty;
         updateSelectedItemsSummary();
@@ -5565,21 +5565,21 @@ function updateSelectedItemsSummary() {
     const summary = document.getElementById('selectedItemsSummary');
     const list = document.getElementById('selectedItemsList');
     const total = document.getElementById('selectedItemsTotal');
-    
+
     if (window.selectedInventoryItems.length === 0) {
         summary.style.display = 'none';
         return;
     }
-    
+
     summary.style.display = 'block';
-    
+
     let totalCost = 0;
     let html = '<div style="display:grid;gap:8px;">';
-    
+
     window.selectedInventoryItems.forEach(item => {
         const itemTotal = item.quantity * item.unitCost;
         totalCost += itemTotal;
-        
+
         html += `
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px;background:white;border-radius:6px;">
                 <div>
@@ -5592,7 +5592,7 @@ function updateSelectedItemsSummary() {
             </div>
         `;
     });
-    
+
     html += '</div>';
     list.innerHTML = html;
     total.textContent = totalCost.toFixed(2);
@@ -5603,7 +5603,7 @@ function updateSelectedItemsSummary() {
  */
 async function saveSelectedInventoryItems() {
     const repairId = document.getElementById('invSelectRepairId').value;
-    
+
     if (window.selectedInventoryItems.length === 0) {
         const skip = confirm('No items selected. Do you want to skip inventory tracking for this repair?');
         if (skip) {
@@ -5611,10 +5611,10 @@ async function saveSelectedInventoryItems() {
         }
         return;
     }
-    
+
     try {
         utils.showLoading(true);
-        
+
         // Save to repair record
         await db.ref(`repairs/${repairId}`).update({
             inventoryItemsUsed: window.selectedInventoryItems,
@@ -5623,18 +5623,18 @@ async function saveSelectedInventoryItems() {
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
         });
-        
+
         // Deduct from inventory
         for (const item of window.selectedInventoryItems) {
             const inventoryItem = window.allInventoryItems.find(i => i.id === item.itemId);
             if (inventoryItem) {
                 const newQuantity = inventoryItem.quantity - item.quantity;
-                
+
                 await db.ref(`inventory/${item.itemId}`).update({
                     quantity: newQuantity,
                     lastUpdated: new Date().toISOString()
                 });
-                
+
                 // Log adjustment
                 await db.ref(`inventory/${item.itemId}/adjustments`).push({
                     type: 'used',
@@ -5647,11 +5647,11 @@ async function saveSelectedInventoryItems() {
                 });
             }
         }
-        
+
         utils.showLoading(false);
         alert(`✅ Inventory items linked and deducted!\n\n${window.selectedInventoryItems.length} item(s) deducted from stock.`);
         closeInventorySelectionModal();
-        
+
         setTimeout(() => {
             if (window.currentTabRefresh) {
                 window.currentTabRefresh();
@@ -6083,7 +6083,7 @@ function getPendingRemittanceDates(techId) {
 
         // Calculate net revenue (payments minus parts costs and expenses)
         const netRevenue = dateData.totalPayments - partsCostsTotal - dateData.totalExpenses;
-        
+
         // Tech commission = 40% of net revenue
         dateData.totalCommission = netRevenue * 0.40;
         // Shop's share = 60% of net revenue
@@ -6193,10 +6193,10 @@ function getUnremittedBalance(techId, dateString) {
 
     // Calculate net revenue (payments - parts costs - expenses)
     const netRevenue = paymentsTotal - partsCostsTotal - expensesTotal;
-    
+
     // Calculate commission deduction (technician's 40% share of net revenue)
     const commissionDeduction = netRevenue * 0.40;
-    
+
     // Correct calculation: shop gets 60% of net revenue
     const shopShare = netRevenue * 0.60;
     const unremittedBalance = shopShare;
@@ -6268,16 +6268,16 @@ function getTechDailyExpenses(techId, date) {
             expDateString === targetDateString &&
             !exp.remittanceId;
     });
-    
+
     // Remove duplicates - if multiple auto-generated expenses exist for same repair, keep only the most recent
     const deduplicatedExpenses = [];
     const seenRepairExpenses = new Map();
-    
+
     expenses.forEach(exp => {
         if (exp.autoGenerated && exp.repairId) {
             const key = `${exp.repairId}_${exp.category}`;
             const existing = seenRepairExpenses.get(key);
-            
+
             if (!existing || new Date(exp.createdAt) > new Date(existing.createdAt)) {
                 // This is more recent, replace if exists
                 if (existing) {

@@ -601,7 +601,7 @@ auth.onAuthStateChanged(async (user) => {
                 appInitialized = true;
                 console.log('🚀 Initializing app from auth state...');
                 await window.initializeApp();
-                
+
                 // Show smart clock-in prompt for technicians/cashiers
                 setTimeout(() => showSmartClockInPrompt(), 1000);
             }

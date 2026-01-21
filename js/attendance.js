@@ -155,7 +155,7 @@ async function clockOut() {
         if (!todayAttendance || !todayAttendance.clockIn) {
             // Check if they have a stale clock-in (todayClockIn is from a previous day)
             const clockInDate = currentActivity.todayClockIn ? getLocalDateString(new Date(currentActivity.todayClockIn)) : null;
-            
+
             if (clockInDate && clockInDate !== today) {
                 // Auto-create today's clock-in record for seamless transition
                 await db.ref(`userAttendance/${userId}/${today}`).set({
@@ -168,13 +168,13 @@ async function clockOut() {
                     autoCreated: true,
                     note: `Auto-created from stale clock-in on ${clockInDate}`
                 });
-                
+
                 // Update activity to reflect current session
                 await db.ref(`userActivity/${userId}`).update({
                     todayClockIn: now,
                     lastActivity: now
                 });
-                
+
                 todayAttendance = {
                     clockIn: now,
                     userName: window.currentUserData.displayName,
@@ -459,7 +459,7 @@ async function showSmartClockInPrompt() {
         // Check if already clocked in
         const activitySnapshot = await firebase.database().ref(`userActivity/${userId}`).once('value');
         const currentActivity = activitySnapshot.val();
-        
+
         if (currentActivity && currentActivity.currentStatus === 'clocked-in') {
             // Already clocked in, check if it's from today
             const clockInDate = currentActivity.todayClockIn ? getLocalDateString(new Date(currentActivity.todayClockIn)) : null;
@@ -493,7 +493,7 @@ async function checkMissedClockOut(userId) {
     try {
         const db = firebase.database();
         const today = getLocalDateString(new Date());
-        
+
         // Get all attendance records for this user
         const snapshot = await db.ref(`userAttendance/${userId}`).once('value');
         const records = snapshot.val() || {};
@@ -501,7 +501,7 @@ async function checkMissedClockOut(userId) {
         // Find the most recent day with clock-in but no clock-out
         for (const [date, record] of Object.entries(records).reverse()) {
             if (date >= today) continue; // Skip today and future dates
-            
+
             if (record.clockIn && !record.clockOut) {
                 return {
                     date: date,
@@ -533,10 +533,10 @@ function showMissedClockOutModal(missedData) {
 
     document.getElementById('missedClockOutDate').textContent = dateFormatted;
     document.getElementById('missedClockOutTime').textContent = utils.formatDateTime(missedData.clockIn);
-    
+
     // Store data for correction
     window.missedClockOutData = missedData;
-    
+
     modal.style.display = 'block';
 }
 
@@ -582,7 +582,7 @@ async function setMissedClockOut(clockOutTime) {
         // Update activity status if still showing clocked-in from that old session
         const activitySnapshot = await firebase.database().ref(`userActivity/${window.currentUser.uid}`).once('value');
         const activity = activitySnapshot.val();
-        
+
         if (activity && activity.currentStatus === 'clocked-in') {
             const clockInDate = activity.todayClockIn ? getLocalDateString(new Date(activity.todayClockIn)) : null;
             if (clockInDate === data.date) {
@@ -596,7 +596,7 @@ async function setMissedClockOut(clockOutTime) {
 
         utils.showLoading(false);
         document.getElementById('missedClockOutModal').style.display = 'none';
-        
+
         const hours = Math.floor(duration / 3600);
         const minutes = Math.floor((duration % 3600) / 60);
         alert(`✅ Clock-out time set successfully!\n\nWork duration: ${hours}h ${minutes}m`);
@@ -618,7 +618,7 @@ async function setMissedClockOut(clockOutTime) {
 function useDefault6pmClockOut() {
     const data = window.missedClockOutData;
     if (!data) return;
-    
+
     // Create 6:00 PM timestamp for that date
     const date = new Date(data.date + 'T18:00:00+08:00'); // Manila timezone
     setMissedClockOut(date.toISOString());
@@ -630,7 +630,7 @@ function useDefault6pmClockOut() {
 function skipMissedClockOut() {
     document.getElementById('missedClockOutModal').style.display = 'none';
     window.missedClockOutData = null;
-    
+
     // Show welcome prompt after skipping
     setTimeout(() => showSmartClockInPrompt(), 500);
 }
@@ -792,7 +792,7 @@ async function checkAutoClockOut() {
 
         const db = firebase.database();
         const today = getLocalDateString(new Date());
-        
+
         // Get all user activities
         const activitySnapshot = await db.ref('userActivity').once('value');
         const allActivity = activitySnapshot.val() || {};
@@ -802,7 +802,7 @@ async function checkAutoClockOut() {
         for (const [userId, activity] of Object.entries(allActivity)) {
             // Only auto-clock out technicians and cashiers who are still clocked in
             if (activity.currentStatus !== 'clocked-in') continue;
-            
+
             const userRole = activity.userRole;
             if (!['technician', 'cashier'].includes(userRole)) continue;
 
@@ -813,7 +813,7 @@ async function checkAutoClockOut() {
             // Check if they have an attendance record for today without clock-out
             const attendanceSnapshot = await db.ref(`userAttendance/${userId}/${today}`).once('value');
             const attendance = attendanceSnapshot.val();
-            
+
             if (attendance && attendance.clockIn && !attendance.clockOut) {
                 // Auto clock-out at 6pm
                 const clockOutTime = new Date();
@@ -865,7 +865,7 @@ async function startClockReminderSystem() {
         checkClockReminder();
         checkAutoClockOut();
     }, 300000);
-    
+
     setTimeout(checkClockReminder, 10000);
     setTimeout(checkAutoClockOut, 15000); // Check auto clock-out 15 seconds after startup
 
