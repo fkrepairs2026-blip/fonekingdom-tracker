@@ -264,12 +264,12 @@ function renderSidebar() {
         activeTab = availableTabs[0].id;
     }
 
-    // Show Daily Routine menu item for technicians and cashiers
+    // Show Performance menu item for technicians only
     const role = window.currentUserData?.role;
-    if (['technician', 'cashier'].includes(role)) {
-        const dailyRoutineMenuItem = document.getElementById('dailyRoutineMenuItem');
-        if (dailyRoutineMenuItem) {
-            dailyRoutineMenuItem.style.display = 'block';
+    if (role === 'technician') {
+        const performanceMenuItem = document.getElementById('performanceMenuItem');
+        if (performanceMenuItem) {
+            performanceMenuItem.style.display = 'block';
         }
     }
 

@@ -140,10 +140,10 @@ async function initializeApp() {
         initAttendanceListeners();
         console.log('✅ Attendance system initialized');
         
-        // Initialize daily routine system
-        console.log('📋 Initializing daily routine system...');
-        initializeDailyRoutineListeners();
-        console.log('✅ Daily routine system initialized');
+        // Initialize performance dashboard system
+        console.log('📋 Initializing performance dashboard system...');
+        initializePerformanceListeners();
+        console.log('✅ Performance dashboard system initialized');
         
         // Start clock reminder system for techs/cashiers
         const role = window.currentUserData.role;
@@ -222,15 +222,8 @@ async function initializeApp() {
             }
         }, 1000); // Delay to ensure UI is fully rendered
         
-        // Show daily routine modal for technicians/cashiers after 5 seconds
-        if (['technician', 'cashier'].includes(window.currentUserData.role)) {
-            setTimeout(() => {
-                if (window.checkAndShowDailyRoutine) {
-                    console.log('📋 Checking if should show daily routine...');
-                    window.checkAndShowDailyRoutine();
-                }
-            }, 5000);
-        }
+        // Note: Performance dashboard removed auto-show
+        // Technicians can access via sidebar menu "My Performance"
 
     } catch (error) {
         console.error('❌ Error initializing app:', error);

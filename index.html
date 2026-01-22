@@ -14,6 +14,7 @@
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>📱</text></svg>">
     <link rel="stylesheet" href="css/styles.css?v=20260108-02">
+    <link rel="stylesheet" href="css/performance-dashboard.css?v=20260122-01">
 </head>
 
 <body>
@@ -106,9 +107,9 @@
                             <span class="more-menu-icon">❓</span>
                             <span class="more-menu-text">Help Guide</span>
                         </button>
-                        <button onclick="showDailyRoutineModal(); toggleMoreMenu();" class="more-menu-item" id="dailyRoutineMenuItem" style="display:none;">
-                            <span class="more-menu-icon">📋</span>
-                            <span class="more-menu-text">Daily Routine</span>
+                        <button onclick="showPerformanceModal(); toggleMoreMenu();" class="more-menu-item" id="performanceMenuItem" style="display:none;">
+                            <span class="more-menu-icon">📊</span>
+                            <span class="more-menu-text">My Performance</span>
                         </button>
                         <button onclick="toggleTheme(); toggleMoreMenu();" class="more-menu-item">
                             <span class="more-menu-icon theme-icon">🌙</span>
@@ -292,12 +293,12 @@
         </div>
     </div>
 
-    <!-- Daily Routine Checklist Modal -->
-    <div id="dailyRoutineModal" class="modal">
-        <div class="modal-content routine-modal-content" style="max-width:650px;max-height:90vh;overflow-y:auto;">
-            <span class="close" onclick="closeDailyRoutineModal()" style="font-size:28px;">&times;</span>
-            <div id="dailyRoutineContent">
-                <!-- Content populated by showDailyRoutineModal() -->
+    <!-- Performance Dashboard Modal -->
+    <div id="performanceModal" class="modal">
+        <div class="modal-content routine-modal-content" style="max-width:1200px;max-height:90vh;overflow-y:auto;">
+            <span class="close" onclick="closePerformanceModal()" style="font-size:28px;">&times;</span>
+            <div id="performanceContent">
+                <!-- Content populated by showPerformanceModal() -->
             </div>
         </div>
     </div>
