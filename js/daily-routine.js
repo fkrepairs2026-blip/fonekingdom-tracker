@@ -16,6 +16,10 @@ window.currentPerformanceTab = 'choose-work';
 
 // ===== FIREBASE OPERATIONS =====
 
+// Flags to prevent repeated initialization attempts
+let skillCategoriesInitAttempted = false;
+let disassemblyTriggersInitAttempted = false;
+
 /**
  * Initialize performance dashboard listeners
  */
@@ -27,8 +31,10 @@ function initializePerformanceListeners() {
         const categories = snapshot.val();
         if (categories && Array.isArray(categories)) {
             window.skillCategories = categories.filter(c => c && c.active !== false);
-        } else if (!categories) {
-            // Initialize with defaults if doesn't exist
+            skillCategoriesInitAttempted = false; // Reset flag on successful read
+        } else if (!categories && !skillCategoriesInitAttempted) {
+            // Initialize with defaults if doesn't exist (attempt once)
+            skillCategoriesInitAttempted = true;
             initializeDefaultSkillCategories();
         }
         
@@ -42,8 +48,10 @@ function initializePerformanceListeners() {
         const triggers = snapshot.val();
         if (triggers && Array.isArray(triggers)) {
             window.disassemblyTriggers = triggers;
-        } else if (!triggers) {
-            // Initialize with defaults
+            disassemblyTriggersInitAttempted = false; // Reset flag on successful read
+        } else if (!triggers && !disassemblyTriggersInitAttempted) {
+            // Initialize with defaults (attempt once)
+            disassemblyTriggersInitAttempted = true;
             initializeDefaultDisassemblyTriggers();
         }
     });
@@ -70,7 +78,12 @@ async function initializeDefaultSkillCategories() {
         window.skillCategories = defaultCategories;
         console.log('✅ Initialized default skill categories');
     } catch (error) {
-        console.error('Error initializing skill categories:', error);
+        // Silently handle permission errors - use local defaults
+        if (error.code === 'PERMISSION_DENIED') {
+            window.skillCategories = defaultCategories;
+        } else {
+            console.error('Error initializing skill categories:', error);
+        }
     }
 }
 
@@ -85,7 +98,12 @@ async function initializeDefaultDisassemblyTriggers() {
         window.disassemblyTriggers = defaultTriggers;
         console.log('✅ Initialized default disassembly triggers');
     } catch (error) {
-        console.error('Error initializing disassembly triggers:', error);
+        // Silently handle permission errors - use local defaults
+        if (error.code === 'PERMISSION_DENIED') {
+            window.disassemblyTriggers = defaultTriggers;
+        } else {
+            console.error('Error initializing disassembly triggers:', error);
+        }
     }
 }
 
