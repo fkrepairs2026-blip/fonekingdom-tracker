@@ -26,16 +26,34 @@ let disassemblyTriggersInitAttempted = false;
 function initializePerformanceListeners() {
     const db = firebase.database();
     
+    // Define default values
+    const defaultCategories = [
+        { id: 'screen', name: 'Screen Replacement', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'battery', name: 'Battery Replacement', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'charging', name: 'Charging Port', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'software', name: 'Software/FRP', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'ic', name: 'IC Repair', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'water', name: 'Water Damage', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'jtag', name: 'JTAG/ISP', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'disassembly-android', name: 'Disassembly - Android', novice: 10, proficient: 50, expert: 100, active: true },
+        { id: 'disassembly-ios', name: 'Disassembly - iOS', novice: 10, proficient: 50, expert: 100, active: true }
+    ];
+    const defaultTriggers = ['Battery', 'Screen', 'JTAG', 'ISP', 'Chip Off', 'Water Damage'];
+    
     // Listen to skill categories
     db.ref('systemSettings/skillCategories').on('value', (snapshot) => {
         const categories = snapshot.val();
         if (categories && Array.isArray(categories)) {
             window.skillCategories = categories.filter(c => c && c.active !== false);
-            skillCategoriesInitAttempted = false; // Reset flag on successful read
-        } else if (!categories && !skillCategoriesInitAttempted) {
-            // Initialize with defaults if doesn't exist (attempt once)
-            skillCategoriesInitAttempted = true;
-            initializeDefaultSkillCategories();
+        } else {
+            // Use local defaults if data doesn't exist
+            window.skillCategories = defaultCategories;
+            
+            // Only attempt to initialize if user is admin (prevents permission errors)
+            if (!skillCategoriesInitAttempted && window.currentUserData?.role === 'admin') {
+                skillCategoriesInitAttempted = true;
+                initializeDefaultSkillCategories();
+            }
         }
         
         if (window.currentTabRefresh) {
@@ -48,11 +66,15 @@ function initializePerformanceListeners() {
         const triggers = snapshot.val();
         if (triggers && Array.isArray(triggers)) {
             window.disassemblyTriggers = triggers;
-            disassemblyTriggersInitAttempted = false; // Reset flag on successful read
-        } else if (!triggers && !disassemblyTriggersInitAttempted) {
-            // Initialize with defaults (attempt once)
-            disassemblyTriggersInitAttempted = true;
-            initializeDefaultDisassemblyTriggers();
+        } else {
+            // Use local defaults if data doesn't exist
+            window.disassemblyTriggers = defaultTriggers;
+            
+            // Only attempt to initialize if user is admin (prevents permission errors)
+            if (!disassemblyTriggersInitAttempted && window.currentUserData?.role === 'admin') {
+                disassemblyTriggersInitAttempted = true;
+                initializeDefaultDisassemblyTriggers();
+            }
         }
     });
 }
