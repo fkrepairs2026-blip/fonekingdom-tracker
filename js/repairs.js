@@ -1,5 +1,8 @@
 // ===== REPAIRS MODULE =====
 
+// Reception enforcement - only applies to repairs created after this date
+const RECEPTION_ENFORCEMENT_DATE = new Date('2026-01-22').toISOString();
+
 /**
  * Get local date string in YYYY-MM-DD format (no timezone conversion)
  * This prevents timezone bugs where dates shift due to UTC conversion
@@ -668,6 +671,13 @@ async function submitReceiveDevice(e) {
 
         console.log('📥 Receiving device...');
 
+        // VALIDATE: Photo is required for new receptions
+        if (photoData.length === 0) {
+            alert('⚠️ Device Photo Required!\n\nPlease take at least one photo of the device before submitting.\n\nThis documents the device condition and protects against disputes.');
+            window.isSubmittingDevice = false;
+            return;
+        }
+
         // Check if it's a back job (element removed, always false for normal receive)
         const isBackJobCheckbox = document.getElementById('isBackJob');
         const isBackJob = isBackJobCheckbox ? isBackJobCheckbox.checked : false;
@@ -731,9 +741,19 @@ async function submitReceiveDevice(e) {
             createdBy: window.currentUser.uid,
             createdByName: window.currentUserData.displayName,
             receivedBy: window.currentUserData.displayName,
+            
+            // Reception completion tracking (enforced for new repairs after Jan 22, 2026)
+            receptionComplete: photoData.length > 0, // Requires at least 1 photo
+            receptionCompletedAt: photoData.length > 0 ? new Date().toISOString() : null,
+            receptionStartedAt: new Date().toISOString(),
+            
+            // Emergency override for admin-only bypass
+            emergencyReceptionOverride: null,
+            
             acceptedBy: null,
             acceptedByName: null,
             acceptedAt: null,
+            workStartedAt: null, // When tech actually starts work (acceptedAt renamed for clarity)
             // Diagnosis workflow fields
             diagnosisCreated: false,
             diagnosisCreatedAt: null,
@@ -1171,15 +1191,14 @@ This device will be marked as already repaired.
             const assignOption = data.get('assignOption');
 
             if (assignOption === 'accept-myself') {
-                // Immediate self-assignment
-                assignmentMethod = 'immediate-accept';
+                // CHANGED: No longer auto-accepts - just assigns to tech who will formally accept later
+                assignmentMethod = 'assigned-to-self';
                 assignedTo = window.currentUser.uid;
                 assignedToName = window.currentUserData.displayName;
 
-                repair.status = 'In Progress';
-                repair.acceptedBy = assignedTo;
-                repair.acceptedByName = assignedToName;
-                repair.acceptedAt = new Date().toISOString();
+                // Status remains "Received" - tech must formally accept with checklist
+                repair.suggestedTech = assignedTo;
+                repair.suggestedTechName = assignedToName;
 
             } else if (assignOption === 'assign-other') {
                 // Assign to specific tech
@@ -1200,10 +1219,9 @@ This device will be marked as already repaired.
                 assignedTo = targetTechId;
                 assignedToName = targetTech.displayName;
 
-                repair.status = 'In Progress';
-                repair.acceptedBy = assignedTo;
-                repair.acceptedByName = assignedToName;
-                repair.acceptedAt = new Date().toISOString();
+                // Status remains "Received" - assigned tech must formally accept with checklist
+                repair.suggestedTech = assignedTo;
+                repair.suggestedTechName = assignedToName;
                 repair.assignedBy = window.currentUserData.displayName;
 
             } else {
@@ -1302,17 +1320,21 @@ This device will be marked as already repaired.
             // Show appropriate success message based on assignment
             let successMsg = `✅ Device Received!\n\n📱 ${repair.brand} ${repair.model}\n👤 ${repair.customerName}\n📞 ${repair.contactNumber}\n\n`;
 
-            if (assignmentMethod === 'immediate-accept') {
-                successMsg += `🔧 Status: ACCEPTED by you!\n✅ Device is now in your "My Jobs" list.\n📍 Status: In Progress\n\n`;
+            if (assignmentMethod === 'assigned-to-self') {
+                successMsg += `👤 Assigned to: You\n📍 Status: Received\n\n`;
+                successMsg += `📋 Next Steps:\n`;
+                successMsg += `• Go to "Received Devices" tab\n`;
+                successMsg += `• Click "Accept Repair" to complete pre-repair checklist\n`;
+                successMsg += `• Then start working on the repair\n\n`;
                 if (hasPricing) {
-                    successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
-                } else {
-                    successMsg += `⚠️ Don't forget to:\n• Create diagnosis & set pricing\n• Get customer approval\n`;
+                    successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)} (pre-approved)\n`;
                 }
             } else if (assignmentMethod === 'assigned-by-receiver') {
-                successMsg += `👤 Assigned to: ${assignedToName}\n✅ They will see it in their "My Jobs" list.\n📍 Status: In Progress\n\n`;
+                successMsg += `👤 Assigned to: ${assignedToName}\n📍 Status: Received\n\n`;
+                successMsg += `✅ ${assignedToName} will see this in "Received Devices"\n`;
+                successMsg += `⚠️ They must formally accept it with pre-repair checklist before starting work\n\n`;
                 if (hasPricing) {
-                    successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)}\n`;
+                    successMsg += `💰 Pricing: ₱${repair.total.toFixed(2)} (pre-approved)\n`;
                 }
             } else {
                 successMsg += `📥 Sent to: Received Devices (pool)\n✅ Any available technician can accept it.\n\n`;
@@ -1376,9 +1398,15 @@ This device will be marked as already repaired.
 }
 
 /**
- * Accept repair (NEW WORKFLOW - Tech/Owner claims job)
+ * DEPRECATED: Accept repair (OLD WORKFLOW - bypasses checklist)
+ * This function is kept for backward compatibility but should not be used.
+ * Use openAcceptRepairModal() instead for proper workflow with pre-repair checklist.
  */
 async function acceptRepair(repairId) {
+    alert('⚠️ Please use the "Accept Repair" button which includes the required pre-repair checklist.\n\nThe old acceptance method has been disabled to ensure proper device documentation.');
+    return;
+    
+    /* OLD CODE DISABLED
     const repair = window.allRepairs.find(r => r.id === repairId);
     if (!repair) {
         alert('Repair not found');
@@ -1493,6 +1521,7 @@ async function acceptRepair(repairId) {
         }
         alert('Error: ' + error.message);
     }
+    */
 }
 
 /**
@@ -3629,6 +3658,43 @@ function openAcceptRepairModal(repairId) {
         return;
     }
 
+    // NEW: Check if reception is complete (only for repairs created after enforcement date)
+    const isNewRepair = repair.createdAt >= RECEPTION_ENFORCEMENT_DATE;
+    if (isNewRepair && !repair.receptionComplete && !repair.emergencyReceptionOverride) {
+        // Check if admin for emergency override option
+        if (window.currentUserData.role === 'admin') {
+            const override = confirm(
+                '⚠️ RECEPTION INCOMPLETE\n\n' +
+                'This device was not properly received with photos.\n\n' +
+                'As admin, you can override this requirement.\n\n' +
+                'Override and accept anyway? (Requires reason)'
+            );
+            
+            if (override) {
+                const reason = prompt('Enter reason for emergency override (minimum 20 characters):');
+                if (!reason || reason.trim().length < 20) {
+                    alert('❌ Override cancelled - reason required (minimum 20 characters)');
+                    return;
+                }
+                
+                // Allow override - will be saved when accepting
+                repair._emergencyOverrideReason = reason.trim();
+            } else {
+                return;
+            }
+        } else {
+            alert(
+                '❌ CANNOT ACCEPT - RECEPTION INCOMPLETE\n\n' +
+                'This device was not properly received.\n\n' +
+                'Required:\n' +
+                '• Device photo\n' +
+                '• Condition documentation\n\n' +
+                'Please complete device reception first, or contact an admin for emergency override.'
+            );
+            return;
+        }
+    }
+
     // Check if diagnosis has been created
     if (!repair.diagnosisCreated || repair.total === 0 || repair.repairType === 'Pending Diagnosis') {
         alert('⚠️ Diagnosis Required!\n\nPlease create a diagnosis and set pricing before accepting this repair.\n\nUse "📝 Create Diagnosis" button to set the repair details and price.');
@@ -3797,10 +3863,12 @@ async function submitAcceptRepair(e, repairId) {
     try {
         utils.showLoading(true);
 
-        await db.ref('repairs/' + repairId).update({
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        const updateData = {
             acceptedBy: window.currentUser.uid,
             acceptedByName: window.currentUserData.displayName,
             acceptedAt: new Date().toISOString(),
+            workStartedAt: new Date().toISOString(), // Track actual work start
             status: 'In Progress',
             preRepairChecklist: {
                 screen: data.get('checklistScreen') || 'Not Checked',
@@ -3817,9 +3885,27 @@ async function submitAcceptRepair(e, repairId) {
             },
             lastUpdated: new Date().toISOString(),
             lastUpdatedBy: window.currentUserData.displayName
-        });
+        };
 
-        const repair = window.allRepairs.find(r => r.id === repairId);
+        // Save emergency override if present
+        if (repair._emergencyOverrideReason) {
+            updateData.emergencyReceptionOverride = {
+                allowed: true,
+                reason: repair._emergencyOverrideReason,
+                byUser: window.currentUserData.displayName,
+                byUserId: window.currentUser.uid,
+                at: new Date().toISOString()
+            };
+            
+            // Log override to activity logs
+            await logActivity('reception_override', 'repair', {
+                repairId: repairId,
+                customerName: repair.customerName,
+                reason: repair._emergencyOverrideReason
+            }, `Admin override: ${repair._emergencyOverrideReason}`);
+        }
+
+        await db.ref('repairs/' + repairId).update(updateData);
 
         // Log repair acceptance
         await logActivity('repair_accepted', 'repair', {

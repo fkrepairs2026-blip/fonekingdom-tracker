@@ -1596,6 +1596,85 @@ function exportRetroactiveIntakesToCSV() {
     utils.showToast(`✅ Exported ${intakes.length} records to ${filename}`, 'success');
 }
 
+/**
+ * Calculate reception completion metrics
+ * @param {string} period - 'today' | '7days' | '30days'
+ * @returns {object} Reception analytics
+ */
+function calculateReceptionMetrics(period = 'today') {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    let startDate;
+    switch(period) {
+        case '7days':
+            startDate = new Date(today);
+            startDate.setDate(today.getDate() - 7);
+            break;
+        case '30days':
+            startDate = new Date(today);
+            startDate.setDate(today.getDate() - 30);
+            break;
+        default: // 'today'
+            startDate = today;
+    }
+
+    // Filter repairs created in the period (after enforcement date)
+    const RECEPTION_ENFORCEMENT_DATE = new Date('2026-01-22').toISOString();
+    const recentRepairs = window.allRepairs.filter(r => {
+        const createdAt = new Date(r.createdAt);
+        return createdAt >= startDate && r.createdAt >= RECEPTION_ENFORCEMENT_DATE;
+    });
+
+    const total = recentRepairs.length;
+    const withCompleteReception = recentRepairs.filter(r => r.receptionComplete).length;
+    const withPhotos = recentRepairs.filter(r => r.photos && r.photos.length > 0).length;
+    const emergencyOverrides = recentRepairs.filter(r => r.emergencyReceptionOverride).length;
+    
+    // Calculate average reception time (in minutes)
+    const receptionsWithTime = recentRepairs.filter(r => 
+        r.receptionStartedAt && r.receptionCompletedAt
+    );
+    let avgReceptionTime = 0;
+    if (receptionsWithTime.length > 0) {
+        const totalMinutes = receptionsWithTime.reduce((sum, r) => {
+            const start = new Date(r.receptionStartedAt);
+            const end = new Date(r.receptionCompletedAt);
+            return sum + ((end - start) / 1000 / 60); // Convert to minutes
+        }, 0);
+        avgReceptionTime = totalMinutes / receptionsWithTime.length;
+    }
+
+    // Tech-specific stats
+    const byTech = {};
+    recentRepairs.forEach(r => {
+        const techName = r.receivedBy || 'Unknown';
+        if (!byTech[techName]) {
+            byTech[techName] = {
+                total: 0,
+                complete: 0,
+                withPhotos: 0
+            };
+        }
+        byTech[techName].total++;
+        if (r.receptionComplete) byTech[techName].complete++;
+        if (r.photos && r.photos.length > 0) byTech[techName].withPhotos++;
+    });
+
+    return {
+        period,
+        total,
+        withCompleteReception,
+        withPhotos,
+        emergencyOverrides,
+        completionRate: total > 0 ? Math.round((withCompleteReception / total) * 100) : 100,
+        photoRate: total > 0 ? Math.round((withPhotos / total) * 100) : 100,
+        avgReceptionTime: Math.round(avgReceptionTime * 10) / 10, // Round to 1 decimal
+        byTech
+    };
+}
+
 window.exportRetroactiveIntakesToCSV = exportRetroactiveIntakesToCSV;
+window.calculateReceptionMetrics = calculateReceptionMetrics;
 
 console.log('✅ utils.js loaded');

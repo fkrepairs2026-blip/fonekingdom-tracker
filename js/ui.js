@@ -518,12 +518,30 @@ function buildReceivedDevicesPage(container) {
         (r.status === 'Received' || r.status === 'Pending Customer Approval') && !r.acceptedBy
     );
 
+    // Separate complete vs incomplete receptions (for new repairs only)
+    const ENFORCEMENT_DATE = new Date('2026-01-22').toISOString();
+    const incompleteReceptions = receivedDevices.filter(r => 
+        r.createdAt >= ENFORCEMENT_DATE && !r.receptionComplete
+    );
+    const completeReceptions = receivedDevices.filter(r =>
+        r.createdAt < ENFORCEMENT_DATE || r.receptionComplete
+    );
+
     container.innerHTML = `
         <div class="card">
             <h3>📥 Received Devices (${receivedDevices.length})</h3>
             <p style="color:#666;margin-bottom:15px;">
                 <strong>Workflow:</strong> Device Received → Create Diagnosis → Customer Approves → Technician Accepts
             </p>
+            
+            ${incompleteReceptions.length > 0 ? `
+                <div style="background:#fff3e0;border-left:4px solid #ff9800;padding:15px;margin-bottom:20px;border-radius:5px;">
+                    <h4 style="margin:0 0 10px;color:#e65100;">⚠️ Incomplete Receptions (${incompleteReceptions.length})</h4>
+                    <p style="margin:0 0 10px;font-size:13px;color:#666;">These devices were received without required photo documentation.</p>
+                    <div id="incompleteReceptionsList"></div>
+                </div>
+            ` : ''}
+            
             ${receivedDevices.length === 0 ? `
                 <div style="text-align:center;padding:40px;color:#999;">
                     <h2 style="font-size:48px;margin:0;">✅</h2>
@@ -536,9 +554,16 @@ function buildReceivedDevicesPage(container) {
     `;
 
     setTimeout(() => {
+        if (incompleteReceptions.length > 0) {
+            const incompleteContainer = document.getElementById('incompleteReceptionsList');
+            if (incompleteContainer) {
+                displayGroupedRepairsList(incompleteReceptions, incompleteContainer, 'received', 'recordedDate');
+            }
+        }
+        
         const listContainer = document.getElementById('receivedDevicesList');
-        if (listContainer && receivedDevices.length > 0) {
-            displayGroupedRepairsList(receivedDevices, listContainer, 'received', 'recordedDate');
+        if (listContainer && completeReceptions.length > 0) {
+            displayGroupedRepairsList(completeReceptions, listContainer, 'received', 'recordedDate');
         }
     }, 0);
 }
@@ -1068,9 +1093,10 @@ function buildReceiveDeviceTab(container) {
                 </div>
                 
                 <div class="form-group">
-                    <label>Device Photo (Optional)</label>
-                    <input type="file" accept="image/*" id="receivePhoto1" onchange="handlePhotoUpload(this,'receivePreview1')">
+                    <label>Device Photo <strong style="color:#d32f2f;">*</strong></label>
+                    <input type="file" accept="image/*" id="receivePhoto1" onchange="handlePhotoUpload(this,'receivePreview1')" required>
                     <div id="receivePreview1" style="display:none;margin-top:10px;"></div>
+                    <small style="color:#d32f2f;"><strong>Required:</strong> Document device condition before accepting for repair</small>
                 </div>
                 
                 <div id="preApprovalFields" class="alert-success">
@@ -1288,7 +1314,7 @@ function buildReceiveDeviceTab(container) {
                     <div style="margin-bottom:12px;">
                         <label style="display:flex;align-items:center;gap:10px;padding:10px;background:white;border-radius:5px;cursor:pointer;border:2px solid #9c27b0;">
                             <input type="radio" name="assignOption" value="accept-myself" checked onchange="toggleAssignToTech()">
-                            <span><strong>✅ Accept this repair myself</strong> (goes to My Jobs immediately)</span>
+                            <span><strong>✅ Assign to myself</strong> (I will accept it later with checklist)</span>
                         </label>
                     </div>
                     
@@ -1315,7 +1341,7 @@ function buildReceiveDeviceTab(container) {
                     </div>
                     
                     <small style="display:block;margin-top:10px;color:#666;">
-                        💡 <strong>Tip:</strong> Select "Accept myself" to start working immediately!
+                        ⚠️ <strong>Note:</strong> All repairs must go through proper acceptance with pre-repair checklist before work can begin.
                     </small>
                 </div>
                 
