@@ -1764,5 +1764,179 @@ window.getQuarterlySummary = getQuarterlySummary;
 window.exportQuarterlyReport = exportQuarterlyReport;
 window.exportAnnualPLStatement = exportAnnualPLStatement;
 
+/**
+ * Calculate reception compliance rate for a technician
+ */
+function calculateReceptionCompliance(techId, startDate, endDate) {
+    const ENFORCEMENT_DATE = new Date('2026-01-22').toISOString();
+    
+    // Get repairs created by this tech after enforcement date
+    let techRepairs = window.allRepairs.filter(r => 
+        r.createdBy === techId &&
+        r.createdAt >= ENFORCEMENT_DATE &&
+        !r.deleted
+    );
+
+    // Apply date filter if provided
+    if (startDate) {
+        techRepairs = techRepairs.filter(r => new Date(r.createdAt) >= startDate);
+    }
+    if (endDate) {
+        techRepairs = techRepairs.filter(r => new Date(r.createdAt) <= endDate);
+    }
+
+    const total = techRepairs.length;
+    const properReceptions = techRepairs.filter(r => 
+        r.receptionComplete && r.receptionType !== 'retroactive'
+    ).length;
+    const retroactive = techRepairs.filter(r => r.receptionType === 'retroactive').length;
+    const missing = total - properReceptions - retroactive;
+    
+    // Points system: +10 per proper reception, -20 per retroactive, -30 per missing
+    const points = (properReceptions * 10) - (retroactive * 20) - (missing * 30);
+    const maxPoints = total * 10;
+    const rate = total > 0 ? Math.max(0, (points / maxPoints) * 100) : 100;
+
+    return {
+        total,
+        proper: properReceptions,
+        retroactive,
+        missing,
+        points,
+        maxPoints,
+        rate,
+        hasViolations: retroactive > 0 || missing > 0
+    };
+}
+
+/**
+ * Get reception compliance for all technicians
+ */
+function getAllTechReceptionCompliance(startDate, endDate) {
+    const techCompliance = {};
+    
+    // Get all users with role technician or who have created repairs
+    const allTechs = new Set();
+    
+    // Add from allUsers
+    if (window.allUsers) {
+        Object.entries(window.allUsers).forEach(([uid, user]) => {
+            if (user.role === 'technician' || user.role === 'cashier' || user.role === 'manager') {
+                allTechs.add(uid);
+            }
+        });
+    }
+    
+    // Add from repairs
+    window.allRepairs.forEach(r => {
+        if (r.createdBy) allTechs.add(r.createdBy);
+    });
+
+    allTechs.forEach(techId => {
+        const compliance = calculateReceptionCompliance(techId, startDate, endDate);
+        if (compliance.total > 0) {
+            const userName = window.allUsers && window.allUsers[techId] 
+                ? window.allUsers[techId].displayName 
+                : 'Unknown';
+            techCompliance[techId] = {
+                ...compliance,
+                name: userName
+            };
+        }
+    });
+
+    return techCompliance;
+}
+
+/**
+ * Build reception compliance scorecard HTML for a single technician
+ */
+function buildReceptionComplianceCard(techId) {
+    const today = new Date();
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const compliance = calculateReceptionCompliance(techId, monthStart, today);
+
+    if (compliance.total === 0) {
+        return `
+            <div class="compliance-card" style="background:#f5f5f5;padding:20px;border-radius:8px;border-left:4px solid #9e9e9e;">
+                <h4 style="margin:0 0 10px;">📊 Reception Compliance</h4>
+                <p style="margin:0;color:#666;">No receptions recorded this month yet.</p>
+            </div>
+        `;
+    }
+
+    const statusColor = compliance.rate >= 95 ? '#4caf50' : 
+                        compliance.rate >= 75 ? '#ff9800' : 
+                        '#f44336';
+
+    return `
+        <div class="compliance-card" style="background:white;padding:20px;border-radius:8px;border-left:4px solid ${statusColor};box-shadow:0 2px 8px rgba(0,0,0,0.1);margin-bottom:20px;">
+            <h4 style="margin:0 0 15px;color:${statusColor};">📊 Your Reception Compliance</h4>
+            
+            <div style="display:flex;align-items:center;gap:20px;margin-bottom:15px;">
+                <div style="text-align:center;">
+                    <div style="font-size:36px;font-weight:bold;color:${statusColor};">${compliance.points}</div>
+                    <div style="font-size:12px;color:#666;">Points (of ${compliance.maxPoints})</div>
+                </div>
+                <div style="flex:1;">
+                    <div style="font-size:14px;margin-bottom:5px;">
+                        ✅ <strong>${compliance.proper}</strong> proper receptions (+${compliance.proper * 10} pts)
+                    </div>
+                    ${compliance.retroactive > 0 ? `
+                        <div style="font-size:14px;color:#ff9800;">
+                            ⚠️ <strong>${compliance.retroactive}</strong> retroactive (${compliance.retroactive * -20} pts)
+                        </div>
+                    ` : ''}
+                    ${compliance.missing > 0 ? `
+                        <div style="font-size:14px;color:#f44336;">
+                            ❌ <strong>${compliance.missing}</strong> missing (${compliance.missing * -30} pts)
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+
+            <div style="margin-bottom:15px;">
+                <div style="background:#f5f5f5;border-radius:4px;height:8px;overflow:hidden;">
+                    <div style="background:${statusColor};height:100%;width:${Math.max(0, compliance.rate)}%;transition:width 0.3s;"></div>
+                </div>
+                <div style="text-align:center;margin-top:5px;font-size:14px;font-weight:bold;color:${statusColor};">
+                    ${Math.round(compliance.rate)}% Compliance
+                </div>
+            </div>
+
+            ${compliance.rate >= 95 ? `
+                <div style="background:#e8f5e9;padding:15px;border-radius:5px;text-align:center;">
+                    <div style="font-size:20px;margin-bottom:5px;">🌟 EXCELLENT!</div>
+                    <div style="font-size:14px;color:#2e7d32;">Keep up the great work!</div>
+                </div>
+            ` : compliance.rate >= 75 ? `
+                <div style="background:#fff3e0;padding:15px;border-radius:5px;text-align:center;">
+                    <div style="font-size:16px;margin-bottom:5px;">👍 Good Progress</div>
+                    <div style="font-size:14px;color:#e65100;">Aim for 95%+ for recognition</div>
+                </div>
+            ` : `
+                <div style="background:#ffebee;padding:15px;border-radius:5px;text-align:center;">
+                    <div style="font-size:14px;color:#c62828;margin-bottom:5px;">
+                        ⚠️ Needs Improvement
+                    </div>
+                    <div style="font-size:12px;color:#666;">
+                        ${compliance.missing > 0 ? `Fix ${compliance.missing} missing receptions first!` : 'Focus on proper reception for new devices'}
+                    </div>
+                </div>
+            `}
+
+            <div style="margin-top:15px;padding-top:15px;border-top:1px solid #eee;font-size:12px;color:#666;">
+                💡 <strong>Points System:</strong> +10 proper | -20 retroactive | -30 missing<br>
+                Always document reception BEFORE starting work!
+            </div>
+        </div>
+    `;
+}
+
+// Export reception compliance functions
+window.calculateReceptionCompliance = calculateReceptionCompliance;
+window.getAllTechReceptionCompliance = getAllTechReceptionCompliance;
+window.buildReceptionComplianceCard = buildReceptionComplianceCard;
+
 console.log('✅ analytics.js loaded');
 

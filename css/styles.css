@@ -7412,3 +7412,24 @@ input:checked+.toggle-slider:before {
     background: var(--primary-dark);
 }
 
+/* ===== RETROACTIVE RECEPTION STYLES ===== */
+.btn-critical {
+    background-color: #f44336 !important;
+    color: white !important;
+    font-weight: bold !important;
+    border: none !important;
+    cursor: pointer !important;
+    animation: pulse 2s infinite !important;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+    }
+}
+

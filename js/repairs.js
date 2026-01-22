@@ -3661,38 +3661,9 @@ function openAcceptRepairModal(repairId) {
     // NEW: Check if reception is complete (only for repairs created after enforcement date)
     const isNewRepair = repair.createdAt >= RECEPTION_ENFORCEMENT_DATE;
     if (isNewRepair && !repair.receptionComplete && !repair.emergencyReceptionOverride) {
-        // Check if admin for emergency override option
-        if (window.currentUserData.role === 'admin') {
-            const override = confirm(
-                '⚠️ RECEPTION INCOMPLETE\n\n' +
-                'This device was not properly received with photos.\n\n' +
-                'As admin, you can override this requirement.\n\n' +
-                'Override and accept anyway? (Requires reason)'
-            );
-            
-            if (override) {
-                const reason = prompt('Enter reason for emergency override (minimum 20 characters):');
-                if (!reason || reason.trim().length < 20) {
-                    alert('❌ Override cancelled - reason required (minimum 20 characters)');
-                    return;
-                }
-                
-                // Allow override - will be saved when accepting
-                repair._emergencyOverrideReason = reason.trim();
-            } else {
-                return;
-            }
-        } else {
-            alert(
-                '❌ CANNOT ACCEPT - RECEPTION INCOMPLETE\n\n' +
-                'This device was not properly received.\n\n' +
-                'Required:\n' +
-                '• Device photo\n' +
-                '• Condition documentation\n\n' +
-                'Please complete device reception first, or contact an admin for emergency override.'
-            );
-            return;
-        }
+        // Show blocking modal with admin override option
+        showReceptionRequiredModal(repairId);
+        return;
     }
 
     // Check if diagnosis has been created
@@ -3850,6 +3821,482 @@ function openAcceptRepairModal(repairId) {
     `;
 
     document.getElementById('acceptRepairModal').style.display = 'block';
+}
+
+/**
+ * Show blocking modal when trying to accept incomplete reception
+ */
+function showReceptionRequiredModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    if (!repair) return;
+
+    const content = document.getElementById('receptionRequiredModalContent');
+    const role = window.currentUserData.role;
+    const isAdmin = role === 'admin';
+
+    content.innerHTML = `
+        <div style="background:#fff3e0;border-left:4px solid #ff9800;padding:20px;margin-bottom:20px;border-radius:8px;">
+            <p style="margin:0 0 15px;font-size:15px;line-height:1.6;">
+                <strong>This device has NOT been properly received.</strong>
+            </p>
+            <div style="background:white;padding:15px;border-radius:5px;margin:15px 0;">
+                <p style="margin:0 0 10px;"><strong>You MUST complete reception first:</strong></p>
+                <ul style="margin:0;padding-left:20px;">
+                    <li>✓ Document device condition</li>
+                    <li>✓ Take required photos</li>
+                    <li>✓ Note any pre-existing damage</li>
+                </ul>
+            </div>
+            <div style="background:#e3f2fd;padding:15px;border-radius:5px;border-left:3px solid #2196f3;">
+                <p style="margin:0;font-size:14px;color:#1565c0;">
+                    <strong>📌 Why this matters:</strong><br>
+                    Reception protects <strong>YOU</strong> from customer disputes. Without photos, customers can claim damage you didn't cause.
+                    <br><br>
+                    <strong>2 minutes now saves hours of problems later.</strong>
+                </p>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:25px;">
+            <button onclick="redirectToReception('${repairId}')" class="btn-primary" style="padding:15px 30px;font-size:16px;">
+                📝 Complete Reception Now (2 min)
+            </button>
+            <button onclick="closeReceptionRequiredModal()" class="btn-secondary" style="margin-left:10px;padding:15px 30px;">
+                Cancel
+            </button>
+        </div>
+
+        ${isAdmin ? `
+            <div style="margin-top:30px;padding-top:20px;border-top:2px solid #ddd;">
+                <p style="color:#666;font-size:13px;margin-bottom:10px;"><strong>Admin Emergency Override Available</strong></p>
+                <button onclick="emergencyReceptionOverride('${repairId}')" class="btn" style="background:#ff5722;color:white;padding:10px 20px;">
+                    ⚠️ Admin Override (Emergency Only)
+                </button>
+            </div>
+        ` : ''}
+    `;
+
+    document.getElementById('receptionRequiredModal').style.display = 'block';
+}
+
+/**
+ * Close reception required modal
+ */
+function closeReceptionRequiredModal() {
+    document.getElementById('receptionRequiredModal').style.display = 'none';
+}
+
+/**
+ * Redirect to reception for incomplete device
+ */
+function redirectToReception(repairId) {
+    closeReceptionRequiredModal();
+    alert('⚠️ Please contact cashier or admin to complete device reception with photos.\n\nRepair cannot start until reception is complete.');
+}
+
+/**
+ * Emergency reception override (admin only)
+ */
+async function emergencyReceptionOverride(repairId) {
+    if (window.currentUserData.role !== 'admin') {
+        alert('⚠️ Access denied - Admin only');
+        return;
+    }
+
+    const reason = prompt(
+        '⚠️ EMERGENCY OVERRIDE\n\n' +
+        'You are bypassing the mandatory reception requirement.\n\n' +
+        'This should ONLY be used in emergencies (device already opened, urgent repair, etc.)\n\n' +
+        'Enter detailed reason for override (minimum 30 characters):'
+    );
+
+    if (!reason || reason.trim().length < 30) {
+        alert('❌ Override cancelled\n\nReason required (minimum 30 characters)');
+        return;
+    }
+
+    try {
+        utils.showLoading(true);
+
+        await db.ref(`repairs/${repairId}`).update({
+            emergencyReceptionOverride: {
+                allowed: true,
+                reason: reason.trim(),
+                byUser: window.currentUserData.displayName,
+                byUserId: window.currentUser.uid,
+                at: new Date().toISOString()
+            },
+            receptionComplete: true,
+            receptionCompletedAt: new Date().toISOString()
+        });
+
+        // Log override
+        await logActivity('reception_override', 'repair', {
+            repairId: repairId,
+            reason: reason.trim()
+        }, `Emergency override: ${reason.trim().substring(0, 50)}...`);
+
+        utils.showLoading(false);
+        closeReceptionRequiredModal();
+        
+        // Show success and open accept modal
+        alert('✅ Override applied\n\nYou can now accept this repair.\n\nWarning: This has been logged for audit purposes.');
+        
+        // Auto-refresh to update UI badges
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+        // Auto-open accept modal after short delay
+        setTimeout(() => {
+            openAcceptRepairModal(repairId);
+        }, 500);
+
+    } catch (error) {
+        utils.showLoading(false);
+        alert('Error applying override: ' + error.message);
+    }
+}
+
+/**
+ * RETROACTIVE RECEPTION SYSTEM
+ * For devices already repaired/in-progress without proper reception
+ */
+
+// Temporary storage for retroactive photos
+window.retroPhotos = {};
+
+/**
+ * Detect if a repair needs retroactive reception
+ */
+function needsRetroactiveReception(repair) {
+    const ENFORCEMENT_DATE = new Date('2026-01-22').toISOString();
+    const isNewRepair = repair.createdAt >= ENFORCEMENT_DATE;
+    const isIncomplete = !repair.receptionComplete && !repair.emergencyReceptionOverride;
+    const isWorkedOn = ['In Progress', 'Completed', 'Ready for Pickup', 'Released'].includes(repair.status);
+    
+    return isNewRepair && isIncomplete && isWorkedOn;
+}
+
+/**
+ * Open retroactive reception modal
+ */
+async function openRetroactiveReceptionModal(repairId) {
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    if (!repair) {
+        alert('Repair not found');
+        return;
+    }
+    
+    // Confirm they understand this is a violation
+    const proceed = confirm(
+        '⚠️ RETROACTIVE RECEPTION\n\n' +
+        'This device was repaired WITHOUT proper reception.\n\n' +
+        'This is a VIOLATION of proper procedure.\n\n' +
+        'You must now:\n' +
+        '1. Document current state (best effort)\n' +
+        '2. Take photos of work area\n' +
+        '3. Explain why reception was skipped\n' +
+        '4. Accept -20 points penalty\n\n' +
+        'Continue with retroactive reception?'
+    );
+    
+    if (!proceed) return;
+    
+    const content = document.getElementById('retroactiveReceptionModalContent');
+    
+    content.innerHTML = `
+        <div style="background:#fff3e0;border-left:4px solid #ff5722;padding:20px;margin-bottom:20px;border-radius:8px;">
+            <p style="margin:0 0 10px;font-size:15px;font-weight:bold;color:#e65100;">⚠️ PROCEDURE VIOLATION</p>
+            <p style="margin:0;font-size:14px;color:#666;">This repair was started without proper reception. Complete this form to remediate.</p>
+        </div>
+        
+        <div style="background:#e3f2fd;padding:15px;border-radius:8px;margin-bottom:20px;">
+            <h4 style="margin:0 0 10px;">📋 Repair Information:</h4>
+            <p style="margin:5px 0;"><strong>Ticket:</strong> #${repair.ticketNumber || 'N/A'}</p>
+            <p style="margin:5px 0;"><strong>Customer:</strong> ${repair.customerName}</p>
+            <p style="margin:5px 0;"><strong>Device:</strong> ${repair.brand} ${repair.model}</p>
+            <p style="margin:5px 0;"><strong>Status:</strong> ${repair.status}</p>
+            <p style="margin:5px 0;"><strong>Accepted:</strong> ${repair.acceptedAt ? utils.formatDateTime(repair.acceptedAt) : 'N/A'}</p>
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <h4 style="margin:0 0 15px;">📷 Document Current State:</h4>
+            <p style="margin:0 0 10px;font-size:13px;color:#666;">⚠️ These photos will be marked as "After Work" photos</p>
+            
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+                <button onclick="takeRetroPhoto('${repairId}', 'current-front')" 
+                        class="btn" 
+                        style="padding:15px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+                    📷 Front View
+                    <span id="photo-current-front-status" style="font-size:12px;color:#999;">Not taken</span>
+                </button>
+                <button onclick="takeRetroPhoto('${repairId}', 'current-back')" 
+                        class="btn" 
+                        style="padding:15px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+                    📷 Back View
+                    <span id="photo-current-back-status" style="font-size:12px;color:#999;">Not taken</span>
+                </button>
+                <button onclick="takeRetroPhoto('${repairId}', 'work-area')" 
+                        class="btn" 
+                        style="padding:15px;display:flex;flex-direction:column;align-items:center;gap:8px;">
+                    📷 Work Area
+                    <span id="photo-work-area-status" style="font-size:12px;color:#999;">Not taken</span>
+                </button>
+            </div>
+        </div>
+        
+        <div style="margin-bottom:20px;">
+            <h4 style="margin:0 0 10px;">📝 Required Information:</h4>
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:5px;font-weight:bold;">Why was reception skipped? *</label>
+                <textarea id="retroSkipReason" 
+                          rows="2" 
+                          style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;"
+                          placeholder="E.g., Customer was in rush, forgot to document, emergency repair, etc."></textarea>
+                <small style="color:#666;">Minimum 15 characters</small>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:5px;font-weight:bold;">Pre-existing damage (best recollection):</label>
+                <textarea id="retroPreDamage" 
+                          rows="2" 
+                          style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;"
+                          placeholder="Describe any damage that was already present when device arrived"></textarea>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:5px;font-weight:bold;">Work performed: *</label>
+                <textarea id="retroWorkDone" 
+                          rows="2" 
+                          style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;"
+                          placeholder="What repairs/work was completed?"></textarea>
+            </div>
+            
+            <div style="margin-bottom:15px;">
+                <label style="display:block;margin-bottom:5px;font-weight:bold;">Customer informed? *</label>
+                <select id="retroCustomerInformed" 
+                        style="width:100%;padding:10px;border:1px solid #ddd;border-radius:4px;">
+                    <option value="">-- Select --</option>
+                    <option value="yes">Yes - Customer is aware</option>
+                    <option value="no">No - Customer not yet informed</option>
+                    <option value="released">Already released to customer</option>
+                </select>
+            </div>
+        </div>
+        
+        <div style="background:#ffebee;border-left:4px solid #f44336;padding:15px;margin-bottom:20px;border-radius:8px;">
+            <p style="margin:0 0 10px;font-weight:bold;color:#c62828;">⚠️ This violation will be logged:</p>
+            <ul style="margin:0;padding-left:20px;font-size:14px;">
+                <li>Violation type: Skipped Reception</li>
+                <li>Logged to: ${window.currentUserData.displayName}</li>
+                <li>Date: ${new Date().toLocaleDateString()}</li>
+                <li><strong>Penalty: -20 compliance points</strong></li>
+            </ul>
+        </div>
+        
+        <div style="display:flex;gap:10px;">
+            <button onclick="submitRetroactiveReception('${repairId}')" 
+                    class="btn-primary" 
+                    style="flex:1;padding:15px;font-size:16px;">
+                ✓ Submit Retroactive Reception
+            </button>
+            <button onclick="closeRetroactiveReceptionModal()" 
+                    class="btn-secondary" 
+                    style="flex:1;padding:15px;">
+                Cancel
+            </button>
+        </div>
+    `;
+    
+    document.getElementById('retroactiveReceptionModal').style.display = 'block';
+}
+
+/**
+ * Take photo for retroactive reception
+ */
+async function takeRetroPhoto(repairId, position) {
+    try {
+        // Create file input
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.capture = 'environment';
+        
+        input.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            try {
+                utils.showLoading(true);
+                
+                // Compress image
+                const compressed = await utils.compressImage(file, 800);
+                
+                // Store photo
+                if (!window.retroPhotos[repairId]) {
+                    window.retroPhotos[repairId] = {};
+                }
+                window.retroPhotos[repairId][position] = compressed;
+                
+                utils.showLoading(false);
+                
+                // Update UI
+                const statusSpan = document.getElementById(`photo-${position}-status`);
+                if (statusSpan) {
+                    statusSpan.textContent = '✓ Taken';
+                    statusSpan.style.color = '#4caf50';
+                    statusSpan.style.fontWeight = 'bold';
+                }
+                
+                if (utils.showToast) {
+                    utils.showToast('✓ Photo captured', 'success', 1500);
+                }
+            } catch (error) {
+                utils.showLoading(false);
+                alert('Error processing photo: ' + error.message);
+            }
+        };
+        
+        input.click();
+        
+    } catch (error) {
+        alert('Error taking photo: ' + error.message);
+    }
+}
+
+/**
+ * Submit retroactive reception
+ */
+async function submitRetroactiveReception(repairId) {
+    const skipReason = document.getElementById('retroSkipReason').value.trim();
+    const preDamage = document.getElementById('retroPreDamage').value.trim();
+    const workDone = document.getElementById('retroWorkDone').value.trim();
+    const customerInformed = document.getElementById('retroCustomerInformed').value;
+    
+    // Validation
+    if (!skipReason || skipReason.length < 15) {
+        alert('⚠️ Please explain why reception was skipped (minimum 15 characters)');
+        document.getElementById('retroSkipReason').focus();
+        return;
+    }
+    
+    if (!workDone || workDone.length < 10) {
+        alert('⚠️ Please describe the work performed (minimum 10 characters)');
+        document.getElementById('retroWorkDone').focus();
+        return;
+    }
+    
+    if (!customerInformed) {
+        alert('⚠️ Please indicate if customer was informed');
+        document.getElementById('retroCustomerInformed').focus();
+        return;
+    }
+    
+    const photos = window.retroPhotos[repairId] || {};
+    const photoCount = Object.keys(photos).length;
+    
+    if (photoCount < 2) {
+        const proceed = confirm(
+            `⚠️ You only took ${photoCount} photo(s).\n\n` +
+            'It\'s recommended to take at least 2 photos.\n\n' +
+            'Continue anyway?'
+        );
+        if (!proceed) return;
+    }
+    
+    try {
+        utils.showLoading(true);
+        
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        
+        // Update repair with retroactive reception data
+        await db.ref(`repairs/${repairId}`).update({
+            receptionComplete: true,
+            receptionType: 'retroactive',
+            receptionCompletedAt: new Date().toISOString(),
+            receptionCompletedBy: window.currentUserData.displayName,
+            receptionPhotos: {
+                ...photos,
+                photoType: 'after-work',
+                photoCount: photoCount
+            },
+            retroactiveReceptionData: {
+                skipReason: skipReason,
+                preDamageNotes: preDamage,
+                workPerformed: workDone,
+                customerInformed: customerInformed,
+                submittedBy: window.currentUserData.displayName,
+                submittedById: window.currentUser.uid,
+                submittedAt: new Date().toISOString(),
+                originalStatus: repair.status
+            }
+        });
+        
+        // Log compliance violation
+        await db.ref('complianceViolations').push({
+            type: 'skipped_reception',
+            severity: 'major',
+            repairId: repairId,
+            ticketNumber: repair.ticketNumber || repairId.substring(0, 8),
+            customerName: repair.customerName,
+            deviceModel: `${repair.brand} ${repair.model}`,
+            technicianId: window.currentUser.uid,
+            technicianName: window.currentUserData.displayName,
+            details: {
+                reason: skipReason,
+                repairStatus: repair.status,
+                remediated: true,
+                remediatedAt: new Date().toISOString(),
+                photosTaken: photoCount
+            },
+            pointsPenalty: -20,
+            timestamp: new Date().toISOString()
+        });
+        
+        // Log activity
+        await logActivity('retroactive_reception', 'repair', {
+            repairId: repairId,
+            customerName: repair.customerName,
+            reason: skipReason.substring(0, 50)
+        }, `Retroactive reception: ${skipReason.substring(0, 50)}...`);
+        
+        utils.showLoading(false);
+        
+        alert(
+            '✓ Retroactive reception submitted.\n\n' +
+            '⚠️ Violation has been logged.\n' +
+            'Penalty: -20 compliance points\n\n' +
+            'Future tip: Always complete reception BEFORE starting work!'
+        );
+        
+        closeRetroactiveReceptionModal();
+        
+        // Clean up temp photos
+        delete window.retroPhotos[repairId];
+        
+        // Refresh current view
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+        
+    } catch (error) {
+        utils.showLoading(false);
+        console.error('❌ Error submitting retroactive reception:', error);
+        alert('Error submitting retroactive reception: ' + error.message);
+    }
+}
+
+/**
+ * Close retroactive reception modal
+ */
+function closeRetroactiveReceptionModal() {
+    const modal = document.getElementById('retroactiveReceptionModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 /**
@@ -19537,3 +19984,16 @@ window.clearPendingAdjustment = clearPendingAdjustment;
 window.exportAdjustmentLogs = exportAdjustmentLogs;
 window.getStorageFilesForCleanup = getStorageFilesForCleanup;
 window.cleanupOldAdjustmentLogs = cleanupOldAdjustmentLogs;
+
+// Export reception enforcement functions
+window.showReceptionRequiredModal = showReceptionRequiredModal;
+window.closeReceptionRequiredModal = closeReceptionRequiredModal;
+window.redirectToReception = redirectToReception;
+window.emergencyReceptionOverride = emergencyReceptionOverride;
+
+// Export retroactive reception functions
+window.openRetroactiveReceptionModal = openRetroactiveReceptionModal;
+window.takeRetroPhoto = takeRetroPhoto;
+window.submitRetroactiveReception = submitRetroactiveReception;
+window.closeRetroactiveReceptionModal = closeRetroactiveReceptionModal;
+window.needsRetroactiveReception = needsRetroactiveReception;

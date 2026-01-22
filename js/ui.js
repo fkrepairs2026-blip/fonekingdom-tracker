@@ -2609,10 +2609,22 @@ function displayGroupedRepairsList(repairs, container, context = 'default', date
                                         </div>
                                         <div class="repair-compact-badges">
                                             <span class="status-badge status-${statusClass}">${r.status}</span>
+                                            ${(() => {
+                                                const ENFORCEMENT_DATE = new Date('2026-01-22').toISOString();
+                                                const isNewRepair = r.createdAt >= ENFORCEMENT_DATE;
+                                                const isIncomplete = isNewRepair && !r.receptionComplete && !r.emergencyReceptionOverride;
+                                                if (isIncomplete) {
+                                                    return '<span class="status-badge" style="background:#ff5722;color:white;">🔒 RECEPTION INCOMPLETE</span>';
+                                                } else if (r.receptionComplete && isNewRepair) {
+                                                    return '<span class="status-badge" style="background:#4caf50;color:white;">✓ Reception OK</span>';
+                                                }
+                                                return '';
+                                            })()}
                                             ${r.isBackJob ? '<span class="status-badge status-badge-danger">🔄 Back Job</span>' : ''}
                                             ${r.isBackJob && r.suggestedTech === window.currentUser.uid ? '<span class="badge-pill badge-pill-warning">⭐ Your Previous Customer</span>' : ''}
                                             ${r.customerType === 'Dealer' ? '<span class="badge-pill badge-pill-info">🏪 Dealer</span>' : ''}
                                             ${r.initialAssessment ? '<span class="status-badge" style="background:#e3f2fd;color:#1976d2;">📋 Initial Notes</span>' : ''}
+                                            ${r.receptionType === 'retroactive' ? '<span class="status-badge" style="background:#ff9800;color:white;">⚠️ Retroactive Reception</span>' : ''}
                                         </div>
                                         <div class="repair-compact-problem">
                                             <strong>Problem:</strong> ${problemPreview}
@@ -3206,7 +3218,25 @@ function renderStandardButtons(r, role) {
             return hoursSinceCreation <= 24;
         })();
 
+    // Check if needs retroactive reception
+    const ENFORCEMENT_DATE = new Date('2026-01-22').toISOString();
+    const needsRetro = r.createdAt >= ENFORCEMENT_DATE && 
+                       !r.receptionComplete && 
+                       !r.emergencyReceptionOverride &&
+                       ['In Progress', 'Completed', 'Ready for Pickup', 'Released'].includes(r.status);
+
     return `
+        ${needsRetro ? `
+            <div style="background:#ffebee;padding:12px;border-radius:8px;margin-bottom:10px;border-left:4px solid #f44336;">
+                <p style="margin:0 0 10px;color:#c62828;font-weight:bold;">⚠️ CRITICAL: No reception documented</p>
+                <button class="btn-critical" 
+                        onclick="openRetroactiveReceptionModal('${r.id}')" 
+                        style="background:#f44336;color:white;padding:12px 20px;font-weight:bold;width:100%;animation:pulse 2s infinite;">
+                    ⚠️ FIX: Add Reception Now (Required)
+                </button>
+                <p style="margin:10px 0 0;font-size:12px;color:#666;">This repair was started without proper reception. Document it now to avoid further penalties.</p>
+            </div>
+        ` : ''}
         ${!hidePaymentActions && r.total > 0 ? `<button class="btn-small" onclick="openPaymentModal('${r.id}')" style="background:#4caf50;color:white;">💰 Payment</button>` : ''}
         ${(role === 'admin' && (r.status === 'Released' || r.status === 'Claimed')) ? `<button class="btn-small" onclick="adminAddPaymentToReleased('${r.id}')" style="background:#2e7d32;color:white;">💰 Admin Payment</button>` : ''}
         ${role === 'technician' || role === 'admin' || role === 'manager' ? `<button class="btn-small" onclick="updateRepairStatus('${r.id}')" style="background:#667eea;color:white;">📝 Status</button>` : ''}
