@@ -1191,14 +1191,18 @@ This device will be marked as already repaired.
             const assignOption = data.get('assignOption');
 
             if (assignOption === 'accept-myself') {
-                // CHANGED: No longer auto-accepts - just assigns to tech who will formally accept later
+                // IMMEDIATE ASSIGNMENT: Assign device directly to receiving technician
                 assignmentMethod = 'assigned-to-self';
                 assignedTo = window.currentUser.uid;
                 assignedToName = window.currentUserData.displayName;
 
-                // Status remains "Received" - tech must formally accept with checklist
+                // Set both suggestedTech (for tracking) and acceptedBy (for assignment)
                 repair.suggestedTech = assignedTo;
                 repair.suggestedTechName = assignedToName;
+                repair.acceptedBy = assignedTo;
+                repair.acceptedByName = assignedToName;
+                repair.acceptedAt = new Date().toISOString();
+                repair.status = 'In Progress'; // Device immediately goes to "My Jobs"
 
             } else if (assignOption === 'assign-other') {
                 // Assign to specific tech
