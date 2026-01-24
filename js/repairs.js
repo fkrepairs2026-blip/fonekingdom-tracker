@@ -14,6 +14,40 @@ function getLocalDateString(date) {
     return `${year}-${month}-${day}`;
 }
 
+/**
+ * Generate sequential service slip number
+ * Format: FK-YYYY-XXXX (e.g., FK-2026-0001)
+ */
+async function generateServiceSlipNumber() {
+    const db = firebase.database();
+    const year = new Date().getFullYear();
+    const counterRef = db.ref(`serviceSlipCounter/${year}`);
+
+    try {
+        // Use transaction to ensure uniqueness
+        const result = await counterRef.transaction((currentData) => {
+            const lastNumber = currentData?.lastNumber || 0;
+            return {
+                lastNumber: lastNumber + 1,
+                year: year
+            };
+        });
+
+        if (result.committed) {
+            const newNumber = result.snapshot.val().lastNumber;
+            const slipNumber = `FK-${year}-${String(newNumber).padStart(4, '0')}`;
+            console.log('✅ Generated service slip number:', slipNumber);
+            return slipNumber;
+        } else {
+            throw new Error('Failed to generate service slip number');
+        }
+    } catch (error) {
+        console.error('❌ Error generating service slip number:', error);
+        // Fallback to timestamp-based ID if counter fails
+        return `FK-${year}-${Date.now().toString().slice(-6)}`;
+    }
+}
+
 // Initialize global repairs array
 window.allRepairs = [];
 let photoData = [];
@@ -1164,10 +1198,14 @@ This device will be marked as already repaired.
             repair.quotedPartsCost = partsCost;
             repair.quotedDate = new Date().toISOString();
 
-            // Actual costs (to be filled later when recording actual parts cost)
-            repair.actualPartsCost = null;
-            repair.actualSupplier = null;
-            repair.costVariance = null;
+            // Actual costs - record immediately with same values as quote
+            // (can be updated later if actual cost differs)
+            repair.actualPartsCost = partsCost;
+            repair.actualSupplier = quotedSupplier;
+            repair.partsCostSupplier = quotedSupplier; // For backward compatibility
+            repair.costVariance = 0; // No variance initially
+            repair.partsCostRecordedBy = window.currentUserData.displayName;
+            repair.partsCostRecordedAt = new Date().toISOString();
 
             // Mark diagnosis as created and customer approved
             repair.diagnosisCreated = true;
@@ -1178,7 +1216,7 @@ This device will be marked as already repaired.
             repair.customerApprovedAt = new Date().toISOString();
             repair.customerApprovedBy = window.currentUser.uid;
 
-            console.log('✅ Device marked as pre-approved with pricing:', { repairType, partsCost, laborCost, total, quotedSupplier });
+            console.log('✅ Device marked as pre-approved with pricing (actual cost recorded):', { repairType, partsCost, laborCost, total, quotedSupplier });
         }
 
         // NEW: Handle assignment options for Tech/Admin/Manager
@@ -1282,6 +1320,23 @@ This device will be marked as already repaired.
         }
 
         try {
+            // Generate service slip number BEFORE saving
+            const serviceSlipNumber = await generateServiceSlipNumber();
+            repair.serviceSlipNumber = serviceSlipNumber;
+
+            // Capture customer signature if provided
+            const signatureCanvas = document.getElementById('signaturePad');
+            if (signatureCanvas) {
+                const ctx = signatureCanvas.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, signatureCanvas.width, signatureCanvas.height);
+                const hasSignature = imageData.data.some(channel => channel !== 0);
+                
+                if (hasSignature) {
+                    repair.customerSignature = signatureCanvas.toDataURL('image/png');
+                    console.log('✅ Customer signature captured');
+                }
+            }
+
             if (window.DebugLogger) {
                 DebugLogger.log('REPAIR', 'Saving Device to Firebase', {
                     customer: repair.customerName,
@@ -1292,7 +1347,8 @@ This device will be marked as already repaired.
                     assignmentMethod: repair.assignmentMethod,
                     acceptedBy: repair.acceptedByName,
                     isBackJob: repair.isBackJob || false,
-                    hasPricing: repair.total > 0
+                    hasPricing: repair.total > 0,
+                    serviceSlipNumber: serviceSlipNumber
                 });
             }
 
@@ -1353,6 +1409,24 @@ This device will be marked as already repaired.
             }
 
             alert(successMsg);
+
+            // If supplier is "Stock" and has pricing, prompt for inventory selection
+            const needsInventorySelection = hasPricing && repair.actualSupplier === 'Stock' && !repair.inventoryItemsUsed;
+            
+            if (needsInventorySelection) {
+                const linkNow = confirm(
+                    '📦 Inventory Items Required\n\n' +
+                    'You selected "Stock" as the supplier. Would you like to link inventory items now?\n\n' +
+                    '(You can also do this later from the repair details)'
+                );
+                
+                if (linkNow) {
+                    // Store the repair ID to use after modal closes
+                    setTimeout(() => {
+                        openInventorySelectionModal(repairId, repair.actualPartsCost);
+                    }, 1000);
+                }
+            }
 
             // Reset form
             form.reset();
@@ -5690,8 +5764,14 @@ async function openPartsCostModal(repairId) {
     }
 
     document.getElementById('partsCostRepairId').value = repairId;
-    document.getElementById('partsCostAmount').value = repair.partsCost || '';
+    document.getElementById('partsCostAmount').value = repair.actualPartsCost || repair.partsCost || '';
     document.getElementById('partsCostNotes').value = repair.partsCostNotes || '';
+    
+    // Pre-select supplier if already recorded
+    if (repair.actualSupplier || repair.partsCostSupplier) {
+        supplierSelect.value = repair.actualSupplier || repair.partsCostSupplier;
+    }
+    
     document.getElementById('partsCostModal').style.display = 'block';
 }
 
@@ -5846,21 +5926,23 @@ async function savePartsCost() {
             message += `\n\n💵 Expense auto-created and will be deducted from your daily remittance.`;
         }
 
-        alert(message);
-        closePartsCostModal();
-
-        // If supplier is "Stock", prompt to select inventory items
+        // If supplier is "Stock", REQUIRE inventory item selection before completing
         if (actualSupplier === 'Stock') {
+            alert(message + '\n\n📦 Now you must select which items were used from stock.');
+            closePartsCostModal();
             setTimeout(() => {
                 openInventorySelectionModal(repairId, actualAmount);
             }, 500);
+        } else {
+            alert(message);
+            closePartsCostModal();
+            
+            setTimeout(() => {
+                if (window.currentTabRefresh) {
+                    window.currentTabRefresh();
+                }
+            }, 300);
         }
-
-        setTimeout(() => {
-            if (window.currentTabRefresh) {
-                window.currentTabRefresh();
-            }
-        }, 300);
     } catch (error) {
         utils.showLoading(false);
         console.error('Error saving parts cost:', error);
@@ -5885,8 +5967,35 @@ async function openInventorySelectionModal(repairId, totalCost) {
         window.selectedInventoryItems = [...repair.inventoryItemsUsed];
     }
 
+    // Check if this is a required selection (supplier is "Stock")
+    const isRequired = repair && repair.actualSupplier === 'Stock';
+
     // Show modal first with loading state
     document.getElementById('inventorySelectionModal').style.display = 'flex';
+    
+    // Update modal header to show if required
+    const modalContent = document.querySelector('#inventorySelectionModal .modal-content');
+    const heading = modalContent.querySelector('h3');
+    const infoBox = document.getElementById('invModalInfoBox');
+    
+    if (isRequired) {
+        heading.innerHTML = '📦 Select Inventory Items Used <span style="color:#d32f2f;font-size:14px;">(Required)</span>';
+        infoBox.style.background = '#ffebee';
+        infoBox.style.borderLeft = '4px solid #d32f2f';
+        infoBox.innerHTML = `
+            <strong style="color:#d32f2f;">⚠️ Required: Select Items from Stock</strong><br>
+            <small>You selected "Stock" as supplier. You must select which items were used. Selected items will be automatically deducted from inventory.</small>
+        `;
+    } else {
+        heading.innerHTML = '📦 Select Inventory Items Used';
+        infoBox.style.background = '#fff3cd';
+        infoBox.style.borderLeft = '4px solid #ffc107';
+        infoBox.innerHTML = `
+            <strong>ℹ️ Inventory Deduction</strong><br>
+            <small>Select the items you used from stock. Selected items will be automatically deducted from inventory when saved.</small>
+        `;
+    }
+    
     const container = document.getElementById('inventoryItemsList');
     container.innerHTML = `
         <div style="text-align:center;padding:40px;color:#999;">
@@ -6142,6 +6251,15 @@ async function saveSelectedInventoryItems() {
     const repairId = document.getElementById('invSelectRepairId').value;
 
     if (window.selectedInventoryItems.length === 0) {
+        const repair = window.allRepairs.find(r => r.id === repairId);
+        
+        // If supplier is "Stock", inventory selection is REQUIRED
+        if (repair && repair.actualSupplier === 'Stock') {
+            alert('⚠️ You must select at least one inventory item when using "Stock" as supplier.\n\nIf you don\'t want to track inventory, please edit the parts cost and choose a different supplier.');
+            return;
+        }
+        
+        // For other cases, allow skipping
         const skip = confirm('No items selected. Do you want to skip inventory tracking for this repair?');
         if (skip) {
             closeInventorySelectionModal();
@@ -6205,9 +6323,33 @@ async function saveSelectedInventoryItems() {
  * Close inventory selection modal
  */
 function closeInventorySelectionModal() {
+    const repairId = document.getElementById('invSelectRepairId').value;
+    const repair = window.allRepairs.find(r => r.id === repairId);
+    
+    // If supplier is "Stock" and no items selected yet, confirm before closing
+    if (repair && repair.actualSupplier === 'Stock' && !repair.inventoryItemsUsed) {
+        const confirmClose = confirm(
+            '⚠️ Inventory Selection Required\n\n' +
+            'You selected "Stock" as the supplier but haven\'t linked any inventory items yet.\n\n' +
+            'If you close this, the parts cost will be recorded but inventory won\'t be deducted.\n\n' +
+            'Are you sure you want to close without selecting items?'
+        );
+        
+        if (!confirmClose) {
+            return; // Don't close
+        }
+    }
+    
     document.getElementById('inventorySelectionModal').style.display = 'none';
     document.getElementById('invSearchInput').value = '';
     window.selectedInventoryItems = [];
+    
+    // Refresh UI to show warning badge if items weren't selected
+    setTimeout(() => {
+        if (window.currentTabRefresh) {
+            window.currentTabRefresh();
+        }
+    }, 300);
 }
 
 function closePartsCostModal() {

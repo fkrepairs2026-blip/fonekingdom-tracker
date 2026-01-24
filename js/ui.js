@@ -1143,9 +1143,9 @@ function buildReceiveDeviceTab(container) {
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Quoted Parts Cost (₱)</label>
+                            <label>Parts Cost (₱)</label>
                             <input type="number" id="preApprovedPartsCost" name="preApprovedPartsCost" min="0" step="0.01" value="0" onchange="calculatePreApprovedTotal()">
-                            <small style="color:#666;">Price supplier quoted today</small>
+                            <small style="color:#666;">Price for parts (will be recorded as actual cost)</small>
                         </div>
                         <div class="form-group">
                             <label>Labor Cost (₱)</label>
@@ -1158,8 +1158,8 @@ function buildReceiveDeviceTab(container) {
                         <input type="number" id="preApprovedTotal" name="preApprovedTotal" readonly style="background:#f5f5f5;font-weight:bold;font-size:18px;" value="0.00">
                     </div>
                     
-                    <div style="background:#fff9c4;padding:10px;border-radius:5px;margin-top:10px;">
-                        <small><strong>ℹ️ Note:</strong> This is the quoted price. Actual cost can be recorded later when parts are purchased (prices may vary daily).</small>
+                    <div style="background:#e8f5e9;padding:10px;border-radius:5px;margin-top:10px;border-left:4px solid #4caf50;">
+                        <small><strong>✅ Note:</strong> Parts cost will be recorded immediately as the actual cost. You can update it later if the price changes.</small>
                     </div>
                 </div>
                 
@@ -1304,6 +1304,33 @@ function buildReceiveDeviceTab(container) {
                     
                     <div style="background:#ffebee;padding:10px;border-radius:5px;margin-top:10px;">
                         <small style="color:#c62828;"><strong>⚠️ Warning:</strong> Retroactive mode bypasses normal workflow. Only use when device was already repaired before this intake. Pricing is required.</small>
+                    </div>
+                </div>
+                
+                <!-- Customer Signature Section (Optional) -->
+                <div style="background:#e3f2fd;padding:15px;border-radius:5px;margin:15px 0;border-left:4px solid #2196f3;">
+                    <h4 style="margin:0 0 12px 0;color:#1976d2;">
+                        ✍️ Customer Signature (Optional)
+                        <button type="button" onclick="toggleSignaturePad()" class="btn-secondary" style="float:right;padding:5px 12px;font-size:12px;">
+                            Toggle Pad
+                        </button>
+                    </h4>
+                    <small style="display:block;color:#666;margin-bottom:10px;">
+                        Capture customer's signature on device condition acknowledgment
+                    </small>
+                    
+                    <div id="signaturePadContainer" style="display:none;">
+                        <div style="background:white;border:2px solid #2196f3;border-radius:5px;padding:10px;margin-bottom:10px;">
+                            <canvas id="signaturePad" width="300" height="150" style="width:100%;max-width:300px;height:150px;border:1px dashed #ccc;cursor:crosshair;touch-action:none;"></canvas>
+                        </div>
+                        <div style="display:flex;gap:10px;justify-content:flex-end;">
+                            <button type="button" onclick="clearSignaturePad()" class="btn-secondary" style="padding:6px 12px;font-size:13px;">
+                                🗑️ Clear Signature
+                            </button>
+                        </div>
+                        <small style="display:block;color:#666;margin-top:8px;">
+                            Draw signature with mouse or finger
+                        </small>
                     </div>
                 </div>
                 
@@ -6252,6 +6279,125 @@ function changeLogPage(page) {
     }
 }
 
+/**
+ * Toggle signature pad visibility
+ */
+function toggleSignaturePad() {
+    const container = document.getElementById('signaturePadContainer');
+    if (container) {
+        const isVisible = container.style.display === 'block';
+        container.style.display = isVisible ? 'none' : 'block';
+        
+        // Initialize canvas for drawing if showing
+        if (!isVisible) {
+            setTimeout(() => initializeSignaturePad(), 100);
+        }
+    }
+}
+
+/**
+ * Initialize signature pad for drawing
+ */
+function initializeSignaturePad() {
+    const canvas = document.getElementById('signaturePad');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    let isDrawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    // Set canvas size to match display size
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+
+    // Setup drawing style
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    // Mouse events
+    canvas.addEventListener('mousedown', startDrawing);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDrawing);
+    canvas.addEventListener('mouseout', stopDrawing);
+
+    // Touch events for mobile
+    canvas.addEventListener('touchstart', handleTouchStart);
+    canvas.addEventListener('touchmove', handleTouchMove);
+    canvas.addEventListener('touchend', stopDrawing);
+
+    function startDrawing(e) {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        lastX = e.clientX - rect.left;
+        lastY = e.clientY - rect.top;
+    }
+
+    function draw(e) {
+        if (!isDrawing) return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        lastX = x;
+        lastY = y;
+    }
+
+    function stopDrawing() {
+        isDrawing = false;
+    }
+
+    function handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        lastX = touch.clientX - rect.left;
+        lastY = touch.clientY - rect.top;
+        isDrawing = true;
+    }
+
+    function handleTouchMove(e) {
+        if (!isDrawing) return;
+        e.preventDefault();
+        
+        const touch = e.touches[0];
+        const rect = canvas.getBoundingClientRect();
+        const x = touch.clientX - rect.left;
+        const y = touch.clientY - rect.top;
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        lastX = x;
+        lastY = y;
+    }
+
+    // Store event listeners for cleanup
+    canvas._signaturePadInitialized = true;
+}
+
+/**
+ * Clear signature pad
+ */
+function clearSignaturePad() {
+    const canvas = document.getElementById('signaturePad');
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
 // Toggle back job fields
 function toggleBackJobFields() {
     const isBackJob = document.getElementById('isBackJob').checked;
@@ -6838,6 +6984,8 @@ window.buildReceiveDeviceTab = buildReceiveDeviceTab;
 window.buildBackJobReceptionTab = buildBackJobReceptionTab;
 window.filterBackJobSearchResults = filterBackJobSearchResults;
 window.populateReceiveSupplierDropdown = populateReceiveSupplierDropdown;
+window.toggleSignaturePad = toggleSignaturePad;
+window.clearSignaturePad = clearSignaturePad;
 window.buildMyRequestsTab = buildMyRequestsTab;
 window.buildRefundRequestsTab = buildRefundRequestsTab;
 window.buildRefundedDevicesTab = buildRefundedDevicesTab;
