@@ -9384,7 +9384,7 @@ function openUsePartsModal(repairId) {
         <form onsubmit="submitUseParts(event, '${repairId}')" id="usePartsForm">
             <div class="form-group">
                 <label>Select Part *</label>
-                <select name="partId" id="selectedPart" onchange="updatePartDetails()" required>
+                <select name="partId" id="selectedPart" onchange="window.updatePartDetails()" required>
                     <option value="">-- Select a part --</option>
                     ${availableItems.map(item => `
                         <option value="${item.id}" 
@@ -9418,7 +9418,7 @@ function openUsePartsModal(repairId) {
             <div class="form-group">
                 <label>Quantity *</label>
                 <input type="number" name="quantity" id="partQuantity" required min="1" value="1" 
-                       oninput="updateTotalCost()">
+                       oninput="window.updateTotalCost()">
                 <small class="text-secondary">How many units are being used?</small>
             </div>
             
@@ -9444,57 +9444,6 @@ function openUsePartsModal(repairId) {
                 <p class="text-secondary" style="margin:10px 0 0;">All parts are out of stock. Please restock inventory first.</p>
             </div>
         ` : ''}
-        
-        <script>
-            function updatePartDetails() {
-                const select = document.getElementById('selectedPart');
-                const selectedOption = select.options[select.selectedIndex];
-                
-                if (!selectedOption.value) {
-                    document.getElementById('partDetailsBox').style.display = 'none';
-                    document.getElementById('totalCostBox').style.display = 'none';
-                    return;
-                }
-                
-                const partNumber = selectedOption.dataset.number;
-                const stock = selectedOption.dataset.stock;
-                const cost = parseFloat(selectedOption.dataset.cost);
-                
-                document.getElementById('displayPartNumber').textContent = partNumber;
-                document.getElementById('displayStock').textContent = stock + ' units';
-                document.getElementById('displayCost').textContent = '₱' + cost.toFixed(2) + ' per unit';
-                
-                // Update max quantity
-                document.getElementById('partQuantity').max = stock;
-                
-                document.getElementById('partDetailsBox').style.display = 'block';
-                updateTotalCost();
-            }
-            
-            function updateTotalCost() {
-                const select = document.getElementById('selectedPart');
-                const selectedOption = select.options[select.selectedIndex];
-                const quantity = parseInt(document.getElementById('partQuantity').value) || 0;
-                
-                if (!selectedOption.value || quantity === 0) {
-                    document.getElementById('totalCostBox').style.display = 'none';
-                    return;
-                }
-                
-                const cost = parseFloat(selectedOption.dataset.cost);
-                const stock = parseInt(selectedOption.dataset.stock);
-                const total = cost * quantity;
-                
-                // Check if quantity exceeds stock
-                if (quantity > stock) {
-                    document.getElementById('displayTotalCost').innerHTML = '<span style="color:#f44336;">⚠️ Quantity exceeds available stock!</span>';
-                } else {
-                    document.getElementById('displayTotalCost').textContent = '₱' + total.toFixed(2);
-                }
-                
-                document.getElementById('totalCostBox').style.display = 'block';
-            }
-        </script>
     `;
 
     modal.style.display = 'block';
@@ -9596,9 +9545,66 @@ function viewStockMovementsReport() {
     modal.style.display = 'block';
 }
 
+/**
+ * Update part details display when selection changes
+ */
+function updatePartDetails() {
+    const select = document.getElementById('selectedPart');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (!selectedOption.value) {
+        document.getElementById('partDetailsBox').style.display = 'none';
+        document.getElementById('totalCostBox').style.display = 'none';
+        return;
+    }
+    
+    const partNumber = selectedOption.dataset.number;
+    const stock = selectedOption.dataset.stock;
+    const cost = parseFloat(selectedOption.dataset.cost);
+    
+    document.getElementById('displayPartNumber').textContent = partNumber;
+    document.getElementById('displayStock').textContent = stock + ' units';
+    document.getElementById('displayCost').textContent = '₱' + cost.toFixed(2) + ' per unit';
+    
+    // Update max quantity
+    document.getElementById('partQuantity').max = stock;
+    
+    document.getElementById('partDetailsBox').style.display = 'block';
+    updateTotalCost();
+}
+
+/**
+ * Update total cost calculation
+ */
+function updateTotalCost() {
+    const select = document.getElementById('selectedPart');
+    const selectedOption = select.options[select.selectedIndex];
+    const quantity = parseInt(document.getElementById('partQuantity').value) || 0;
+    
+    if (!selectedOption.value || quantity === 0) {
+        document.getElementById('totalCostBox').style.display = 'none';
+        return;
+    }
+    
+    const cost = parseFloat(selectedOption.dataset.cost);
+    const stock = parseInt(selectedOption.dataset.stock);
+    const total = cost * quantity;
+    
+    // Check if quantity exceeds stock
+    if (quantity > stock) {
+        document.getElementById('displayTotalCost').innerHTML = '<span style="color:#f44336;">⚠️ Quantity exceeds available stock!</span>';
+    } else {
+        document.getElementById('displayTotalCost').textContent = '₱' + total.toFixed(2);
+    }
+    
+    document.getElementById('totalCostBox').style.display = 'block';
+}
+
 window.viewStockMovementsReport = viewStockMovementsReport;
 window.openUsePartsModal = openUsePartsModal;
 window.submitUseParts = submitUseParts;
+window.updatePartDetails = updatePartDetails;
+window.updateTotalCost = updateTotalCost;
 
 window.buildInventoryTab = buildInventoryTab;
 window.filterInventoryTable = filterInventoryTable;
