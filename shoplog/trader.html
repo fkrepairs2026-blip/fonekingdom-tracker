@@ -332,12 +332,16 @@
   .quick-btn:active { background: var(--border); }
 
   .chat-input-row { display: flex; flex-direction: column; gap: 8px; }
-  .chat-input-row input {
+  .chat-input-row input,
+  .chat-input-row textarea {
     width: 100%;
-    padding: 16px 18px;
-    font-size: 16px;
+    padding: 14px 16px;
+    font-size: 15px;
     border-radius: 14px;
-    min-height: 54px;
+    min-height: 60px;
+    font-family: var(--font-ui);
+    line-height: 1.5;
+    resize: none;
   }
   .chat-send-btn {
     width: 100%;
@@ -833,11 +837,20 @@
       <button class="quick-btn" onclick="quickAsk('I have $' + (document.getElementById('ctx-account')?.value||'500') + ' account. I want to trade ' + (document.getElementById('ctx-token')?.value||'SOLUSDT') + ' at 10x. What is the exact position size, SL price, and max I can lose?')">📐 Position Size</button>
     </div>
 
+    <!-- Chat header row -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase">Chat</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn-sm btn-ghost" style="font-size:11px;padding:5px 10px" onclick="loadLastChat()">📜 Last Chat</button>
+        <button class="btn-sm btn-ghost" style="font-size:11px;padding:5px 10px" onclick="clearChat()">🗑 Clear</button>
+      </div>
+    </div>
+
     <!-- Chat -->
     <div class="chat-box" id="ai-chat"></div>
 
     <div class="chat-input-row">
-      <input type="text" id="ai-input" placeholder="Ask Gemma anything about the trade..." onkeydown="if(event.key==='Enter')sendAI()">
+      <textarea id="ai-input" rows="2" placeholder="Ask Gemma anything about the trade... (Shift+Enter for new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI();}"></textarea>
       <button class="chat-send-btn" onclick="sendAI()">⚡ SEND TO GEMMA</button>
     </div>
 
@@ -930,7 +943,7 @@
 <div class="modal-overlay" id="trade-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">📝 LOG NEW TRADE</div>
+    <div class="modal-title" id="trade-modal-title">📝 LOG NEW TRADE</div>
 
     <div class="dir-toggle">
       <button class="dir-btn active-long" id="mb-long" onclick="setModalDir('long')">▲ LONG</button>
@@ -1006,9 +1019,10 @@
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div id="detail-modal-content"></div>
-    <div class="grid2" style="gap:10px;margin-top:16px">
-      <button class="btn btn-red btn-sm" id="delete-btn" style="padding:12px" onclick="deleteTrade()">🗑 DELETE</button>
-      <button class="btn btn-ghost" onclick="closeDetailModal()">CLOSE</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px">
+      <button class="btn btn-red btn-sm" style="padding:12px" onclick="deleteTrade()">🗑 DELETE</button>
+      <button class="btn btn-primary btn-sm" style="padding:12px;background:var(--purple)" onclick="openEditTrade(state.selectedTradeId)">✏️ EDIT</button>
+      <button class="btn btn-ghost btn-sm" style="padding:12px" onclick="closeDetailModal()">CLOSE</button>
     </div>
   </div>
 </div>
@@ -1029,6 +1043,7 @@ let state = {
   journalFilter: 'all',
   modalDir: 'long',
   selectedTradeId: null,
+  editingTradeId: null,
   tvLoaded: false
 };
 
@@ -1423,6 +1438,31 @@ function addMsg(role, text, thinking = false) {
 
 let chatHistory = [];
 
+// ─ Chat persistence ──────────────────────────
+function saveChatHistory() {
+  try { localStorage.setItem('et_chat_v1', JSON.stringify(chatHistory)); } catch(e) {}
+}
+
+function loadLastChat() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('et_chat_v1') || '[]');
+    if (!saved.length) { addMsg('ai', '📜 No previous chat found.'); return; }
+    const chat = document.getElementById('ai-chat');
+    chat.innerHTML = '';
+    chatHistory = saved;
+    saved.forEach(m => {
+      addMsg(m.role === 'user' ? 'user' : 'ai', m.content.replace(/\n/g, '<br>'));
+    });
+    addMsg('ai', `📜 <em>Loaded ${saved.length} messages from last session.</em>`);
+  } catch(e) { addMsg('ai', '⚠️ Could not load last chat.'); }
+}
+
+function clearChat() {
+  document.getElementById('ai-chat').innerHTML = '';
+  chatHistory = [];
+  saveChatHistory();
+}
+
 async function sendAI() {
   const input = document.getElementById('ai-input');
   const msg = input.value.trim();
@@ -1437,7 +1477,10 @@ async function sendAI() {
 
   if (!state.gemmaOnline) {
     thinking.remove();
-    addMsg('ai', getFallbackResponse(msg));
+    const fb = getFallbackResponse(msg);
+    addMsg('ai', fb);
+    chatHistory.push({ role: 'assistant', content: fb });
+    saveChatHistory();
     return;
   }
 
@@ -1483,6 +1526,7 @@ async function sendAI() {
     thinking.remove();
     addMsg('ai', reply.replace(/\n/g, '<br>'));
     chatHistory.push({ role: 'assistant', content: reply });
+    saveChatHistory();
 
     // Parse SAVE_TRADE|pair|dir|entry|exit|pnl|reason
     if (reply.includes('SAVE_TRADE|')) {
@@ -1663,7 +1707,9 @@ function showTokenDetail(sym) {
 // TRADING JOURNAL
 // ==============================
 function openNewTrade() {
+  state.editingTradeId = null;
   state.modalDir = 'long';
+  document.getElementById('trade-modal-title').textContent = '📝 LOG NEW TRADE';
   document.getElementById('mb-long').className = 'dir-btn active-long';
   document.getElementById('mb-short').className = 'dir-btn';
   document.getElementById('m-pair').value = state.selectedToken;
@@ -1672,6 +1718,28 @@ function openNewTrade() {
     if (el) el.value = '';
   });
   document.getElementById('m-emotion').value = '3';
+  document.getElementById('m-lev').value = '5';
+  document.getElementById('trade-modal').classList.add('open');
+}
+
+function openEditTrade(id) {
+  const t = state.journal.find(x => x.id === id);
+  if (!t) return;
+  closeDetailModal();
+  state.editingTradeId = id;
+  state.modalDir = t.dir || 'long';
+  document.getElementById('trade-modal-title').textContent = '✏️ EDIT TRADE';
+  document.getElementById('mb-long').className = 'dir-btn' + (t.dir === 'long' ? ' active-long' : '');
+  document.getElementById('mb-short').className = 'dir-btn' + (t.dir === 'short' ? ' active-short' : '');
+  document.getElementById('m-pair').value = t.pair || '';
+  document.getElementById('m-entry').value = t.entry || '';
+  document.getElementById('m-exit').value = t.exit || '';
+  document.getElementById('m-size').value = t.size || '';
+  document.getElementById('m-pnl').value = t.pnl || '';
+  document.getElementById('m-why').value = t.why || '';
+  document.getElementById('m-lesson').value = t.lesson || '';
+  document.getElementById('m-emotion').value = t.emotion || '3';
+  document.getElementById('m-lev').value = t.lev || '5';
   document.getElementById('trade-modal').classList.add('open');
 }
 
@@ -1696,15 +1764,30 @@ function saveTrade() {
   const emotion = parseInt(document.getElementById('m-emotion').value);
   const lev = document.getElementById('m-lev').value;
 
-  const trade = {
-    id: Date.now(),
-    pair, dir: state.modalDir, entry, exit, size, pnl,
-    why, lesson, emotion, lev,
-    date: new Date().toISOString(),
-    win: pnl > 0
-  };
+  if (state.editingTradeId) {
+    // Update existing trade
+    const idx = state.journal.findIndex(t => t.id === state.editingTradeId);
+    if (idx !== -1) {
+      state.journal[idx] = {
+        ...state.journal[idx],
+        pair, dir: state.modalDir, entry, exit, size, pnl,
+        why, lesson, emotion, lev,
+        win: pnl > 0,
+        editedAt: new Date().toISOString()
+      };
+    }
+    state.editingTradeId = null;
+  } else {
+    // New trade
+    state.journal.unshift({
+      id: Date.now(),
+      pair, dir: state.modalDir, entry, exit, size, pnl,
+      why, lesson, emotion, lev,
+      date: new Date().toISOString(),
+      win: pnl > 0
+    });
+  }
 
-  state.journal.unshift(trade);
   saveJournal();
   closeModal();
   renderJournal();
