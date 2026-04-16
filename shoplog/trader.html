@@ -537,6 +537,47 @@
   }
   .tip-box strong { display: block; margin-bottom: 2px; font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; }
 
+  /* IMAGE PREVIEW */
+  .img-preview-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 6px;
+  }
+  .img-preview-wrap img {
+    height: 64px;
+    border-radius: 8px;
+    border: 1px solid var(--accent);
+    display: block;
+  }
+  .img-remove {
+    position: absolute;
+    top: -6px; right: -6px;
+    width: 18px; height: 18px;
+    background: var(--red);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    border: none;
+    line-height: 1;
+  }
+  .img-attach-btn {
+    padding: 8px 12px;
+    background: var(--dim);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s;
+    display: flex; align-items: center;
+  }
+  .img-attach-btn.has-img { border-color: var(--accent); color: var(--accent); }
+  .img-attach-btn:active { opacity: 0.7; }
+
   /* Scrollbar global */
   ::-webkit-scrollbar { width: 3px; height: 3px; }
   ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
@@ -849,14 +890,27 @@
     <!-- Chat -->
     <div class="chat-box" id="ai-chat"></div>
 
-    <div class="chat-input-row">
-      <textarea id="ai-input" rows="2" placeholder="Ask Gemma anything about the trade... (Shift+Enter for new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI();}"></textarea>
-      <button class="chat-send-btn" onclick="sendAI()">⚡ SEND TO GEMMA</button>
+    <!-- Image preview -->
+    <div id="img-preview-area" style="display:none;margin-bottom:6px">
+      <div class="img-preview-wrap">
+        <img id="img-preview-thumb" src="" alt="screenshot">
+        <button class="img-remove" onclick="removeImage()">✕</button>
+      </div>
     </div>
 
+    <div class="chat-input-row">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <button class="img-attach-btn" id="img-attach-btn" onclick="document.getElementById('img-file-input').click()" title="Attach screenshot">📷</button>
+        <textarea id="ai-input" rows="2" placeholder="Ask Gemma anything... (Shift+Enter for new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI();}"></textarea>
+      </div>
+      <button class="chat-send-btn" onclick="sendAI()">⚡ SEND TO GEMMA</button>
+    </div>
+    <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="attachImage(event)">
+
     <div class="tip-box" style="margin-top:10px">
-      <strong>💡 Journal command</strong>
-      Say "save trade: SOLUSDT short entry 83.50 SL 86.50 TP 81.00 PNL +5%" to log trades via Gemma.
+      <strong>💡 Tips</strong>
+      📷 Attach a chart screenshot for visual analysis (requires vision model like LLaVA or Gemma 3).<br>
+      Say "save trade: SOLUSDT short entry 83.50 SL 86.50 TP 81.00 PNL +5%" to log via chat.
     </div>
   </div>
 </div>
@@ -1437,6 +1491,42 @@ function addMsg(role, text, thinking = false) {
 }
 
 let chatHistory = [];
+let attachedImage = null; // base64 data URL
+
+// ─ Image attachment ──────────────────────────
+function attachImage(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  // Reset input so same file can be re-selected
+  evt.target.value = '';
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    // Compress to max 800px wide via canvas before sending
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      attachedImage = canvas.toDataURL('image/jpeg', 0.82);
+      document.getElementById('img-preview-thumb').src = attachedImage;
+      document.getElementById('img-preview-area').style.display = 'block';
+      document.getElementById('img-attach-btn').classList.add('has-img');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeImage() {
+  attachedImage = null;
+  document.getElementById('img-preview-area').style.display = 'none';
+  document.getElementById('img-attach-btn').classList.remove('has-img');
+  document.getElementById('img-preview-thumb').src = '';
+}
 
 // ─ Chat persistence ──────────────────────────
 function saveChatHistory() {
@@ -1466,18 +1556,43 @@ function clearChat() {
 async function sendAI() {
   const input = document.getElementById('ai-input');
   const msg = input.value.trim();
-  if (!msg) return;
+  const hasImg = !!attachedImage;
+  if (!msg && !hasImg) return;
   input.value = '';
 
-  addMsg('user', msg);
+  // Show user bubble (with thumbnail if image attached)
+  const dispMsg = msg || '(screenshot)';
+  if (hasImg) {
+    const chat = document.getElementById('ai-chat');
+    const div = document.createElement('div');
+    div.className = 'msg msg-user';
+    div.innerHTML = `<div class="bubble bubble-user" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+      <img src="${attachedImage}" style="max-width:140px;border-radius:8px;display:block">
+      ${msg ? `<span>${msg}</span>` : ''}
+    </div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  } else {
+    addMsg('user', msg);
+  }
+
   const thinking = addMsg('ai', '<span class="typing-dots">Thinking</span>', true);
 
-  chatHistory.push({ role: 'user', content: msg });
+  // Build user content — multimodal if image attached
+  const userContent = hasImg
+    ? [{ type: 'text', text: msg || 'Analyze this chart screenshot. What do you see? Give me a trade analysis.' },
+       { type: 'image_url', image_url: { url: attachedImage } }]
+    : msg;
+
+  chatHistory.push({ role: 'user', content: hasImg ? dispMsg + ' [+image]' : msg });
   if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+
+  // Clear image after sending
+  if (hasImg) removeImage();
 
   if (!state.gemmaOnline) {
     thinking.remove();
-    const fb = getFallbackResponse(msg);
+    const fb = getFallbackResponse(dispMsg);
     addMsg('ai', fb);
     chatHistory.push({ role: 'assistant', content: fb });
     saveChatHistory();
@@ -1495,7 +1610,8 @@ async function sendAI() {
       stop: ['</s>', '<end_of_turn>', '<eos>', 'User:', 'Human:'],
       messages: [
         { role: 'system', content: sysPrompt },
-        ...chatHistory
+        ...chatHistory.slice(0, -1),                  // history minus the last push
+        { role: 'user', content: userContent }         // last msg, possibly with image
       ]
     };
 
@@ -1696,7 +1812,7 @@ function showTokenDetail(sym) {
     <div class="detail-row"><div class="detail-key">Score</div><div class="detail-val">${d.score}/5</div></div>
     <div style="margin-top:10px;display:flex;gap:8px">
       <button class="btn btn-primary" style="padding:10px;font-size:12px" onclick="selectToken('${sym}');goTab('dashboard')">USE IN SETUP</button>
-      <button class="btn btn-ghost" style="padding:10px;font-size:12px" onclick="quickAsk('Analyze ${sym} using the 5 screening criteria and give me a trade plan.')">ASK GEMMA</button>
+      <button class="btn btn-ghost" style="padding:10px;font-size:12px" onclick="goTab('ai');quickAsk('Analyze ${sym} using the 5 screening criteria and give me a trade plan.')">ASK GEMMA</button>
     </div>
   </div>`;
 
