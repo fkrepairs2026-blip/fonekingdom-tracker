@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helper: is the requester an admin? ───────────────────────────────
+    // Admin is identified by their user profile in shoplog_users collection.
+    // Hardcoded email check as a fallback for the initial admin setup.
+    function isAdmin() {
+      return request.auth != null && (
+        request.auth.token.email == 'jay111786@gmail.com' ||
+        (exists(/databases/$(database)/documents/shoplog_users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/shoplog_users/$(request.auth.uid)).data.role == 'admin')
+      );
+    }
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function isLoggedIn() {
+      return request.auth != null;
+    }
+
+    // ─── USER PROFILES ────────────────────────────────────────────────────
+    // shoplog_users: stores display name, role, tech name
+    match /shoplog_users/{uid} {
+      // Any logged-in user can read their own profile
+      // Admin can read all profiles
+      allow read: if isOwner(uid) || isAdmin();
+      // Users can only write their own profile (for name setup)
+      allow create, update: if isOwner(uid);
+      allow delete: if isAdmin();
+    }
+
+    // ─── REPAIRS ─────────────────────────────────────────────────────────
+    // repairs: main repair log collection
+    match /repairs/{repairId} {
+      // Read: tech can read their own, admin reads all
+      allow read: if isLoggedIn() && (
+        isAdmin() ||
+        resource.data.createdBy == request.auth.uid
+      );
+
+      // Create: any logged-in user can create a repair for themselves
+      allow create: if isLoggedIn() &&
+        request.resource.data.createdBy == request.auth.uid;
+
+      // Update:
+      //   - Tech can update their own repair IF it's not yet submitted (locked)
+      //   - Admin can update any repair anytime
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        (resource.data.createdBy == request.auth.uid &&
+         resource.data.submitted == false)
+      );
+
+      // Delete: admin only
+      allow delete: if isAdmin();
+    }
+
+    // ─── ATTENDANCE ───────────────────────────────────────────────────────
+    // shoplog_attendance: daily time-in/out records
+    // Document ID format: {uid}_{YYYY-MM-DD}
+    match /shoplog_attendance/{attId} {
+      // Read: tech can read their own, admin reads all
+      allow read: if isLoggedIn() && (
+        isAdmin() ||
+        resource.data.uid == request.auth.uid
+      );
+
+      // Create: tech creates their own attendance record on clock-in
+      allow create: if isLoggedIn() &&
+        request.resource.data.uid == request.auth.uid;
+
+      // Update:
+      //   - Tech can update their own attendance (submit, add time-out)
+      //   - Admin can update any (for corrections)
+      allow update: if isLoggedIn() && (
+        isAdmin() ||
+        resource.data.uid == request.auth.uid
+      );
+
+      allow delete: if isAdmin();
+    }
+
+  }
+}

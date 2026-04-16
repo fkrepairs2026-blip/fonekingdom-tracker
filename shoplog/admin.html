@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>ShopLog — Admin Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👑</text></svg>">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr" id="hdr" style="display:none;">
+  <div class="hdr-l">
+    <span class="hdr-ico">📱</span>
+    <div>
+      <div class="hdr-name" id="hnam">Admin</div>
+      <div class="hdr-role"><span class="bdg bdg-admin">👑 Owner / Admin</span></div>
+    </div>
+  </div>
+  <button class="logout-btn" onclick="doLogout()">Logout</button>
+</div>
+
+<!-- MAIN -->
+<div class="app" id="main-app" style="display:none;">
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab on" id="at1" onclick="atab('ov')">Overview</button>
+    <button class="tab"    id="at2" onclick="atab('rp')">Repairs</button>
+    <button class="tab"    id="at3" onclick="atab('att')">Attendance</button>
+    <button class="tab"    id="at4" onclick="atab('ai')">🤖 AI</button>
+  </div>
+
+  <!-- ── OVERVIEW TAB ── -->
+  <div id="tab-ov" class="sec">
+    <div class="chips" id="period-chips">
+      <div class="chip on" data-p="today" onclick="setPer('today')">Ngayon</div>
+      <div class="chip"   data-p="week"   onclick="setPer('week')">This Week</div>
+      <div class="chip"   data-p="month"  onclick="setPer('month')">This Month</div>
+      <div class="chip"   data-p="all"    onclick="setPer('all')">Lahat</div>
+    </div>
+    <div id="ov-content"></div>
+  </div>
+
+  <!-- ── REPAIRS TAB ── -->
+  <div id="tab-rp" class="sec" style="display:none;">
+    <!-- Admin can also add their own repairs -->
+    <button class="btn btn-g" style="margin-bottom:12px;" onclick="openNew()">
+      ➕ &nbsp;Idagdag ang Repair ko
+    </button>
+    <div class="chips" id="tf-chips">
+      <div class="chip on" data-tf="all"    onclick="tFil('all')">Lahat</div>
+      <div class="chip"    data-tf="Lester" onclick="tFil('Lester')">Lester</div>
+      <div class="chip"    data-tf="Eder"   onclick="tFil('Eder')">Eder</div>
+      <div class="chip"    data-tf="Owner"  onclick="tFil('Owner')">Owner</div>
+      <div class="chip"    data-tf="pending" onclick="tFil('pending')">⏳ Pending Payment</div>
+    </div>
+    <div id="rp-list"></div>
+  </div>
+
+  <!-- ── ATTENDANCE TAB ── -->
+  <div id="tab-att" class="sec" style="display:none;">
+    <div class="chips" id="att-chips">
+      <div class="chip on" data-at="today" onclick="setAttPer('today')">Ngayon</div>
+      <div class="chip"    data-at="week"  onclick="setAttPer('week')">This Week</div>
+      <div class="chip"    data-at="month" onclick="setAttPer('month')">This Month</div>
+    </div>
+    <div id="att-content"></div>
+  </div>
+
+  <!-- ── AI TAB ── -->
+  <div id="tab-ai" class="sec" style="display:none;">
+    <div class="aiw">
+      <div style="font-size:20px;font-weight:700;margin-bottom:6px;">🤖 AI Shop Analyzer</div>
+      <div style="font-size:13px;color:#a5b4fc;margin-bottom:16px;">
+        Magtanong tungkol sa negosyo. Gagawa ako ng ready-to-paste prompt para sa iyong local Gemma AI (Reno 13 5G).
+      </div>
+      <div class="fg">
+        <label style="color:#a5b4fc;">Extra Data — Loans, Expenses, Advances (JSON)</label>
+        <textarea id="ai-xd" style="font-family:monospace;font-size:12px;background:#090912;border-color:#4c1d95;color:#c4b5fd;min-height:60px;"
+          placeholder='{"loan_owed":50000,"monthly_rent":8000,"eder_advance":1500,"lester_advance":0}'></textarea>
+      </div>
+      <div class="fg">
+        <label style="color:#a5b4fc;">Tanong mo sa AI</label>
+        <textarea id="ai-q" style="min-height:90px;" placeholder="Halimbawa: Kaya ko bang kumuha ng ₱80,000 loan? Sino ang mas malaking kontribusyon sa shop? Full monthly report? Dapat ba taasan ang presyo ng charging port?"></textarea>
+      </div>
+      <button class="btn btn-ai" onclick="buildPrompt()">✨ &nbsp;Gumawa ng Gemma Prompt</button>
+      <div id="ai-out-sec" style="display:none;">
+        <div style="font-size:12px;font-weight:700;color:#a5b4fc;margin-top:16px;margin-bottom:6px;">
+          📋 I-copy at i-paste sa iyong Gemma / AI app:
+        </div>
+        <div id="ai-out" class="ai-out"></div>
+        <button class="btn-copy" onclick="doCopy()">📋 &nbsp;I-copy ang Buong Prompt</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<!-- ═══ REPAIR FORM MODAL (Admin) ═══ -->
+<div class="ov" id="fmod">
+  <div class="modal">
+    <div class="modal-title" id="ftit">➕ Bagong Repair</div>
+    <input type="hidden" id="fid">
+
+    <div class="fg">
+      <label>Pinagmulan ng Device</label>
+      <div class="source-toggle">
+        <button class="src-btn on" id="src-walkin" onclick="setSource('walk_in')">🚶 Walk-in</button>
+        <button class="src-btn"    id="src-dealer" onclick="setSource('co_tech')">🤝 Co-tech / Dealer</button>
+      </div>
+    </div>
+    <div class="fg" id="dealer-name-wrap" style="display:none;">
+      <label>Pangalan ng Dealer / Co-tech</label>
+      <input type="text" id="fdn" placeholder="e.g. Kuya Mark">
+    </div>
+
+    <div class="r2">
+      <div class="fg">
+        <label>Brand</label>
+        <select id="fbr">
+          <option value="">-- Piliin --</option>
+          <option>TECNO</option><option>Infinix</option><option>Redmi</option>
+          <option>realme</option><option>vivo</option><option>Samsung</option>
+          <option>iPhone</option><option>Others</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Model</label>
+        <input type="text" id="fmo" placeholder="e.g. iPhone 13">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Uri ng Ayos / Part</label>
+      <select id="ffx">
+        <option value="">-- Piliin --</option>
+        <option>Screen</option><option>Battery</option><option>Charging Port</option>
+        <option>Motherboard</option><option>Software / FRP</option><option>Jumper</option>
+        <option>Camera</option><option>Backlight</option><option>Others</option>
+      </select>
+    </div>
+    <div class="r2">
+      <div class="fg">
+        <label>Presyo na Siningil (₱)</label>
+        <input type="number" id="ftc" placeholder="0" min="0" inputmode="numeric">
+      </div>
+      <div class="fg">
+        <label>Gastos sa Parts (₱)</label>
+        <input type="number" id="fpc" placeholder="0" min="0" inputmode="numeric">
+      </div>
+    </div>
+    <div class="r2">
+      <div class="fg">
+        <label>Ibang Gastos (₱)</label>
+        <input type="number" id="foe" placeholder="0" min="0" inputmode="numeric">
+      </div>
+      <div class="fg">
+        <label>Petsa</label>
+        <input type="date" id="fdt">
+      </div>
+    </div>
+    <div class="fg">
+      <label>Status ng Bayad</label>
+      <div class="source-toggle">
+        <button class="src-btn on" id="pay-paid" onclick="setPayment('paid')">✅ Paid na</button>
+        <button class="src-btn"    id="pay-pend" onclick="setPayment('pending')">⏳ Pending</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Notes (optional)</label>
+      <textarea id="fno" style="min-height:54px;"></textarea>
+    </div>
+    <div id="freaw" style="display:none;">
+      <div class="warn-box">
+        <label>⚠️ Dahilan ng Pagbabago (Kailangan)</label>
+        <input type="text" id="frea" placeholder="Bakit mo binago ito?">
+      </div>
+    </div>
+    <div class="modal-act">
+      <button class="btn btn-gh" style="flex:1;" onclick="closeForm()">Kanselahin</button>
+      <button class="btn btn-p"  style="flex:2;" onclick="saveRep()">💾 &nbsp;I-save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+<div class="ov" id="dmod">
+  <div class="modal">
+    <div class="modal-title">📋 Detalye ng Repair</div>
+    <div id="dbody"></div>
+    <div class="modal-act" id="dact" style="margin-top:14px;">
+      <button class="btn btn-gh" onclick="closeDet()">Isara</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MARK PAID CONFIRM ═══ -->
+<div class="ov" id="pmod">
+  <div class="modal">
+    <div class="modal-title">💰 Mark as Paid</div>
+    <p style="color:var(--mut);margin-bottom:16px;">I-confirm na natanggap na ang bayad para sa repair na ito?</p>
+    <div id="pmod-detail"></div>
+    <div class="modal-act">
+      <button class="btn btn-gh" style="flex:1;" onclick="g('pmod').classList.remove('open')">Kanselahin</button>
+      <button class="btn btn-g"  style="flex:2;" onclick="confirmMarkPaid()">✅ &nbsp;Paid na!</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADER & TOAST -->
+<div class="lo" id="ldr"><div class="lb"><div class="sp"></div><div style="font-size:13px;color:var(--mut);">Loading…</div></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script type="module">
+import { auth, db, COL_REPAIRS, COL_USERS, COL_ATTENDANCE, ADMIN_EMAILS } from './js/firebase.js';
+import { g, load, toast, today, dateOf, dateLabel, fmtTime, fmt, num, profit, repairComm, calcStats } from './js/utils.js';
+import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import {
+  doc, getDoc, setDoc, updateDoc, addDoc, collection,
+  query, orderBy, onSnapshot, where, serverTimestamp, Timestamp, getDocs
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ── State ─────────────────────────────────
+let me        = null;
+let meD       = null;
+let repairs   = [];
+let unsub     = null;
+let curTab    = 'ov';
+let curPer    = 'today';
+let curTF     = 'all';
+let curAttPer = 'today';
+let formSrc   = 'walk_in';
+let formPay   = 'paid';
+let pendingPayId = null;
+const TODAY   = today();
+
+// ── Auth guard (admin only) ───────────────
+load(true);
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  if (!ADMIN_EMAILS.includes(user.email)) { window.location.href = 'tech.html'; return; }
+  me = user;
+  await loadMe();
+  boot();
+});
+
+async function loadMe() {
+  const snap = await getDoc(doc(db, COL_USERS, me.uid));
+  if (snap.exists()) meD = snap.data();
+  else {
+    meD = { email:me.email, displayName:'Owner', techName:null, role:'admin' };
+    await setDoc(doc(db, COL_USERS, me.uid), { ...meD, createdAt:serverTimestamp() });
+  }
+  meD.role = 'admin';
+}
+
+function boot() {
+  g('hnam').textContent = meD?.displayName || 'Owner';
+  g('hdr').style.display        = 'flex';
+  g('main-app').style.display   = 'block';
+  g('fdt').value = TODAY;
+  startListener();
+}
+
+// ── Repairs Listener ──────────────────────
+function startListener() {
+  if (unsub) unsub();
+  const q = query(collection(db, COL_REPAIRS), orderBy('date','desc'));
+  unsub = onSnapshot(q, snap => {
+    repairs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    redraw();
+    load(false);
+  });
+}
+
+function redraw() {
+  if (curTab==='ov')  drawOv();
+  if (curTab==='rp')  drawRp();
+  if (curTab==='att') drawAtt();
+}
+
+// ── Tab Navigation ────────────────────────
+window.atab = t => {
+  curTab = t;
+  ['ov','rp','att','ai'].forEach((x,i) => {
+    g('tab-'+x).style.display = x===t?'block':'none';
+    g('at'+(i+1)).classList.toggle('on', x===t);
+  });
+  if (t==='ov')  drawOv();
+  if (t==='rp')  drawRp();
+  if (t==='att') drawAtt();
+};
+
+// ── Period Filter ─────────────────────────
+window.setPer = p => {
+  curPer = p;
+  document.querySelectorAll('#period-chips .chip').forEach(c=>c.classList.toggle('on',c.dataset.p===p));
+  drawOv();
+};
+
+function perPool() {
+  const t = TODAY;
+  return repairs.filter(r => {
+    const d = dateOf(r);
+    if (curPer==='today') return d===t;
+    if (curPer==='week')  { const c=new Date(); c.setDate(c.getDate()-6); return new Date(d+'T00:00:00')>=c; }
+    if (curPer==='month') return d.slice(0,7)===t.slice(0,7);
+    return true;
+  });
+}
+
+// ── OVERVIEW ──────────────────────────────
+function drawOv() {
+  const pool = perPool();
+  const S    = calcStats(pool);
+  const lbl  = {today:'Ngayon',week:'This Week',month:'This Month',all:'Lahat'}[curPer];
+
+  g('ov-content').innerHTML = `
+    <!-- OWNER GRAND TOTAL — the big one -->
+    <div class="owner-grand" style="text-align:center;margin-bottom:12px;">
+      <div style="font-size:10px;color:var(--yel);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;">
+        👑 Owner Grand Total (${lbl})
+      </div>
+      <div style="font-size:36px;font-weight:900;color:var(--yel);">₱${fmt(S.ownerGrand)}</div>
+      <div style="font-size:12px;color:var(--mut);margin-top:4px;">
+        Personal: ₱${fmt(S.ownerPersonal)} &bull; Shop Share: ₱${fmt(S.shopTotal)}
+      </div>
+    </div>
+
+    <!-- SUMMARY CARDS -->
+    <div style="font-size:10px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;">
+      📊 ${lbl} — ${pool.length} repairs
+    </div>
+    <div class="sg">
+      <div class="sc">
+        <div class="sl">Total Charged</div>
+        <div class="sv c-g">₱${fmt(S.totalCharged)}</div>
+        <div class="ss">${pool.length} repairs</div>
+      </div>
+      <div class="sc">
+        <div class="sl">Total Shop Share</div>
+        <div class="sv c-y">₱${fmt(S.shopTotal)}</div>
+        <div class="ss">After commissions &amp; bonuses</div>
+      </div>
+      <div class="sc">
+        <div class="sl">Lester's Kita</div>
+        <div class="sv c-b">₱${fmt(S.lesterTotal)}</div>
+        <div class="ss">${S.byTech.Lester?.count||0} repairs × 40%</div>
+      </div>
+      <div class="sc">
+        <div class="sl">Eder's Kita</div>
+        <div class="sv c-p">₱${fmt(S.ederTotal)}</div>
+        <div class="ss">20% + ₱${fmt(S.ederBonus)} bonus (${S.ederDays}d)</div>
+      </div>
+    </div>
+
+    <!-- PENDING PAYMENTS ALERT -->
+    ${S.pending > 0 ? `
+    <div class="pend-item" style="cursor:pointer;" onclick="window.atab('rp');window.tFil('pending');">
+      <div class="pend-info">
+        <div class="pend-name">⏳ Pending Payments</div>
+        <div class="pend-sub">I-click para tingnan ang lahat ng hindi pa nabayaran</div>
+      </div>
+      <div class="pend-amount">₱${fmt(S.pending)}</div>
+    </div>` : `
+    <div class="card" style="text-align:center;color:var(--grn);">✅ Lahat ng bayad ay natanggap na!</div>`}
+
+    ${techBreakdown(S)}
+  `;
+}
+
+function techBreakdown(S) {
+  const cols = { Lester:'var(--blu)', Eder:'var(--grn)', Owner:'var(--yel)' };
+  let h = `<div class="sec-title" style="margin-top:6px;">👨‍🔧 Per Technician Breakdown</div>`;
+
+  const techs = [
+    { key:'Lester', earn:'lesterTotal', shop:'lesterShop',
+      note: `${S.byTech.Lester?.count||0} repairs × 40% ng profit` },
+    { key:'Eder',   earn:'ederTotal',   shop:'ederShop',
+      note: `20% profit + ₱${fmt(S.ederBonus)} daily bonus (${S.ederDays} araw × ₱200)` },
+    { key:'Owner',  earn:'ownerPersonal', shop:'ownerShop',
+      note: `${S.byTech.Owner?.count||0} repairs × 60% personal. Dagdag pa: ₱${fmt(S.shopTotal)} shop share` },
+  ];
+
+  techs.forEach(({ key, earn, shop, note }) => {
+    const b = S.byTech[key];
+    if (!b || b.count === 0) return;
+    h += `
+      <div class="card" style="border-left:3px solid ${cols[key]};margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-weight:700;font-size:15px;">${key}</div>
+          <div style="font-size:12px;color:var(--mut);">${b.count} repair${b.count!==1?'s':''} · ₱${fmt(b.charged)} charged</div>
+        </div>
+        <div class="tr3">
+          <div>
+            <div class="tl">Net Profit</div>
+            <div class="tv">₱${fmt(b.profitSum)}</div>
+          </div>
+          <div>
+            <div class="tl">${key==='Owner'?'Personal':key+"'s"} Kita</div>
+            <div class="tv c-g">₱${fmt(S[earn])}</div>
+          </div>
+          <div>
+            <div class="tl">Shop Share</div>
+            <div class="tv c-y">₱${fmt(S[shop])}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--mut);margin-top:8px;padding-top:8px;border-top:1px solid var(--bdr);">
+          📌 ${note}
+        </div>
+      </div>`;
+  });
+  return h;
+}
+
+// ── REPAIRS TAB ───────────────────────────
+window.tFil = tf => {
+  curTF = tf;
+  document.querySelectorAll('#tf-chips .chip').forEach(c=>c.classList.toggle('on',c.dataset.tf===tf));
+  drawRp();
+};
+
+function drawRp() {
+  let pool = curTF==='pending'
+    ? repairs.filter(r=>r.paymentStatus==='pending')
+    : curTF==='all'
+      ? [...repairs]
+      : repairs.filter(r=>r.technician===curTF);
+
+  const box = g('rp-list');
+  if (!pool.length) {
+    box.innerHTML = `<div class="empty"><div class="ei">📋</div><div>Walang repair na nahanap.</div></div>`;
+    return;
+  }
+
+  const byDate = {};
+  pool.forEach(r => { const d=dateOf(r); if(!byDate[d]) byDate[d]=[]; byDate[d].push(r); });
+  let h = '';
+  Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(d => {
+    const dt = byDate[d].reduce((s,r)=>s+num(r.totalCharged),0);
+    const pp = byDate[d].filter(r=>r.paymentStatus==='pending').length;
+    h += `<div class="dh">
+      <span>${dateLabel(d)}</span>
+      <span>₱${fmt(dt)} ${pp>0?`<span style="color:var(--ora);">(${pp} pending)</span>`:''}</span>
+    </div>`;
+    byDate[d].forEach(r => { h += adminRepCard(r); });
+  });
+  box.innerHTML = h;
+}
+
+function adminRepCard(r) {
+  const p    = profit(r);
+  const c    = repairComm(r);
+  const t    = r.technician||'?';
+  const cls  = t==='Lester'?'tL':t==='Eder'?'tE':'tO';
+  const col  = t==='Lester'?'var(--blu)':t==='Eder'?'var(--grn)':'var(--yel)';
+  const srcBdg = r.source==='co_tech'
+    ? `<span class="bdg bdg-dealer">🤝 ${r.dealerName||'Dealer'}</span>`
+    : `<span class="bdg bdg-walkin">🚶 Walk-in</span>`;
+  const payBdg = r.paymentStatus==='paid'
+    ? `<span class="bdg bdg-paid">✅ Paid</span>`
+    : `<span class="bdg bdg-pend">⏳ Pending</span>`;
+
+  return `
+    <div class="ri ${cls}" onclick="showDet('${r.id}')">
+      <div class="ri-hdr">
+        <div>
+          <div class="ri-dev">${r.brand||''} ${r.model||''}</div>
+          <div class="ri-fix">${r.fixType||''} ${srcBdg} ${payBdg} ${r.modificationReason?'<span class="bdg bdg-edit">✏️</span>':''}</div>
+        </div>
+        <div class="ri-right">
+          <div class="ri-charged">₱${fmt(num(r.totalCharged))}</div>
+          <div class="ri-earn">${t} kita: ₱${fmt(c)}</div>
+        </div>
+      </div>
+      <div class="ri-meta">
+        <div class="ri-date">${dateLabel(dateOf(r))} &bull; <span style="color:${col};font-weight:700;">${t}</span></div>
+        ${r.paymentStatus==='pending'
+          ? `<button class="btn btn-sm btn-g" onclick="event.stopPropagation();markPaidPrompt('${r.id}')">💰 Mark Paid</button>`
+          : ''}
+      </div>
+    </div>`;
+}
+
+// ── DETAIL MODAL ──────────────────────────
+window.showDet = id => {
+  const r = repairs.find(x=>x.id===id);
+  if (!r) return;
+  const p   = profit(r);
+  const c   = repairComm(r);
+  const col = r.technician==='Lester'?'var(--blu)':r.technician==='Eder'?'var(--grn)':'var(--yel)';
+
+  let commDetail = '';
+  if (r.technician==='Lester')     commDetail='40% ng ₱'+fmt(p)+' profit';
+  else if (r.technician==='Eder')  commDetail='20% ng ₱'+fmt(p)+' profit + daily bonus';
+  else if (r.technician==='Owner') commDetail='60% ng ₱'+fmt(p)+' profit (personal)';
+
+  g('dbody').innerHTML = `
+    <div style="display:grid;gap:12px;">
+      <div>
+        <div style="font-size:13px;color:var(--mut);">DEVICE</div>
+        <div style="font-size:20px;font-weight:700;">${r.brand} ${r.model}</div>
+        <div style="font-size:14px;color:var(--mut);">${r.fixType}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="bdg ${r.source==='co_tech'?'bdg-dealer':'bdg-walkin'}">
+          ${r.source==='co_tech'?'🤝 Co-tech: '+(r.dealerName||'?'):'🚶 Walk-in'}
+        </span>
+        <span class="bdg ${r.paymentStatus==='paid'?'bdg-paid':'bdg-pend'}">
+          ${r.paymentStatus==='paid'?'✅ Paid':'⏳ Pending Payment'}
+        </span>
+      </div>
+      <hr class="hr">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Siningil</div>
+          <div style="font-size:18px;font-weight:800;color:var(--grn);">₱${fmt(num(r.totalCharged))}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Parts</div>
+          <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.partsCost))}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Iba</div>
+          <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.otherExpenses))}</div>
+        </div>
+      </div>
+      <div style="background:var(--c2);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Net Profit</div>
+          <div style="font-size:20px;font-weight:800;color:var(--blu);">₱${fmt(p)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">${r.technician} Commission</div>
+          <div style="font-size:20px;font-weight:800;color:var(--grn);">₱${fmt(c)}</div>
+          <div style="font-size:10px;color:var(--mut);">${commDetail}</div>
+        </div>
+      </div>
+      ${r.notes?`<div style="font-size:13px;"><span style="color:var(--mut);">Notes: </span>${r.notes}</div>`:''}
+      ${r.modificationReason?`
+        <div style="background:#1c1200;border:1px solid #92400e;border-radius:8px;padding:10px;">
+          <div style="font-size:11px;color:var(--yel);font-weight:700;margin-bottom:3px;">✏️ DAHILAN NG EDIT</div>
+          <div style="font-size:13px;color:#fde68a;">${r.modificationReason}</div>
+        </div>`:''}
+    </div>`;
+
+  g('dact').innerHTML =
+    `<button class="btn btn-gh" onclick="closeDet()">Isara</button>
+     <button class="btn btn-p" style="flex:2;" onclick="openEdit('${r.id}')">✏️ &nbsp;I-edit</button>
+     ${r.paymentStatus==='pending'?`<button class="btn btn-g btn-sm" onclick="closeDet();markPaidPrompt('${r.id}')">💰 Paid</button>`:''}`;
+  g('dmod').classList.add('open');
+};
+window.closeDet = () => g('dmod').classList.remove('open');
+
+// ── Mark as Paid ──────────────────────────
+window.markPaidPrompt = id => {
+  const r = repairs.find(x=>x.id===id);
+  if (!r) return;
+  pendingPayId = id;
+  g('pmod-detail').innerHTML = `
+    <div class="card" style="margin-bottom:0;">
+      <div style="font-weight:700;">${r.brand} ${r.model}</div>
+      <div style="font-size:13px;color:var(--mut);">${r.fixType} · ${r.technician}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--grn);margin-top:6px;">₱${fmt(num(r.totalCharged))}</div>
+      ${r.source==='co_tech'?`<div style="font-size:12px;color:var(--pur);margin-top:4px;">🤝 Dealer: ${r.dealerName}</div>`:''}
+    </div>`;
+  g('pmod').classList.add('open');
+};
+
+window.confirmMarkPaid = async () => {
+  if (!pendingPayId) return;
+  load(true);
+  try {
+    await updateDoc(doc(db, COL_REPAIRS, pendingPayId), {
+      paymentStatus: 'paid',
+      paidAt:        serverTimestamp(),
+      paidMarkedBy:  me.uid
+    });
+    toast('✅ Marked as paid!');
+    g('pmod').classList.remove('open');
+  } catch(e) { toast('❌ '+e.message); }
+  finally { load(false); pendingPayId = null; }
+};
+
+// ── ATTENDANCE TAB ────────────────────────
+window.setAttPer = p => {
+  curAttPer = p;
+  document.querySelectorAll('#att-chips .chip').forEach(c=>c.classList.toggle('on',c.dataset.at===p));
+  drawAtt();
+};
+
+async function drawAtt() {
+  const box = g('att-content');
+  box.innerHTML = `<div class="empty"><div class="sp"></div></div>`;
+
+  try {
+    const t = TODAY;
+    let q;
+    if (curAttPer==='today') {
+      q = query(collection(db,COL_ATTENDANCE), where('date','==',t));
+    } else if (curAttPer==='week') {
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-6);
+      const cutoffStr = cutoff.toLocaleDateString('en-CA');
+      q = query(collection(db,COL_ATTENDANCE), where('date','>=',cutoffStr), orderBy('date','desc'));
+    } else {
+      const monthStart = t.slice(0,7)+'-01';
+      q = query(collection(db,COL_ATTENDANCE), where('date','>=',monthStart), orderBy('date','desc'));
+    }
+
+    const snap = await getDocs(q);
+    const records = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    if (!records.length) {
+      box.innerHTML = `<div class="empty"><div class="ei">📅</div><div>Walang attendance record para sa period na ito.</div></div>`;
+      return;
+    }
+
+    // Group by date then by tech
+    const byDate = {};
+    records.forEach(r => {
+      if (!byDate[r.date]) byDate[r.date] = [];
+      byDate[r.date].push(r);
+    });
+
+    let h = '';
+    Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(d => {
+      h += `<div class="dh" style="margin-top:4px;"><span>${dateLabel(d)}</span></div>`;
+      h += `<div class="att-row header">
+        <div>Tech</div><div>Time In</div><div>Time Out</div><div>Status</div>
+      </div>`;
+      byDate[d].forEach(rec => {
+        const submitted = rec.submitted;
+        h += `
+          <div class="att-row">
+            <div style="font-weight:700;">${rec.techName}</div>
+            <div>${rec.timeIn ? fmtTime(rec.timeIn) : '—'}</div>
+            <div>${rec.timeOut ? fmtTime(rec.timeOut) : submitted?'?':'⏳'}</div>
+            <div>${submitted
+              ? `<span class="bdg bdg-paid">Done</span>`
+              : `<span class="bdg bdg-pend">Active</span>`}
+            </div>
+          </div>
+          ${submitted && rec.repairCount>0?`
+          <div style="font-size:11px;color:var(--mut);padding:4px 0 8px;">
+            ${rec.repairCount} repairs · ₱${fmt(rec.totalCharged)} charged · Kita: ₱${fmt(rec.totalEarnings)}
+          </div>`:''}`;
+      });
+      h += `<hr class="hr" style="margin:6px 0;">`;
+    });
+    box.innerHTML = h;
+  } catch(e) {
+    box.innerHTML = `<div class="empty" style="color:var(--red);">Error loading attendance: ${e.message}</div>`;
+  }
+}
+
+// ── REPAIR FORM ───────────────────────────
+window.openNew = () => {
+  g('fid').value=''; g('ftit').textContent='➕ Bagong Repair ko';
+  ['fbr','fmo','ffx','ftc','fpc','foe','fno','frea','fdn'].forEach(i=>{if(g(i))g(i).value='';});
+  g('ffx').value=''; g('fbr').value='';
+  g('fdt').value=TODAY;
+  setSource('walk_in'); setPayment('paid');
+  g('freaw').style.display='none';
+  g('fmod').classList.add('open');
+};
+
+window.openEdit = id => {
+  closeDet();
+  const r = repairs.find(x=>x.id===id);
+  if (!r) return;
+  g('fid').value=id; g('ftit').textContent='✏️ I-edit ang Repair';
+  g('fbr').value=r.brand||''; g('fmo').value=r.model||''; g('ffx').value=r.fixType||'';
+  g('ftc').value=r.totalCharged||''; g('fpc').value=r.partsCost||''; g('foe').value=r.otherExpenses||'';
+  g('fdt').value=dateOf(r); g('fno').value=r.notes||''; g('frea').value=''; g('fdn').value=r.dealerName||'';
+  setSource(r.source||'walk_in'); setPayment(r.paymentStatus||'paid');
+  g('freaw').style.display='block';
+  g('fmod').classList.add('open');
+};
+
+window.setSource = src => {
+  formSrc = src;
+  g('src-walkin').classList.toggle('on', src==='walk_in');
+  g('src-dealer').classList.toggle('on', src==='co_tech');
+  g('dealer-name-wrap').style.display = src==='co_tech'?'block':'none';
+};
+
+window.setPayment = pay => {
+  formPay = pay;
+  g('pay-paid').classList.toggle('on', pay==='paid');
+  g('pay-pend').classList.toggle('on', pay==='pending');
+};
+
+window.closeForm = () => g('fmod').classList.remove('open');
+
+window.saveRep = async () => {
+  const eid    = g('fid').value;
+  const isEdit = !!eid;
+  const brand  = g('fbr').value;
+  const model  = g('fmo').value.trim();
+  const fixT   = g('ffx').value;
+  const tc     = parseFloat(g('ftc').value)||0;
+  const pc     = parseFloat(g('fpc').value)||0;
+  const oe     = parseFloat(g('foe').value)||0;
+  const dt     = g('fdt').value;
+  const notes  = g('fno').value.trim();
+  const reason = g('frea').value.trim();
+  const dealer = formSrc==='co_tech' ? g('fdn').value.trim() : '';
+
+  if (!brand||!model||!fixT)         { toast('❌ Punan ang Brand, Model, at Uri ng Ayos.'); return; }
+  if (!dt)                            { toast('❌ Piliin ang petsa.'); return; }
+  if (isEdit && !reason)              { toast('❌ Kailangan ang dahilan ng pagbabago.'); return; }
+  if (formSrc==='co_tech' && !dealer) { toast('❌ Ilagay ang pangalan ng dealer.'); return; }
+
+  const dts = Timestamp.fromDate(new Date(dt+'T00:00:00'));
+  load(true);
+  try {
+    if (isEdit) {
+      await updateDoc(doc(db,COL_REPAIRS,eid), {
+        brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
+        notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        modificationReason:reason, updatedAt:serverTimestamp(), updatedBy:me.uid
+      });
+      toast('✅ Na-update na ang repair!');
+    } else {
+      await addDoc(collection(db,COL_REPAIRS), {
+        technician:'Owner', createdBy:me.uid,
+        brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
+        notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        submitted:true, createdAt:serverTimestamp(), updatedAt:serverTimestamp()
+      });
+      toast('✅ Na-save ang repair!');
+    }
+    closeForm();
+  } catch(e) { toast('❌ Error: '+e.message); }
+  finally { load(false); }
+};
+
+// ── AI PROMPT BUILDER ─────────────────────
+window.buildPrompt = () => {
+  const q     = g('ai-q').value.trim();
+  const xdRaw = g('ai-xd').value.trim();
+  let xd = {};
+  if (xdRaw) { try { xd=JSON.parse(xdRaw); } catch { toast('❌ Invalid JSON sa extra data.'); return; } }
+
+  const t     = TODAY;
+  const month = t.slice(0,7);
+  const S_today = calcStats(repairs.filter(r=>dateOf(r)===t));
+  const S_month = calcStats(repairs.filter(r=>dateOf(r).startsWith(month)));
+  const S_all   = calcStats(repairs);
+
+  function snap(S, pool) {
+    const pending = pool.filter(r=>r.paymentStatus==='pending');
+    const dealers = {};
+    pending.filter(r=>r.source==='co_tech').forEach(r => {
+      const d = r.dealerName||'Unknown';
+      if (!dealers[d]) dealers[d]=0;
+      dealers[d] += num(r.totalCharged);
+    });
+    return {
+      repairs_count:       pool.length,
+      total_charged:       S.totalCharged,
+      total_net_profit:    S.totalProfit,
+      total_shop_share:    S.shopTotal,
+      owner_personal_income: S.ownerPersonal,
+      owner_grand_total:   S.ownerGrand,
+      lester_earnings:     S.lesterTotal,
+      eder_earnings:       S.ederTotal,
+      eder_days_worked:    S.ederDays,
+      eder_daily_bonus:    S.ederBonus,
+      pending_collections: S.pending,
+      pending_by_dealer:   dealers,
+      by_technician: {
+        Lester: { count:S.byTech.Lester?.count, charged:S.byTech.Lester?.charged, commission:S.lesterTotal, shop_share:S.lesterShop },
+        Eder:   { count:S.byTech.Eder?.count,   charged:S.byTech.Eder?.charged,   commission:S.ederTotal,   shop_share:S.ederShop },
+        Owner:  { count:S.byTech.Owner?.count,  charged:S.byTech.Owner?.charged,  personal:S.ownerPersonal, shop_share:S.ownerShop },
+      },
+      top_repairs: (() => {
+        const fc={};
+        pool.forEach(r=>{if(r.fixType)fc[r.fixType]=(fc[r.fixType]||0)+1;});
+        return Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([t,c])=>({type:t,count:c}));
+      })()
+    };
+  }
+
+  const payload = {
+    generated:        new Date().toLocaleString('en-PH',{timeZone:'Asia/Manila'}),
+    shop:             'FoneKingdom',
+    currency:         'PHP (₱)',
+    commission_rules: {
+      Lester: 'Earns 40% of net profit per repair. Shop keeps 60%.',
+      Eder:   'Earns 20% of net profit per repair + ₱200 daily allowance per day worked. Shop keeps the remaining 80% minus the daily bonus.',
+      Owner:  'Owner keeps 60% of net profit from own repairs as personal income. 40% goes to shop. Owner also OWNS the full shop share from all techs, so owner grand total = personal income + total shop share.'
+    },
+    today:     snap(S_today, repairs.filter(r=>dateOf(r)===t)),
+    this_month:snap(S_month, repairs.filter(r=>dateOf(r).startsWith(month))),
+    all_time:  snap(S_all, repairs),
+    extra:     xd
+  };
+
+  const defaultQ = 'Bigyan mo ako ng kompletong monthly business report. I-analyze ang: (1) performance ng bawat technician, (2) kalusugan ng kita ng shop, (3) mga pending collections, at (4) konkretong rekomendasyon para mapabuti ang negosyo.';
+
+  const prompt =
+`[SYSTEM]
+Ikaw ay isang matalino, tapat, at praktikal na business advisor ng isang Philippine phone repair shop na ang pangalan ay "FoneKingdom". Ang iyong trabaho: suriin ang datos at magbigay ng honest, actionable advice.
+
+COMMISSION STRUCTURE:
+- Lester: 40% ng net profit bawat repair (shop gets 60%)
+- Eder: 20% ng net profit bawat repair + ₱200 daily allowance bawat araw na nagtrabaho (shop gets 80% gross minus the daily allowance)
+- Owner: 60% ng kanyang sariling repairs bilang personal na kita. 40% ng kanyang repairs + lahat ng shop shares mula sa ibang techs = Owner's total business income (Owner Grand Total)
+
+PANUNTUNAN:
+1. Gumamit ng Taglish — natural mix ng Tagalog at English
+2. Maging tapat at direkta — huwag itago ang mga problema
+3. Gamitin ang ₱ at comma separators (e.g. ₱12,500)
+4. Base lahat sa datos sa JSON — walang assumptions
+5. Para sa loan/investment questions: maingat na i-assess ang cash flow
+6. I-structure ang sagot: headers (##) at bullet points
+7. Kung may warning o panganib, i-highlight agad
+
+BUSINESS DATA:
+${JSON.stringify(payload, null, 2)}
+
+[QUESTION]
+${q||defaultQ}
+
+[ANSWER]
+`;
+
+  g('ai-out').textContent = prompt;
+  g('ai-out-sec').style.display = 'block';
+  g('ai-out-sec').scrollIntoView({ behavior:'smooth', block:'start' });
+};
+
+window.doCopy = () => {
+  navigator.clipboard.writeText(g('ai-out').textContent)
+    .then(()=>toast('✅ Nakopya! I-paste sa Gemma app mo.'))
+    .catch(()=>toast('❌ Hindi auto-copy. I-select at i-copy manually.'));
+};
+
+// ── Logout ────────────────────────────────
+window.doLogout = async () => {
+  if (!confirm('Mag-logout?')) return;
+  if (unsub) unsub();
+  await signOut(auth);
+  window.location.href = 'index.html';
+};
+
+// Expose g() for inline onclick
+window.g = g;
+</script>
+</body>
+</html>

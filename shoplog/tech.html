@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>ShopLog — Tech Dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="hdr" id="hdr" style="display:none;">
+  <div class="hdr-l">
+    <span class="hdr-ico">📱</span>
+    <div>
+      <div class="hdr-name" id="hnam">Loading…</div>
+      <div class="hdr-role" id="hrol"></div>
+    </div>
+  </div>
+  <button class="logout-btn" onclick="doLogout()">Logout</button>
+</div>
+
+<!-- TIME-IN BAR -->
+<div class="timein-bar" id="timein-bar" style="display:none;">
+  <div>
+    <span class="timein-dot" id="tdot"></span>
+    <span id="timein-status">Checking attendance…</span>
+  </div>
+  <div id="timein-right" style="font-size:12px;color:var(--mut);"></div>
+</div>
+
+<!-- SETUP OVERLAY (first login name selection) -->
+<div class="sov" id="sov">
+  <div class="scard">
+    <div style="font-size:48px;text-align:center;margin-bottom:10px;">👋</div>
+    <div style="font-size:20px;font-weight:700;margin-bottom:4px;text-align:center;">First time mo?</div>
+    <p style="font-size:13px;color:var(--mut);margin-bottom:18px;text-align:center;">
+      Piliin ang iyong pangalan para makilala ka ng system.
+    </p>
+    <div class="fg">
+      <label>Ikaw si…</label>
+      <select id="sname">
+        <option value="">-- Piliin --</option>
+        <option value="Lester">Lester</option>
+        <option value="Eder">Eder</option>
+      </select>
+    </div>
+    <button class="btn btn-p" onclick="saveSetup()">I-confirm</button>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="app has-end-btn" id="main-app" style="display:none;">
+
+  <!-- TAB NAV -->
+  <div class="tabs">
+    <button class="tab on" id="tt1" onclick="ttab('today')">Ngayon</button>
+    <button class="tab"    id="tt2" onclick="ttab('prev')">Nakaraan</button>
+  </div>
+
+  <!-- TODAY TAB -->
+  <div id="tab-today" class="sec">
+    <!-- Add Repair button (hidden after submission) -->
+    <div id="add-btn-wrap" style="margin-bottom:12px;">
+      <button class="btn btn-g" style="font-size:17px;padding:16px;" onclick="openNew()">
+        ➕ &nbsp;Bagong Repair
+      </button>
+    </div>
+    <!-- Submitted banner (shown after submission) -->
+    <div class="submitted-banner" id="submitted-banner" style="display:none;">
+      <div style="font-size:32px;margin-bottom:8px;">✅</div>
+      <div style="font-weight:700;font-size:16px;color:var(--yel);">Na-submit na ang araw mo!</div>
+      <div id="sub-time" style="font-size:12px;color:var(--mut);margin-top:4px;"></div>
+    </div>
+    <!-- Today's repairs -->
+    <div id="today-list"></div>
+    <!-- Today's earnings summary -->
+    <div id="today-earn" style="display:none;" class="ebar" style="margin-bottom:0;">
+      <div>
+        <div style="font-size:11px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.5px;">Kita mo ngayon</div>
+        <div class="elv" id="earn-val">₱0</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;color:var(--mut);" id="earn-count">0 repairs</div>
+        <div style="font-size:13px;font-weight:600;" id="earn-charged">₱0 charged</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREVIOUS TAB -->
+  <div id="tab-prev" class="sec" style="display:none;">
+    <div id="prev-list"></div>
+  </div>
+
+</div>
+
+<!-- STICKY END-DAY BUTTON -->
+<div class="end-day-sticky" id="end-day-sticky" style="display:none;">
+  <button class="btn btn-end" onclick="openEndDay()">
+    🏁 &nbsp;Tapusin ang Araw (Submit)
+  </button>
+</div>
+
+<!-- ═══ REPAIR FORM MODAL ═══ -->
+<div class="ov" id="fmod">
+  <div class="modal">
+    <div class="modal-title" id="ftit">➕ Bagong Repair</div>
+    <input type="hidden" id="fid">
+
+    <!-- Device Source -->
+    <div class="fg">
+      <label>Pinagmulan ng Device</label>
+      <div class="source-toggle">
+        <button class="src-btn on" id="src-walkin" onclick="setSource('walk_in')">🚶 Walk-in</button>
+        <button class="src-btn"    id="src-dealer" onclick="setSource('co_tech')">🤝 Co-tech / Dealer</button>
+      </div>
+    </div>
+    <div class="fg" id="dealer-name-wrap" style="display:none;">
+      <label>Pangalan ng Dealer / Co-tech</label>
+      <input type="text" id="fdn" placeholder="e.g. Kuya Mark, Ate Jen's Shop">
+    </div>
+
+    <div class="r2">
+      <div class="fg">
+        <label>Brand</label>
+        <select id="fbr">
+          <option value="">-- Piliin --</option>
+          <option>TECNO</option><option>Infinix</option><option>Redmi</option>
+          <option>realme</option><option>vivo</option><option>Samsung</option>
+          <option>iPhone</option><option>Others</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Model</label>
+        <input type="text" id="fmo" placeholder="e.g. Redmi 13C">
+      </div>
+    </div>
+
+    <div class="fg">
+      <label>Uri ng Ayos / Part</label>
+      <select id="ffx">
+        <option value="">-- Piliin --</option>
+        <option>Screen</option><option>Battery</option><option>Charging Port</option>
+        <option>Motherboard</option><option>Software / FRP</option><option>Jumper</option>
+        <option>Camera</option><option>Backlight</option><option>Others</option>
+      </select>
+    </div>
+
+    <div class="r2">
+      <div class="fg">
+        <label>Presyo na Siningil (₱)</label>
+        <input type="number" id="ftc" placeholder="0" min="0" inputmode="numeric">
+      </div>
+      <div class="fg">
+        <label>Gastos sa Parts (₱)</label>
+        <input type="number" id="fpc" placeholder="0" min="0" inputmode="numeric">
+      </div>
+    </div>
+
+    <div class="r2">
+      <div class="fg">
+        <label>Ibang Gastos (₱)</label>
+        <input type="number" id="foe" placeholder="0" min="0" inputmode="numeric">
+      </div>
+      <div class="fg">
+        <label>Petsa</label>
+        <input type="date" id="fdt">
+      </div>
+    </div>
+
+    <!-- Payment Status -->
+    <div class="fg">
+      <label>Status ng Bayad</label>
+      <div class="source-toggle">
+        <button class="src-btn on" id="pay-paid" onclick="setPayment('paid')">✅ Paid na</button>
+        <button class="src-btn"    id="pay-pend" onclick="setPayment('pending')">⏳ Pending</button>
+      </div>
+      <div class="info-text" id="pay-hint">Walk-in customers — bayad na sa claim</div>
+    </div>
+
+    <div class="fg">
+      <label>Notes (optional)</label>
+      <textarea id="fno" style="min-height:54px;" placeholder="Customer name, special instructions, etc."></textarea>
+    </div>
+
+    <!-- Edit reason — shown only when editing -->
+    <div id="freaw" style="display:none;">
+      <div class="warn-box">
+        <label>⚠️ Dahilan ng Pagbabago (Kailangan)</label>
+        <input type="text" id="frea" placeholder="Bakit mo binago ito?">
+      </div>
+    </div>
+
+    <div class="modal-act">
+      <button class="btn btn-gh" style="flex:1;" onclick="closeForm()">Kanselahin</button>
+      <button class="btn btn-p"  style="flex:2;" onclick="saveRep()">💾 &nbsp;I-save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DETAIL MODAL ═══ -->
+<div class="ov" id="dmod">
+  <div class="modal">
+    <div class="modal-title">📋 Detalye ng Repair</div>
+    <div id="dbody"></div>
+    <div class="modal-act" id="dact" style="margin-top:14px;">
+      <button class="btn btn-gh" onclick="closeDet()">Isara</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ END-DAY REVIEW MODAL ═══ -->
+<div class="ov" id="edmod">
+  <div class="modal">
+    <div class="modal-title">🏁 I-review ang Iyong Araw</div>
+    <div id="ed-summary"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--mut);margin:12px 0 8px;text-transform:uppercase;letter-spacing:.5px;">
+      Listahan ng Repairs Ngayon:
+    </div>
+    <div id="ed-list"></div>
+    <hr class="hr">
+    <p style="font-size:13px;color:var(--mut);margin-bottom:14px;">
+      ⚠️ Pakitingnan ang lahat bago mag-submit. Hindi mo na mababago ito pagkatapos.
+    </p>
+    <div class="modal-act">
+      <button class="btn btn-gh" style="flex:1;" onclick="closeEndDay()">Bumalik</button>
+      <button class="btn btn-end" style="flex:2;" onclick="confirmSubmit()">
+        ✅ &nbsp;Tama lahat — I-submit!
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LOADER & TOAST -->
+<div class="lo" id="ldr"><div class="lb"><div class="sp"></div><div style="font-size:13px;color:var(--mut);">Sandali lang…</div></div></div>
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════ -->
+<script type="module">
+import { auth, db, COL_REPAIRS, COL_USERS, COL_ATTENDANCE, ADMIN_EMAILS } from './js/firebase.js';
+import { g, load, toast, today, dateOf, dateLabel, fmtTime, fmt, num, profit, repairComm } from './js/utils.js';
+import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import {
+  doc, getDoc, setDoc, updateDoc, addDoc, collection,
+  query, where, orderBy, onSnapshot, serverTimestamp, Timestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+// ── State ─────────────────────────────────
+let me       = null;
+let meD      = null;
+let repairs  = [];
+let attend   = null;   // today's attendance doc
+let unsub    = null;
+let tTab     = 'today';
+let formSrc  = 'walk_in';
+let formPay  = 'paid';
+const TODAY  = today();
+
+// ── Auth guard ────────────────────────────
+load(true);
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = 'index.html'; return; }
+  me = user;
+  if (ADMIN_EMAILS.includes(user.email)) { window.location.href = 'admin.html'; return; }
+  await loadMe();
+  if (!meD?.techName) {
+    load(false);
+    g('sov').classList.add('open');
+  } else {
+    await boot();
+  }
+});
+
+async function loadMe() {
+  const snap = await getDoc(doc(db, COL_USERS, me.uid));
+  if (snap.exists()) { meD = snap.data(); }
+  else {
+    const n = guessName(me.email);
+    meD = { email:me.email, displayName:n||'Tech', techName:n||null, role:'technician' };
+    await setDoc(doc(db, COL_USERS, me.uid), { ...meD, createdAt: serverTimestamp() });
+  }
+}
+
+function guessName(e) {
+  const s = e.toLowerCase();
+  if (s.includes('lester')) return 'Lester';
+  if (s.includes('eder'))   return 'Eder';
+  return null;
+}
+
+window.saveSetup = async () => {
+  const n = g('sname').value;
+  if (!n) { toast('Piliin ang iyong pangalan.'); return; }
+  load(true);
+  try {
+    await updateDoc(doc(db, COL_USERS, me.uid), { techName:n, displayName:n });
+    meD.techName = n; meD.displayName = n;
+    g('sov').classList.remove('open');
+    await boot();
+  } catch(e) { toast('❌ '+e.message); load(false); }
+};
+
+// ── Boot ──────────────────────────────────
+async function boot() {
+  const name = meD?.techName || meD?.displayName;
+  g('hnam').textContent = name;
+  g('hrol').innerHTML   = `<span class="bdg bdg-tech">🔧 Technician</span>`;
+  g('hdr').style.display       = 'flex';
+  g('timein-bar').style.display = 'flex';
+  g('main-app').style.display   = 'block';
+
+  // Auto time-in
+  await checkAttendance();
+
+  // Start repair listener
+  startListener();
+  load(false);
+}
+
+// ── Attendance ────────────────────────────
+async function checkAttendance() {
+  const attId = `${me.uid}_${TODAY}`;
+  const ref   = doc(db, COL_ATTENDANCE, attId);
+  const snap  = await getDoc(ref);
+
+  if (!snap.exists()) {
+    // First login today — record time-in
+    const data = {
+      uid:        me.uid,
+      techName:   meD?.techName || meD?.displayName,
+      date:       TODAY,
+      timeIn:     serverTimestamp(),
+      timeOut:    null,
+      submitted:  false,
+      submittedAt:null,
+      repairCount:0,
+      totalCharged:0,
+      totalEarnings:0
+    };
+    await setDoc(ref, data);
+    attend = { id: attId, ...data };
+  } else {
+    attend = { id: attId, ...snap.data() };
+  }
+  updateTimeinBar();
+}
+
+function updateTimeinBar() {
+  if (!attend) return;
+  const dot   = g('tdot');
+  const stat  = g('timein-status');
+  const right = g('timein-right');
+  const bar   = g('timein-bar');
+
+  if (attend.submitted) {
+    dot.classList.add('done');
+    stat.textContent  = 'Natapos na ang araw mo ✅';
+    bar.classList.add('submitted');
+    right.textContent = attend.submittedAt ? 'Time out: '+fmtTime(attend.submittedAt) : '';
+    // Lock the Add button
+    g('add-btn-wrap').style.display = 'none';
+    g('submitted-banner').style.display = 'block';
+    g('end-day-sticky').style.display = 'none';
+    if (attend.submittedAt) {
+      g('sub-time').textContent = 'Submitted: '+fmtTime(attend.submittedAt);
+    }
+  } else {
+    dot.classList.remove('done');
+    const inTime = attend.timeIn ? fmtTime(attend.timeIn) : '…';
+    stat.textContent  = `Clocked in ngayon`;
+    right.textContent = `Since ${inTime}`;
+    bar.classList.remove('submitted');
+  }
+}
+
+// ── Listener ──────────────────────────────
+function startListener() {
+  if (unsub) unsub();
+  const q = query(
+    collection(db, COL_REPAIRS),
+    where('createdBy','==',me.uid),
+    orderBy('date','desc')
+  );
+  unsub = onSnapshot(q, snap => {
+    repairs = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    render();
+  });
+}
+
+// ── Render ────────────────────────────────
+function render() {
+  if (tTab === 'today') drawToday();
+  else drawPrev();
+}
+
+window.ttab = t => {
+  tTab = t;
+  g('tt1').classList.toggle('on', t==='today');
+  g('tt2').classList.toggle('on', t==='prev');
+  g('tab-today').style.display = t==='today' ? 'block':'none';
+  g('tab-prev').style.display  = t==='prev'  ? 'block':'none';
+  render();
+};
+
+function drawToday() {
+  const list = repairs.filter(r => dateOf(r) === TODAY);
+  const box  = g('today-list');
+
+  // Earnings bar
+  if (list.length > 0) {
+    const myEarns  = list.reduce((s,r)=>s+repairComm(r),0);
+    const myCharged= list.reduce((s,r)=>s+num(r.totalCharged),0);
+    g('earn-val').textContent     = '₱'+fmt(myEarns);
+    g('earn-count').textContent   = list.length+' repair'+(list.length!==1?'s':'');
+    g('earn-charged').textContent = '₱'+fmt(myCharged)+' charged';
+    g('today-earn').style.display = 'flex';
+    // Show end-day button if not submitted
+    if (!attend?.submitted) g('end-day-sticky').style.display = 'block';
+  } else {
+    g('today-earn').style.display = 'none';
+    g('end-day-sticky').style.display = 'none';
+  }
+
+  if (!list.length) {
+    box.innerHTML = `<div class="empty"><div class="ei">🔧</div>
+      <div>Wala pang repair ngayon. Mag-log na!</div></div>`;
+    return;
+  }
+  box.innerHTML = list.map(r => repCard(r, !attend?.submitted)).join('');
+}
+
+function drawPrev() {
+  const list = repairs.filter(r => dateOf(r) !== TODAY);
+  const box  = g('prev-list');
+  if (!list.length) {
+    box.innerHTML = `<div class="empty"><div class="ei">📂</div><div>Walang nakaraang record.</div></div>`;
+    return;
+  }
+  const byDate = {};
+  list.forEach(r => { const d=dateOf(r); if(!byDate[d]) byDate[d]=[]; byDate[d].push(r); });
+  let h = '';
+  Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(d => {
+    const dt = byDate[d].reduce((s,r)=>s+num(r.totalCharged),0);
+    h += `<div class="dh"><span>${dateLabel(d)}</span><span class="c-g">₱${fmt(dt)}</span></div>`;
+    byDate[d].forEach(r => { h += repCard(r, false); });
+  });
+  box.innerHTML = h;
+}
+
+function repCard(r, canEdit) {
+  const p    = profit(r);
+  const c    = repairComm(r);
+  const srcBdg = r.source==='co_tech'
+    ? `<span class="bdg bdg-dealer">🤝 ${r.dealerName||'Dealer'}</span>`
+    : `<span class="bdg bdg-walkin">🚶 Walk-in</span>`;
+  const payBdg = r.paymentStatus==='paid'
+    ? `<span class="bdg bdg-paid">✅ Paid</span>`
+    : `<span class="bdg bdg-pend">⏳ Pending</span>`;
+  const editBdg = r.modificationReason ? `<span class="bdg bdg-edit">✏️</span>` : '';
+  return `
+    <div class="ri tL" onclick="showDet('${r.id}')">
+      <div class="ri-hdr">
+        <div>
+          <div class="ri-dev">${r.brand||''} ${r.model||''}</div>
+          <div class="ri-fix">${r.fixType||''} ${srcBdg} ${payBdg} ${editBdg}</div>
+        </div>
+        <div class="ri-right">
+          <div class="ri-charged">₱${fmt(num(r.totalCharged))}</div>
+          <div class="ri-earn">Kita: ₱${fmt(c)}</div>
+        </div>
+      </div>
+      <div class="ri-meta">
+        <div class="ri-date">${dateLabel(dateOf(r))}</div>
+        ${canEdit ? `<button class="btn btn-sm btn-gh" style="padding:5px 10px;font-size:12px;" onclick="event.stopPropagation();openEdit('${r.id}')">✏️ Edit</button>` : ''}
+      </div>
+    </div>`;
+}
+
+// ── Detail modal ──────────────────────────
+window.showDet = id => {
+  const r = repairs.find(x=>x.id===id);
+  if (!r) return;
+  const p = profit(r);
+  const c = repairComm(r);
+  const srcLabel = r.source==='co_tech'
+    ? `🤝 Co-tech/Dealer — ${r.dealerName||'unknown'}`
+    : '🚶 Walk-in Customer';
+
+  g('dbody').innerHTML = `
+    <div style="display:grid;gap:12px;">
+      <div>
+        <div style="font-size:13px;color:var(--mut);">DEVICE</div>
+        <div style="font-size:20px;font-weight:700;">${r.brand} ${r.model}</div>
+        <div style="font-size:14px;color:var(--mut);">${r.fixType}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <span class="bdg ${r.source==='co_tech'?'bdg-dealer':'bdg-walkin'}">${srcLabel}</span>
+        <span class="bdg ${r.paymentStatus==='paid'?'bdg-paid':'bdg-pend'}">${r.paymentStatus==='paid'?'✅ Paid':'⏳ Pending Payment'}</span>
+      </div>
+      <hr class="hr">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Siningil</div>
+          <div style="font-size:18px;font-weight:800;color:var(--grn);">₱${fmt(num(r.totalCharged))}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Parts</div>
+          <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.partsCost))}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Iba</div>
+          <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.otherExpenses))}</div>
+        </div>
+      </div>
+      <div style="background:var(--c2);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Net Profit</div>
+          <div style="font-size:20px;font-weight:800;color:var(--blu);">₱${fmt(p)}</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Iyong Kita</div>
+          <div style="font-size:20px;font-weight:800;color:var(--grn);">₱${fmt(c)}</div>
+        </div>
+      </div>
+      ${r.notes?`<div style="font-size:13px;"><span style="color:var(--mut);">Notes: </span>${r.notes}</div>`:''}
+      ${r.modificationReason?`
+        <div style="background:#1c1200;border:1px solid #92400e;border-radius:8px;padding:10px;">
+          <div style="font-size:11px;color:var(--yel);font-weight:700;margin-bottom:3px;">✏️ DAHILAN NG EDIT</div>
+          <div style="font-size:13px;color:#fde68a;">${r.modificationReason}</div>
+        </div>`:''}
+    </div>`;
+
+  const canEdit = !attend?.submitted && dateOf(r) === TODAY;
+  g('dact').innerHTML =
+    `<button class="btn btn-gh" onclick="closeDet()">Isara</button>` +
+    (canEdit ? `<button class="btn btn-p" style="flex:2;" onclick="openEdit('${r.id}')">✏️ &nbsp;I-edit</button>` : '');
+  g('dmod').classList.add('open');
+};
+window.closeDet = () => g('dmod').classList.remove('open');
+
+// ── Repair Form ───────────────────────────
+window.openNew = () => {
+  if (attend?.submitted) { toast('Na-submit na ang araw mo. Hindi na pwedeng mag-add.'); return; }
+  g('fid').value=''; g('ftit').textContent='➕ Bagong Repair';
+  ['fbr','fmo','ffx','ftc','fpc','foe','fno','frea','fdn'].forEach(i => { if(g(i)) g(i).value=''; });
+  g('ffx').value=''; g('fbr').value='';
+  g('fdt').value = TODAY;
+  setSource('walk_in');
+  setPayment('paid');
+  g('freaw').style.display='none';
+  g('fmod').classList.add('open');
+};
+
+window.openEdit = id => {
+  closeDet();
+  if (attend?.submitted) { toast('Na-submit na ang araw mo. Hindi na pwedeng mag-edit.'); return; }
+  const r = repairs.find(x=>x.id===id);
+  if (!r) return;
+  g('fid').value=id; g('ftit').textContent='✏️ I-edit ang Repair';
+  g('fbr').value=r.brand||''; g('fmo').value=r.model||''; g('ffx').value=r.fixType||'';
+  g('ftc').value=r.totalCharged||''; g('fpc').value=r.partsCost||''; g('foe').value=r.otherExpenses||'';
+  g('fdt').value=dateOf(r); g('fno').value=r.notes||''; g('frea').value=''; g('fdn').value=r.dealerName||'';
+  setSource(r.source||'walk_in');
+  setPayment(r.paymentStatus||'paid');
+  g('freaw').style.display='block';
+  g('fmod').classList.add('open');
+};
+
+window.setSource = src => {
+  formSrc = src;
+  g('src-walkin').classList.toggle('on', src==='walk_in');
+  g('src-dealer').classList.toggle('on', src==='co_tech');
+  g('dealer-name-wrap').style.display = src==='co_tech'?'block':'none';
+  // Auto-set payment hint
+  if (src==='co_tech') {
+    g('pay-hint').textContent = 'Dealer repairs — usually pending bayad';
+    if (formPay==='paid') setPayment('pending');
+  } else {
+    g('pay-hint').textContent = 'Walk-in customers — bayad na sa claim';
+    if (formPay==='pending') setPayment('paid');
+  }
+};
+
+window.setPayment = pay => {
+  formPay = pay;
+  g('pay-paid').classList.toggle('on', pay==='paid');
+  g('pay-pend').classList.toggle('on', pay==='pending');
+};
+
+window.closeForm = () => g('fmod').classList.remove('open');
+
+window.saveRep = async () => {
+  const eid    = g('fid').value;
+  const isEdit = !!eid;
+  const brand  = g('fbr').value;
+  const model  = g('fmo').value.trim();
+  const fixT   = g('ffx').value;
+  const tc     = parseFloat(g('ftc').value)||0;
+  const pc     = parseFloat(g('fpc').value)||0;
+  const oe     = parseFloat(g('foe').value)||0;
+  const dt     = g('fdt').value;
+  const notes  = g('fno').value.trim();
+  const reason = g('frea').value.trim();
+  const dealer = formSrc==='co_tech' ? g('fdn').value.trim() : '';
+
+  if (!brand||!model||!fixT) { toast('❌ Punan ang Brand, Model, at Uri ng Ayos.'); return; }
+  if (!dt)                    { toast('❌ Piliin ang petsa.'); return; }
+  if (isEdit && !reason)      { toast('❌ Kailangan ang dahilan ng pagbabago.'); return; }
+  if (formSrc==='co_tech'&&!dealer) { toast('❌ Ilagay ang pangalan ng dealer.'); return; }
+
+  const tech = meD?.techName || meD?.displayName || 'Unknown';
+  const dts  = Timestamp.fromDate(new Date(dt+'T00:00:00'));
+
+  load(true);
+  try {
+    if (isEdit) {
+      await updateDoc(doc(db, COL_REPAIRS, eid), {
+        brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
+        notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        modificationReason:reason, updatedAt:serverTimestamp(), updatedBy:me.uid
+      });
+      toast('✅ Na-update na ang repair!');
+    } else {
+      await addDoc(collection(db, COL_REPAIRS), {
+        technician:tech, createdBy:me.uid,
+        brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
+        notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        submitted:false, createdAt:serverTimestamp(), updatedAt:serverTimestamp()
+      });
+      toast('✅ Na-save ang repair!');
+    }
+    closeForm();
+  } catch(e) { toast('❌ Error: '+e.message); }
+  finally { load(false); }
+};
+
+// ── End-Day Flow ──────────────────────────
+window.openEndDay = () => {
+  const todayList = repairs.filter(r => dateOf(r) === TODAY);
+  if (!todayList.length) { toast('Walang repairs pa ngayon!'); return; }
+
+  const totalCharged = todayList.reduce((s,r)=>s+num(r.totalCharged),0);
+  const totalEarns   = todayList.reduce((s,r)=>s+repairComm(r),0);
+  const pending      = todayList.filter(r=>r.paymentStatus==='pending');
+
+  g('ed-summary').innerHTML = `
+    <div style="background:var(--c2);border-radius:10px;padding:14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;">
+      <div>
+        <div style="font-size:22px;font-weight:800;color:var(--grn);">${todayList.length}</div>
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;">Repairs</div>
+      </div>
+      <div>
+        <div style="font-size:22px;font-weight:800;">₱${fmt(totalCharged)}</div>
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;">Charged</div>
+      </div>
+      <div>
+        <div style="font-size:22px;font-weight:800;color:var(--blu);">₱${fmt(totalEarns)}</div>
+        <div style="font-size:11px;color:var(--mut);text-transform:uppercase;">Kita Mo</div>
+      </div>
+    </div>
+    ${pending.length>0?`
+    <div style="background:#3b1000;border:1px solid #7c2d12;border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px;">
+      ⚠️ <strong>${pending.length} pending payment</strong> — i-remind ang customer/dealer.
+    </div>`:''}`;
+
+  g('ed-list').innerHTML = todayList.map(r => `
+    <div class="review-item">
+      <div>
+        <div class="review-device">${r.brand} ${r.model}</div>
+        <div class="review-fix">${r.fixType} · ${r.source==='co_tech'?'🤝 '+r.dealerName:'🚶 Walk-in'}</div>
+      </div>
+      <div class="review-amount">₱${fmt(num(r.totalCharged))}</div>
+    </div>`).join('');
+
+  g('edmod').classList.add('open');
+};
+
+window.closeEndDay = () => g('edmod').classList.remove('open');
+
+window.confirmSubmit = async () => {
+  const todayList = repairs.filter(r => dateOf(r) === TODAY);
+  load(true);
+  try {
+    const totalCharged = todayList.reduce((s,r)=>s+num(r.totalCharged),0);
+    const totalEarns   = todayList.reduce((s,r)=>s+repairComm(r),0);
+
+    // Update attendance record with time-out and summary
+    const attId = `${me.uid}_${TODAY}`;
+    await updateDoc(doc(db, COL_ATTENDANCE, attId), {
+      timeOut:      serverTimestamp(),
+      submitted:    true,
+      submittedAt:  serverTimestamp(),
+      repairCount:  todayList.length,
+      totalCharged: totalCharged,
+      totalEarnings:totalEarns
+    });
+
+    // Mark all today's repairs as submitted (locked)
+    for (const r of todayList) {
+      await updateDoc(doc(db, COL_REPAIRS, r.id), { submitted: true });
+    }
+
+    attend = { ...attend, submitted:true, submittedAt: new Date() };
+
+    closeEndDay();
+    updateTimeinBar();
+    toast('✅ Na-submit na! Salamat sa trabaho ngayon! Mag-lo-logout sa loob ng 10s…', 10000);
+
+    // Auto logout after 10 seconds
+    setTimeout(async () => {
+      await signOut(auth);
+      window.location.href = 'index.html';
+    }, 10000);
+
+  } catch(e) { toast('❌ Error: '+e.message); }
+  finally { load(false); }
+};
+
+// ── Logout ────────────────────────────────
+window.doLogout = async () => {
+  if (!confirm('Mag-logout ka ba?')) return;
+  if (unsub) unsub();
+  await signOut(auth);
+  window.location.href = 'index.html';
+};
+</script>
+</body>
+</html>

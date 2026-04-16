@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>FoneKingdom ShopLog AI — Login</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📱</text></svg>">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<div class="login-page">
+  <div class="login-logo">📱</div>
+  <div class="login-title">FoneKingdom ShopLog AI</div>
+  <div class="login-sub">Repair Tracker ng FoneKingdom</div>
+
+  <div class="login-card">
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="em" placeholder="you@email.com" autocomplete="email" autofocus>
+    </div>
+    <div class="fg">
+      <label>Password</label>
+      <input type="password" id="pw" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-p" id="login-btn" onclick="doLogin()">
+      <span id="btn-text">Mag-login</span>
+    </button>
+    <p id="err" style="color:var(--red);font-size:13px;margin-top:10px;text-align:center;display:none;"></p>
+  </div>
+</div>
+
+<div class="lo" id="ldr">
+  <div class="lb">
+    <div class="sp"></div>
+    <div style="font-size:13px;color:var(--mut);">Checking…</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { auth, db, COL_USERS, ADMIN_EMAILS } from './js/firebase.js';
+import {
+  signInWithEmailAndPassword, onAuthStateChanged
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import {
+  doc, getDoc, setDoc, serverTimestamp
+} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { g, load, toast } from './js/utils.js';
+
+// ── Check if already logged in ────────────
+load(true);
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    await redirect(user);
+  } else {
+    load(false);
+  }
+});
+
+// ── Login handler ─────────────────────────
+window.doLogin = async () => {
+  const email = g('em').value.trim();
+  const pass  = g('pw').value;
+  const err   = g('err');
+  err.style.display = 'none';
+
+  if (!email || !pass) {
+    err.textContent = 'Ilagay ang email at password.';
+    err.style.display = 'block';
+    return;
+  }
+
+  load(true);
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, pass);
+    await redirect(cred.user);
+  } catch (e) {
+    load(false);
+    err.textContent = 'Mali ang email o password. Subukan ulit.';
+    err.style.display = 'block';
+  }
+};
+
+async function redirect(user) {
+  const isAdmin = ADMIN_EMAILS.includes(user.email);
+  // Ensure user doc exists
+  const uref = doc(db, COL_USERS, user.uid);
+  const snap = await getDoc(uref);
+  if (!snap.exists()) {
+    const n = guessName(user.email);
+    await setDoc(uref, {
+      email:       user.email,
+      displayName: n || user.email.split('@')[0],
+      techName:    n || null,
+      role:        isAdmin ? 'admin' : 'technician',
+      createdAt:   serverTimestamp()
+    });
+  }
+  // Redirect to correct page
+  window.location.href = isAdmin ? 'admin.html' : 'tech.html';
+}
+
+function guessName(email) {
+  const e = email.toLowerCase();
+  if (e.includes('lester')) return 'Lester';
+  if (e.includes('eder'))   return 'Eder';
+  return null;
+}
+
+// ── Keyboard shortcuts ────────────────────
+g('pw').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+g('em').addEventListener('keydown', e => { if (e.key === 'Enter') g('pw').focus(); });
+</script>
+</body>
+</html>
