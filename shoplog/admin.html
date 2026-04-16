@@ -73,29 +73,85 @@
 
   <!-- ── AI TAB ── -->
   <div id="tab-ai" class="sec" style="display:none;">
+
+    <!-- Server config -->
     <div class="aiw">
-      <div style="font-size:20px;font-weight:700;margin-bottom:6px;">🤖 AI Shop Analyzer</div>
-      <div style="font-size:13px;color:#a5b4fc;margin-bottom:16px;">
-        Magtanong tungkol sa negosyo. Gagawa ako ng ready-to-paste prompt para sa iyong local Gemma AI (Reno 13 5G).
+      <div class="ai-header">
+        <span>🤖 AI Financial Advisor</span>
+        <span class="ai-status" id="ai-status">⚫ Not connected</span>
       </div>
-      <div class="fg">
-        <label style="color:#a5b4fc;">Extra Data — Loans, Expenses, Advances (JSON)</label>
-        <textarea id="ai-xd" style="font-family:monospace;font-size:12px;background:#090912;border-color:#4c1d95;color:#c4b5fd;min-height:60px;"
-          placeholder='{"loan_owed":50000,"monthly_rent":8000,"eder_advance":1500,"lester_advance":0}'></textarea>
-      </div>
-      <div class="fg">
-        <label style="color:#a5b4fc;">Tanong mo sa AI</label>
-        <textarea id="ai-q" style="min-height:90px;" placeholder="Halimbawa: Kaya ko bang kumuha ng ₱80,000 loan? Sino ang mas malaking kontribusyon sa shop? Full monthly report? Dapat ba taasan ang presyo ng charging port?"></textarea>
-      </div>
-      <button class="btn btn-ai" onclick="buildPrompt()">✨ &nbsp;Gumawa ng Gemma Prompt</button>
-      <div id="ai-out-sec" style="display:none;">
-        <div style="font-size:12px;font-weight:700;color:#a5b4fc;margin-top:16px;margin-bottom:6px;">
-          📋 I-copy at i-paste sa iyong Gemma / AI app:
+      <div style="display:flex;gap:8px;align-items:flex-end;">
+        <div class="fg" style="margin:0;flex:1;">
+          <label>LLM Server URL</label>
+          <input type="text" id="ai-url" value="http://127.0.0.1:8080" placeholder="http://127.0.0.1:8080">
         </div>
-        <div id="ai-out" class="ai-out"></div>
-        <button class="btn-copy" onclick="doCopy()">📋 &nbsp;I-copy ang Buong Prompt</button>
+        <button class="btn btn-gh" style="white-space:nowrap;align-self:flex-end;" onclick="testConnection()">🔌 Test</button>
       </div>
     </div>
+
+    <!-- Financial inputs (collapsible) -->
+    <div class="aiw">
+      <div class="ai-section-hdr" onclick="toggleFin('loans')">
+        💳 Loans / Utang <span id="finc-loans">▼</span>
+      </div>
+      <div id="fin-loans">
+        <div id="loan-list"></div>
+        <button class="btn btn-gh" style="font-size:13px;padding:7px 14px;margin-top:6px;" onclick="addLoan()">＋ Add Loan</button>
+      </div>
+
+      <div class="ai-section-hdr" style="margin-top:12px;" onclick="toggleFin('cards')">
+        💳 Credit Cards <span id="finc-cards">▼</span>
+      </div>
+      <div id="fin-cards">
+        <div id="card-list"></div>
+        <button class="btn btn-gh" style="font-size:13px;padding:7px 14px;margin-top:6px;" onclick="addCard()">＋ Add Card</button>
+      </div>
+
+      <div class="ai-section-hdr" style="margin-top:12px;" onclick="toggleFin('expenses')">
+        🏠 Monthly Expenses <span id="finc-expenses">▼</span>
+      </div>
+      <div id="fin-expenses"></div>
+
+      <div class="ai-section-hdr" style="margin-top:12px;" onclick="toggleFin('savings')">
+        💰 Cash &amp; Savings <span id="finc-savings">▼</span>
+      </div>
+      <div id="fin-savings"></div>
+
+      <button class="btn btn-p" style="margin-top:14px;width:100%;" onclick="saveFinData()">💾 &nbsp;I-save ang Financial Data</button>
+    </div>
+
+    <!-- Quick questions -->
+    <div class="aiw">
+      <div style="font-size:11px;font-weight:700;color:#a5b4fc;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">⚡ Quick Questions</div>
+      <div class="qchips">
+        <button class="qchip" onclick="quickAsk('Gaano kalaking loan ang kaya ko ngayon batay sa aking kita at kasalukuyang utang? Ibigay ang konkretong maximum amount at ipaliwanag ang batayan.')">🏦 Kaya ko bang mag-loan?</button>
+        <button class="qchip" onclick="quickAsk('Gumawa ng detalyadong monthly budget plan para sa akin. I-breakdown kung paano ko hahatiin ang aking kita — expenses, debt payments, at savings. Konkretong halaga ang gusto ko.')">📊 Monthly Budget Plan</button>
+        <button class="qchip" onclick="quickAsk('Ano ang pinakamabilis at pinaka-epektibong paraan para mabayaran ang lahat ng aking utang? Alin ang dapat unahin? Gumawa ng konkretong debt payoff timeline.')">💸 Debt Payoff Strategy</button>
+        <button class="qchip" onclick="quickAsk('Gusto kong bumili ng tools para sa shop gamit ang credit card. Maganda ba itong desisyon? I-compute ang total cost kasama ang interest at ang expected ROI ng tools sa shop.')">🔧 Buy Tools via Credit Card?</button>
+        <button class="qchip" onclick="quickAsk('I-analyze ang overall financial health ko — business at personal. Ano ang pinakamalalaking financial risks ko ngayon at paano ko ito maaayos?')">📈 Full Financial Health Check</button>
+        <button class="qchip" onclick="quickAsk('Maganda bang mag-invest sa stocks gamit ang credit card o loan? Anong klase ng investments ang angkop sa aking sitwasyon bilang shop owner?')">📉 Invest via Loan/CC?</button>
+      </div>
+    </div>
+
+    <!-- Chat interface -->
+    <div class="aiw" style="padding:0;overflow:hidden;">
+      <div id="ai-chat">
+        <div class="ai-welcome">
+          <div style="font-size:36px;margin-bottom:8px;">🤖</div>
+          <div style="font-size:15px;font-weight:700;color:var(--txt);">FoneKingdom AI Financial Advisor</div>
+          <div style="font-size:12px;margin-top:6px;">
+            1. I-set ang LLM server URL at i-click ang <strong>🔌 Test</strong><br>
+            2. I-fill up ang iyong financial data sa itaas<br>
+            3. Magtanong!
+          </div>
+        </div>
+      </div>
+      <div class="ai-input-row">
+        <textarea id="ai-input" placeholder="Magtanong tungkol sa iyong finances… (Enter = send, Shift+Enter = new line)" onkeydown="aiKeydown(event)"></textarea>
+        <button class="ai-send-btn" id="ai-send" onclick="sendAI()">▶</button>
+      </div>
+    </div>
+
   </div>
 
 </div><!-- /app -->
@@ -333,6 +389,7 @@ window.atab = t => {
   if (t==='ov')  drawOv();
   if (t==='rp')  drawRp();
   if (t==='att') drawAtt();
+  if (t==='ai')  initAiTab();
 };
 
 // ── Period Filter ─────────────────────────
@@ -954,106 +1011,391 @@ window.saveRep = async () => {
   finally { load(false); }
 };
 
-// ── AI PROMPT BUILDER ─────────────────────
-window.buildPrompt = () => {
-  const q     = g('ai-q').value.trim();
-  const xdRaw = g('ai-xd').value.trim();
-  let xd = {};
-  if (xdRaw) { try { xd=JSON.parse(xdRaw); } catch { toast('❌ Invalid JSON sa extra data.'); return; } }
+// ── AI FINANCIAL ADVISOR ──────────────────
+const AI_FIN_KEY = 'shoplog_findata_v1';
+let aiMsgs    = [];      // conversation history
+let aiActive  = false;   // is a request in-flight?
+const finCollapsed = new Set();
 
-  const t     = TODAY;
-  const month = t.slice(0,7);
-  const S_today = calcStats(repairs.filter(r=>dateOf(r)===t));
-  const S_month = calcStats(repairs.filter(r=>dateOf(r).startsWith(month)));
-  const S_all   = calcStats(repairs);
+const defFin = () => ({
+  loans:    [],
+  cards:    [],
+  expenses: { rent:0, electric:0, water:0, internet:0, food:0, transport:0, other:0 },
+  savings:  { cash:0, bank:0 },
+  notes:    ''
+});
 
-  function snap(S, pool) {
-    const pending = pool.filter(r=>r.paymentStatus==='pending');
-    const dealers = {};
-    pending.filter(r=>r.source==='co_tech').forEach(r => {
-      const d = r.dealerName||'Unknown';
-      if (!dealers[d]) dealers[d]=0;
-      dealers[d] += num(r.totalCharged);
-    });
-    return {
-      repairs_count:       pool.length,
-      total_charged:       S.totalCharged,
-      total_net_profit:    S.totalProfit,
-      total_shop_share:    S.shopTotal,
-      jay_personal_income: S.jayPersonal,
-      jay_grand_total:     S.jayGrand,
-      lester_earnings:     S.lesterTotal,
-      eder_earnings:       S.ederTotal,
-      eder_days_worked:    S.ederDays,
-      eder_daily_bonus:    S.ederBonus,
-      pending_collections: S.pending,
-      pending_by_dealer:   dealers,
-      by_technician: {
-        Lester: { count:S.byTech.Lester?.count, charged:S.byTech.Lester?.charged, commission:S.lesterTotal, shop_share:S.lesterShop },
-        Eder:   { count:S.byTech.Eder?.count,   charged:S.byTech.Eder?.charged,   commission:S.ederTotal,   shop_share:S.ederShop },
-        Jay:    { count:S.byTech.Jay?.count,    charged:S.byTech.Jay?.charged,    personal:S.jayPersonal,   shop_share:S.jayShop },
-      },
-      top_repairs: (() => {
-        const fc={};
-        pool.forEach(r=>{if(r.fixType)fc[r.fixType]=(fc[r.fixType]||0)+1;});
-        return Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([t,c])=>({type:t,count:c}));
-      })()
-    };
+let finData = (() => {
+  try { return Object.assign(defFin(), JSON.parse(localStorage.getItem(AI_FIN_KEY)||'null')); }
+  catch { return defFin(); }
+})();
+
+// ── Accordion toggle ──
+window.toggleFin = sec => {
+  const el = document.getElementById('fin-'+sec);
+  const ar = document.getElementById('finc-'+sec);
+  if (!el) return;
+  if (finCollapsed.has(sec)) {
+    finCollapsed.delete(sec); el.style.display=''; if(ar)ar.textContent='▼';
+  } else {
+    finCollapsed.add(sec);    el.style.display='none'; if(ar)ar.textContent='▶';
   }
-
-  const payload = {
-    generated:        new Date().toLocaleString('en-PH',{timeZone:'Asia/Manila'}),
-    shop:             'FoneKingdom',
-    currency:         'PHP (₱)',
-    commission_rules: {
-      Lester: 'Earns 40% of net profit per repair. Shop keeps 60%.',
-      Eder:   'Earns 20% of net profit per repair + ₱200 daily allowance per day worked. Shop keeps the remaining 80% minus the daily bonus.',
-      Jay:    'Jay (owner) keeps 60% of net profit from own repairs as personal income. 40% goes to shop. Jay also OWNS the full shop share from all techs, so Jay grand total = personal income + total shop share.'
-    },
-    today:     snap(S_today, repairs.filter(r=>dateOf(r)===t)),
-    this_month:snap(S_month, repairs.filter(r=>dateOf(r).startsWith(month))),
-    all_time:  snap(S_all, repairs),
-    extra:     xd
-  };
-
-  const defaultQ = 'Bigyan mo ako ng kompletong monthly business report. I-analyze ang: (1) performance ng bawat technician, (2) kalusugan ng kita ng shop, (3) mga pending collections, at (4) konkretong rekomendasyon para mapabuti ang negosyo.';
-
-  const prompt =
-`[SYSTEM]
-Ikaw ay isang matalino, tapat, at praktikal na business advisor ng isang Philippine phone repair shop na ang pangalan ay "FoneKingdom". Ang iyong trabaho: suriin ang datos at magbigay ng honest, actionable advice.
-
-COMMISSION STRUCTURE:
-- Lester: 40% ng net profit bawat repair (shop gets 60%)
-- Eder: 20% ng net profit bawat repair + ₱200 daily allowance bawat araw na nagtrabaho (shop gets 80% gross minus the daily allowance)
-- Jay (Owner): 60% ng kanyang sariling repairs bilang personal na kita. 40% ng kanyang repairs + lahat ng shop shares mula sa ibang techs = Jay's total business income (Jay Grand Total)
-
-PANUNTUNAN:
-1. Gumamit ng Taglish — natural mix ng Tagalog at English
-2. Maging tapat at direkta — huwag itago ang mga problema
-3. Gamitin ang ₱ at comma separators (e.g. ₱12,500)
-4. Base lahat sa datos sa JSON — walang assumptions
-5. Para sa loan/investment questions: maingat na i-assess ang cash flow
-6. I-structure ang sagot: headers (##) at bullet points
-7. Kung may warning o panganib, i-highlight agad
-
-BUSINESS DATA:
-${JSON.stringify(payload, null, 2)}
-
-[QUESTION]
-${q||defaultQ}
-
-[ANSWER]
-`;
-
-  g('ai-out').textContent = prompt;
-  g('ai-out-sec').style.display = 'block';
-  g('ai-out-sec').scrollIntoView({ behavior:'smooth', block:'start' });
 };
 
-window.doCopy = () => {
-  navigator.clipboard.writeText(g('ai-out').textContent)
-    .then(()=>toast('✅ Nakopya! I-paste sa Gemma app mo.'))
-    .catch(()=>toast('❌ Hindi auto-copy. I-select at i-copy manually.'));
+// ── Render loan list ──
+function renderLoans() {
+  const c = document.getElementById('loan-list');
+  if (!c) return;
+  c.innerHTML = finData.loans.length === 0
+    ? `<div style="font-size:12px;color:var(--mut);padding:4px 0;">Wala pang loan.</div>`
+    : finData.loans.map((l,i) => `
+      <div style="background:var(--c2);border-radius:8px;padding:10px 10px 10px 12px;margin-bottom:8px;position:relative;border:1px solid var(--bdr);">
+        <button onclick="removeLoan(${i})" style="position:absolute;top:6px;right:8px;background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:2px 6px;">✕</button>
+        <div class="r2">
+          <div class="fg" style="margin:0 0 6px;"><label>Pangalan ng Loan</label>
+            <input type="text" value="${escAttr(l.name||'')}" onchange="finData.loans[${i}].name=this.value" placeholder="e.g. SSS Salary Loan"></div>
+          <div class="fg" style="margin:0 0 6px;"><label>Balance (₱)</label>
+            <input type="number" value="${l.balance||0}" onchange="finData.loans[${i}].balance=+this.value" min="0"></div>
+        </div>
+        <div class="r2">
+          <div class="fg" style="margin:0;"><label>Monthly Payment (₱)</label>
+            <input type="number" value="${l.monthly||0}" onchange="finData.loans[${i}].monthly=+this.value" min="0"></div>
+          <div class="fg" style="margin:0;"><label>Interest (% / year)</label>
+            <input type="number" value="${l.interest||0}" onchange="finData.loans[${i}].interest=+this.value" step="0.5" min="0"></div>
+        </div>
+      </div>`).join('');
+}
+
+window.addLoan = () => {
+  finData.loans.push({ name:'', balance:0, monthly:0, interest:0 });
+  renderLoans();
+};
+window.removeLoan = i => {
+  finData.loans.splice(i,1); renderLoans();
+};
+
+// ── Render credit cards ──
+function renderCards() {
+  const c = document.getElementById('card-list');
+  if (!c) return;
+  c.innerHTML = finData.cards.length === 0
+    ? `<div style="font-size:12px;color:var(--mut);padding:4px 0;">Wala pang credit card.</div>`
+    : finData.cards.map((cc,i) => `
+      <div style="background:var(--c2);border-radius:8px;padding:10px 10px 10px 12px;margin-bottom:8px;position:relative;border:1px solid var(--bdr);">
+        <button onclick="removeCard(${i})" style="position:absolute;top:6px;right:8px;background:none;border:none;color:var(--red);font-size:14px;cursor:pointer;padding:2px 6px;">✕</button>
+        <div class="r2">
+          <div class="fg" style="margin:0 0 6px;"><label>Card Name</label>
+            <input type="text" value="${escAttr(cc.name||'')}" onchange="finData.cards[${i}].name=this.value" placeholder="e.g. BPI Mastercard"></div>
+          <div class="fg" style="margin:0 0 6px;"><label>Balance Owed (₱)</label>
+            <input type="number" value="${cc.balance||0}" onchange="finData.cards[${i}].balance=+this.value" min="0"></div>
+        </div>
+        <div class="r2">
+          <div class="fg" style="margin:0 0 6px;"><label>Credit Limit (₱)</label>
+            <input type="number" value="${cc.limit||0}" onchange="finData.cards[${i}].limit=+this.value" min="0"></div>
+          <div class="fg" style="margin:0 0 6px;"><label>Min Payment (₱)</label>
+            <input type="number" value="${cc.minPayment||0}" onchange="finData.cards[${i}].minPayment=+this.value" min="0"></div>
+        </div>
+        <div class="fg" style="margin:0;"><label>Interest Rate (% per month)</label>
+          <input type="number" value="${cc.rate||2}" onchange="finData.cards[${i}].rate=+this.value" step="0.25" min="0"></div>
+      </div>`).join('');
+}
+
+window.addCard = () => {
+  finData.cards.push({ name:'', balance:0, limit:0, minPayment:0, rate:2 });
+  renderCards();
+};
+window.removeCard = i => {
+  finData.cards.splice(i,1); renderCards();
+};
+
+// ── Render expenses & savings ──
+function renderExpenses() {
+  const e = finData.expenses;
+  document.getElementById('fin-expenses').innerHTML = `
+    <div class="r2">
+      <div class="fg" style="margin:0 0 8px;"><label>Rent / Amortization (₱)</label>
+        <input type="number" value="${e.rent||0}" onchange="finData.expenses.rent=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Electric Bill (₱)</label>
+        <input type="number" value="${e.electric||0}" onchange="finData.expenses.electric=+this.value" min="0"></div>
+    </div>
+    <div class="r2">
+      <div class="fg" style="margin:0 0 8px;"><label>Water Bill (₱)</label>
+        <input type="number" value="${e.water||0}" onchange="finData.expenses.water=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Phone &amp; Internet (₱)</label>
+        <input type="number" value="${e.internet||0}" onchange="finData.expenses.internet=+this.value" min="0"></div>
+    </div>
+    <div class="r2">
+      <div class="fg" style="margin:0 0 8px;"><label>Food / Groceries (₱)</label>
+        <input type="number" value="${e.food||0}" onchange="finData.expenses.food=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Transportation (₱)</label>
+        <input type="number" value="${e.transport||0}" onchange="finData.expenses.transport=+this.value" min="0"></div>
+    </div>
+    <div class="fg"><label>Other Monthly (₱)</label>
+      <input type="number" value="${e.other||0}" onchange="finData.expenses.other=+this.value" min="0"></div>`;
+}
+
+function renderSavings() {
+  const s = finData.savings;
+  document.getElementById('fin-savings').innerHTML = `
+    <div class="r2">
+      <div class="fg" style="margin:0 0 8px;"><label>Cash on Hand (₱)</label>
+        <input type="number" value="${s.cash||0}" onchange="finData.savings.cash=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Bank Savings (₱)</label>
+        <input type="number" value="${s.bank||0}" onchange="finData.savings.bank=+this.value" min="0"></div>
+    </div>
+    <div class="fg"><label>Notes / Context (optional)</label>
+      <textarea onchange="finData.notes=this.value" style="min-height:54px;" placeholder="e.g. Expected big expense, business goals, context about a loan...">${finData.notes||''}</textarea></div>`;
+}
+
+window.saveFinData = () => {
+  localStorage.setItem(AI_FIN_KEY, JSON.stringify(finData));
+  toast('✅ Saved! Financial data stored locally.');
+};
+
+// Initialize financial input UI when AI tab is opened
+function initAiTab() {
+  renderLoans();
+  renderCards();
+  renderExpenses();
+  renderSavings();
+}
+
+// ── System prompt builder ──
+function buildSystemPrompt() {
+  const mon = TODAY.slice(0,7);
+  const S_today = calcStats(repairs.filter(r=>dateOf(r)===TODAY));
+  const S_month = calcStats(repairs.filter(r=>dateOf(r).startsWith(mon)));
+  const S_all   = calcStats(repairs);
+
+  const totalExpenses     = Object.values(finData.expenses).reduce((s,v)=>s+(+v||0),0);
+  const totalLoanPayments = finData.loans.reduce((s,l)=>s+(+l.monthly||0),0);
+  const totalCardMin      = finData.cards.reduce((s,c)=>s+(+c.minPayment||0),0);
+  const totalDebtPayments = totalLoanPayments + totalCardMin;
+  const totalLoanBalance  = finData.loans.reduce((s,l)=>s+(+l.balance||0),0);
+  const totalCardBalance  = finData.cards.reduce((s,c)=>s+(+c.balance||0),0);
+  const totalDebt         = totalLoanBalance + totalCardBalance;
+  const totalSavings      = (+finData.savings.cash||0) + (+finData.savings.bank||0);
+  const monthlyIncome     = S_month.jayGrand;
+  const netAfterAll       = monthlyIncome - totalExpenses - totalDebtPayments;
+  const dti               = monthlyIncome > 0 ? Math.round(totalDebtPayments/monthlyIncome*100) : 0;
+
+  const topRepairs = (() => {
+    const fc={};
+    repairs.forEach(r=>{if(r.fixType)fc[r.fixType]=(fc[r.fixType]||0)+1;});
+    return Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([t,c])=>({type:t,count:c}));
+  })();
+
+  const bizData = {
+    shop: 'FoneKingdom',
+    currency: 'PHP (₱)',
+    today: {
+      jay_income: S_today.jayGrand, jay_personal: S_today.jayPersonal,
+      total_charged: S_today.totalCharged, repairs: repairs.filter(r=>dateOf(r)===TODAY).length
+    },
+    this_month: {
+      jay_income: S_month.jayGrand, jay_personal: S_month.jayPersonal,
+      shop_share: S_month.shopTotal, total_charged: S_month.totalCharged,
+      net_profit: S_month.totalProfit, repairs_count: repairs.filter(r=>dateOf(r).startsWith(mon)).length,
+      pending_collections: S_month.pending,
+      lester: { earnings: S_month.lesterTotal, repairs: S_month.byTech.Lester?.count||0 },
+      eder:   { earnings: S_month.ederTotal,   repairs: S_month.byTech.Eder?.count||0, days: S_month.ederDays, bonus: S_month.ederBonus }
+    },
+    all_time: { jay_total: S_all.jayGrand, total_charged: S_all.totalCharged, repairs: repairs.length },
+    top_repair_types: topRepairs
+  };
+
+  const finSummary = {
+    loans: finData.loans,
+    credit_cards: finData.cards,
+    monthly_expenses: finData.expenses,
+    savings: finData.savings,
+    computed: {
+      total_monthly_expenses: totalExpenses,
+      total_monthly_debt_payments: totalDebtPayments,
+      total_debt_outstanding: totalDebt,
+      total_savings: totalSavings,
+      estimated_monthly_income_this_month: monthlyIncome,
+      net_cash_after_expenses_and_debt: netAfterAll,
+      debt_to_income_ratio_percent: dti,
+      months_to_clear_all_debt_at_current_payments: totalDebtPayments > 0 ? Math.ceil(totalDebt/totalDebtPayments) : 0
+    },
+    notes: finData.notes
+  };
+
+  return `You are a personal financial advisor for Jay, owner of FoneKingdom phone repair shop in the Philippines. Be practical, direct, and honest. Never be vague.
+
+## COMMISSION STRUCTURE
+- Jay earns 60% of net profit from HIS OWN repairs
+- Jay also owns the FULL shop share from all technicians:
+  - From Lester: 60% of each repair's net profit
+  - From Eder: 80% of net profit minus ₱200/day worked (Eder's daily allowance)
+- Jay's TOTAL monthly income = personal repairs income + entire shop share
+- Net profit per repair = Total charged − Parts cost − Transpo/delivery
+
+## LIVE BUSINESS DATA
+\`\`\`json
+${JSON.stringify(bizData, null, 2)}
+\`\`\`
+
+## PERSONAL FINANCIAL DATA
+\`\`\`json
+${JSON.stringify(finSummary, null, 2)}
+\`\`\`
+
+## HOW TO RESPOND
+1. Taglish lang — natural Filipino + English mix, conversational tone
+2. ALWAYS show konkretong calculations with ₱ and commas (₱12,500)
+3. Be honest — if things look risky, say so clearly with specific reasons
+4. For credit card use: ALWAYS show total cost with interest over time
+5. For loan recommendations: DTI must stay below 35% for safe borrowing (current DTI: ${dti}%)
+6. For tool/equipment purchases: show payback period in months
+7. Philippine options: SSS loan, Pag-IBIG MP2, cooperative loan — avoid 5-6!
+8. Priority order: Emergency fund (3 months) → High-interest debt → Business investment → Personal investment
+9. If monthly income is variable, use conservative (lower) estimate for planning
+10. Format with ## headers and bullet points for readability`;
+}
+
+// ── Chat functions ──
+function escHtml(t) {
+  return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escAttr(t) {
+  return String(t).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function mdRender(text) {
+  return escHtml(text)
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/`([^`\n]+)`/g,'<code style="background:#1c2433;padding:1px 5px;border-radius:3px;font-size:12px;font-family:monospace;">$1</code>')
+    .replace(/^### (.+)$/gm,'<div style="font-weight:700;color:var(--yel);margin:8px 0 3px;">$1</div>')
+    .replace(/^## (.+)$/gm,'<div style="font-weight:700;font-size:15px;color:var(--blu);margin:10px 0 4px;border-bottom:1px solid #2d1b69;padding-bottom:3px;">$1</div>')
+    .replace(/^# (.+)$/gm,'<div style="font-weight:700;font-size:16px;color:var(--grn);margin:12px 0 6px;">$1</div>')
+    .replace(/^[-*] (.+)$/gm,'<div style="padding:2px 0 2px 12px;">• $1</div>')
+    .replace(/^(\d+)\. (.+)$/gm,'<div style="padding:2px 0 2px 12px;">$1. $2</div>')
+    .replace(/\n\n/g,'<div style="height:8px;"></div>')
+    .replace(/\n/g,'<br>');
+}
+
+function appendMsg(role, html, isPartial) {
+  const chat = document.getElementById('ai-chat');
+  const welcome = chat.querySelector('.ai-welcome');
+  if (welcome) welcome.remove();
+  const div = document.createElement('div');
+  div.className = `ai-msg ${role==='user'?'user':'asst'}`;
+  div.innerHTML = `<div class="ai-avatar">${role==='user'?'👤':'🤖'}</div><div class="bubble-content">${html}</div>`;
+  if (isPartial) div.classList.add('thinking');
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+window.sendAI = async () => {
+  const input  = document.getElementById('ai-input');
+  const sendBtn= document.getElementById('ai-send');
+  const text   = input.value.trim();
+  if (!text || aiActive) return;
+  input.value = ''; aiActive = true; sendBtn.disabled = true;
+
+  aiMsgs.push({ role:'user', content:text });
+  appendMsg('user', escHtml(text).replace(/\n/g,'<br>'));
+
+  const ph = appendMsg('asst', '', true);
+  const url = (document.getElementById('ai-url').value.trim() || 'http://127.0.0.1:8080').replace(/\/+$/,'');
+
+  try {
+    const resp = await fetch(`${url}/v1/chat/completions`, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        messages: [{ role:'system', content: buildSystemPrompt() }, ...aiMsgs.slice(-12)],
+        stream: true,
+        temperature: 0.72,
+        max_tokens: 2048,
+        stop: ['<end_of_turn>','<|end|>','</s>','<eos>']
+      })
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text().catch(()=>'');
+      throw new Error(`HTTP ${resp.status}${errText?' — '+errText.slice(0,120):''}`);
+    }
+
+    ph.classList.remove('thinking');
+    const bubble = ph.querySelector('.bubble-content');
+    let fullText = '';
+
+    const reader = resp.body.getReader();
+    const dec    = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream:true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if (d === '[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          const chunk = j.choices?.[0]?.delta?.content || '';
+          if (chunk) {
+            fullText += chunk;
+            bubble.innerHTML = mdRender(fullText);
+            ph.scrollIntoView({ block:'end' });
+          }
+        } catch {}
+      }
+    }
+
+    if (!fullText) fullText = '(walang response — baka natapos na ang tokens o nag-timeout)';
+    bubble.innerHTML = mdRender(fullText);
+    aiMsgs.push({ role:'assistant', content:fullText });
+
+  } catch(e) {
+    ph.classList.remove('thinking');
+    ph.querySelector('.bubble-content').innerHTML =
+      `<span style="color:var(--red);">❌ ${escHtml(e.message)}</span><br><span style="font-size:12px;color:var(--mut);">Tiyaking naka-on ang LLM server sa Termux at tama ang URL:port.</span>`;
+  } finally {
+    aiActive = false;
+    sendBtn.disabled = false;
+    document.getElementById('ai-input').focus();
+  }
+};
+
+window.quickAsk = q => {
+  document.getElementById('ai-input').value = q;
+  sendAI();
+};
+
+window.aiKeydown = e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAI(); }
+};
+
+window.testConnection = async () => {
+  const statusEl = document.getElementById('ai-status');
+  const url = (document.getElementById('ai-url').value.trim() || 'http://127.0.0.1:8080').replace(/\/+$/,'');
+  statusEl.textContent = '🟡 Testing…'; statusEl.style.color = 'var(--yel)';
+  try {
+    // Try OpenAI models endpoint
+    const r = await fetch(`${url}/v1/models`, { signal: AbortSignal.timeout(6000) });
+    if (r.ok) {
+      const j = await r.json().catch(()=>({}));
+      const model = j.data?.[0]?.id || 'llama.cpp';
+      statusEl.textContent = `🟢 ${model}`; statusEl.style.color = 'var(--grn)';
+      return;
+    }
+  } catch {}
+  try {
+    // Fallback: llama.cpp /health endpoint
+    const r2 = await fetch(`${url}/health`, { signal: AbortSignal.timeout(6000) });
+    if (r2.ok) {
+      statusEl.textContent = '🟢 Connected (llama.cpp)'; statusEl.style.color = 'var(--grn)'; return;
+    }
+  } catch {}
+  statusEl.textContent = '🔴 Cannot reach server'; statusEl.style.color = 'var(--red)';
 };
 
 // ── Logout ────────────────────────────────
