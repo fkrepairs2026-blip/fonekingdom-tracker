@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Edge Trader — AI Partner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0d1117;
+    --card: #111820;
+    --border: #1e2d3d;
+    --accent: #00e5ff;
+    --green: #00ff88;
+    --red: #ff3b5c;
+    --amber: #ffb800;
+    --purple: #a855f7;
+    --text: #e2e8f0;
+    --muted: #4a5568;
+    --dim: #2d3748;
+    --font-mono: 'Space Mono', monospace;
+    --font-ui: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,229,255,0.012) 2px, rgba(0,229,255,0.012) 4px);
+    pointer-events: none;
+    z-index: 1000;
+  }
+
+  /* BACK BUTTON */
+  .back-btn {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 200;
+    background: rgba(13,17,23,0.92);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent);
+    text-decoration: none;
+    backdrop-filter: blur(10px);
+    letter-spacing: 0.5px;
+    transition: border-color 0.2s;
+  }
+  .back-btn:active { border-color: var(--accent); }
+
+  /* NAV TABS */
+  .nav-tabs {
+    position: fixed;
+    bottom: 0;
+    left: 0; right: 0;
+    display: flex;
+    background: rgba(8,11,16,0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    z-index: 100;
+    padding: 0 4px 6px;
+  }
+  .nav-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 8px 4px;
+    cursor: pointer;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    transition: color 0.2s;
+  }
+  .nav-tab.active { color: var(--accent); }
+  .nav-tab .icon { font-size: 20px; line-height: 1; }
+
+  /* PAGES */
+  .page { display: none; padding: 12px 12px 90px; padding-top: 42px; }
+  .page.active { display: block; }
+
+  /* HEADER */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+    padding-top: 8px;
+  }
+  .logo {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+    text-transform: uppercase;
+  }
+  .logo span { color: var(--green); }
+  .subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; }
+
+  /* PRICE TICKER */
+  .price-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  .price-row::-webkit-scrollbar { display: none; }
+  .price-chip {
+    flex-shrink: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    min-width: 90px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  .price-chip.active { border-color: var(--accent); }
+  .price-chip .sym { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.5px; }
+  .price-chip .val { font-family: var(--font-mono); font-size: 14px; font-weight: 700; margin-top: 2px; }
+  .price-chip .chg { font-size: 11px; margin-top: 1px; font-weight: 600; }
+  .up { color: var(--green); }
+  .dn { color: var(--red); }
+  .neu { color: var(--muted); }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* SIGNAL BADGE */
+  .signal-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .signal-short { background: rgba(255,59,92,0.15); color: var(--red); border: 1px solid rgba(255,59,92,0.3); }
+  .signal-long { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.3); }
+  .signal-neutral { background: rgba(255,184,0,0.1); color: var(--amber); border: 1px solid rgba(255,184,0,0.3); }
+
+  /* SETUP GRID */
+  .setup-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 10px 0;
+  }
+  .setup-cell { text-align: center; }
+  .setup-label { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+  .setup-val { font-family: var(--font-mono); font-size: 16px; font-weight: 700; margin-top: 3px; }
+
+  /* DIVIDER */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+
+  /* INPUTS */
+  .input-group { margin-bottom: 12px; }
+  .input-label { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.8px; margin-bottom: 5px; display: block; }
+  input[type="number"], input[type="text"], select, textarea {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: var(--font-mono);
+    font-size: 14px;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+  textarea { resize: none; font-family: var(--font-ui); font-size: 13px; line-height: 1.5; }
+  select option { background: var(--surface); }
+
+  /* BUTTONS */
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.2s;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-green { background: var(--green); color: #000; }
+  .btn-red { background: var(--red); color: #fff; }
+  .btn-ghost { background: var(--dim); color: var(--text); }
+  .btn-purple { background: var(--purple); color: #fff; }
+  .btn-sm {
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    letter-spacing: 0.3px;
+    transition: transform 0.1s;
+  }
+  .btn-sm:active { transform: scale(0.95); }
+
+  /* GRID 2 */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* RESULT BOX */
+  .result-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-top: 10px;
+    text-align: center;
+    font-family: var(--font-mono);
+  }
+  .result-big { font-size: 32px; font-weight: 700; color: var(--accent); }
+  .result-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* CHART CONTAINER */
+  .chart-wrap {
+    height: 320px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  /* CHAT */
+  .chat-box {
+    height: 260px;
+    overflow-y: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    scroll-behavior: smooth;
+  }
+  .chat-box::-webkit-scrollbar { width: 3px; }
+  .chat-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .msg { margin-bottom: 10px; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .msg-user { display: flex; justify-content: flex-end; }
+  .msg-ai { display: flex; justify-content: flex-start; }
+  .bubble {
+    max-width: 85%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .bubble-user { background: var(--accent); color: #000; font-weight: 500; border-radius: 14px 14px 4px 14px; }
+  .bubble-ai { background: var(--dim); color: var(--text); border-radius: 14px 14px 14px 4px; }
+  .bubble-ai.thinking { opacity: 0.6; font-style: italic; }
+  .typing-dots::after { content: '...'; animation: dots 1s infinite; }
+  @keyframes dots { 0%,20% { content: '.'; } 40%,60% { content: '..'; } 80%,100% { content: '...'; } }
+
+  .quick-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .quick-btn {
+    flex: 1;
+    min-width: calc(50% - 3px);
+    padding: 9px 8px;
+    background: var(--dim);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    border: none;
+    font-family: var(--font-ui);
+    transition: background 0.15s;
+  }
+  .quick-btn:active { background: var(--border); }
+
+  .chat-input-row { display: flex; flex-direction: column; gap: 8px; }
+  .chat-input-row input {
+    width: 100%;
+    padding: 16px 18px;
+    font-size: 16px;
+    border-radius: 14px;
+    min-height: 54px;
+  }
+  .chat-send-btn {
+    width: 100%;
+    padding: 16px;
+    border: none;
+    border-radius: 14px;
+    background: var(--purple);
+    color: #fff;
+    font-family: var(--font-ui);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s;
+  }
+  .chat-send-btn:active { transform: scale(0.97); opacity: 0.85; }
+
+  /* SCREENER */
+  .screener-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .screener-table th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .screener-table td {
+    padding: 10px 4px;
+    border-bottom: 1px solid rgba(30,45,61,0.5);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    vertical-align: middle;
+  }
+  .screener-table tr { cursor: pointer; transition: background 0.1s; }
+  .screener-table tr:active { background: var(--dim); }
+  .score-bar {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+  }
+  .score-pip {
+    width: 6px; height: 6px;
+    border-radius: 1px;
+    background: var(--border);
+  }
+  .score-pip.filled { background: var(--accent); }
+  .score-pip.good { background: var(--green); }
+  .score-pip.bad { background: var(--red); }
+
+  /* JOURNAL */
+  .journal-entry {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    animation: fadeIn 0.3s ease;
+  }
+  .journal-entry:active { border-color: var(--accent); }
+  .journal-entry .je-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .je-pair { font-weight: 700; font-size: 14px; }
+  .je-date { font-size: 10px; color: var(--muted); font-family: var(--font-mono); }
+  .je-dir { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; }
+  .je-long { background: rgba(0,255,136,0.15); color: var(--green); }
+  .je-short { background: rgba(255,59,92,0.15); color: var(--red); }
+  .je-meta { display: flex; gap: 12px; font-size: 12px; font-family: var(--font-mono); }
+  .je-pnl-pos { color: var(--green); font-weight: 700; }
+  .je-pnl-neg { color: var(--red); font-weight: 700; }
+  .je-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.4; }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat-cell {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+  }
+  .stat-label { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; }
+  .stat-val { font-family: var(--font-mono); font-size: 22px; font-weight: 700; margin-top: 4px; }
+
+  /* TP LEVELS */
+  .tp-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .tp-label { font-size: 11px; color: var(--muted); font-weight: 700; width: 36px; flex-shrink: 0; }
+  .tp-bar-wrap { flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .tp-bar { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.5s ease; }
+  .tp-bar.sl { background: var(--red); }
+  .tp-val { font-family: var(--font-mono); font-size: 12px; min-width: 60px; text-align: right; }
+
+  /* RSI BAR */
+  .rsi-wrap { position: relative; height: 20px; background: linear-gradient(to right, var(--red) 0%, var(--red) 30%, var(--amber) 30%, var(--amber) 70%, var(--green) 70%); border-radius: 4px; overflow: visible; margin: 6px 0; }
+  .rsi-marker { position: absolute; top: -3px; width: 2px; height: 26px; background: white; border-radius: 1px; transition: left 0.5s ease; }
+  .rsi-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); font-family: var(--font-mono); margin-top: 2px; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* GEMMA STATUS */
+  .gemma-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+  }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .status-online { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-offline { background: var(--red); }
+  .status-checking { background: var(--amber); animation: pulse 1s infinite; }
+
+  /* SETUP DETAIL */
+  .detail-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(30,45,61,0.5); }
+  .detail-key { font-size: 12px; color: var(--muted); }
+  .detail-val { font-family: var(--font-mono); font-size: 13px; font-weight: 700; }
+
+  /* JOURNAL MODAL */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-sheet {
+    width: 100%;
+    background: var(--card);
+    border-radius: 20px 20px 0 0;
+    border-top: 1px solid var(--border);
+    padding: 20px 16px 32px;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal-handle { width: 40px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 16px; }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+
+  /* INLINE BADGE */
+  .inline-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; vertical-align: middle; }
+
+  /* SETUP DIRECTIONS SELECTOR */
+  .dir-toggle { display: flex; gap: 8px; margin-bottom: 14px; }
+  .dir-btn {
+    flex: 1;
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-family: var(--font-ui);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .dir-btn.active-long { border-color: var(--green); color: var(--green); background: rgba(0,255,136,0.08); }
+  .dir-btn.active-short { border-color: var(--red); color: var(--red); background: rgba(255,59,92,0.08); }
+
+  /* PROGRESS */
+  .progress-wrap { background: var(--border); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 4px; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+
+  /* TIPS */
+  .tip-box {
+    background: rgba(0,229,255,0.06);
+    border: 1px solid rgba(0,229,255,0.2);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--accent);
+    line-height: 1.5;
+    margin-top: 10px;
+  }
+  .tip-box strong { display: block; margin-bottom: 2px; font-size: 10px; letter-spacing: 0.8px; text-transform: uppercase; }
+
+  /* Scrollbar global */
+  ::-webkit-scrollbar { width: 3px; height: 3px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  /* Number formatting */
+  .mono { font-family: var(--font-mono); }
+
+  .spin { animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 40px; margin-bottom: 10px; }
+  .empty-text { font-size: 13px; line-height: 1.6; }
+
+  /* Filter chips */
+  .filter-chips { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-bottom: 4px; margin-bottom: 10px; }
+  .filter-chips::-webkit-scrollbar { display: none; }
+  .fchip {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: var(--dim);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .fchip.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  /* Search */
+  .search-wrap { position: relative; margin-bottom: 10px; }
+  .search-wrap input { padding-left: 36px; }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--muted); pointer-events: none; }
+</style>
+</head>
+<body>
+
+<!-- BACK TO SHOPLOG -->
+<a href="admin.html" class="back-btn">← ShopLog</a>
+
+<!-- PAGE: DASHBOARD -->
+<div id="page-dashboard" class="page active">
+  <div class="header">
+    <div>
+      <div class="logo">Edge<span>Trader</span></div>
+      <div class="subtitle">AI TRADING PARTNER · v5</div>
+    </div>
+    <div id="gemma-status-badge" class="gemma-status">
+      <div class="status-dot status-checking" id="gemma-dot"></div>
+      <span id="gemma-status-text">Checking...</span>
+    </div>
+  </div>
+
+  <!-- Price Tickers -->
+  <div class="price-row" id="ticker-row"></div>
+
+  <!-- Active Setup -->
+  <div class="card" id="setup-card">
+    <div class="card-title"><span class="dot"></span>ACTIVE SETUP</div>
+    <div id="setup-direction-badge"></div>
+
+    <div class="setup-grid">
+      <div class="setup-cell">
+        <div class="setup-label">ENTRY</div>
+        <div class="setup-val" id="s-entry">—</div>
+      </div>
+      <div class="setup-cell">
+        <div class="setup-label">STOP</div>
+        <div class="setup-val dn" id="s-sl">—</div>
+      </div>
+      <div class="setup-cell">
+        <div class="setup-label">R:R</div>
+        <div class="setup-val up" id="s-rr">—</div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="section-title">TAKE PROFITS</div>
+    <div id="tp-bars"></div>
+
+    <hr class="divider">
+
+    <!-- Indicators -->
+    <div class="section-title">INDICATORS</div>
+    <div class="detail-row">
+      <div class="detail-key">RSI (14)</div>
+      <div>
+        <div class="rsi-wrap"><div class="rsi-marker" id="rsi-marker"></div></div>
+        <div class="rsi-labels"><span>0</span><span>30</span><span>70</span><span>100</span></div>
+      </div>
+      <div class="detail-val" id="rsi-val">—</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-key">Volume</div>
+      <div class="detail-val" id="vol-val">—</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-key">Funding Rate</div>
+      <div class="detail-val" id="fund-val">—</div>
+    </div>
+    <div class="detail-row">
+      <div class="detail-key">BTC Bias</div>
+      <div class="detail-val" id="btc-bias">—</div>
+    </div>
+  </div>
+
+  <!-- Risk Calc -->
+  <div class="card">
+    <div class="card-title">⚡ RISK CALCULATOR</div>
+
+    <div class="grid2">
+      <div class="input-group">
+        <label class="input-label">ACCOUNT (USDT)</label>
+        <input type="number" id="rc-account" value="500" min="10">
+      </div>
+      <div class="input-group">
+        <label class="input-label">RISK %</label>
+        <input type="number" id="rc-risk" value="1" min="0.1" max="5" step="0.1">
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="input-group">
+        <label class="input-label">LEVERAGE</label>
+        <select id="rc-lev">
+          <option value="3">3x</option>
+          <option value="5" selected>5x</option>
+          <option value="10">10x</option>
+          <option value="20">20x</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">DIRECTION</label>
+        <select id="rc-dir">
+          <option value="short">SHORT</option>
+          <option value="long">LONG</option>
+        </select>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="calcRisk()">CALCULATE SIZE</button>
+
+    <div id="rc-result" class="result-box" style="display:none">
+      <div class="result-sub">POSITION SIZE</div>
+      <div class="result-big" id="rc-size">—</div>
+      <div class="result-sub" id="rc-notional">—</div>
+      <div style="margin-top:8px;display:flex;gap:8px;justify-content:center">
+        <div style="font-size:11px;color:var(--muted)">Max Loss: <span id="rc-loss" style="color:var(--red);font-weight:700"></span></div>
+        <div style="font-size:11px;color:var(--muted)">TP1 Profit: <span id="rc-tp1p" style="color:var(--green);font-weight:700"></span></div>
+      </div>
+    </div>
+
+    <div class="tip-box">
+      <strong>💡 Rule of thumb</strong>
+      Never risk more than 1–2% per trade. Isolated mode only. 5–10x max until 6+ months profitable.
+    </div>
+  </div>
+
+  <!-- Gemma Hint box -->
+  <div class="card" id="ai-hint-card">
+    <div class="card-title">🤖 GEMMA INSIGHT</div>
+    <div id="ai-hint-text" style="font-size:13px;line-height:1.6;color:var(--muted)">Ask Gemma for a live trade analysis in the AI tab →</div>
+  </div>
+</div>
+
+<!-- PAGE: CHART / SCREENER -->
+<div id="page-screener" class="page">
+  <div style="padding-top:8px">
+    <div class="section-title">TOKEN SCREENER</div>
+
+    <!-- Screening Criteria (5-point system from book) -->
+    <div class="card" style="margin-bottom:10px">
+      <div class="card-title">📋 5-CRITERIA FILTER (from book)</div>
+      <div style="font-size:12px;line-height:1.8;color:var(--muted)">
+        <div>1. <strong style="color:var(--text)">Price</strong> — above $0.01 (adjustable)</div>
+        <div>2. <strong style="color:var(--text)">Market Cap</strong> — $300M–$20B USD</div>
+        <div>3. <strong style="color:var(--text)">Volume</strong> — 500K+ daily trades</div>
+        <div>4. <strong style="color:var(--text)">3M Performance</strong> — moved ≥15% in 3 months</div>
+        <div>5. <strong style="color:var(--text)">RSI</strong> — above 60 for longs / below 40 for shorts</div>
+      </div>
+    </div>
+
+    <!-- Filter chips -->
+    <div class="filter-chips">
+      <div class="fchip active" id="fc-all" onclick="setFilter('all', this)">ALL</div>
+      <div class="fchip" id="fc-long" onclick="setFilter('long', this)">LONG BIAS</div>
+      <div class="fchip" id="fc-short" onclick="setFilter('short', this)">SHORT BIAS</div>
+      <div class="fchip" id="fc-top" onclick="setFilter('top', this)">TOP SCORE</div>
+    </div>
+
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="screener-search" placeholder="Search token..." oninput="renderScreener()">
+    </div>
+
+    <div id="screener-loading" style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
+      <span class="spin">⏳</span> Loading market data...
+    </div>
+
+    <div id="screener-table-wrap" style="display:none">
+      <table class="screener-table">
+        <thead>
+          <tr>
+            <th>TOKEN</th>
+            <th>PRICE</th>
+            <th>24H%</th>
+            <th>SCORE</th>
+            <th>BIAS</th>
+          </tr>
+        </thead>
+        <tbody id="screener-body"></tbody>
+      </table>
+    </div>
+
+    <div id="screener-detail" style="display:none;margin-top:10px">
+      <!-- populated on tap -->
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: AI CHAT -->
+<div id="page-ai" class="page">
+  <div style="padding-top:8px">
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title" style="margin:0">ASK GEMMA AI</div>
+      <div class="gemma-status" id="ai-page-status">
+        <div class="status-dot" id="ai-dot" style="background:var(--amber)"></div>
+        <span id="ai-status-label">—</span>
+      </div>
+    </div>
+
+    <!-- Gemma setup guide -->
+    <div class="card" id="gemma-guide">
+      <div class="card-title">📱 TERMUX SETUP GUIDE</div>
+      <div style="font-size:12px;line-height:1.9;color:var(--muted)">
+        <div><strong style="color:var(--accent)">1.</strong> Install Termux from F-Droid (not Play Store)</div>
+        <div><strong style="color:var(--accent)">2.</strong> <code style="background:var(--surface);padding:1px 6px;border-radius:4px;color:var(--text)">pkg update && pkg install cmake git clang</code></div>
+        <div><strong style="color:var(--accent)">3.</strong> <code style="background:var(--surface);padding:1px 6px;border-radius:4px;color:var(--text)">git clone https://github.com/ggerganov/llama.cpp && cd llama.cpp && make</code></div>
+        <div><strong style="color:var(--accent)">4.</strong> Download <strong style="color:var(--text)">gemma-2b-it-q4_k_m.gguf</strong> to your Downloads folder</div>
+        <div><strong style="color:var(--accent)">5.</strong> Start server (copy exactly):</div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin:4px 0;color:var(--text);font-family:var(--font-mono);font-size:11px;line-height:1.7">./llama-server -m ~/storage/downloads/gemma-2b-it-q4_k_m.gguf --port 8080 --host 0.0.0.0 -c 2048 -ngl 0</div>
+        <div><strong style="color:var(--green)">6.</strong> Tap RE-CHECK below → should show Online ✓</div>
+        <div style="margin-top:6px;color:var(--amber)">⚠️ Keep Termux open in background while using app</div>
+      </div>
+      <button class="btn btn-ghost" style="margin-top:10px;font-size:12px;padding:10px" onclick="checkGemma()">RE-CHECK CONNECTION</button>
+    </div>
+
+    <!-- Context builder -->
+    <div class="card">
+      <div class="card-title">🎯 CONTEXT FOR GEMMA</div>
+      <div class="grid2">
+        <div class="input-group">
+          <label class="input-label">TOKEN</label>
+          <input type="text" id="ctx-token" value="SOLUSDT" style="text-transform:uppercase">
+        </div>
+        <div class="input-group">
+          <label class="input-label">TIMEFRAME</label>
+          <select id="ctx-tf">
+            <option value="1m">1 min</option>
+            <option value="5m">5 min</option>
+            <option value="15m" selected>15 min</option>
+            <option value="1h">1 Hour</option>
+            <option value="4h">4 Hour</option>
+            <option value="1d">Daily</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="input-group">
+          <label class="input-label">DIRECTION BIAS</label>
+          <select id="ctx-bias">
+            <option value="either">Auto</option>
+            <option value="long">Long Only</option>
+            <option value="short">Short Only</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">ACCOUNT (USDT)</label>
+          <input type="number" id="ctx-account" value="500">
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick prompts -->
+    <div class="quick-btns">
+      <button class="quick-btn" onclick="quickAsk('Give me the exact entry, stop loss, and 3 take profit levels for ' + (document.getElementById('ctx-token')?.value||'SOLUSDT') + ' right now on the ' + (document.getElementById('ctx-tf')?.value||'15m') + ' chart. Be specific with prices.')">🎯 Entry &amp; Exits</button>
+      <button class="quick-btn" onclick="quickAsk('Is ' + (document.getElementById('ctx-token')?.value||'SOLUSDT') + ' long or short right now? Tell me the trend on 1H and 4H and which direction has the edge.')">📊 Long or Short?</button>
+      <button class="quick-btn" onclick="quickAsk('TP1 just hit on my ' + (document.getElementById('ctx-token')?.value||'SOLUSDT') + ' trade. What do I do now? How much do I take off and what do I do with my stop loss?')">💰 TP1 Hit → Now What?</button>
+      <button class="quick-btn" onclick="quickAsk('My trade is going against me on ' + (document.getElementById('ctx-token')?.value||'SOLUSDT') + '. When do I cut the loss and when do I hold? Give me exact rules.')">🔴 Trade Going Red</button>
+      <button class="quick-btn" onclick="quickAsk('Screen ' + (document.getElementById('ctx-token')?.value||'SOLUSDT') + ' using the 5 criteria right now: price, volume, momentum, RSI. Score it out of 5 and tell me if it is tradeable.')">🔍 Screen This Token</button>
+      <button class="quick-btn" onclick="quickAsk('I have $' + (document.getElementById('ctx-account')?.value||'500') + ' account. I want to trade ' + (document.getElementById('ctx-token')?.value||'SOLUSDT') + ' at 10x. What is the exact position size, SL price, and max I can lose?')">📐 Position Size</button>
+    </div>
+
+    <!-- Chat -->
+    <div class="chat-box" id="ai-chat"></div>
+
+    <div class="chat-input-row">
+      <input type="text" id="ai-input" placeholder="Ask Gemma anything about the trade..." onkeydown="if(event.key==='Enter')sendAI()">
+      <button class="chat-send-btn" onclick="sendAI()">⚡ SEND TO GEMMA</button>
+    </div>
+
+    <div class="tip-box" style="margin-top:10px">
+      <strong>💡 Journal command</strong>
+      Say "save trade: SOLUSDT short entry 83.50 SL 86.50 TP 81.00 PNL +5%" to log trades via Gemma.
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: JOURNAL -->
+<div id="page-journal" class="page">
+  <div style="padding-top:8px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="section-title" style="margin:0">TRADING JOURNAL</div>
+      <button class="btn btn-primary btn-sm" onclick="openNewTrade()">+ LOG TRADE</button>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="journal-stats"></div>
+
+    <!-- Filter -->
+    <div class="filter-chips">
+      <div class="fchip active" id="jf-all" onclick="setJournalFilter('all', this)">ALL</div>
+      <div class="fchip" id="jf-win" onclick="setJournalFilter('win', this)">WINS ✓</div>
+      <div class="fchip" id="jf-loss" onclick="setJournalFilter('loss', this)">LOSSES ✗</div>
+      <div class="fchip" id="jf-long" onclick="setJournalFilter('long', this)">LONGS</div>
+      <div class="fchip" id="jf-short" onclick="setJournalFilter('short', this)">SHORTS</div>
+    </div>
+
+    <div id="journal-list"></div>
+  </div>
+</div>
+
+<!-- PAGE: CHART -->
+<div id="page-chart" class="page">
+  <div style="padding-top:8px">
+    <div class="section-title">LIVE CHART</div>
+
+    <div class="grid2" style="margin-bottom:10px">
+      <div>
+        <label class="input-label">SYMBOL</label>
+        <input type="text" id="chart-symbol" value="BINANCE:SOLUSDT" style="text-transform:uppercase">
+      </div>
+      <div>
+        <label class="input-label">INTERVAL</label>
+        <select id="chart-interval">
+          <option value="1">1m</option>
+          <option value="5">5m</option>
+          <option value="15" selected>15m</option>
+          <option value="60">1H</option>
+          <option value="240">4H</option>
+          <option value="D">1D</option>
+        </select>
+      </div>
+    </div>
+    <button class="btn btn-ghost" style="margin-bottom:10px;font-size:13px;padding:10px" onclick="reloadChart()">RELOAD CHART</button>
+    <div class="chart-wrap" id="tv-container">
+      <div id="tradingview_chart" style="width:100%;height:100%"></div>
+    </div>
+
+    <!-- Multi-timeframe note -->
+    <div class="tip-box">
+      <strong>📊 Multi-Timeframe Tip</strong>
+      Always check: Daily for trend → 4H for structure → 15m for entry. Trade with the higher timeframe bias.
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" id="tab-dashboard" onclick="goTab('dashboard')">
+    <span class="icon">🏠</span>DASHBOARD
+  </button>
+  <button class="nav-tab" id="tab-chart" onclick="goTab('chart')">
+    <span class="icon">📈</span>CHART
+  </button>
+  <button class="nav-tab" id="tab-screener" onclick="goTab('screener')">
+    <span class="icon">🔍</span>SCREEN
+  </button>
+  <button class="nav-tab" id="tab-ai" onclick="goTab('ai')">
+    <span class="icon">🤖</span>GEMMA
+  </button>
+  <button class="nav-tab" id="tab-journal" onclick="goTab('journal')">
+    <span class="icon">📒</span>JOURNAL
+  </button>
+</nav>
+
+<!-- TRADE LOG MODAL -->
+<div class="modal-overlay" id="trade-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📝 LOG NEW TRADE</div>
+
+    <div class="dir-toggle">
+      <button class="dir-btn active-long" id="mb-long" onclick="setModalDir('long')">▲ LONG</button>
+      <button class="dir-btn" id="mb-short" onclick="setModalDir('short')">▼ SHORT</button>
+    </div>
+
+    <div class="grid2">
+      <div class="input-group">
+        <label class="input-label">TOKEN PAIR</label>
+        <input type="text" id="m-pair" value="SOLUSDT" style="text-transform:uppercase">
+      </div>
+      <div class="input-group">
+        <label class="input-label">LEVERAGE</label>
+        <select id="m-lev">
+          <option value="3">3x</option>
+          <option value="5" selected>5x</option>
+          <option value="10">10x</option>
+          <option value="20">20x</option>
+          <option value="50">50x</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="input-group">
+        <label class="input-label">ENTRY PRICE</label>
+        <input type="number" id="m-entry" placeholder="0.00" step="0.01">
+      </div>
+      <div class="input-group">
+        <label class="input-label">EXIT PRICE</label>
+        <input type="number" id="m-exit" placeholder="0.00" step="0.01">
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="input-group">
+        <label class="input-label">SIZE (USDT)</label>
+        <input type="number" id="m-size" placeholder="100">
+      </div>
+      <div class="input-group">
+        <label class="input-label">PNL (USDT)</label>
+        <input type="number" id="m-pnl" placeholder="0.00" step="0.01">
+      </div>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">WHY I ENTERED (setup reasoning)</label>
+      <textarea id="m-why" rows="2" placeholder="e.g. Rejected at $86 resistance, MACD bearish, BTC dropping..."></textarea>
+    </div>
+    <div class="input-group">
+      <label class="input-label">WHAT HAPPENED (outcome &amp; lessons)</label>
+      <textarea id="m-lesson" rows="2" placeholder="e.g. TP1 hit, moved SL to breakeven, exited at TP2..."></textarea>
+    </div>
+
+    <div class="input-group">
+      <label class="input-label">EMOTION RATING (1=panic, 5=disciplined)</label>
+      <select id="m-emotion">
+        <option value="1">1 — Panic / FOMO</option>
+        <option value="2">2 — Uncertain</option>
+        <option value="3" selected>3 — Neutral</option>
+        <option value="4">4 — Confident</option>
+        <option value="5">5 — Fully Disciplined</option>
+      </select>
+    </div>
+
+    <div class="grid2" style="gap:10px;margin-top:4px">
+      <button class="btn btn-ghost" onclick="closeModal()">CANCEL</button>
+      <button class="btn btn-green" onclick="saveTrade()">SAVE TRADE</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRADE DETAIL MODAL -->
+<div class="modal-overlay" id="detail-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div id="detail-modal-content"></div>
+    <div class="grid2" style="gap:10px;margin-top:16px">
+      <button class="btn btn-red btn-sm" id="delete-btn" style="padding:12px" onclick="deleteTrade()">🗑 DELETE</button>
+      <button class="btn btn-ghost" onclick="closeDetailModal()">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==============================
+// APP STATE
+// ==============================
+let state = {
+  currentTab: 'dashboard',
+  selectedToken: 'SOLUSDT',
+  gemmaOnline: false,
+  prices: {},
+  setup: null,
+  journal: [],
+  screenerData: [],
+  screenerFilter: 'all',
+  journalFilter: 'all',
+  modalDir: 'long',
+  selectedTradeId: null,
+  tvLoaded: false
+};
+
+const TOKENS = [
+  'SOLUSDT','BTCUSDT','ETHUSDT','BNBUSDT','ADAUSDT',
+  'XRPUSDT','DOGEUSDT','AVAXUSDT','DOTUSDT','LINKUSDT',
+  'MATICUSDT','NEARUSDT','APTUSDT','SUIUSDT','INJUSDT',
+  'TIAUSDT','SEIUSDT','WIFUSDT','BONKUSDT','JUPUSDT'
+];
+
+// ==============================
+// NAVIGATION
+// ==============================
+function goTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+  state.currentTab = tab;
+
+  if (tab === 'screener' && state.screenerData.length === 0) loadScreener();
+  if (tab === 'chart' && !state.tvLoaded) loadTVChart();
+  if (tab === 'journal') renderJournal();
+}
+
+// ==============================
+// LOCAL STORAGE
+// ==============================
+function loadJournal() {
+  try { state.journal = JSON.parse(localStorage.getItem('et_journal') || '[]'); } catch(e) { state.journal = []; }
+}
+function saveJournal() {
+  localStorage.setItem('et_journal', JSON.stringify(state.journal));
+}
+
+// ==============================
+// PRICE FETCHING
+// ==============================
+async function fetchPrices() {
+  try {
+    const syms = ['SOLUSDT','BTCUSDT','ETHUSDT','BNBUSDT'];
+    const res = await Promise.all(syms.map(s =>
+      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${s}`).then(r => r.json())
+    ));
+    res.forEach(d => {
+      state.prices[d.symbol] = { price: parseFloat(d.lastPrice), pct: parseFloat(d.priceChangePercent), vol: parseFloat(d.volume) };
+    });
+    renderTickers();
+    updateDashboardSetup();
+  } catch(e) {
+    console.warn('Price fetch failed', e);
+  }
+  setTimeout(fetchPrices, 15000);
+}
+
+function renderTickers() {
+  const row = document.getElementById('ticker-row');
+  const tokens = ['SOLUSDT','BTCUSDT','ETHUSDT','BNBUSDT'];
+  row.innerHTML = tokens.map(sym => {
+    const d = state.prices[sym] || {};
+    const pct = d.pct || 0;
+    const cls = pct > 0 ? 'up' : pct < 0 ? 'dn' : 'neu';
+    return `<div class="price-chip ${sym === state.selectedToken ? 'active' : ''}" onclick="selectToken('${sym}')">
+      <div class="sym">${sym.replace('USDT','')}/USDT</div>
+      <div class="val ${cls}">${d.price ? '$' + formatPrice(d.price) : '—'}</div>
+      <div class="chg ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+    </div>`;
+  }).join('');
+}
+
+function selectToken(sym) {
+  state.selectedToken = sym;
+  renderTickers();
+  updateDashboardSetup();
+}
+
+function formatPrice(p) {
+  if (p >= 1000) return p.toLocaleString('en', {maximumFractionDigits: 0});
+  if (p >= 10) return p.toFixed(2);
+  if (p >= 0.1) return p.toFixed(4);
+  return p.toFixed(6);
+}
+
+// ==============================
+// DASHBOARD SETUP LOGIC
+// ==============================
+function updateDashboardSetup() {
+  const d = state.prices[state.selectedToken];
+  if (!d) return;
+
+  const price = d.price;
+  const pct = d.pct;
+
+  // Determine direction
+  const dir = pct < -1 ? 'short' : pct > 1 ? 'long' : 'neutral';
+
+  // Compute levels
+  let entry, sl, tp1, tp2, tp3, rr;
+  if (dir === 'short') {
+    entry = price * 1.003;
+    sl = price * 1.025;
+    tp1 = price * 0.982;
+    tp2 = price * 0.965;
+    tp3 = price * 0.950;
+  } else if (dir === 'long') {
+    entry = price * 0.997;
+    sl = price * 0.975;
+    tp1 = price * 1.018;
+    tp2 = price * 1.035;
+    tp3 = price * 1.055;
+  } else {
+    entry = price;
+    sl = price * (pct > 0 ? 0.975 : 1.025);
+    tp1 = price * (pct > 0 ? 1.018 : 0.982);
+    tp2 = price * (pct > 0 ? 1.035 : 0.965);
+    tp3 = price * (pct > 0 ? 1.055 : 0.950);
+  }
+
+  const risk = Math.abs(entry - sl);
+  const reward1 = Math.abs(tp1 - entry);
+  rr = (reward1 / risk).toFixed(1);
+
+  state.setup = { dir, entry, sl, tp1, tp2, tp3, rr, price };
+
+  // Direction badge
+  const badge = document.getElementById('setup-direction-badge');
+  badge.innerHTML = dir === 'short'
+    ? '<div class="signal-badge signal-short">▼ SHORT BIAS</div>'
+    : dir === 'long'
+    ? '<div class="signal-badge signal-long">▲ LONG BIAS</div>'
+    : '<div class="signal-badge signal-neutral">— NEUTRAL — WAIT</div>';
+
+  document.getElementById('s-entry').textContent = '$' + formatPrice(entry);
+  document.getElementById('s-sl').textContent = '$' + formatPrice(sl);
+  document.getElementById('s-rr').textContent = '1:' + rr;
+
+  // TP bars
+  const tpContainer = document.getElementById('tp-bars');
+  const tpLevels = [{label:'TP1', val:tp1}, {label:'TP2', val:tp2}, {label:'TP3', val:tp3}, {label:'SL', val:sl}];
+  const maxMove = Math.max(...tpLevels.map(t => Math.abs(t.val - entry)));
+  tpContainer.innerHTML = tpLevels.map(t => {
+    const pct = (Math.abs(t.val - entry) / maxMove * 100).toFixed(0);
+    const isSl = t.label === 'SL';
+    return `<div class="tp-row">
+      <div class="tp-label">${t.label}</div>
+      <div class="tp-bar-wrap"><div class="tp-bar ${isSl ? 'sl' : ''}" style="width:${pct}%"></div></div>
+      <div class="tp-val ${isSl ? 'dn' : 'up'}">$${formatPrice(t.val)}</div>
+    </div>`;
+  }).join('');
+
+  // Mock RSI (would come from real indicator)
+  const rsiMock = dir === 'short' ? 62 + Math.random() * 10 : dir === 'long' ? 45 + Math.random() * 15 : 50 + (Math.random() - 0.5) * 20;
+  const rsiPct = (rsiMock / 100 * 100).toFixed(0);
+  document.getElementById('rsi-marker').style.left = rsiPct + '%';
+  document.getElementById('rsi-val').textContent = rsiMock.toFixed(0);
+  document.getElementById('rsi-val').className = 'detail-val ' + (rsiMock > 70 ? 'dn' : rsiMock < 30 ? 'up' : 'neu');
+
+  // Volume
+  const vol = d.vol;
+  document.getElementById('vol-val').textContent = vol > 1e6 ? (vol / 1e6).toFixed(1) + 'M' : (vol / 1e3).toFixed(0) + 'K';
+
+  // Funding rate mock
+  const fr = ((Math.random() - 0.5) * 0.04).toFixed(4);
+  const frEl = document.getElementById('fund-val');
+  frEl.textContent = (fr > 0 ? '+' : '') + fr + '%';
+  frEl.className = 'detail-val ' + (fr > 0 ? 'dn' : 'up');
+
+  // BTC bias
+  const btcD = state.prices['BTCUSDT'];
+  if (btcD) {
+    const btcEl = document.getElementById('btc-bias');
+    const btcBias = btcD.pct > 0.5 ? '🟢 Bullish' : btcD.pct < -0.5 ? '🔴 Bearish' : '🟡 Neutral';
+    btcEl.textContent = btcBias;
+  }
+}
+
+// ==============================
+// RISK CALCULATOR
+// ==============================
+function calcRisk() {
+  const account = parseFloat(document.getElementById('rc-account').value) || 500;
+  const riskPct = parseFloat(document.getElementById('rc-risk').value) || 1;
+  const lev = parseFloat(document.getElementById('rc-lev').value);
+  const dir = document.getElementById('rc-dir').value;
+
+  const riskAmt = account * riskPct / 100;
+  const price = state.prices[state.selectedToken]?.price || 100;
+  const slDist = 0.02; // 2% SL distance
+
+  const notional = (riskAmt / slDist) * lev;
+  const size = notional / price;
+
+  const tp1Profit = riskAmt * 2;
+
+  const resultEl = document.getElementById('rc-result');
+  resultEl.style.display = 'block';
+  document.getElementById('rc-size').textContent = size.toFixed(3) + ' ' + state.selectedToken.replace('USDT','');
+  document.getElementById('rc-notional').textContent = `Notional: $${notional.toFixed(0)} at ${lev}x`;
+  document.getElementById('rc-loss').textContent = '-$' + riskAmt.toFixed(2);
+  document.getElementById('rc-tp1p').textContent = '+$' + tp1Profit.toFixed(2);
+}
+
+// ==============================
+// GEMMA AI
+// ==============================
+const GEMMA_URLS = [
+  'http://127.0.0.1:8080/v1/chat/completions',
+  'http://localhost:8080/v1/chat/completions',
+  'http://10.0.2.2:8080/v1/chat/completions'
+];
+let activeGemmaUrl = GEMMA_URLS[0];
+
+// XHR wrapper — avoids CORS issues when running from file:// on Android
+function xhrPost(url, body, timeoutMs = 60000) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.timeout = timeoutMs;
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); }
+        catch(e) { reject(new Error('JSON parse failed: ' + xhr.responseText.substring(0,100))); }
+      } else {
+        reject(new Error('HTTP ' + xhr.status));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error — is Termux server running?'));
+    xhr.ontimeout = () => reject(new Error('Timeout after ' + timeoutMs + 'ms'));
+    xhr.send(JSON.stringify(body));
+  });
+}
+
+function xhrGet(url, timeoutMs = 5000) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = timeoutMs;
+    xhr.onload = () => resolve(xhr.status);
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.ontimeout = () => reject(new Error('Timeout'));
+    xhr.send();
+  });
+}
+
+async function checkGemma() {
+  const dot = document.getElementById('gemma-dot');
+  const txt = document.getElementById('gemma-status-text');
+  const aiDot = document.getElementById('ai-dot');
+  const aiLbl = document.getElementById('ai-status-label');
+
+  dot.className = 'status-dot status-checking';
+  txt.textContent = 'Checking...';
+
+  const healthUrls = [
+    'http://127.0.0.1:8080/health',
+    'http://localhost:8080/health',
+  ];
+  const chatUrls = [
+    'http://127.0.0.1:8080/v1/chat/completions',
+    'http://localhost:8080/v1/chat/completions',
+  ];
+
+  for (let i = 0; i < healthUrls.length; i++) {
+    try {
+      const status = await xhrGet(healthUrls[i], 4000);
+      if (status < 500) {
+        state.gemmaOnline = true;
+        activeGemmaUrl = chatUrls[i];
+        dot.className = 'status-dot status-online';
+        txt.textContent = 'Gemma Online';
+        if (aiDot) aiDot.style.background = 'var(--green)';
+        if (aiLbl) aiLbl.textContent = 'Online ✓';
+        const guide = document.getElementById('gemma-guide');
+        if (guide) guide.style.display = 'none';
+        return;
+      }
+    } catch(e) { /* try next */ }
+  }
+
+  // Fallback: try a real POST
+  for (let i = 0; i < chatUrls.length; i++) {
+    try {
+      await xhrPost(chatUrls[i], {
+        model: 'gemma', messages: [{role:'user', content:'hi'}], max_tokens: 1, n_predict: 1
+      }, 6000);
+      state.gemmaOnline = true;
+      activeGemmaUrl = chatUrls[i];
+      dot.className = 'status-dot status-online';
+      txt.textContent = 'Gemma Online';
+      if (aiDot) aiDot.style.background = 'var(--green)';
+      if (aiLbl) aiLbl.textContent = 'Online ✓';
+      const guide = document.getElementById('gemma-guide');
+      if (guide) guide.style.display = 'none';
+      return;
+    } catch(e) { /* try next */ }
+  }
+
+  state.gemmaOnline = false;
+  dot.className = 'status-dot status-offline';
+  txt.textContent = 'Offline';
+  if (aiDot) aiDot.style.background = 'var(--red)';
+  if (aiLbl) aiLbl.textContent = 'Offline ✗ See Setup Guide';
+}
+
+function buildSystemPrompt() {
+  const token = (document.getElementById('ctx-token')?.value || state.selectedToken).toUpperCase();
+  const tf = document.getElementById('ctx-tf')?.value || '15m';
+  const account = document.getElementById('ctx-account')?.value || '500';
+
+  const priceRaw = state.prices[token]?.price;
+  const price = (typeof priceRaw === 'number' && !isNaN(priceRaw)) ? priceRaw : null;
+  const pctRaw = state.prices[token]?.pct;
+  const pct = (typeof pctRaw === 'number' && !isNaN(pctRaw)) ? pctRaw : null;
+  const btcPctRaw = state.prices['BTCUSDT']?.pct;
+  const btcPct = (typeof btcPctRaw === 'number' && !isNaN(btcPctRaw)) ? btcPctRaw : null;
+  const ethPctRaw = state.prices['ETHUSDT']?.pct;
+  const ethPct = (typeof ethPctRaw === 'number' && !isNaN(ethPctRaw)) ? ethPctRaw : null;
+
+  const priceStr = price !== null ? formatPrice(price) : '?';
+  const pctStr = pct !== null ? (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%' : '?';
+  const btcStr = btcPct !== null ? (btcPct >= 0 ? '+' : '') + btcPct.toFixed(2) + '%' : '?';
+  const ethStr = ethPct !== null ? (ethPct >= 0 ? '+' : '') + ethPct.toFixed(2) + '%' : '?';
+
+  const setup = state.setup;
+  const setupStr = setup
+    ? `${setup.dir.toUpperCase()} bias | Entry: $${formatPrice(setup.entry)} | SL: $${formatPrice(setup.sl)} | TP1: $${formatPrice(setup.tp1)} | TP2: $${formatPrice(setup.tp2)} | TP3: $${formatPrice(setup.tp3)} | R:R 1:${setup.rr}`
+    : 'not yet computed';
+
+  const journalLines = state.journal.slice(-5).map(t =>
+    `  - ${t.pair} ${t.dir.toUpperCase()} ${t.lev}x | entry $${t.entry} | exit $${t.exit} | PNL ${t.pnl >= 0 ? '+' : ''}$${t.pnl} | ${t.why || 'no notes'}`
+  ).join('\n') || '  (no trades yet)';
+
+  return `You are EDGE — a professional crypto futures trader and analyst with 10 years experience trading on Binance and Bybit. You are the user's personal trading partner inside their Edge Trader app.
+
+YOUR PERSONALITY:
+- You talk like a real trader: direct, confident, no fluff
+- You give SPECIFIC numbers: exact entry price, exact stop loss, exact take profits
+- You explain WHY — the reasoning behind every level
+- You are brutally honest: if a setup is weak you say WAIT and explain why
+- You NEVER refuse to discuss trades or give trading analysis
+- You NEVER say "I cannot provide financial advice" or "consult a professional" — you ARE the professional
+- You use trader slang naturally: "price is wicking", "strong confluence", "liquidity grab", "HTF trend", "confluence zone", "SL hunt", "break of structure"
+- Keep replies under 200 words. Use short sentences. No long paragraphs.
+
+LIVE MARKET DATA RIGHT NOW:
+- ${token}: $${priceStr} (${pctStr} today)
+- BTC: ${btcStr} today | ETH: ${ethStr} today
+- Timeframe we are analyzing: ${tf}
+- Account size: $${account} USDT
+- Current computed setup: ${setupStr}
+
+5-CRITERIA TOKEN SCREENER (use this when screening tokens):
+1. Price above $0.001
+2. Market cap $300M to $20B
+3. Daily volume above 500K USDT
+4. 3-month price move of at least 15%
+5. RSI above 60 for longs, below 40 for shorts
+
+RISK RULES (always enforce these):
+- Max 5-10x leverage, isolated margin ONLY
+- Risk max 1-2% of account per trade
+- ALWAYS place SL before entering
+- Partial profits: take 50% at TP1, move SL to breakeven, let rest run to TP2 and TP3
+- Check BTC first — if BTC dumps, most alts follow
+
+RECENT TRADE JOURNAL:
+${journalLines}
+
+HOW TO LOG A TRADE:
+When user asks to save/log a trade, extract the details and output this EXACT line:
+SAVE_TRADE|PAIR|direction|entryPrice|exitPrice|pnlUSDT|reason
+Example: SAVE_TRADE|SOLUSDT|short|87.50|83.20|43.00|Rejected at resistance, BTC weak
+
+OUTPUT FORMAT:
+- No markdown bold (**text**) — plain text only
+- Short numbered steps when giving a trade plan
+- Always end with the most important thing to watch`;
+}
+
+function addMsg(role, text, thinking = false) {
+  const chat = document.getElementById('ai-chat');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'msg-user' : 'msg-ai');
+  const cls = role === 'user' ? 'bubble-user' : ('bubble-ai' + (thinking ? ' thinking' : ''));
+  div.innerHTML = `<div class="bubble ${cls}">${text}</div>`;
+  div.id = thinking ? 'thinking-msg' : '';
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+let chatHistory = [];
+
+async function sendAI() {
+  const input = document.getElementById('ai-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  addMsg('user', msg);
+  const thinking = addMsg('ai', '<span class="typing-dots">Thinking</span>', true);
+
+  chatHistory.push({ role: 'user', content: msg });
+  if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+
+  if (!state.gemmaOnline) {
+    thinking.remove();
+    addMsg('ai', getFallbackResponse(msg));
+    return;
+  }
+
+  try {
+    const sysPrompt = buildSystemPrompt();
+    const payload = {
+      model: 'gemma',
+      max_tokens: 500,
+      n_predict: 500,
+      temperature: 0.4,
+      repeat_penalty: 1.1,
+      stop: ['</s>', '<end_of_turn>', '<eos>', 'User:', 'Human:'],
+      messages: [
+        { role: 'system', content: sysPrompt },
+        ...chatHistory
+      ]
+    };
+
+    const data = await xhrPost(activeGemmaUrl, payload, 120000);
+
+    let reply = '';
+    if (data?.choices?.[0]?.message?.content) {
+      reply = data.choices[0].message.content;
+    } else if (data?.choices?.[0]?.text) {
+      reply = data.choices[0].text;
+    } else if (data?.content) {
+      reply = data.content;
+    } else if (typeof data === 'string') {
+      reply = data;
+    } else {
+      reply = 'Got response but could not parse it. Raw: ' + JSON.stringify(data).substring(0, 200);
+    }
+
+    reply = reply.trim();
+    // Strip markdown formatting that Gemma sometimes outputs
+    reply = reply
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/#{1,3} /g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^[-•]\s/gm, '• ')
+      .trim();
+    thinking.remove();
+    addMsg('ai', reply.replace(/\n/g, '<br>'));
+    chatHistory.push({ role: 'assistant', content: reply });
+
+    // Parse SAVE_TRADE|pair|dir|entry|exit|pnl|reason
+    if (reply.includes('SAVE_TRADE|')) {
+      const parts = reply.match(/SAVE_TRADE\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|(.+)/);
+      if (parts) {
+        autoSaveTrade({
+          pair: parts[1].trim().toUpperCase(),
+          dir: parts[2].trim().toLowerCase(),
+          entry: parseFloat(parts[3]) || 0,
+          exit: parseFloat(parts[4]) || 0,
+          pnl: parseFloat(parts[5]) || 0,
+          why: parts[6].trim()
+        });
+      }
+    }
+
+    // Update dashboard hint
+    const shortReply = reply.replace(/<[^>]+>/g, '').split('\n')[0].substring(0, 120);
+    const hintEl = document.getElementById('ai-hint-text');
+    if (hintEl) hintEl.textContent = shortReply + (reply.length > 120 ? '...' : '');
+
+  } catch(e) {
+    thinking.remove();
+    const errMsg = e.message || String(e);
+    addMsg('ai', `⚠️ <strong>${errMsg}</strong><br><br>` +
+      `Make sure Termux server started with:<br>` +
+      `<code style="font-size:11px;background:rgba(0,0,0,0.5);padding:3px 8px;border-radius:6px;display:block;margin:6px 0">./llama-server -m gemma.gguf --port 8080 --host 0.0.0.0</code>` +
+      `Then tap <strong>RE-CHECK CONNECTION</strong> in the setup guide above.`);
+  }
+}
+
+function quickAsk(text) {
+  document.getElementById('ai-input').value = text;
+  sendAI();
+}
+
+function getFallbackResponse(msg) {
+  const lower = msg.toLowerCase();
+  if (lower.includes('entry') || lower.includes('setup') || lower.includes('analyze')) {
+    const s = state.setup;
+    if (s) return `📊 <strong>Offline Analysis</strong><br><br>Current ${state.selectedToken} setup: <strong>${s.dir.toUpperCase()}</strong><br>Entry: $${formatPrice(s.entry)}<br>Stop Loss: $${formatPrice(s.sl)}<br>TP1: $${formatPrice(s.tp1)} | TP2: $${formatPrice(s.tp2)} | TP3: $${formatPrice(s.tp3)}<br>R:R = 1:${s.rr}<br><br>Start Gemma in Termux for deeper AI analysis.`;
+  }
+  if (lower.includes('risk') || lower.includes('size')) {
+    return '📊 Risk Rule: Never risk more than 1–2% of account per trade. Use the Risk Calculator tab on Dashboard. Isolated margin, 5–10x max.';
+  }
+  if (lower.includes('screen')) {
+    return '🔍 5 Criteria: Price >$0.01, MCap $300M–$20B, Volume >500K/day, 3M move ≥15%, RSI >60 (long) or <40 (short). Check Screener tab.';
+  }
+  return '🤖 Gemma is offline. Start the Termux server to get live AI analysis. See setup guide above. Meanwhile use the Dashboard setup and Risk Calculator.';
+}
+
+// ==============================
+// SCREENER
+// ==============================
+async function loadScreener() {
+  document.getElementById('screener-loading').style.display = 'block';
+  document.getElementById('screener-table-wrap').style.display = 'none';
+
+  try {
+    const results = await Promise.all(TOKENS.map(async sym => {
+      try {
+        const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
+        const d = await r.json();
+        return {
+          sym,
+          price: parseFloat(d.lastPrice),
+          pct24h: parseFloat(d.priceChangePercent),
+          vol: parseFloat(d.quoteVolume),
+          high: parseFloat(d.highPrice),
+          low: parseFloat(d.lowPrice)
+        };
+      } catch(e) { return null; }
+    }));
+
+    state.screenerData = results.filter(Boolean).map(d => {
+      let score = 0;
+      const criteria = [];
+
+      if (d.price > 0.001) { score++; criteria.push(true); } else criteria.push(false);
+      if (d.vol > 1_000_000) { score++; criteria.push(true); } else criteria.push(false);
+      if (d.vol > 5_000_000) { score++; criteria.push(true); } else criteria.push(false);
+      if (Math.abs(d.pct24h) > 1.5) { score++; criteria.push(true); } else criteria.push(false);
+
+      const range = d.high - d.low;
+      const rsiProxy = range > 0 ? ((d.price - d.low) / range) * 100 : 50;
+      d.rsiProxy = rsiProxy;
+      const rsiOk = rsiProxy > 60 || rsiProxy < 40;
+      if (rsiOk) { score++; criteria.push(true); } else criteria.push(false);
+
+      const bias = d.pct24h > 1 ? 'long' : d.pct24h < -1 ? 'short' : 'neutral';
+      return { ...d, score, criteria, bias };
+    }).sort((a, b) => b.score - a.score);
+
+    document.getElementById('screener-loading').style.display = 'none';
+    document.getElementById('screener-table-wrap').style.display = 'block';
+    renderScreener();
+  } catch(e) {
+    document.getElementById('screener-loading').innerHTML = '⚠️ Failed to load. Check internet connection.';
+  }
+}
+
+let screenerFilter = 'all';
+
+function setFilter(f, el) {
+  screenerFilter = f;
+  document.querySelectorAll('.fchip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderScreener();
+}
+
+function renderScreener() {
+  const search = document.getElementById('screener-search')?.value?.toLowerCase() || '';
+  let data = state.screenerData.filter(d => {
+    if (search && !d.sym.toLowerCase().includes(search)) return false;
+    if (screenerFilter === 'long' && d.bias !== 'long') return false;
+    if (screenerFilter === 'short' && d.bias !== 'short') return false;
+    if (screenerFilter === 'top' && d.score < 4) return false;
+    return true;
+  });
+
+  const tbody = document.getElementById('screener-body');
+  if (!tbody) return;
+
+  if (data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">No tokens match</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = data.map(d => {
+    const pctCls = d.pct24h > 0 ? 'up' : 'dn';
+    const biasCls = d.bias === 'long' ? 'je-long' : d.bias === 'short' ? 'je-short' : '';
+    const pips = d.criteria.map((c, i) => `<div class="score-pip ${c ? (d.bias === 'long' ? 'good' : d.bias === 'short' ? 'bad' : 'filled') : ''}"></div>`).join('');
+    return `<tr onclick="showTokenDetail('${d.sym}')">
+      <td><strong>${d.sym.replace('USDT','')}</strong></td>
+      <td class="mono">$${formatPrice(d.price)}</td>
+      <td class="${pctCls} mono">${d.pct24h >= 0 ? '+' : ''}${d.pct24h.toFixed(1)}%</td>
+      <td><div class="score-bar">${pips}<span style="margin-left:4px;color:var(--muted);font-size:10px">${d.score}/5</span></div></td>
+      <td><span class="inline-badge ${biasCls}">${d.bias.toUpperCase()}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function showTokenDetail(sym) {
+  const d = state.screenerData.find(x => x.sym === sym);
+  if (!d) return;
+
+  state.selectedToken = sym;
+  const criteriaNames = ['Price >$0.001', 'Vol >$1M', 'Vol >$5M (liquid)', '24H move >1.5%', 'RSI extreme'];
+
+  const detailEl = document.getElementById('screener-detail');
+  detailEl.style.display = 'block';
+  detailEl.innerHTML = `<div class="card" style="border-color:var(--accent)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:18px;font-weight:800">${sym.replace('USDT','')} / USDT</div>
+      <div style="font-family:var(--font-mono);font-size:20px;font-weight:700">$${formatPrice(d.price)}</div>
+    </div>
+    <div class="section-title">5-CRITERIA CHECK</div>
+    ${criteriaNames.map((name, i) => `
+      <div class="detail-row">
+        <div class="detail-key">${name}</div>
+        <div style="font-size:16px">${d.criteria[i] ? '✓' : '✗'}</div>
+      </div>
+    `).join('')}
+    <hr class="divider">
+    <div class="detail-row"><div class="detail-key">RSI Proxy</div><div class="detail-val">${d.rsiProxy.toFixed(0)}</div></div>
+    <div class="detail-row"><div class="detail-key">24H Volume</div><div class="detail-val mono">${(d.vol/1e6).toFixed(1)}M USDT</div></div>
+    <div class="detail-row"><div class="detail-key">Score</div><div class="detail-val">${d.score}/5</div></div>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <button class="btn btn-primary" style="padding:10px;font-size:12px" onclick="selectToken('${sym}');goTab('dashboard')">USE IN SETUP</button>
+      <button class="btn btn-ghost" style="padding:10px;font-size:12px" onclick="quickAsk('Analyze ${sym} using the 5 screening criteria and give me a trade plan.')">ASK GEMMA</button>
+    </div>
+  </div>`;
+
+  detailEl.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ==============================
+// TRADING JOURNAL
+// ==============================
+function openNewTrade() {
+  state.modalDir = 'long';
+  document.getElementById('mb-long').className = 'dir-btn active-long';
+  document.getElementById('mb-short').className = 'dir-btn';
+  document.getElementById('m-pair').value = state.selectedToken;
+  ['m-entry','m-exit','m-pnl','m-size','m-why','m-lesson'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('m-emotion').value = '3';
+  document.getElementById('trade-modal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('trade-modal').classList.remove('open');
+}
+
+function setModalDir(dir) {
+  state.modalDir = dir;
+  document.getElementById('mb-long').className = 'dir-btn' + (dir === 'long' ? ' active-long' : '');
+  document.getElementById('mb-short').className = 'dir-btn' + (dir === 'short' ? ' active-short' : '');
+}
+
+function saveTrade() {
+  const pair = document.getElementById('m-pair').value.toUpperCase() || state.selectedToken;
+  const entry = parseFloat(document.getElementById('m-entry').value) || 0;
+  const exit = parseFloat(document.getElementById('m-exit').value) || 0;
+  const size = parseFloat(document.getElementById('m-size').value) || 0;
+  const pnl = parseFloat(document.getElementById('m-pnl').value) || 0;
+  const why = document.getElementById('m-why').value;
+  const lesson = document.getElementById('m-lesson').value;
+  const emotion = parseInt(document.getElementById('m-emotion').value);
+  const lev = document.getElementById('m-lev').value;
+
+  const trade = {
+    id: Date.now(),
+    pair, dir: state.modalDir, entry, exit, size, pnl,
+    why, lesson, emotion, lev,
+    date: new Date().toISOString(),
+    win: pnl > 0
+  };
+
+  state.journal.unshift(trade);
+  saveJournal();
+  closeModal();
+  renderJournal();
+}
+
+function autoSaveTrade(td) {
+  const trade = {
+    id: Date.now(),
+    pair: td.pair || state.selectedToken,
+    dir: td.dir || 'long',
+    entry: td.entry || 0,
+    exit: td.exit || 0,
+    size: td.size || 0,
+    pnl: td.pnl || 0,
+    why: td.why || '',
+    lesson: td.lesson || 'Saved via Gemma',
+    emotion: 3,
+    lev: '5',
+    date: new Date().toISOString(),
+    win: (td.pnl || 0) > 0
+  };
+  state.journal.unshift(trade);
+  saveJournal();
+  addMsg('ai', `✓ Trade saved to journal! <strong>${trade.pair} ${trade.dir.toUpperCase()}</strong> — PNL: ${trade.pnl >= 0 ? '+' : ''}${trade.pnl}. Check Journal tab.`);
+  if (state.currentTab === 'journal') renderJournal();
+}
+
+let journalFilter = 'all';
+function setJournalFilter(f, el) {
+  journalFilter = f;
+  document.querySelectorAll('[id^="jf-"]').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderJournal();
+}
+
+function renderJournal() {
+  const wins = state.journal.filter(t => t.win).length;
+  const losses = state.journal.filter(t => !t.win).length;
+  const total = state.journal.length;
+  const winRate = total > 0 ? ((wins / total) * 100).toFixed(0) : 0;
+  const totalPnl = state.journal.reduce((s, t) => s + (t.pnl || 0), 0);
+  const avgPnl = total > 0 ? (totalPnl / total).toFixed(2) : 0;
+  const bestTrade = total > 0 ? Math.max(...state.journal.map(t => t.pnl || 0)) : 0;
+
+  document.getElementById('journal-stats').innerHTML = `
+    <div class="stat-cell"><div class="stat-label">WIN RATE</div><div class="stat-val ${winRate >= 50 ? 'up' : 'dn'}">${winRate}%</div></div>
+    <div class="stat-cell"><div class="stat-label">TOTAL PNL</div><div class="stat-val ${totalPnl >= 0 ? 'up' : 'dn'}">${totalPnl >= 0 ? '+' : ''}$${totalPnl.toFixed(0)}</div></div>
+    <div class="stat-cell"><div class="stat-label">TRADES</div><div class="stat-val">${total}</div></div>
+    <div class="stat-cell"><div class="stat-label">BEST TRADE</div><div class="stat-val up">+$${bestTrade.toFixed(0)}</div></div>
+  `;
+
+  let trades = state.journal.filter(t => {
+    if (journalFilter === 'win') return t.win;
+    if (journalFilter === 'loss') return !t.win;
+    if (journalFilter === 'long') return t.dir === 'long';
+    if (journalFilter === 'short') return t.dir === 'short';
+    return true;
+  });
+
+  const list = document.getElementById('journal-list');
+  if (trades.length === 0) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📒</div><div class="empty-text">No trades logged yet.<br>Tap + LOG TRADE to start your journal,<br>or tell Gemma: "save trade..."</div></div>`;
+    return;
+  }
+
+  list.innerHTML = trades.map(t => {
+    const d = new Date(t.date);
+    const dateStr = d.toLocaleDateString('en', {month:'short', day:'numeric'}) + ' ' + d.toLocaleTimeString('en', {hour:'2-digit',minute:'2-digit'});
+    const pnlCls = t.pnl >= 0 ? 'je-pnl-pos' : 'je-pnl-neg';
+    const emotionEmoji = ['','😰','😐','😊','😁','🧠'][t.emotion || 3];
+    return `<div class="journal-entry" onclick="showTradeDetail(${t.id})">
+      <div class="je-top">
+        <div>
+          <span class="je-pair">${t.pair}</span>
+          <span class="je-dir ${t.dir === 'long' ? 'je-long' : 'je-short'}" style="margin-left:8px">${t.dir.toUpperCase()}</span>
+          <span style="margin-left:6px;font-size:12px">${emotionEmoji}</span>
+        </div>
+        <div class="je-date">${dateStr}</div>
+      </div>
+      <div class="je-meta">
+        <div>Entry: <span class="mono">${t.entry > 0 ? '$'+formatPrice(t.entry) : '—'}</span></div>
+        <div>Exit: <span class="mono">${t.exit > 0 ? '$'+formatPrice(t.exit) : '—'}</span></div>
+        <div>PNL: <span class="${pnlCls}">${t.pnl >= 0 ? '+' : ''}$${(t.pnl||0).toFixed(2)}</span></div>
+        <div>${t.lev || '5'}x</div>
+      </div>
+      ${t.why ? `<div class="je-note">📝 ${t.why.substring(0, 80)}${t.why.length > 80 ? '...' : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function showTradeDetail(id) {
+  const t = state.journal.find(x => x.id === id);
+  if (!t) return;
+  state.selectedTradeId = id;
+  const d = new Date(t.date);
+  const emotionText = ['','Panic/FOMO','Uncertain','Neutral','Confident','Fully Disciplined'][t.emotion || 3];
+  const emotionEmoji = ['','😰','😐','😊','😁','🧠'][t.emotion || 3];
+
+  document.getElementById('detail-modal-content').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div style="font-size:20px;font-weight:800">${t.pair}</div>
+      <span class="je-dir ${t.dir === 'long' ? 'je-long' : 'je-short'}" style="font-size:13px;padding:4px 12px;border-radius:6px">${t.dir.toUpperCase()} ${t.lev}x</span>
+    </div>
+    <div class="detail-row"><div class="detail-key">Date</div><div class="detail-val mono" style="font-size:12px">${d.toLocaleString()}</div></div>
+    <div class="detail-row"><div class="detail-key">Entry</div><div class="detail-val">${t.entry > 0 ? '$'+formatPrice(t.entry) : '—'}</div></div>
+    <div class="detail-row"><div class="detail-key">Exit</div><div class="detail-val">${t.exit > 0 ? '$'+formatPrice(t.exit) : '—'}</div></div>
+    <div class="detail-row"><div class="detail-key">Size</div><div class="detail-val">${t.size > 0 ? '$'+t.size : '—'}</div></div>
+    <div class="detail-row"><div class="detail-key">PNL</div><div class="detail-val ${t.pnl >= 0 ? 'up' : 'dn'}" style="font-size:22px">${t.pnl >= 0 ? '+' : ''}$${(t.pnl||0).toFixed(2)}</div></div>
+    <div class="detail-row"><div class="detail-key">Mindset</div><div class="detail-val">${emotionEmoji} ${emotionText}</div></div>
+    ${t.why ? `<hr class="divider"><div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:0.8px;margin-bottom:6px">WHY I ENTERED</div><div style="font-size:13px;line-height:1.6">${t.why}</div>` : ''}
+    ${t.lesson ? `<hr class="divider"><div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:0.8px;margin-bottom:6px">WHAT HAPPENED</div><div style="font-size:13px;line-height:1.6">${t.lesson}</div>` : ''}
+    <button class="btn btn-ghost" style="margin-top:12px;font-size:12px;padding:10px" onclick="askGemmaReview(${t.id})">🤖 Ask Gemma to Review This Trade</button>
+  `;
+
+  document.getElementById('detail-modal').classList.add('open');
+}
+
+function closeDetailModal() {
+  document.getElementById('detail-modal').classList.remove('open');
+}
+
+function deleteTrade() {
+  if (!state.selectedTradeId) return;
+  state.journal = state.journal.filter(t => t.id !== state.selectedTradeId);
+  saveJournal();
+  closeDetailModal();
+  renderJournal();
+}
+
+function askGemmaReview(id) {
+  const t = state.journal.find(x => x.id === id);
+  if (!t) return;
+  const msg = `Review this trade: ${t.pair} ${t.dir.toUpperCase()} ${t.lev}x, entry $${t.entry}, exit $${t.exit}, PNL ${t.pnl >= 0 ? '+' : ''}$${t.pnl}. Setup reason: "${t.why}". Outcome: "${t.lesson}". What did I do well? What should I improve?`;
+  closeDetailModal();
+  goTab('ai');
+  setTimeout(() => {
+    document.getElementById('ai-input').value = msg;
+    sendAI();
+  }, 300);
+}
+
+// ==============================
+// TRADINGVIEW CHART
+// ==============================
+function loadTVChart() {
+  if (state.tvLoaded) return;
+  const script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/tv.js';
+  script.async = true;
+  script.onload = () => {
+    state.tvLoaded = true;
+    renderTVChart();
+  };
+  document.head.appendChild(script);
+}
+
+function renderTVChart() {
+  const sym = document.getElementById('chart-symbol').value || 'BINANCE:SOLUSDT';
+  const interval = document.getElementById('chart-interval').value || '15';
+  document.getElementById('tradingview_chart').innerHTML = '';
+  if (typeof TradingView === 'undefined') return;
+  new TradingView.widget({
+    width: '100%', height: '100%',
+    symbol: sym.includes(':') ? sym : 'BINANCE:' + sym,
+    interval, timezone: 'Etc/UTC',
+    theme: 'dark', style: '1', locale: 'en',
+    toolbar_bg: '#0d1117',
+    enable_publishing: false,
+    allow_symbol_change: true,
+    container_id: 'tradingview_chart',
+    studies: ['MASimple@tv-studilib', 'RSI@tv-studilib', 'MACD@tv-studilib', 'BB@tv-studilib'],
+    hide_legend: false,
+    withdateranges: false
+  });
+}
+
+function reloadChart() {
+  renderTVChart();
+}
+
+// ==============================
+// INIT
+// ==============================
+window.addEventListener('load', () => {
+  loadJournal();
+  fetchPrices();
+  checkGemma();
+  renderJournal();
+
+  document.getElementById('trade-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+  document.getElementById('detail-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeDetailModal();
+  });
+
+  addMsg('ai', '🤖 <strong>Welcome to Edge Trader!</strong><br><br>I\'m Gemma, your trading coach. Here\'s how to get started:<br><br>1. Check Dashboard for current setup<br>2. Use Screener to find top tokens<br>3. Ask me anything about trade setups<br>4. Log all trades in Journal<br><br>💡 <em>Say "save trade: SOLUSDT short entry 83.50 SL 86.50 TP 80 PNL +50" to log via chat.</em>');
+});
+</script>
+</body>
+</html>
