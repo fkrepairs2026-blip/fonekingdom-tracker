@@ -1640,22 +1640,28 @@ async function sendAI() {
       throw new Error(`HTTP ${resp.status}${err ? ' — '+err.slice(0,100) : ''}`);
     }
 
-    // ── Switch thinking bubble → streaming bubble ──
-    clearInterval(timerInt); thinkDiv.remove();
-    const streamDiv = document.createElement('div');
-    streamDiv.className = 'msg msg-ai';
-    streamDiv.innerHTML = `<div class="bubble bubble-ai"></div>`;
-    chat.appendChild(streamDiv);
-    const bubble = streamDiv.querySelector('.bubble');
-    chat.scrollTop = chat.scrollHeight;
+    // ── Connected — update status but keep thinking bubble until first token ──
+    const thinkLabel = thinkDiv.querySelector('.typing-dots');
+    if (thinkLabel) thinkLabel.textContent = hasImg ? 'Encoding image' : 'Connected';
+
+    // ── Idle timeout — abort if no token arrives within 90 s of connection ──
+    let idleTimer = setTimeout(() => {
+      aiAbort.abort();
+    }, 90000);
 
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
-    let buf = '', reply = '';
+    let buf = '', reply = '', firstToken = false;
+    let bubble = null;
 
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+
+      // Reset idle timeout on every chunk of data
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => aiAbort.abort(), 90000);
+
       buf += dec.decode(value, { stream:true });
       const lines = buf.split('\n'); buf = lines.pop();
       for (const line of lines) {
@@ -1666,6 +1672,17 @@ async function sendAI() {
           const j = JSON.parse(d);
           const chunk = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.text ?? '';
           if (chunk) {
+            // ── First token: swap thinking bubble → streaming bubble ──
+            if (!firstToken) {
+              firstToken = true;
+              clearInterval(timerInt); clearTimeout(idleTimer);
+              thinkDiv.remove();
+              const streamDiv = document.createElement('div');
+              streamDiv.className = 'msg msg-ai';
+              streamDiv.innerHTML = `<div class="bubble bubble-ai"></div>`;
+              chat.appendChild(streamDiv);
+              bubble = streamDiv.querySelector('.bubble');
+            }
             reply += chunk;
             bubble.innerHTML = reply.replace(/\n/g, '<br>');
             chat.scrollTop = chat.scrollHeight;
@@ -1673,6 +1690,7 @@ async function sendAI() {
         } catch {}
       }
     }
+    clearTimeout(idleTimer);
 
     if (!reply) reply = '(no response — check that the model is fully loaded in Termux)';
     reply = reply.trim()
@@ -1702,8 +1720,16 @@ async function sendAI() {
     if (hintEl) hintEl.textContent = shortReply + (reply.length > 120 ? '...' : '');
 
   } catch(e) {
-    clearInterval(timerInt); thinkDiv.remove();
-    if (e.name === 'AbortError') return;
+    clearInterval(timerInt);
+    if (document.contains(thinkDiv)) thinkDiv.remove();
+    if (e.name === 'AbortError') {
+      // Could be ✕ Stop (manual) or idle timeout — distinguish by secs
+      if (secs > 5) {
+        addMsg('ai', `⏱ No response after ${secs}s — model may still be loading or encoding the image.<br>` +
+          `<span style="font-size:12px;color:var(--muted)">Try a text-only message first to confirm the server is ready, then retry with image.</span>`);
+      }
+      return;
+    }
     const errMsg = e.message || String(e);
     addMsg('ai', `⚠️ <strong>${errMsg}</strong><br><br>` +
       `Start server with:<br>` +

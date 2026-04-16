@@ -1248,6 +1248,7 @@ const AI_FIN_KEY = 'shoplog_findata_v1';
 let aiMsgs    = [];      // conversation history
 let aiActive  = false;   // is a request in-flight?
 let aiAttachedImage = null; // base64 data URL for image attachment
+let aiAbortCtrl = null;  // AbortController for current request
 
 window.attachAiImage = function(evt) {
   const file = evt.target.files[0];
@@ -1599,10 +1600,15 @@ window.sendAI = async () => {
   const ph = appendMsg('asst', '', true);
   const url = (document.getElementById('ai-url').value.trim() || 'http://127.0.0.1:8080').replace(/\/+$/,'');
 
+  // Cancel any previous request
+  if (aiAbortCtrl) aiAbortCtrl.abort();
+  aiAbortCtrl = new AbortController();
+
   try {
     const resp = await fetch(`${url}/v1/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
+      signal: aiAbortCtrl.signal,
       body: JSON.stringify({
         messages: [{ role:'system', content: buildSystemPrompt() }, ...aiMsgs.slice(-12, -1), { role:'user', content: userContent }],
         stream: true,
@@ -1617,9 +1623,18 @@ window.sendAI = async () => {
       throw new Error(`HTTP ${resp.status}${errText?' — '+errText.slice(0,120):''}`);
     }
 
-    ph.classList.remove('thinking');
+    // Connected — update thinking text but keep spinner until first token
+    const thinkSpan = ph.querySelector('.bubble-content');
+    if (thinkSpan) thinkSpan.innerHTML = hasImg
+      ? '<em style="color:var(--mut);font-size:12px;">Encoding image…</em>'
+      : '<em style="color:var(--mut);font-size:12px;">Connected…</em>';
+
+    // Idle timeout — abort if 90 s of silence after connection
+    let idleTimer = setTimeout(() => aiAbortCtrl.abort(), 90000);
+
     const bubble = ph.querySelector('.bubble-content');
     let fullText = '';
+    let firstToken = false;
 
     const reader = resp.body.getReader();
     const dec    = new TextDecoder();
@@ -1628,6 +1643,10 @@ window.sendAI = async () => {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      // Reset idle timer on every data chunk
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => aiAbortCtrl.abort(), 90000);
+
       buf += dec.decode(value, { stream:true });
       const lines = buf.split('\n');
       buf = lines.pop();
@@ -1639,6 +1658,7 @@ window.sendAI = async () => {
           const j = JSON.parse(d);
           const chunk = j.choices?.[0]?.delta?.content || '';
           if (chunk) {
+            if (!firstToken) { firstToken = true; ph.classList.remove('thinking'); }
             fullText += chunk;
             bubble.innerHTML = mdRender(fullText);
             ph.scrollIntoView({ block:'end' });
@@ -1646,6 +1666,7 @@ window.sendAI = async () => {
         } catch {}
       }
     }
+    clearTimeout(idleTimer);
 
     if (!fullText) fullText = '(walang response — baka natapos na ang tokens o nag-timeout)';
     bubble.innerHTML = mdRender(fullText);
@@ -1653,8 +1674,13 @@ window.sendAI = async () => {
 
   } catch(e) {
     ph.classList.remove('thinking');
-    ph.querySelector('.bubble-content').innerHTML =
-      `<span style="color:var(--red);">❌ ${escHtml(e.message)}</span><br><span style="font-size:12px;color:var(--mut);">Tiyaking naka-on ang LLM server sa Termux at tama ang URL:port.</span>`;
+    if (e.name === 'AbortError') {
+      ph.querySelector('.bubble-content').innerHTML =
+        `<span style="color:var(--amber);">⏱ Walang response — masyado matagal ang model.<br><span style="font-size:12px;">Subukan muna ng text-only bago mag-image. Kung naka-image, mag-antay ng 60–90s para ma-encode.</span></span>`;
+    } else {
+      ph.querySelector('.bubble-content').innerHTML =
+        `<span style="color:var(--red);">❌ ${escHtml(e.message)}</span><br><span style="font-size:12px;color:var(--mut);">Tiyaking naka-on ang LLM server sa Termux at tama ang URL:port.</span>`;
+    }
   } finally {
     aiActive = false;
     sendBtn.disabled = false;
