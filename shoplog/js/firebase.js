@@ -26,6 +26,7 @@ export const COL_REPAIRS    = 'repairs';           // main repair logs
 export const COL_USERS      = 'shoplog_users';     // user profiles
 export const COL_ATTENDANCE = 'shoplog_attendance'; // daily time-in/out
 export const COL_DELETED    = 'deleted_repairs';   // soft-deleted repair archive
+export const COL_EXPENSES   = 'shoplog_expenses';  // Jay's daily expense log
 
 // ─── Commission rates ─────────────────────
 // Per-repair commission (% of net profit):

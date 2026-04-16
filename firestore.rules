@@ -38,6 +38,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── DAILY EXPENSES ──────────────────────────────────────────────────
+    match /shoplog_expenses/{docId} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── DELETED REPAIRS (archive) ───────────────────────────────────────
     match /deleted_repairs/{docId} {
       allow read:   if isAdmin();

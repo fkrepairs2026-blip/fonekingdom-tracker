@@ -30,7 +30,8 @@
     <button class="tab on" id="at1" onclick="atab('ov')">Overview</button>
     <button class="tab"    id="at2" onclick="atab('rp')">Repairs</button>
     <button class="tab"    id="at3" onclick="atab('att')">Attendance</button>
-    <button class="tab"    id="at4" onclick="atab('ai')">🤖 AI</button>
+    <button class="tab"    id="at4" onclick="atab('exp')">💸 Gastos</button>
+    <button class="tab"    id="at5" onclick="atab('ai')">🤖 AI</button>
   </div>
 
   <!-- ── OVERVIEW TAB ── -->
@@ -69,6 +70,60 @@
       <div class="chip"    data-at="month" onclick="setAttPer('month')">This Month</div>
     </div>
     <div id="att-content"></div>
+  </div>
+
+  <!-- ── GASTOS TAB ── -->
+  <div id="tab-exp" class="sec" style="display:none;">
+
+    <!-- Spending summary strip -->
+    <div class="exp-summary" id="exp-summary">
+      <div class="exp-sc"><div class="exp-sl">Ngayon</div><div class="exp-sv" id="es-today">₱0</div><div class="exp-ss" id="es-today-c">0 items</div></div>
+      <div class="exp-sc"><div class="exp-sl">This Week</div><div class="exp-sv" id="es-week">₱0</div><div class="exp-ss" id="es-week-c">0 items</div></div>
+      <div class="exp-sc"><div class="exp-sl">This Month</div><div class="exp-sv" id="es-month">₱0</div><div class="exp-ss" id="es-month-c">0 items</div></div>
+    </div>
+
+    <!-- Quick-add form -->
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">➕ I-log ang Gastos</div>
+      <!-- Category grid -->
+      <div class="exp-cats" id="exp-cats">
+        <button class="cat-btn on" data-cat="Pagkain"   onclick="setCat('Pagkain')"><span class="cat-ico">🍚</span>Pagkain</button>
+        <button class="cat-btn"    data-cat="Groceries" onclick="setCat('Groceries')"><span class="cat-ico">🛒</span>Groceries</button>
+        <button class="cat-btn"    data-cat="Gas"       onclick="setCat('Gas')"><span class="cat-ico">⛽</span>Gas</button>
+        <button class="cat-btn"    data-cat="Fare"      onclick="setCat('Fare')"><span class="cat-ico">🚌</span>Fare</button>
+        <button class="cat-btn"    data-cat="Shop"      onclick="setCat('Shop')"><span class="cat-ico">🏪</span>Shop</button>
+        <button class="cat-btn"    data-cat="Personal"  onclick="setCat('Personal')"><span class="cat-ico">👤</span>Personal</button>
+        <button class="cat-btn"    data-cat="Meds"      onclick="setCat('Meds')"><span class="cat-ico">💊</span>Meds</button>
+        <button class="cat-btn"    data-cat="Iba pa"    onclick="setCat('Iba pa')"><span class="cat-ico">📦</span>Iba pa</button>
+      </div>
+      <!-- Amount + description -->
+      <div class="r2">
+        <div class="fg" style="margin:0;">
+          <label>Halaga (₱)</label>
+          <input type="number" id="exp-amt" placeholder="0" min="0" inputmode="numeric" style="font-size:20px;font-weight:800;">
+        </div>
+        <div class="fg" style="margin:0;">
+          <label>Petsa</label>
+          <input type="date" id="exp-date">
+        </div>
+      </div>
+      <div class="fg" style="margin-top:8px;">
+        <label>Description (optional)</label>
+        <input type="text" id="exp-desc" placeholder="e.g. Jollibee lunch, SM groceries, Petron…">
+      </div>
+      <button class="btn btn-p" style="margin-top:10px;width:100%;font-size:16px;padding:14px;" onclick="addExpense()">
+        ➕ &nbsp;I-add
+      </button>
+    </div>
+
+    <!-- List period filter -->
+    <div class="chips">
+      <div class="chip on" data-ep="today" onclick="setExpPer('today')">Ngayon</div>
+      <div class="chip"    data-ep="week"  onclick="setExpPer('week')">This Week</div>
+      <div class="chip"    data-ep="month" onclick="setExpPer('month')">This Month</div>
+      <div class="chip"    data-ep="all"   onclick="setExpPer('all')">Lahat</div>
+    </div>
+    <div id="exp-list"></div>
   </div>
 
   <!-- ── AI TAB ── -->
@@ -309,12 +364,12 @@
      JAVASCRIPT
 ════════════════════════════════════════ -->
 <script type="module">
-import { auth, db, COL_REPAIRS, COL_USERS, COL_ATTENDANCE, COL_DELETED, ADMIN_EMAILS } from './js/firebase.js';
+import { auth, db, COL_REPAIRS, COL_USERS, COL_ATTENDANCE, COL_DELETED, COL_EXPENSES, ADMIN_EMAILS } from './js/firebase.js';
 import { g, load, toast, today, dateOf, dateLabel, fmtTime, fmt, num, profit, repairComm, calcStats } from './js/utils.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
   doc, getDoc, setDoc, updateDoc, addDoc, collection, deleteDoc,
-  query, orderBy, onSnapshot, where, serverTimestamp, Timestamp, getDocs
+  query, orderBy, onSnapshot, where, serverTimestamp, Timestamp, getDocs, limit
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // ── State ─────────────────────────────────
@@ -382,13 +437,14 @@ function redraw() {
 // ── Tab Navigation ────────────────────────
 window.atab = t => {
   curTab = t;
-  ['ov','rp','att','ai'].forEach((x,i) => {
+  ['ov','rp','att','exp','ai'].forEach((x,i) => {
     g('tab-'+x).style.display = x===t?'block':'none';
     g('at'+(i+1)).classList.toggle('on', x===t);
   });
   if (t==='ov')  drawOv();
   if (t==='rp')  drawRp();
   if (t==='att') drawAtt();
+  if (t==='exp') initGastos();
   if (t==='ai')  initAiTab();
 };
 
@@ -1011,6 +1067,161 @@ window.saveRep = async () => {
   finally { load(false); }
 };
 
+// ── GASTOS (Daily Expenses) ───────────────
+const CAT_ICONS = {
+  'Pagkain':'🍚','Groceries':'🛒','Gas':'⛽','Fare':'🚌',
+  'Shop':'🏪','Personal':'👤','Meds':'💊','Iba pa':'📦'
+};
+let expenses   = [];
+let expCat     = 'Pagkain';
+let expPeriod  = 'today';
+const collExpDates = new Set();
+
+async function initGastos() {
+  g('exp-date').value = TODAY;
+  await loadExpenses();
+}
+
+async function loadExpenses() {
+  const box = g('exp-list');
+  box.innerHTML = `<div class="empty"><div class="sp"></div></div>`;
+  try {
+    const q = query(collection(db, COL_EXPENSES), orderBy('createdAt','desc'), limit(400));
+    const snap = await getDocs(q);
+    expenses = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+    renderExpSummary();
+    renderExpList();
+  } catch(e) {
+    box.innerHTML = `<div class="empty" style="color:var(--red);">Error: ${e.message}</div>`;
+  }
+}
+
+function expPool() {
+  const t = TODAY;
+  return expenses.filter(e => {
+    const d = e.date||'';
+    if (expPeriod==='today') return d===t;
+    if (expPeriod==='week')  { const c=new Date(); c.setDate(c.getDate()-6); return new Date(d+'T00:00:00')>=c; }
+    if (expPeriod==='month') return d.slice(0,7)===t.slice(0,7);
+    return true;
+  });
+}
+
+function renderExpSummary() {
+  const todays = expenses.filter(e=>e.date===TODAY);
+  const weeks  = expenses.filter(e=>{ const c=new Date(); c.setDate(c.getDate()-6); return new Date((e.date||'1970-01-01')+'T00:00:00')>=c; });
+  const months = expenses.filter(e=>(e.date||'').slice(0,7)===TODAY.slice(0,7));
+  const sum = arr => arr.reduce((s,e)=>s+(+e.amount||0),0);
+  g('es-today').textContent   = '₱'+fmt(sum(todays));
+  g('es-today-c').textContent = todays.length+' item'+(todays.length!==1?'s':'');
+  g('es-week').textContent    = '₱'+fmt(sum(weeks));
+  g('es-week-c').textContent  = weeks.length+' items';
+  g('es-month').textContent   = '₱'+fmt(sum(months));
+  g('es-month-c').textContent = months.length+' items';
+}
+
+function renderExpList() {
+  const pool = expPool();
+  const box  = g('exp-list');
+  if (!pool.length) {
+    box.innerHTML = `<div class="empty"><div class="ei">💸</div><div>Walang gastos para sa period na ito.</div></div>`;
+    return;
+  }
+  const byDate = {};
+  pool.forEach(e => { const d=e.date||'?'; if(!byDate[d])byDate[d]=[]; byDate[d].push(e); });
+  let h = '';
+  Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(d => {
+    const sid   = d.replace(/-/g,'_');
+    const total = byDate[d].reduce((s,e)=>s+(+e.amount||0),0);
+    const cnt   = byDate[d].length;
+    const isCol = collExpDates.has(d);
+    h += `
+      <div class="dh" onclick="expDateToggle('${d}')" style="cursor:pointer;user-select:none;">
+        <span>${dateLabel(d)} <span style="font-size:11px;color:var(--mut);">${cnt} item${cnt!==1?'s':''}</span></span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span style="color:var(--red);font-weight:800;">₱${fmt(total)}</span>
+          <span id="eda_${sid}" style="font-size:12px;color:var(--mut);">${isCol?'▶':'▼'}</span>
+        </span>
+      </div>
+      <div id="edg_${sid}"${isCol?' style="display:none;"':''}>`;
+    byDate[d].forEach(e => {
+      const ico = CAT_ICONS[e.category]||'📦';
+      h += `
+        <div class="exp-item">
+          <span class="exp-ico">${ico}</span>
+          <div class="exp-info">
+            <div class="exp-cat">${escHtml(e.category||'')}</div>
+            ${e.description?`<div class="exp-desc">${escHtml(e.description)}</div>`:''}
+          </div>
+          <div class="exp-amt">₱${fmt(+e.amount||0)}</div>
+          <button class="exp-del" onclick="delExp('${e.id}')" title="Delete">✕</button>
+        </div>`;
+    });
+    h += `</div>`;
+  });
+  box.innerHTML = h;
+}
+
+window.expDateToggle = d => {
+  const sid = d.replace(/-/g,'_');
+  if (collExpDates.has(d)) {
+    collExpDates.delete(d);
+    const el=document.getElementById('edg_'+sid); const ar=document.getElementById('eda_'+sid);
+    if(el)el.style.display=''; if(ar)ar.textContent='▼';
+  } else {
+    collExpDates.add(d);
+    const el=document.getElementById('edg_'+sid); const ar=document.getElementById('eda_'+sid);
+    if(el)el.style.display='none'; if(ar)ar.textContent='▶';
+  }
+};
+
+window.setCat = cat => {
+  expCat = cat;
+  document.querySelectorAll('#exp-cats .cat-btn').forEach(b => b.classList.toggle('on', b.dataset.cat===cat));
+};
+
+window.setExpPer = per => {
+  expPeriod = per;
+  document.querySelectorAll('[data-ep]').forEach(c => c.classList.toggle('on', c.dataset.ep===per));
+  renderExpList();
+};
+
+window.addExpense = async () => {
+  const amt  = parseFloat(g('exp-amt').value) || 0;
+  const desc = g('exp-desc').value.trim();
+  const date = g('exp-date').value || TODAY;
+  if (!amt) { toast('❌ Ilagay ang halaga.'); return; }
+  load(true);
+  try {
+    await addDoc(collection(db, COL_EXPENSES), {
+      category:    expCat,
+      amount:      amt,
+      description: desc,
+      date:        date,
+      createdBy:   me.uid,
+      createdAt:   serverTimestamp()
+    });
+    g('exp-amt').value  = '';
+    g('exp-desc').value = '';
+    toast('✅ Nai-log ang gastos!');
+    await loadExpenses();
+  } catch(e) { toast('❌ '+e.message); }
+  finally { load(false); }
+};
+
+window.delExp = async id => {
+  if (!confirm('I-delete ang expense na ito?')) return;
+  load(true);
+  try {
+    await deleteDoc(doc(db, COL_EXPENSES, id));
+    expenses = expenses.filter(e=>e.id!==id);
+    renderExpSummary();
+    renderExpList();
+    toast('🗑️ Deleted.');
+  } catch(e) { toast('❌ '+e.message); }
+  finally { load(false); }
+};
+
 // ── AI FINANCIAL ADVISOR ──────────────────
 const AI_FIN_KEY = 'shoplog_findata_v1';
 let aiMsgs    = [];      // conversation history
@@ -1185,6 +1396,15 @@ function buildSystemPrompt() {
     return Object.entries(fc).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([t,c])=>({type:t,count:c}));
   })();
 
+  // Actual daily expenses (from Gastos tab)
+  const mon2 = TODAY.slice(0,7);
+  const thisMonthExps = expenses.filter(e=>(e.date||'').startsWith(mon2));
+  const todayExps     = expenses.filter(e=>e.date===TODAY);
+  const expByCat = {};
+  thisMonthExps.forEach(e => { expByCat[e.category]=(expByCat[e.category]||0)+(+e.amount||0); });
+  const actualMonthlySpend = thisMonthExps.reduce((s,e)=>s+(+e.amount||0),0);
+  const actualTodaySpend   = todayExps.reduce((s,e)=>s+(+e.amount||0),0);
+
   const bizData = {
     shop: 'FoneKingdom',
     currency: 'PHP (₱)',
@@ -1219,7 +1439,13 @@ function buildSystemPrompt() {
       debt_to_income_ratio_percent: dti,
       months_to_clear_all_debt_at_current_payments: totalDebtPayments > 0 ? Math.ceil(totalDebt/totalDebtPayments) : 0
     },
-    notes: finData.notes
+    notes: finData.notes,
+    actual_daily_spending: {
+      today_total: actualTodaySpend,
+      this_month_total: actualMonthlySpend,
+      this_month_by_category: expByCat,
+      recent_entries: expenses.slice(0,20).map(e=>({ date:e.date, cat:e.category, amt:+e.amount||0, desc:e.description||'' }))
+    }
   };
 
   return `You are a personal financial advisor for Jay, owner of FoneKingdom phone repair shop in the Philippines. Be practical, direct, and honest. Never be vague.
@@ -1252,7 +1478,8 @@ ${JSON.stringify(finSummary, null, 2)}
 7. Philippine options: SSS loan, Pag-IBIG MP2, cooperative loan — avoid 5-6!
 8. Priority order: Emergency fund (3 months) → High-interest debt → Business investment → Personal investment
 9. If monthly income is variable, use conservative (lower) estimate for planning
-10. Format with ## headers and bullet points for readability`;
+10. Format with ## headers and bullet points for readability
+11. The \`actual_daily_spending\` section has real logged expenses from the Gastos tracker — this is more accurate than the estimated monthly expenses in the financial form`;
 }
 
 // ── Chat functions ──
