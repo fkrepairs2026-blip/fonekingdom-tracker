@@ -174,8 +174,25 @@
     <div class="fg">
       <label>Status ng Bayad</label>
       <div class="source-toggle">
-        <button class="src-btn on" id="pay-paid" onclick="setPayment('paid')">✅ Paid na</button>
-        <button class="src-btn"    id="pay-pend" onclick="setPayment('pending')">⏳ Pending</button>
+        <button class="src-btn on" id="pay-paid"    onclick="setPayment('paid')">✅ Paid na</button>
+        <button class="src-btn"    id="pay-partial" onclick="setPayment('partial')">💰 May Down</button>
+        <button class="src-btn"    id="pay-pend"    onclick="setPayment('pending')">⏳ Wala pa</button>
+      </div>
+      <!-- Downpayment fields (visible when 'partial' selected) -->
+      <div id="down-wrap" style="display:none;margin-top:10px;">
+        <div class="r2">
+          <div class="fg" style="margin:0;">
+            <label>Down Payment (₱)</label>
+            <input type="number" id="fdp" placeholder="0" min="0" inputmode="numeric">
+          </div>
+          <div class="fg" style="margin:0;">
+            <label>Device Status</label>
+            <div class="source-toggle">
+              <button class="src-btn on" id="dev-here"  onclick="setDeviceLeft(true)">📱 Nandito</button>
+              <button class="src-btn"    id="dev-order" onclick="setDeviceLeft(false)">📦 Part order</button>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="info-text" id="pay-hint">Walk-in customers — bayad na sa claim</div>
     </div>
@@ -258,6 +275,7 @@ let unsub    = null;
 let tTab     = 'today';
 let formSrc  = 'walk_in';
 let formPay  = 'paid';
+let formDev  = true;   // deviceLeft: true = device is here
 const TODAY  = today();
 
 // ── Auth guard ────────────────────────────
@@ -457,9 +475,16 @@ function repCard(r, canEdit) {
   const srcBdg = r.source==='co_tech'
     ? `<span class="bdg bdg-dealer">🤝 ${r.dealerName||'Dealer'}</span>`
     : `<span class="bdg bdg-walkin">🚶 Walk-in</span>`;
-  const payBdg = r.paymentStatus==='paid'
-    ? `<span class="bdg bdg-paid">✅ Paid</span>`
-    : `<span class="bdg bdg-pend">⏳ Pending</span>`;
+  let payBdg;
+  if (r.paymentStatus === 'paid') {
+    payBdg = `<span class="bdg bdg-paid">✅ Paid</span>`;
+  } else if (r.paymentStatus === 'partial') {
+    const bal = Math.max(0, num(r.totalCharged) - num(r.downPayment));
+    const devIco = r.deviceLeft === false ? '📦' : '📱';
+    payBdg = `<span class="bdg bdg-partial">💰 May Down</span><span class="bdg bdg-balance">${devIco} Bal ₱${fmt(bal)}</span>`;
+  } else {
+    payBdg = `<span class="bdg bdg-pend">⏳ Wala pa</span>`;
+  }
   const editBdg = r.modificationReason ? `<span class="bdg bdg-edit">✏️</span>` : '';
   return `
     <div class="ri tL" onclick="showDet('${r.id}')">
@@ -490,6 +515,31 @@ window.showDet = id => {
     ? `🤝 Co-tech/Dealer — ${r.dealerName||'unknown'}`
     : '🚶 Walk-in Customer';
 
+  // Payment badge for detail modal
+  let payBadgeHtml;
+  if (r.paymentStatus === 'paid') {
+    payBadgeHtml = `<span class="bdg bdg-paid">✅ Paid na</span>`;
+  } else if (r.paymentStatus === 'partial') {
+    const devTxt = r.deviceLeft === false ? '📦 Part order pa (device wala pa)' : '📱 Device nandito';
+    payBadgeHtml = `<span class="bdg bdg-partial">💰 May Down Payment</span>
+      <span class="bdg bdg-balance">${devTxt}</span>`;
+  } else {
+    payBadgeHtml = `<span class="bdg bdg-pend">⏳ Hindi pa nabayaran</span>`;
+  }
+
+  // Downpayment breakdown (only if partial)
+  const dpSection = r.paymentStatus === 'partial' ? `
+    <div style="background:var(--c2);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Down Payment</div>
+        <div style="font-size:18px;font-weight:800;color:#a3e635;">₱${fmt(num(r.downPayment))}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Natitirang Balance</div>
+        <div style="font-size:18px;font-weight:800;color:#c084fc;">₱${fmt(Math.max(0, num(r.totalCharged) - num(r.downPayment)))}</div>
+      </div>
+    </div>` : '';
+
   g('dbody').innerHTML = `
     <div style="display:grid;gap:12px;">
       <div>
@@ -499,7 +549,7 @@ window.showDet = id => {
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <span class="bdg ${r.source==='co_tech'?'bdg-dealer':'bdg-walkin'}">${srcLabel}</span>
-        <span class="bdg ${r.paymentStatus==='paid'?'bdg-paid':'bdg-pend'}">${r.paymentStatus==='paid'?'✅ Paid':'⏳ Pending Payment'}</span>
+        ${payBadgeHtml}
       </div>
       <hr class="hr">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
@@ -516,6 +566,7 @@ window.showDet = id => {
           <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.otherExpenses))}</div>
         </div>
       </div>
+      ${dpSection}
       <div style="background:var(--c2);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Net Profit</div>
@@ -537,20 +588,37 @@ window.showDet = id => {
   const canEdit = !attend?.submitted && dateOf(r) === TODAY;
   g('dact').innerHTML =
     `<button class="btn btn-gh" onclick="closeDet()">Isara</button>` +
-    (canEdit ? `<button class="btn btn-p" style="flex:2;" onclick="openEdit('${r.id}')">✏️ &nbsp;I-edit</button>` : '');
+    (canEdit ? `<button class="btn btn-p" style="flex:2;" onclick="openEdit('${r.id}')">✏️ &nbsp;I-edit</button>` : '') +
+    (canEdit && r.paymentStatus==='partial' ? `<button class="btn btn-g" onclick="markPartialPaid('${r.id}')">💰 Bayad na!</button>` : '');
   g('dmod').classList.add('open');
 };
 window.closeDet = () => g('dmod').classList.remove('open');
+
+window.markPartialPaid = async id => {
+  if (!confirm('I-confirm na natanggap na ang buong bayad?')) return;
+  load(true);
+  try {
+    await updateDoc(doc(db, COL_REPAIRS, id), {
+      paymentStatus: 'paid',
+      paidAt:        serverTimestamp(),
+      paidMarkedBy:  me.uid
+    });
+    toast('✅ Marked as fully paid!');
+    closeDet();
+  } catch(e) { toast('❌ '+e.message); }
+  finally { load(false); }
+};
 
 // ── Repair Form ───────────────────────────
 window.openNew = () => {
   if (attend?.submitted) { toast('Na-submit na ang araw mo. Hindi na pwedeng mag-add.'); return; }
   g('fid').value=''; g('ftit').textContent='➕ Bagong Repair';
-  ['fbr','fmo','ffx','ftc','fpc','foe','fno','frea','fdn'].forEach(i => { if(g(i)) g(i).value=''; });
+  ['fbr','fmo','ffx','ftc','fpc','foe','fno','frea','fdn','fdp'].forEach(i => { if(g(i)) g(i).value=''; });
   g('ffx').value=''; g('fbr').value='';
   g('fdt').value = TODAY;
   setSource('walk_in');
   setPayment('paid');
+  setDeviceLeft(true);
   g('freaw').style.display='none';
   g('fmod').classList.add('open');
 };
@@ -564,8 +632,10 @@ window.openEdit = id => {
   g('fbr').value=r.brand||''; g('fmo').value=r.model||''; g('ffx').value=r.fixType||'';
   g('ftc').value=r.totalCharged||''; g('fpc').value=r.partsCost||''; g('foe').value=r.otherExpenses||'';
   g('fdt').value=dateOf(r); g('fno').value=r.notes||''; g('frea').value=''; g('fdn').value=r.dealerName||'';
+  g('fdp').value=r.downPayment||'';
   setSource(r.source||'walk_in');
   setPayment(r.paymentStatus||'paid');
+  setDeviceLeft(r.deviceLeft !== false);
   g('freaw').style.display='block';
   g('fmod').classList.add('open');
 };
@@ -583,12 +653,21 @@ window.setSource = src => {
     g('pay-hint').textContent = 'Walk-in customers — bayad na sa claim';
     if (formPay==='pending') setPayment('paid');
   }
+  // Partial downpayment prompt stays as is — don't auto-switch from partial
 };
 
 window.setPayment = pay => {
   formPay = pay;
   g('pay-paid').classList.toggle('on', pay==='paid');
+  g('pay-partial').classList.toggle('on', pay==='partial');
   g('pay-pend').classList.toggle('on', pay==='pending');
+  g('down-wrap').style.display = pay==='partial' ? 'block' : 'none';
+};
+
+window.setDeviceLeft = v => {
+  formDev = v;
+  g('dev-here').classList.toggle('on',  v === true);
+  g('dev-order').classList.toggle('on', v === false);
 };
 
 window.closeForm = () => g('fmod').classList.remove('open');
@@ -612,6 +691,7 @@ window.saveRep = async () => {
   if (isEdit && !reason)      { toast('❌ Kailangan ang dahilan ng pagbabago.'); return; }
   if (formSrc==='co_tech'&&!dealer) { toast('❌ Ilagay ang pangalan ng dealer.'); return; }
 
+  const dp   = formPay === 'partial' ? (parseFloat(g('fdp').value) || 0) : 0;
   const tech = meD?.techName || meD?.displayName || 'Unknown';
   const dts  = Timestamp.fromDate(new Date(dt+'T00:00:00'));
 
@@ -621,6 +701,7 @@ window.saveRep = async () => {
       await updateDoc(doc(db, COL_REPAIRS, eid), {
         brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
         notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        downPayment: dp, deviceLeft: formPay==='partial' ? formDev : null,
         modificationReason:reason, updatedAt:serverTimestamp(), updatedBy:me.uid
       });
       toast('✅ Na-update na ang repair!');
@@ -629,6 +710,7 @@ window.saveRep = async () => {
         technician:tech, createdBy:me.uid,
         brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
         notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        downPayment: dp, deviceLeft: formPay==='partial' ? formDev : null,
         submitted:false, createdAt:serverTimestamp(), updatedAt:serverTimestamp()
       });
       toast('✅ Na-save ang repair!');
@@ -645,7 +727,7 @@ window.openEndDay = () => {
 
   const totalCharged = todayList.reduce((s,r)=>s+num(r.totalCharged),0);
   const totalEarns   = todayList.reduce((s,r)=>s+repairComm(r),0);
-  const pending      = todayList.filter(r=>r.paymentStatus==='pending');
+  const pending      = todayList.filter(r=>r.paymentStatus==='pending'||r.paymentStatus==='partial');
 
   g('ed-summary').innerHTML = `
     <div style="background:var(--c2);border-radius:10px;padding:14px;margin-bottom:14px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;">
@@ -664,7 +746,7 @@ window.openEndDay = () => {
     </div>
     ${pending.length>0?`
     <div style="background:#3b1000;border:1px solid #7c2d12;border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px;">
-      ⚠️ <strong>${pending.length} pending payment</strong> — i-remind ang customer/dealer.
+      ⚠️ <strong>${pending.length} may balance/pending</strong> — i-remind ang customer/dealer.
     </div>`:''}`;
 
   g('ed-list').innerHTML = todayList.map(r => `

@@ -16,7 +16,7 @@
     <span class="hdr-ico">📱</span>
     <div>
       <div class="hdr-name" id="hnam">Admin</div>
-      <div class="hdr-role"><span class="bdg bdg-admin">👑 Owner / Admin</span></div>
+      <div class="hdr-role"><span class="bdg bdg-admin">👑 Jay / Admin</span></div>
     </div>
   </div>
   <button class="logout-btn" onclick="doLogout()">Logout</button>
@@ -54,8 +54,8 @@
       <div class="chip on" data-tf="all"    onclick="tFil('all')">Lahat</div>
       <div class="chip"    data-tf="Lester" onclick="tFil('Lester')">Lester</div>
       <div class="chip"    data-tf="Eder"   onclick="tFil('Eder')">Eder</div>
-      <div class="chip"    data-tf="Owner"  onclick="tFil('Owner')">Owner</div>
-      <div class="chip"    data-tf="pending" onclick="tFil('pending')">⏳ Pending Payment</div>
+      <div class="chip"    data-tf="Jay"    onclick="tFil('Jay')">Jay</div>
+      <div class="chip"    data-tf="pending" onclick="tFil('pending')">⏳ May Balance</div>
     </div>
     <div id="rp-list"></div>
   </div>
@@ -164,8 +164,24 @@
     <div class="fg">
       <label>Status ng Bayad</label>
       <div class="source-toggle">
-        <button class="src-btn on" id="pay-paid" onclick="setPayment('paid')">✅ Paid na</button>
-        <button class="src-btn"    id="pay-pend" onclick="setPayment('pending')">⏳ Pending</button>
+        <button class="src-btn on" id="pay-paid"    onclick="setPayment('paid')">✅ Paid na</button>
+        <button class="src-btn"    id="pay-partial" onclick="setPayment('partial')">💰 May Down</button>
+        <button class="src-btn"    id="pay-pend"    onclick="setPayment('pending')">⏳ Wala pa</button>
+      </div>
+      <div id="down-wrap" style="display:none;margin-top:10px;">
+        <div class="r2">
+          <div class="fg" style="margin:0;">
+            <label>Down Payment (₱)</label>
+            <input type="number" id="fdp" placeholder="0" min="0" inputmode="numeric">
+          </div>
+          <div class="fg" style="margin:0;">
+            <label>Device Status</label>
+            <div class="source-toggle">
+              <button class="src-btn on" id="dev-here"  onclick="setDeviceLeft(true)">📱 Nandito</button>
+              <button class="src-btn"    id="dev-order" onclick="setDeviceLeft(false)">📦 Part order</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="fg">
@@ -236,6 +252,7 @@ let curTF     = 'all';
 let curAttPer = 'today';
 let formSrc   = 'walk_in';
 let formPay   = 'paid';
+let formDev   = true;
 let pendingPayId = null;
 const TODAY   = today();
 
@@ -253,14 +270,14 @@ async function loadMe() {
   const snap = await getDoc(doc(db, COL_USERS, me.uid));
   if (snap.exists()) meD = snap.data();
   else {
-    meD = { email:me.email, displayName:'Owner', techName:null, role:'admin' };
+    meD = { email:me.email, displayName:'Jay', techName:null, role:'admin' };
     await setDoc(doc(db, COL_USERS, me.uid), { ...meD, createdAt:serverTimestamp() });
   }
   meD.role = 'admin';
 }
 
 function boot() {
-  g('hnam').textContent = meD?.displayName || 'Owner';
+  g('hnam').textContent = meD?.displayName || 'Jay';
   g('hdr').style.display        = 'flex';
   g('main-app').style.display   = 'block';
   g('fdt').value = TODAY;
@@ -324,7 +341,7 @@ function drawOv() {
     <!-- OWNER GRAND TOTAL — the big one -->
     <div class="owner-grand" style="text-align:center;margin-bottom:12px;">
       <div style="font-size:10px;color:var(--yel);font-weight:700;text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px;">
-        👑 Owner Grand Total (${lbl})
+        👑 Jay Grand Total (${lbl})
       </div>
       <div style="font-size:36px;font-weight:900;color:var(--yel);">₱${fmt(S.ownerGrand)}</div>
       <div style="font-size:12px;color:var(--mut);margin-top:4px;">
@@ -359,6 +376,7 @@ function drawOv() {
       </div>
     </div>
 
+
     <!-- PENDING PAYMENTS ALERT -->
     ${S.pending > 0 ? `
     <div class="pend-item" style="cursor:pointer;" onclick="window.atab('rp');window.tFil('pending');">
@@ -375,7 +393,7 @@ function drawOv() {
 }
 
 function techBreakdown(S) {
-  const cols = { Lester:'var(--blu)', Eder:'var(--grn)', Owner:'var(--yel)' };
+  const cols = { Lester:'var(--blu)', Eder:'var(--grn)', Jay:'var(--yel)' };
   let h = `<div class="sec-title" style="margin-top:6px;">👨‍🔧 Per Technician Breakdown</div>`;
 
   const techs = [
@@ -383,8 +401,8 @@ function techBreakdown(S) {
       note: `${S.byTech.Lester?.count||0} repairs × 40% ng profit` },
     { key:'Eder',   earn:'ederTotal',   shop:'ederShop',
       note: `20% profit + ₱${fmt(S.ederBonus)} daily bonus (${S.ederDays} araw × ₱200)` },
-    { key:'Owner',  earn:'ownerPersonal', shop:'ownerShop',
-      note: `${S.byTech.Owner?.count||0} repairs × 60% personal. Dagdag pa: ₱${fmt(S.shopTotal)} shop share` },
+    { key:'Jay',    earn:'jayPersonal', shop:'jayShop',
+      note: `${S.byTech.Jay?.count||0} repairs × 60% personal. Dagdag pa: ₱${fmt(S.shopTotal)} shop share` },
   ];
 
   techs.forEach(({ key, earn, shop, note }) => {
@@ -402,7 +420,7 @@ function techBreakdown(S) {
             <div class="tv">₱${fmt(b.profitSum)}</div>
           </div>
           <div>
-            <div class="tl">${key==='Owner'?'Personal':key+"'s"} Kita</div>
+            <div class="tl">${key==='Jay'?'Personal':key+"'s"} Kita</div>
             <div class="tv c-g">₱${fmt(S[earn])}</div>
           </div>
           <div>
@@ -427,10 +445,10 @@ window.tFil = tf => {
 
 function drawRp() {
   let pool = curTF==='pending'
-    ? repairs.filter(r=>r.paymentStatus==='pending')
+    ? repairs.filter(r=>r.paymentStatus==='pending'||r.paymentStatus==='partial')
     : curTF==='all'
       ? [...repairs]
-      : repairs.filter(r=>r.technician===curTF);
+      : repairs.filter(r=>r.technician===curTF || (curTF==='Jay' && r.technician==='Owner'));
 
   const box = g('rp-list');
   if (!pool.length) {
@@ -443,7 +461,7 @@ function drawRp() {
   let h = '';
   Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(d => {
     const dt = byDate[d].reduce((s,r)=>s+num(r.totalCharged),0);
-    const pp = byDate[d].filter(r=>r.paymentStatus==='pending').length;
+    const pp = byDate[d].filter(r=>r.paymentStatus==='pending'||r.paymentStatus==='partial').length;
     h += `<div class="dh">
       <span>${dateLabel(d)}</span>
       <span>₱${fmt(dt)} ${pp>0?`<span style="color:var(--ora);">(${pp} pending)</span>`:''}</span>
@@ -462,9 +480,18 @@ function adminRepCard(r) {
   const srcBdg = r.source==='co_tech'
     ? `<span class="bdg bdg-dealer">🤝 ${r.dealerName||'Dealer'}</span>`
     : `<span class="bdg bdg-walkin">🚶 Walk-in</span>`;
-  const payBdg = r.paymentStatus==='paid'
-    ? `<span class="bdg bdg-paid">✅ Paid</span>`
-    : `<span class="bdg bdg-pend">⏳ Pending</span>`;
+  let payBdg;
+  if (r.paymentStatus === 'paid') {
+    payBdg = `<span class="bdg bdg-paid">✅ Paid</span>`;
+  } else if (r.paymentStatus === 'partial') {
+    const bal = Math.max(0, num(r.totalCharged) - num(r.downPayment));
+    const devIco = r.deviceLeft === false ? '📦' : '📱';
+    payBdg = `<span class="bdg bdg-partial">💰 May Down</span><span class="bdg bdg-balance">${devIco} Bal ₱${fmt(bal)}</span>`;
+  } else {
+    payBdg = `<span class="bdg bdg-pend">⏳ Wala pa</span>`;
+  }
+  const dispTech = (t==='Owner'||t==='Jay') ? 'Jay' : t;
+  const dispCol  = (t==='Owner'||t==='Jay') ? 'var(--yel)' : col;
 
   return `
     <div class="ri ${cls}" onclick="showDet('${r.id}')">
@@ -475,12 +502,12 @@ function adminRepCard(r) {
         </div>
         <div class="ri-right">
           <div class="ri-charged">₱${fmt(num(r.totalCharged))}</div>
-          <div class="ri-earn">${t} kita: ₱${fmt(c)}</div>
+          <div class="ri-earn">${dispTech} kita: ₱${fmt(c)}</div>
         </div>
       </div>
       <div class="ri-meta">
-        <div class="ri-date">${dateLabel(dateOf(r))} &bull; <span style="color:${col};font-weight:700;">${t}</span></div>
-        ${r.paymentStatus==='pending'
+        <div class="ri-date">${dateLabel(dateOf(r))} &bull; <span style="color:${dispCol};font-weight:700;">${dispTech}</span></div>
+        ${r.paymentStatus!=='paid'
           ? `<button class="btn btn-sm btn-g" onclick="event.stopPropagation();markPaidPrompt('${r.id}')">💰 Mark Paid</button>`
           : ''}
       </div>
@@ -491,14 +518,38 @@ function adminRepCard(r) {
 window.showDet = id => {
   const r = repairs.find(x=>x.id===id);
   if (!r) return;
-  const p   = profit(r);
-  const c   = repairComm(r);
-  const col = r.technician==='Lester'?'var(--blu)':r.technician==='Eder'?'var(--grn)':'var(--yel)';
+  const p    = profit(r);
+  const c    = repairComm(r);
+  const tech = (r.technician==='Owner'||r.technician==='Jay') ? 'Jay' : (r.technician||'?');
 
   let commDetail = '';
-  if (r.technician==='Lester')     commDetail='40% ng ₱'+fmt(p)+' profit';
-  else if (r.technician==='Eder')  commDetail='20% ng ₱'+fmt(p)+' profit + daily bonus';
-  else if (r.technician==='Owner') commDetail='60% ng ₱'+fmt(p)+' profit (personal)';
+  if (r.technician==='Lester')                        commDetail='40% ng ₱'+fmt(p)+' profit';
+  else if (r.technician==='Eder')                     commDetail='20% ng ₱'+fmt(p)+' profit + daily bonus';
+  else if (r.technician==='Jay'||r.technician==='Owner') commDetail='60% ng ₱'+fmt(p)+' profit (personal)';
+
+  // Payment badge
+  let payBadgeHtml;
+  if (r.paymentStatus === 'paid') {
+    payBadgeHtml = `<span class="bdg bdg-paid">✅ Paid na</span>`;
+  } else if (r.paymentStatus === 'partial') {
+    const devTxt = r.deviceLeft === false ? '📦 Part order pa' : '📱 Device nandito';
+    payBadgeHtml = `<span class="bdg bdg-partial">💰 May Down Payment</span>
+      <span class="bdg bdg-balance">${devTxt}</span>`;
+  } else {
+    payBadgeHtml = `<span class="bdg bdg-pend">⏳ Hindi pa nabayaran</span>`;
+  }
+
+  const dpSection = r.paymentStatus === 'partial' ? `
+    <div style="background:var(--c2);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div>
+        <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Down Payment</div>
+        <div style="font-size:18px;font-weight:800;color:#a3e635;">₱${fmt(num(r.downPayment))}</div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Natitirang Balance</div>
+        <div style="font-size:18px;font-weight:800;color:#c084fc;">₱${fmt(Math.max(0, num(r.totalCharged)-num(r.downPayment)))}</div>
+      </div>
+    </div>` : '';
 
   g('dbody').innerHTML = `
     <div style="display:grid;gap:12px;">
@@ -511,9 +562,7 @@ window.showDet = id => {
         <span class="bdg ${r.source==='co_tech'?'bdg-dealer':'bdg-walkin'}">
           ${r.source==='co_tech'?'🤝 Co-tech: '+(r.dealerName||'?'):'🚶 Walk-in'}
         </span>
-        <span class="bdg ${r.paymentStatus==='paid'?'bdg-paid':'bdg-pend'}">
-          ${r.paymentStatus==='paid'?'✅ Paid':'⏳ Pending Payment'}
-        </span>
+        ${payBadgeHtml}
       </div>
       <hr class="hr">
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
@@ -530,13 +579,14 @@ window.showDet = id => {
           <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.otherExpenses))}</div>
         </div>
       </div>
+      ${dpSection}
       <div style="background:var(--c2);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
         <div>
           <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Net Profit</div>
           <div style="font-size:20px;font-weight:800;color:var(--blu);">₱${fmt(p)}</div>
         </div>
         <div>
-          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">${r.technician} Commission</div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">${tech} Commission</div>
           <div style="font-size:20px;font-weight:800;color:var(--grn);">₱${fmt(c)}</div>
           <div style="font-size:10px;color:var(--mut);">${commDetail}</div>
         </div>
@@ -552,7 +602,7 @@ window.showDet = id => {
   g('dact').innerHTML =
     `<button class="btn btn-gh" onclick="closeDet()">Isara</button>
      <button class="btn btn-p" style="flex:2;" onclick="openEdit('${r.id}')">✏️ &nbsp;I-edit</button>
-     ${r.paymentStatus==='pending'?`<button class="btn btn-g btn-sm" onclick="closeDet();markPaidPrompt('${r.id}')">💰 Paid</button>`:''}`;
+     ${r.paymentStatus!=='paid'?`<button class="btn btn-g" style="flex:1;" onclick="closeDet();markPaidPrompt('${r.id}')">💰 Paid</button>`:''}`;
   g('dmod').classList.add('open');
 };
 window.closeDet = () => g('dmod').classList.remove('open');
@@ -562,11 +612,26 @@ window.markPaidPrompt = id => {
   const r = repairs.find(x=>x.id===id);
   if (!r) return;
   pendingPayId = id;
+  const tech = (r.technician==='Owner'||r.technician==='Jay') ? 'Jay' : (r.technician||'?');
+  const isPartial = r.paymentStatus === 'partial';
+  const balance = isPartial ? Math.max(0, num(r.totalCharged) - num(r.downPayment)) : num(r.totalCharged);
   g('pmod-detail').innerHTML = `
     <div class="card" style="margin-bottom:0;">
       <div style="font-weight:700;">${r.brand} ${r.model}</div>
-      <div style="font-size:13px;color:var(--mut);">${r.fixType} · ${r.technician}</div>
-      <div style="font-size:22px;font-weight:800;color:var(--grn);margin-top:6px;">₱${fmt(num(r.totalCharged))}</div>
+      <div style="font-size:13px;color:var(--mut);">${r.fixType} · ${tech}</div>
+      ${isPartial ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <div>
+            <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Already Paid</div>
+            <div style="font-size:16px;font-weight:700;color:#a3e635;">₱${fmt(num(r.downPayment))}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Balance Due</div>
+            <div style="font-size:22px;font-weight:800;color:var(--grn);">₱${fmt(balance)}</div>
+          </div>
+        </div>` :
+        `<div style="font-size:22px;font-weight:800;color:var(--grn);margin-top:6px;">₱${fmt(balance)}</div>`
+      }
       ${r.source==='co_tech'?`<div style="font-size:12px;color:var(--pur);margin-top:4px;">🤝 Dealer: ${r.dealerName}</div>`:''}
     </div>`;
   g('pmod').classList.add('open');
@@ -661,10 +726,10 @@ async function drawAtt() {
 // ── REPAIR FORM ───────────────────────────
 window.openNew = () => {
   g('fid').value=''; g('ftit').textContent='➕ Bagong Repair ko';
-  ['fbr','fmo','ffx','ftc','fpc','foe','fno','frea','fdn'].forEach(i=>{if(g(i))g(i).value='';});
+  ['fbr','fmo','ffx','ftc','fpc','foe','fno','frea','fdn','fdp'].forEach(i=>{if(g(i))g(i).value='';});
   g('ffx').value=''; g('fbr').value='';
   g('fdt').value=TODAY;
-  setSource('walk_in'); setPayment('paid');
+  setSource('walk_in'); setPayment('paid'); setDeviceLeft(true);
   g('freaw').style.display='none';
   g('fmod').classList.add('open');
 };
@@ -677,7 +742,8 @@ window.openEdit = id => {
   g('fbr').value=r.brand||''; g('fmo').value=r.model||''; g('ffx').value=r.fixType||'';
   g('ftc').value=r.totalCharged||''; g('fpc').value=r.partsCost||''; g('foe').value=r.otherExpenses||'';
   g('fdt').value=dateOf(r); g('fno').value=r.notes||''; g('frea').value=''; g('fdn').value=r.dealerName||'';
-  setSource(r.source||'walk_in'); setPayment(r.paymentStatus||'paid');
+  g('fdp').value=r.downPayment||'';
+  setSource(r.source||'walk_in'); setPayment(r.paymentStatus||'paid'); setDeviceLeft(r.deviceLeft!==false);
   g('freaw').style.display='block';
   g('fmod').classList.add('open');
 };
@@ -692,7 +758,15 @@ window.setSource = src => {
 window.setPayment = pay => {
   formPay = pay;
   g('pay-paid').classList.toggle('on', pay==='paid');
+  g('pay-partial').classList.toggle('on', pay==='partial');
   g('pay-pend').classList.toggle('on', pay==='pending');
+  g('down-wrap').style.display = pay==='partial' ? 'block' : 'none';
+};
+
+window.setDeviceLeft = v => {
+  formDev = v;
+  g('dev-here').classList.toggle('on',  v === true);
+  g('dev-order').classList.toggle('on', v === false);
 };
 
 window.closeForm = () => g('fmod').classList.remove('open');
@@ -716,6 +790,7 @@ window.saveRep = async () => {
   if (isEdit && !reason)              { toast('❌ Kailangan ang dahilan ng pagbabago.'); return; }
   if (formSrc==='co_tech' && !dealer) { toast('❌ Ilagay ang pangalan ng dealer.'); return; }
 
+  const dp  = formPay === 'partial' ? (parseFloat(g('fdp').value) || 0) : 0;
   const dts = Timestamp.fromDate(new Date(dt+'T00:00:00'));
   load(true);
   try {
@@ -723,14 +798,16 @@ window.saveRep = async () => {
       await updateDoc(doc(db,COL_REPAIRS,eid), {
         brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
         notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        downPayment: dp, deviceLeft: formPay==='partial' ? formDev : null,
         modificationReason:reason, updatedAt:serverTimestamp(), updatedBy:me.uid
       });
       toast('✅ Na-update na ang repair!');
     } else {
       await addDoc(collection(db,COL_REPAIRS), {
-        technician:'Owner', createdBy:me.uid,
+        technician:'Jay', createdBy:me.uid,
         brand, model, fixType:fixT, totalCharged:tc, partsCost:pc, otherExpenses:oe,
         notes, date:dts, source:formSrc, dealerName:dealer, paymentStatus:formPay,
+        downPayment: dp, deviceLeft: formPay==='partial' ? formDev : null,
         submitted:true, createdAt:serverTimestamp(), updatedAt:serverTimestamp()
       });
       toast('✅ Na-save ang repair!');
@@ -766,8 +843,8 @@ window.buildPrompt = () => {
       total_charged:       S.totalCharged,
       total_net_profit:    S.totalProfit,
       total_shop_share:    S.shopTotal,
-      owner_personal_income: S.ownerPersonal,
-      owner_grand_total:   S.ownerGrand,
+      jay_personal_income: S.jayPersonal,
+      jay_grand_total:     S.jayGrand,
       lester_earnings:     S.lesterTotal,
       eder_earnings:       S.ederTotal,
       eder_days_worked:    S.ederDays,
@@ -777,7 +854,7 @@ window.buildPrompt = () => {
       by_technician: {
         Lester: { count:S.byTech.Lester?.count, charged:S.byTech.Lester?.charged, commission:S.lesterTotal, shop_share:S.lesterShop },
         Eder:   { count:S.byTech.Eder?.count,   charged:S.byTech.Eder?.charged,   commission:S.ederTotal,   shop_share:S.ederShop },
-        Owner:  { count:S.byTech.Owner?.count,  charged:S.byTech.Owner?.charged,  personal:S.ownerPersonal, shop_share:S.ownerShop },
+        Jay:    { count:S.byTech.Jay?.count,    charged:S.byTech.Jay?.charged,    personal:S.jayPersonal,   shop_share:S.jayShop },
       },
       top_repairs: (() => {
         const fc={};
@@ -794,7 +871,7 @@ window.buildPrompt = () => {
     commission_rules: {
       Lester: 'Earns 40% of net profit per repair. Shop keeps 60%.',
       Eder:   'Earns 20% of net profit per repair + ₱200 daily allowance per day worked. Shop keeps the remaining 80% minus the daily bonus.',
-      Owner:  'Owner keeps 60% of net profit from own repairs as personal income. 40% goes to shop. Owner also OWNS the full shop share from all techs, so owner grand total = personal income + total shop share.'
+      Jay:    'Jay (owner) keeps 60% of net profit from own repairs as personal income. 40% goes to shop. Jay also OWNS the full shop share from all techs, so Jay grand total = personal income + total shop share.'
     },
     today:     snap(S_today, repairs.filter(r=>dateOf(r)===t)),
     this_month:snap(S_month, repairs.filter(r=>dateOf(r).startsWith(month))),
@@ -811,7 +888,7 @@ Ikaw ay isang matalino, tapat, at praktikal na business advisor ng isang Philipp
 COMMISSION STRUCTURE:
 - Lester: 40% ng net profit bawat repair (shop gets 60%)
 - Eder: 20% ng net profit bawat repair + ₱200 daily allowance bawat araw na nagtrabaho (shop gets 80% gross minus the daily allowance)
-- Owner: 60% ng kanyang sariling repairs bilang personal na kita. 40% ng kanyang repairs + lahat ng shop shares mula sa ibang techs = Owner's total business income (Owner Grand Total)
+- Jay (Owner): 60% ng kanyang sariling repairs bilang personal na kita. 40% ng kanyang repairs + lahat ng shop shares mula sa ibang techs = Jay's total business income (Jay Grand Total)
 
 PANUNTUNAN:
 1. Gumamit ng Taglish — natural mix ng Tagalog at English

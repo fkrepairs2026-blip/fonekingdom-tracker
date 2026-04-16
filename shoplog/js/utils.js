@@ -78,7 +78,7 @@ export function repairComm(r) {
   const t = r.technician;
   if (t === 'Lester') return p * 0.40;
   if (t === 'Eder')   return p * 0.20;
-  if (t === 'Owner')  return p * 0.60;
+  if (t === 'Jay' || t === 'Owner') return p * 0.60;  // 'Owner' = legacy records
   return 0;
 }
 
@@ -87,19 +87,20 @@ export function calcStats(pool) {
   const B = {
     Lester: { count:0, charged:0, profitSum:0, commBase:0, shopGross:0 },
     Eder:   { count:0, charged:0, profitSum:0, commBase:0, shopGross:0 },
-    Owner:  { count:0, charged:0, profitSum:0, commBase:0, shopGross:0 },
+    Jay:    { count:0, charged:0, profitSum:0, commBase:0, shopGross:0 },
   };
 
   pool.forEach(r => {
-    const t = r.technician || 'Unknown';
+    let t = r.technician || 'Unknown';
+    if (t === 'Owner') t = 'Jay';  // normalize legacy records
     if (!B[t]) B[t] = { count:0, charged:0, profitSum:0, commBase:0, shopGross:0 };
     const p = profit(r);
     B[t].count++;
     B[t].charged  += num(r.totalCharged);
     B[t].profitSum += p;
     if (t==='Lester') { B[t].commBase+=p*0.40; B[t].shopGross+=p*0.60; }
-    else if (t==='Eder')  { B[t].commBase+=p*0.20; B[t].shopGross+=p*0.80; }
-    else if (t==='Owner') { B[t].commBase+=p*0.60; B[t].shopGross+=p*0.40; }
+    else if (t==='Eder') { B[t].commBase+=p*0.20; B[t].shopGross+=p*0.80; }
+    else if (t==='Jay')  { B[t].commBase+=p*0.60; B[t].shopGross+=p*0.40; }
   });
 
   // Eder daily bonus — ₱200 per unique day worked (comes out of shop gross)
@@ -109,24 +110,32 @@ export function calcStats(pool) {
 
   const lesterTotal  = B.Lester.commBase;
   const ederTotal    = B.Eder.commBase + ederBonus;
-  const ownerPersonal= B.Owner.commBase;
+  const jayPersonal  = B.Jay.commBase;
 
   const lesterShop   = B.Lester.shopGross;
   const ederShop     = B.Eder.shopGross - ederBonus;   // shop pays the daily bonus
-  const ownerShop    = B.Owner.shopGross;
+  const jayShop      = B.Jay.shopGross;
 
-  const shopTotal    = lesterShop + ederShop + ownerShop;
-  const ownerGrand   = ownerPersonal + shopTotal;
+  const shopTotal    = lesterShop + ederShop + jayShop;
+  const jayGrand     = jayPersonal + shopTotal;
 
   const totalCharged = pool.reduce((s,r)=>s+num(r.totalCharged),0);
   const totalProfit  = pool.reduce((s,r)=>s+profit(r),0);
-  const pending      = pool.filter(r=>r.paymentStatus==='pending').reduce((s,r)=>s+num(r.totalCharged),0);
+  // pending = full amount for 'pending', balance only for 'partial'
+  const pending = pool.reduce((s,r) => {
+    if (r.paymentStatus === 'pending') return s + num(r.totalCharged);
+    if (r.paymentStatus === 'partial') return s + Math.max(0, num(r.totalCharged) - num(r.downPayment));
+    return s;
+  }, 0);
 
   return {
     totalCharged, totalProfit, pending,
-    shopTotal, ownerGrand, ownerPersonal,
+    shopTotal,
+    ownerGrand: jayGrand, ownerPersonal: jayPersonal,  // compat aliases
+    jayGrand, jayPersonal,
     lesterTotal, ederTotal, ederBonus, ederDays,
-    lesterShop, ederShop, ownerShop,
+    lesterShop, ederShop,
+    ownerShop: jayShop, jayShop,
     byTech: B
   };
 }

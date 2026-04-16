@@ -180,7 +180,9 @@ select option { background: var(--c2); }
 .bdg-pend   { background: #3b1000; color: #fb923c; border: 1px solid #7c2d12; }
 .bdg-walkin { background: #0c2d4b; color: #93c5fd; }
 .bdg-dealer { background: #2d1b4b; color: #c4b5fd; }
-.bdg-edit   { background: #451a03; color: #fde68a; }
+.bdg-edit    { background: #451a03; color: #fde68a; }
+.bdg-partial { background: #1c2b00; color: #a3e635; border: 1px solid #4d7c0f; }
+.bdg-balance { background: #1a0a2e; color: #c084fc; border: 1px solid #7c3aed; font-size:11px; padding:2px 7px; }
 
 /* ─── TABS ───────────────────────────────── */
 .tabs {

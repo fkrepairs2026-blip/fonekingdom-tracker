@@ -30,9 +30,9 @@ export const COL_ATTENDANCE = 'shoplog_attendance'; // daily time-in/out
 // Per-repair commission (% of net profit):
 //   Lester: 40%  → shop gets 60%
 //   Eder:   20%  + ₱200/day worked → shop gets 80% gross - daily bonus
-//   Owner:  60%  personal → shop gets 40%
+//   Jay:    60%  personal → shop gets 40%
 export const RATES = {
   Lester: { personal: 0.40, shop: 0.60 },
   Eder:   { personal: 0.20, shop: 0.80, dailyBonus: 200 },
-  Owner:  { personal: 0.60, shop: 0.40 },
+  Jay:    { personal: 0.60, shop: 0.40 },
 };
