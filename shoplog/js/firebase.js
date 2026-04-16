@@ -22,9 +22,10 @@ export const db   = getFirestore(_app);
 
 // ─── Constants ───────────────────────────
 export const ADMIN_EMAILS   = ['jay111786@gmail.com'];
-export const COL_REPAIRS    = 'repairs';          // main repair logs
-export const COL_USERS      = 'shoplog_users';    // user profiles
+export const COL_REPAIRS    = 'repairs';           // main repair logs
+export const COL_USERS      = 'shoplog_users';     // user profiles
 export const COL_ATTENDANCE = 'shoplog_attendance'; // daily time-in/out
+export const COL_DELETED    = 'deleted_repairs';   // soft-deleted repair archive
 
 // ─── Commission rates ─────────────────────
 // Per-repair commission (% of net profit):

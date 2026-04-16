@@ -56,6 +56,7 @@
       <div class="chip"    data-tf="Eder"   onclick="tFil('Eder')">Eder</div>
       <div class="chip"    data-tf="Jay"    onclick="tFil('Jay')">Jay</div>
       <div class="chip"    data-tf="pending" onclick="tFil('pending')">⏳ May Balance</div>
+      <div class="chip"    data-tf="deleted" onclick="tFil('deleted')" style="color:var(--red);">🗑️ Deleted</div>
     </div>
     <div id="rp-list"></div>
   </div>
@@ -153,7 +154,7 @@
     </div>
     <div class="r2">
       <div class="fg">
-        <label>Ibang Gastos (₱)</label>
+        <label>Transpo / Delivery (₱)</label>
         <input type="number" id="foe" placeholder="0" min="0" inputmode="numeric">
       </div>
       <div class="fg">
@@ -225,6 +226,25 @@
   </div>
 </div>
 
+<!-- ═══ DELETE CONFIRM MODAL ═══ -->
+<div class="ov" id="delmod">
+  <div class="modal">
+    <div class="modal-title">🗑️ I-delete ang Repair</div>
+    <p style="font-size:13px;color:var(--mut);margin-bottom:14px;">Hindi na ito mababawi. Ang record ay mase-save sa delete history.</p>
+    <div id="delmod-detail"></div>
+    <div class="fg" style="margin-top:12px;">
+      <label>⚠️ Dahilan ng Pag-delete (Kailangan)</label>
+      <input type="text" id="del-reason" placeholder="e.g. Duplicate entry, mali ang data">
+    </div>
+    <div class="modal-act">
+      <button class="btn btn-gh" style="flex:1;" onclick="g('delmod').classList.remove('open')">Kanselahin</button>
+      <button class="btn" style="flex:2;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;" onclick="confirmDelete()">
+        🗑️ &nbsp;Burahin
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- LOADER & TOAST -->
 <div class="lo" id="ldr"><div class="lb"><div class="sp"></div><div style="font-size:13px;color:var(--mut);">Loading…</div></div></div>
 <div class="toast" id="toast"></div>
@@ -233,11 +253,11 @@
      JAVASCRIPT
 ════════════════════════════════════════ -->
 <script type="module">
-import { auth, db, COL_REPAIRS, COL_USERS, COL_ATTENDANCE, ADMIN_EMAILS } from './js/firebase.js';
+import { auth, db, COL_REPAIRS, COL_USERS, COL_ATTENDANCE, COL_DELETED, ADMIN_EMAILS } from './js/firebase.js';
 import { g, load, toast, today, dateOf, dateLabel, fmtTime, fmt, num, profit, repairComm, calcStats } from './js/utils.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import {
-  doc, getDoc, setDoc, updateDoc, addDoc, collection,
+  doc, getDoc, setDoc, updateDoc, addDoc, collection, deleteDoc,
   query, orderBy, onSnapshot, where, serverTimestamp, Timestamp, getDocs
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
@@ -250,11 +270,13 @@ let curTab    = 'ov';
 let curPer    = 'today';
 let curTF     = 'all';
 let curAttPer = 'today';
-let formSrc   = 'walk_in';
-let formPay   = 'paid';
-let formDev   = true;
+let formSrc      = 'walk_in';
+let formPay      = 'paid';
+let formDev      = true;
 let pendingPayId = null;
-const TODAY   = today();
+let deleteRepId  = null;
+const TODAY      = today();
+const collapsedDates = new Set();
 
 // ── Auth guard (admin only) ───────────────
 load(true);
@@ -443,7 +465,26 @@ window.tFil = tf => {
   drawRp();
 };
 
+window.dateToggle = d => {
+  const sid = d.replace(/-/g,'_');
+  if (collapsedDates.has(d)) {
+    collapsedDates.delete(d);
+    const el = document.getElementById('dg_'+sid);
+    const ar = document.getElementById('da_'+sid);
+    if (el) el.style.display = '';
+    if (ar) ar.textContent = '▼';
+  } else {
+    collapsedDates.add(d);
+    const el = document.getElementById('dg_'+sid);
+    const ar = document.getElementById('da_'+sid);
+    if (el) el.style.display = 'none';
+    if (ar) ar.textContent = '▶';
+  }
+};
+
 function drawRp() {
+  if (curTF === 'deleted') { drawDeleted(); return; }
+
   let pool = curTF==='pending'
     ? repairs.filter(r=>r.paymentStatus==='pending'||r.paymentStatus==='partial')
     : curTF==='all'
@@ -460,15 +501,66 @@ function drawRp() {
   pool.forEach(r => { const d=dateOf(r); if(!byDate[d]) byDate[d]=[]; byDate[d].push(r); });
   let h = '';
   Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(d => {
-    const dt = byDate[d].reduce((s,r)=>s+num(r.totalCharged),0);
-    const pp = byDate[d].filter(r=>r.paymentStatus==='pending'||r.paymentStatus==='partial').length;
-    h += `<div class="dh">
-      <span>${dateLabel(d)}</span>
-      <span>₱${fmt(dt)} ${pp>0?`<span style="color:var(--ora);">(${pp} pending)</span>`:''}</span>
-    </div>`;
+    const sid   = d.replace(/-/g,'_');
+    const dt    = byDate[d].reduce((s,r)=>s+num(r.totalCharged),0);
+    const cnt   = byDate[d].length;
+    const pp    = byDate[d].filter(r=>r.paymentStatus==='pending'||r.paymentStatus==='partial').length;
+    const isCol = collapsedDates.has(d);
+    h += `
+      <div class="dh" onclick="dateToggle('${d}')" style="cursor:pointer;user-select:none;">
+        <span>${dateLabel(d)} <span style="font-size:11px;color:var(--mut);">${cnt} repair${cnt!==1?'s':''}</span></span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          <span>₱${fmt(dt)} ${pp>0?`<span style="color:var(--ora);">(${pp}⏳)</span>`:''}</span>
+          <span id="da_${sid}" style="font-size:12px;color:var(--mut);">${isCol?'▶':'▼'}</span>
+        </span>
+      </div>
+      <div id="dg_${sid}"${isCol?' style="display:none;"':''}>`;
     byDate[d].forEach(r => { h += adminRepCard(r); });
+    h += `</div>`;
   });
   box.innerHTML = h;
+}
+
+async function drawDeleted() {
+  const box = g('rp-list');
+  box.innerHTML = `<div class="empty"><div class="sp"></div><div>Loading deleted repairs…</div></div>`;
+  try {
+    const q = query(collection(db, COL_DELETED), orderBy('deletedAt','desc'));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      box.innerHTML = `<div class="empty"><div class="ei">🗑️</div><div>Walang deleted repairs.</div></div>`;
+      return;
+    }
+    let h = '';
+    snap.docs.forEach(dd => {
+      const r = { id:dd.id, ...dd.data() };
+      const tech = (r.technician==='Owner'||r.technician==='Jay') ? 'Jay' : (r.technician||'?');
+      const delDate = r.deletedAt ? new Date(r.deletedAt.toDate()).toLocaleString('en-PH',{timeZone:'Asia/Manila',month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true}) : '—';
+      h += `
+        <div class="ri" style="opacity:.7;border-color:#7f1d1d;">
+          <div class="ri-hdr">
+            <div>
+              <div class="ri-dev" style="text-decoration:line-through;color:var(--mut);">${r.brand||''} ${r.model||''}</div>
+              <div class="ri-fix">${r.fixType||''} · <span style="color:var(--mut);">${tech}</span></div>
+            </div>
+            <div class="ri-right">
+              <div class="ri-charged" style="color:var(--mut);">₱${fmt(num(r.totalCharged))}</div>
+              <div class="ri-earn" style="color:var(--red);">🗑️ Deleted</div>
+            </div>
+          </div>
+          <div class="ri-meta">
+            <div class="ri-date" style="color:var(--red);">Deleted ${delDate}</div>
+          </div>
+          <div style="font-size:12px;background:#2d0a0a;border:1px solid #7f1d1d;border-radius:6px;padding:8px;margin-top:8px;">
+            <span style="color:var(--red);font-weight:700;">Dahilan: </span>
+            <span style="color:#fca5a5;">${r.deleteReason||'(walang dahilan)'}</span>
+          </div>
+        </div>`;
+    });
+    box.innerHTML = h;
+  } catch(e) {
+    box.innerHTML = `<div class="empty" style="color:var(--red);">Error: ${e.message}</div>`;
+  }
 }
 
 function adminRepCard(r) {
@@ -575,7 +667,7 @@ window.showDet = id => {
           <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.partsCost))}</div>
         </div>
         <div>
-          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Iba</div>
+          <div style="font-size:10px;color:var(--mut);text-transform:uppercase;">Transpo</div>
           <div style="font-size:17px;font-weight:700;color:var(--red);">₱${fmt(num(r.otherExpenses))}</div>
         </div>
       </div>
@@ -602,7 +694,8 @@ window.showDet = id => {
   g('dact').innerHTML =
     `<button class="btn btn-gh" onclick="closeDet()">Isara</button>
      <button class="btn btn-p" style="flex:2;" onclick="openEdit('${r.id}')">✏️ &nbsp;I-edit</button>
-     ${r.paymentStatus!=='paid'?`<button class="btn btn-g" style="flex:1;" onclick="closeDet();markPaidPrompt('${r.id}')">💰 Paid</button>`:''}`;
+     ${r.paymentStatus!=='paid'?`<button class="btn btn-g" style="flex:1;" onclick="closeDet();markPaidPrompt('${r.id}')">💰 Paid</button>`:''}
+     <button class="btn" style="background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;" onclick="closeDet();openDelete('${r.id}')">🗑️</button>`;
   g('dmod').classList.add('open');
 };
 window.closeDet = () => g('dmod').classList.remove('open');
@@ -650,6 +743,50 @@ window.confirmMarkPaid = async () => {
     g('pmod').classList.remove('open');
   } catch(e) { toast('❌ '+e.message); }
   finally { load(false); pendingPayId = null; }
+};
+
+// ── Delete Repair ─────────────────────────
+window.openDelete = id => {
+  const r = repairs.find(x=>x.id===id);
+  if (!r) return;
+  deleteRepId = id;
+  g('del-reason').value = '';
+  const tech = (r.technician==='Owner'||r.technician==='Jay') ? 'Jay' : (r.technician||'?');
+  g('delmod-detail').innerHTML = `
+    <div class="card" style="margin-bottom:0;border-color:#7f1d1d;">
+      <div style="font-weight:700;">${r.brand} ${r.model}</div>
+      <div style="font-size:13px;color:var(--mut);">${r.fixType} · ${tech} · ${dateLabel(dateOf(r))}</div>
+      <div style="font-size:18px;font-weight:800;color:var(--grn);margin-top:4px;">₱${fmt(num(r.totalCharged))}</div>
+    </div>`;
+  g('delmod').classList.add('open');
+};
+
+window.confirmDelete = async () => {
+  const reason = g('del-reason').value.trim();
+  if (!reason) { toast('❌ Kailangan ang dahilan ng pag-delete.'); return; }
+  if (!deleteRepId) return;
+
+  const r = repairs.find(x=>x.id===deleteRepId);
+  if (!r) { toast('❌ Repair not found.'); return; }
+
+  load(true);
+  try {
+    // Archive to deleted_repairs first
+    const { id: _, ...rData } = r;
+    await setDoc(doc(db, COL_DELETED, deleteRepId), {
+      ...rData,
+      originalId:    deleteRepId,
+      deleteReason:  reason,
+      deletedAt:     serverTimestamp(),
+      deletedBy:     me.uid,
+      deletedByName: meD?.displayName || 'Jay'
+    });
+    // Then delete from repairs
+    await deleteDoc(doc(db, COL_REPAIRS, deleteRepId));
+    toast('🗑️ Na-delete at na-save sa history.');
+    g('delmod').classList.remove('open');
+  } catch(e) { toast('❌ '+e.message); }
+  finally { load(false); deleteRepId = null; }
 };
 
 // ── ATTENDANCE TAB ────────────────────────

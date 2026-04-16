@@ -38,6 +38,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ─── DELETED REPAIRS (archive) ───────────────────────────────────────
+    match /deleted_repairs/{docId} {
+      allow read:   if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;  // immutable — no editing delete history
+    }
+
     // ─── ATTENDANCE ───────────────────────────────────────────────────────
     // Doc ID format: {uid}_{YYYY-MM-DD}
     // Use the doc ID to determine ownership — avoids null resource bug
