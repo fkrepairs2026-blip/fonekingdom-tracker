@@ -201,10 +201,19 @@
           </div>
         </div>
       </div>
+      <!-- Image preview (hidden until attached) -->
+      <div id="ai-img-preview-area" style="display:none;padding:8px 12px 0;background:#0d0920;">
+        <div style="position:relative;display:inline-block;">
+          <img id="ai-img-thumb" src="" style="height:60px;border-radius:8px;border:1px solid #7c3aed;display:block;">
+          <button onclick="removeAiImage()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:var(--red);border-radius:50%;font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;line-height:1;">✕</button>
+        </div>
+      </div>
       <div class="ai-input-row">
+        <button id="ai-img-btn" onclick="document.getElementById('ai-img-file').click()" title="Attach image/screenshot" style="align-self:flex-end;background:#1a0a2e;border:1px solid #4c1d95;border-radius:8px;padding:9px 11px;font-size:17px;cursor:pointer;flex-shrink:0;transition:border-color .15s;">📷</button>
         <textarea id="ai-input" placeholder="Magtanong tungkol sa iyong finances… (Enter = send, Shift+Enter = new line)" onkeydown="aiKeydown(event)"></textarea>
         <button class="ai-send-btn" id="ai-send" onclick="sendAI()">▶</button>
       </div>
+      <input type="file" id="ai-img-file" accept="image/*" style="display:none" onchange="attachAiImage(event)">
     </div>
 
   </div>
@@ -1238,6 +1247,39 @@ window.delExp = async id => {
 const AI_FIN_KEY = 'shoplog_findata_v1';
 let aiMsgs    = [];      // conversation history
 let aiActive  = false;   // is a request in-flight?
+let aiAttachedImage = null; // base64 data URL for image attachment
+
+window.attachAiImage = function(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  evt.target.value = '';
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 800;
+      let w = img.width, h = img.height;
+      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(img, 0, 0, w, h);
+      aiAttachedImage = c.toDataURL('image/jpeg', 0.82);
+      document.getElementById('ai-img-thumb').src = aiAttachedImage;
+      document.getElementById('ai-img-preview-area').style.display = 'block';
+      document.getElementById('ai-img-btn').style.borderColor = '#7c3aed';
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+};
+
+window.removeAiImage = function() {
+  aiAttachedImage = null;
+  document.getElementById('ai-img-preview-area').style.display = 'none';
+  document.getElementById('ai-img-btn').style.borderColor = '#4c1d95';
+  document.getElementById('ai-img-thumb').src = '';
+};
+
 const finCollapsed = new Set();
 
 const defFin = () => ({
@@ -1532,11 +1574,27 @@ window.sendAI = async () => {
   const input  = document.getElementById('ai-input');
   const sendBtn= document.getElementById('ai-send');
   const text   = input.value.trim();
-  if (!text || aiActive) return;
+  const hasImg = !!aiAttachedImage;
+  if (!text && !hasImg || aiActive) return;
   input.value = ''; aiActive = true; sendBtn.disabled = true;
 
-  aiMsgs.push({ role:'user', content:text });
-  appendMsg('user', escHtml(text).replace(/\n/g,'<br>'));
+  const dispText = text || '(image attached)';
+
+  // Show user bubble with thumbnail if image
+  if (hasImg) {
+    appendMsg('user', `<img src="${aiAttachedImage}" style="max-width:160px;border-radius:8px;display:block;margin-bottom:4px;">${escHtml(text).replace(/\n/g,'<br>')}`);
+  } else {
+    appendMsg('user', escHtml(text).replace(/\n/g,'<br>'));
+  }
+
+  // Build user content (multimodal if image)
+  const userContent = hasImg
+    ? [{ type:'text', text: text || 'Analyze this image and provide financial insights based on what you see.' },
+       { type:'image_url', image_url:{ url: aiAttachedImage } }]
+    : text;
+
+  aiMsgs.push({ role:'user', content: hasImg ? dispText + ' [+image]' : text });
+  if (hasImg) removeAiImage();
 
   const ph = appendMsg('asst', '', true);
   const url = (document.getElementById('ai-url').value.trim() || 'http://127.0.0.1:8080').replace(/\/+$/,'');
@@ -1546,7 +1604,7 @@ window.sendAI = async () => {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
       body: JSON.stringify({
-        messages: [{ role:'system', content: buildSystemPrompt() }, ...aiMsgs.slice(-12)],
+        messages: [{ role:'system', content: buildSystemPrompt() }, ...aiMsgs.slice(-12, -1), { role:'user', content: userContent }],
         stream: true,
         temperature: 0.72,
         max_tokens: 2048,

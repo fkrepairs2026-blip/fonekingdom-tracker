@@ -883,6 +883,7 @@
       <div style="font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase">Chat</div>
       <div style="display:flex;gap:6px">
         <button class="btn-sm btn-ghost" style="font-size:11px;padding:5px 10px" onclick="loadLastChat()">📜 Last Chat</button>
+        <button class="btn-sm" style="font-size:11px;padding:5px 10px;background:rgba(255,59,92,0.2);color:var(--red);border:1px solid rgba(255,59,92,0.3);border-radius:8px;cursor:pointer;font-family:var(--font-ui)" onclick="if(aiAbort){aiAbort.abort();aiAbort=null;}">✕ Stop</button>
         <button class="btn-sm btn-ghost" style="font-size:11px;padding:5px 10px" onclick="clearChat()">🗑 Clear</button>
       </div>
     </div>
@@ -1492,6 +1493,7 @@ function addMsg(role, text, thinking = false) {
 
 let chatHistory = [];
 let attachedImage = null; // base64 data URL
+let aiAbort = null;       // AbortController for cancelling in-flight request
 
 // ─ Image attachment ──────────────────────────
 function attachImage(evt) {
@@ -1560,117 +1562,154 @@ async function sendAI() {
   if (!msg && !hasImg) return;
   input.value = '';
 
-  // Show user bubble (with thumbnail if image attached)
+  // ── Show user bubble ──
   const dispMsg = msg || '(screenshot)';
+  const chat = document.getElementById('ai-chat');
   if (hasImg) {
-    const chat = document.getElementById('ai-chat');
     const div = document.createElement('div');
     div.className = 'msg msg-user';
     div.innerHTML = `<div class="bubble bubble-user" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
       <img src="${attachedImage}" style="max-width:140px;border-radius:8px;display:block">
       ${msg ? `<span>${msg}</span>` : ''}
     </div>`;
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
+    chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
   } else {
     addMsg('user', msg);
   }
 
-  const thinking = addMsg('ai', '<span class="typing-dots">Thinking</span>', true);
+  // ── Thinking bubble with elapsed timer ──
+  const thinkDiv = document.createElement('div');
+  thinkDiv.className = 'msg msg-ai';
+  thinkDiv.innerHTML = `<div class="bubble bubble-ai thinking"><span class="typing-dots">Thinking</span> <span id="think-timer" style="color:var(--muted);font-size:11px">0s</span></div>`;
+  chat.appendChild(thinkDiv); chat.scrollTop = chat.scrollHeight;
+  let secs = 0;
+  const timerInt = setInterval(() => {
+    secs++;
+    const el = document.getElementById('think-timer');
+    if (el) el.textContent = secs + 's';
+  }, 1000);
 
-  // Build user content — multimodal if image attached
+  // ── Build payload ──
   const userContent = hasImg
-    ? [{ type: 'text', text: msg || 'Analyze this chart screenshot. What do you see? Give me a trade analysis.' },
-       { type: 'image_url', image_url: { url: attachedImage } }]
+    ? [{ type:'text', text: msg || 'Analyze this chart screenshot and give me a trade analysis.' },
+       { type:'image_url', image_url:{ url: attachedImage } }]
     : msg;
 
-  chatHistory.push({ role: 'user', content: hasImg ? dispMsg + ' [+image]' : msg });
-  if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
-
-  // Clear image after sending
+  chatHistory.push({ role:'user', content: hasImg ? dispMsg + ' [+image]' : msg });
+  if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
   if (hasImg) removeImage();
 
+  // ── Offline fallback ──
   if (!state.gemmaOnline) {
-    thinking.remove();
+    clearInterval(timerInt); thinkDiv.remove();
     const fb = getFallbackResponse(dispMsg);
     addMsg('ai', fb);
-    chatHistory.push({ role: 'assistant', content: fb });
+    chatHistory.push({ role:'assistant', content: fb });
     saveChatHistory();
     return;
   }
 
+  // ── Cancel any previous in-flight request ──
+  if (aiAbort) aiAbort.abort();
+  aiAbort = new AbortController();
+
   try {
-    const sysPrompt = buildSystemPrompt();
     const payload = {
-      model: 'gemma',
-      max_tokens: 500,
-      n_predict: 500,
+      stream: true,
       temperature: 0.4,
       repeat_penalty: 1.1,
+      max_tokens: 400,
+      n_predict: 400,
       stop: ['</s>', '<end_of_turn>', '<eos>', 'User:', 'Human:'],
       messages: [
-        { role: 'system', content: sysPrompt },
-        ...chatHistory.slice(0, -1),                  // history minus the last push
-        { role: 'user', content: userContent }         // last msg, possibly with image
+        { role:'system', content: buildSystemPrompt() },
+        ...chatHistory.slice(0, -1),
+        { role:'user', content: userContent }
       ]
     };
 
-    const data = await xhrPost(activeGemmaUrl, payload, 120000);
+    const resp = await fetch(activeGemmaUrl, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify(payload),
+      signal: aiAbort.signal
+    });
 
-    let reply = '';
-    if (data?.choices?.[0]?.message?.content) {
-      reply = data.choices[0].message.content;
-    } else if (data?.choices?.[0]?.text) {
-      reply = data.choices[0].text;
-    } else if (data?.content) {
-      reply = data.content;
-    } else if (typeof data === 'string') {
-      reply = data;
-    } else {
-      reply = 'Got response but could not parse it. Raw: ' + JSON.stringify(data).substring(0, 200);
+    if (!resp.ok) {
+      const err = await resp.text().catch(()=>'');
+      throw new Error(`HTTP ${resp.status}${err ? ' — '+err.slice(0,100) : ''}`);
     }
 
-    reply = reply.trim();
-    // Strip markdown formatting that Gemma sometimes outputs
-    reply = reply
+    // ── Switch thinking bubble → streaming bubble ──
+    clearInterval(timerInt); thinkDiv.remove();
+    const streamDiv = document.createElement('div');
+    streamDiv.className = 'msg msg-ai';
+    streamDiv.innerHTML = `<div class="bubble bubble-ai"></div>`;
+    chat.appendChild(streamDiv);
+    const bubble = streamDiv.querySelector('.bubble');
+    chat.scrollTop = chat.scrollHeight;
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '', reply = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream:true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const d = line.slice(6).trim();
+        if (d === '[DONE]') continue;
+        try {
+          const j = JSON.parse(d);
+          const chunk = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.text ?? '';
+          if (chunk) {
+            reply += chunk;
+            bubble.innerHTML = reply.replace(/\n/g, '<br>');
+            chat.scrollTop = chat.scrollHeight;
+          }
+        } catch {}
+      }
+    }
+
+    if (!reply) reply = '(no response — check that the model is fully loaded in Termux)';
+    reply = reply.trim()
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/\*([^*]+)\*/g, '$1')
       .replace(/#{1,3} /g, '')
       .replace(/`([^`]+)`/g, '$1')
-      .replace(/^[-•]\s/gm, '• ')
-      .trim();
-    thinking.remove();
-    addMsg('ai', reply.replace(/\n/g, '<br>'));
-    chatHistory.push({ role: 'assistant', content: reply });
+      .replace(/^[-•]\s/gm, '• ');
+    bubble.innerHTML = reply.replace(/\n/g, '<br>');
+
+    chatHistory.push({ role:'assistant', content: reply });
     saveChatHistory();
 
-    // Parse SAVE_TRADE|pair|dir|entry|exit|pnl|reason
+    // Auto-save trade if Gemma outputs SAVE_TRADE|
     if (reply.includes('SAVE_TRADE|')) {
       const parts = reply.match(/SAVE_TRADE\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|([^|]+)\|(.+)/);
-      if (parts) {
-        autoSaveTrade({
-          pair: parts[1].trim().toUpperCase(),
-          dir: parts[2].trim().toLowerCase(),
-          entry: parseFloat(parts[3]) || 0,
-          exit: parseFloat(parts[4]) || 0,
-          pnl: parseFloat(parts[5]) || 0,
-          why: parts[6].trim()
-        });
-      }
+      if (parts) autoSaveTrade({
+        pair: parts[1].trim().toUpperCase(), dir: parts[2].trim().toLowerCase(),
+        entry: parseFloat(parts[3])||0, exit: parseFloat(parts[4])||0,
+        pnl: parseFloat(parts[5])||0, why: parts[6].trim()
+      });
     }
 
     // Update dashboard hint
-    const shortReply = reply.replace(/<[^>]+>/g, '').split('\n')[0].substring(0, 120);
+    const shortReply = reply.replace(/<[^>]+>/g,'').split('\n')[0].substring(0,120);
     const hintEl = document.getElementById('ai-hint-text');
     if (hintEl) hintEl.textContent = shortReply + (reply.length > 120 ? '...' : '');
 
   } catch(e) {
-    thinking.remove();
+    clearInterval(timerInt); thinkDiv.remove();
+    if (e.name === 'AbortError') return;
     const errMsg = e.message || String(e);
     addMsg('ai', `⚠️ <strong>${errMsg}</strong><br><br>` +
-      `Make sure Termux server started with:<br>` +
-      `<code style="font-size:11px;background:rgba(0,0,0,0.5);padding:3px 8px;border-radius:6px;display:block;margin:6px 0">./llama-server -m gemma.gguf --port 8080 --host 0.0.0.0</code>` +
-      `Then tap <strong>RE-CHECK CONNECTION</strong> in the setup guide above.`);
+      `Start server with:<br>` +
+      `<code style="font-size:11px;background:rgba(0,0,0,0.4);padding:3px 8px;border-radius:6px;display:block;margin:6px 0">` +
+      `./llama-server -m llava.gguf --mmproj mmproj.gguf --port 8080 --host 0.0.0.0 -c 4096 -ngl 0</code>` +
+      `Then tap <strong>RE-CHECK CONNECTION</strong> above.`);
   }
 }
 
