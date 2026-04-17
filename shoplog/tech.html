@@ -231,22 +231,40 @@
 <!-- ═══ END-DAY REVIEW MODAL ═══ -->
 <div class="ov" id="edmod">
   <div class="modal">
-    <div class="modal-title">🏁 I-review ang Iyong Araw</div>
-    <div id="ed-summary"></div>
-    <div style="font-size:13px;font-weight:700;color:var(--mut);margin:12px 0 8px;text-transform:uppercase;letter-spacing:.5px;">
-      Listahan ng Repairs Ngayon:
+    <div class="modal-title" id="ed-title">🏁 I-review ang Iyong Araw</div>
+
+    <!-- Step 1: Review repairs -->
+    <div id="ed-step1">
+      <div id="ed-summary"></div>
+      <div style="font-size:13px;font-weight:700;color:var(--mut);margin:12px 0 8px;text-transform:uppercase;letter-spacing:.5px;">
+        Listahan ng Repairs Ngayon:
+      </div>
+      <div id="ed-list"></div>
+      <hr class="hr">
+      <p style="font-size:13px;color:var(--mut);margin-bottom:14px;">
+        ⚠️ Pakitingnan ang lahat bago mag-submit. Hindi mo na mababago ito pagkatapos.
+      </p>
+      <div class="modal-act">
+        <button class="btn btn-gh" style="flex:1;" onclick="closeEndDay()">Bumalik</button>
+        <button class="btn btn-end" style="flex:2;" onclick="goToPaymentStep()">
+          Susunod → Komisyon
+        </button>
+      </div>
     </div>
-    <div id="ed-list"></div>
-    <hr class="hr">
-    <p style="font-size:13px;color:var(--mut);margin-bottom:14px;">
-      ⚠️ Pakitingnan ang lahat bago mag-submit. Hindi mo na mababago ito pagkatapos.
-    </p>
-    <div class="modal-act">
-      <button class="btn btn-gh" style="flex:1;" onclick="closeEndDay()">Bumalik</button>
-      <button class="btn btn-end" style="flex:2;" onclick="confirmSubmit()">
-        ✅ &nbsp;Tama lahat — I-submit!
-      </button>
+
+    <!-- Step 2: Payment confirmation -->
+    <div id="ed-step2" style="display:none;">
+      <div id="ed-payment-body"></div>
+      <div class="modal-act" style="flex-direction:column;gap:10px;margin-top:4px;">
+        <button class="btn btn-end" style="width:100%;font-size:15px;padding:14px;" onclick="confirmSubmit(true)">
+          ✅ &nbsp;Natanggap Ko na ang Komisyon!
+        </button>
+        <button class="btn" style="width:100%;background:rgba(148,163,184,0.12);border:1px solid var(--bdr);color:var(--fg);font-size:14px;padding:12px;" onclick="confirmSubmit(false)">
+          🏦 &nbsp;Hindi pa — Ire-remit sa Shop
+        </button>
+      </div>
     </div>
+
   </div>
 </div>
 
@@ -791,44 +809,91 @@ window.openEndDay = () => {
   g('edmod').classList.add('open');
 };
 
-window.closeEndDay = () => g('edmod').classList.remove('open');
+window.closeEndDay = () => {
+  g('edmod').classList.remove('open');
+  // Reset back to step 1 for next open
+  g('ed-step1').style.display = 'block';
+  g('ed-step2').style.display = 'none';
+  g('ed-title').textContent = '🏁 I-review ang Iyong Araw';
+};
 
-window.confirmSubmit = async () => {
+window.goToPaymentStep = () => {
+  const techName  = meD?.techName || meD?.displayName || '';
+  const isEder    = techName === 'Eder';
   const todayList = repairs.filter(r => dateOf(r) === TODAY);
+  const commBase  = todayList.reduce((s,r) => s + repairComm(r), 0);
+  const bonus     = isEder ? 200 : 0;
+  const totalComm = commBase + bonus;
+
+  g('ed-payment-body').innerHTML = `
+    <div style="text-align:center;padding:24px 0 20px;">
+      <div style="font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+        Total na Komisyon Mo
+      </div>
+      <div style="font-size:52px;font-weight:900;color:var(--grn);line-height:1;">
+        ₱${fmt(totalComm)}
+      </div>
+      ${isEder ? `
+      <div style="font-size:12px;color:var(--mut);margin-top:6px;">
+        ₱${fmt(commBase)} komisyon + ₱200 daily bonus
+      </div>` : ''}
+      <div style="font-size:13px;color:var(--mut);margin-top:8px;">
+        para sa ${todayList.length} repair${todayList.length !== 1 ? 's' : ''} ngayon
+      </div>
+    </div>
+    <div style="background:var(--c2);border-radius:10px;padding:14px;font-size:13px;margin-bottom:6px;border:1px solid var(--bdr);">
+      <strong style="color:var(--fg);display:block;margin-bottom:5px;">Natanggap mo na ba ang komisyon mo?</strong>
+      <span style="color:var(--mut);">Ito ay itatala sa record ng shop. Maging tapat — para maayos ang accounting.</span>
+    </div>`;
+
+  g('ed-step1').style.display = 'none';
+  g('ed-title').textContent   = '💰 Komisyon Mo';
+  g('ed-step2').style.display = 'block';
+};
+
+window.confirmSubmit = async (paymentReceived) => {
+  const todayList = repairs.filter(r => dateOf(r) === TODAY);
+  const techName  = meD?.techName || meD?.displayName || '';
+  const isEder    = techName === 'Eder';
+  const commBase  = todayList.reduce((s,r) => s + repairComm(r), 0);
+  const bonus     = isEder ? 200 : 0;
+  const totalComm = commBase + bonus;
+
   load(true);
   try {
-    const totalCharged = todayList.reduce((s,r)=>s+num(r.totalCharged),0);
-    const totalEarns   = todayList.reduce((s,r)=>s+repairComm(r),0);
-
-    // Update attendance record with time-out and summary
     const attId = `${me.uid}_${TODAY}`;
     await updateDoc(doc(db, COL_ATTENDANCE, attId), {
-      timeOut:      serverTimestamp(),
-      submitted:    true,
-      submittedAt:  serverTimestamp(),
-      repairCount:  todayList.length,
-      totalCharged: totalCharged,
-      totalEarnings:totalEarns
+      timeOut:           serverTimestamp(),
+      submitted:         true,
+      submittedAt:       serverTimestamp(),
+      repairCount:       todayList.length,
+      totalCharged:      todayList.reduce((s,r) => s + num(r.totalCharged), 0),
+      totalEarnings:     commBase,           // base commission (legacy field, no bonus)
+      commissionAmount:  totalComm,          // full amount including bonus
+      commissionStatus:  paymentReceived ? 'released' : 'remitted',
+      paymentReleasedAt: paymentReceived ? serverTimestamp() : null
     });
 
-    // Mark all today's repairs as submitted (locked)
+    // Lock all today's repairs from further edits
     for (const r of todayList) {
       await updateDoc(doc(db, COL_REPAIRS, r.id), { submitted: true });
     }
 
-    attend = { ...attend, submitted:true, submittedAt: new Date() };
-
+    attend = { ...attend, submitted: true, submittedAt: new Date() };
     closeEndDay();
     updateTimeinBar();
-    toast('✅ Na-submit na! Salamat sa trabaho ngayon! Mag-lo-logout sa loob ng 10s…', 10000);
 
-    // Auto logout after 10 seconds
+    const msg = paymentReceived
+      ? '✅ Na-submit! Salamat sa trabaho! 💸 Naitala ang komisyon mo.'
+      : '✅ Na-submit! Salamat! 🏦 Nai-remit ang kita sa shop.';
+    toast(msg + ' Mag-lo-logout sa loob ng 10s…', 10000);
+
     setTimeout(async () => {
       await signOut(auth);
       window.location.href = 'index.html';
     }, 10000);
 
-  } catch(e) { toast('❌ Error: '+e.message); }
+  } catch(e) { toast('❌ Error: ' + e.message); }
   finally { load(false); }
 };
 

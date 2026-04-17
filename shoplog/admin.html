@@ -947,6 +947,47 @@ async function drawAtt() {
       return;
     }
 
+    // ── Payroll summary card ──────────────────
+    const submitted  = records.filter(r => r.submitted && r.commissionStatus);
+    const remitted   = submitted.filter(r => r.commissionStatus === 'remitted');
+    const released   = submitted.filter(r => r.commissionStatus === 'released');
+    const totalRemit = remitted.reduce((s,r) => s + (r.commissionAmount || r.totalEarnings || 0), 0);
+    const totalRel   = released.reduce((s,r) => s + (r.commissionAmount || r.totalEarnings || 0), 0);
+
+    let h = '';
+    if (remitted.length || released.length) {
+      h += `<div style="background:var(--c2);border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid var(--bdr);">
+        <div style="font-size:11px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">💼 Payroll Summary</div>`;
+
+      if (remitted.length) {
+        h += `<div style="margin-bottom:10px;">
+          <div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🏦 Remitted to Shop — ₱${fmt(totalRemit)}</div>`;
+        remitted.forEach(r => {
+          const amt = r.commissionAmount || r.totalEarnings || 0;
+          h += `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--fg);">${r.techName} <span style="color:var(--mut);">· ${dateLabel(r.date)}</span></span>
+            <span style="color:#60a5fa;font-weight:700;">₱${fmt(amt)}</span>
+          </div>`;
+        });
+        h += `</div>`;
+      }
+
+      if (released.length) {
+        h += `<div>
+          <div style="font-size:11px;color:var(--grn);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">💸 Released to Tech — ₱${fmt(totalRel)}</div>`;
+        released.forEach(r => {
+          const amt = r.commissionAmount || r.totalEarnings || 0;
+          h += `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--fg);">${r.techName} <span style="color:var(--mut);">· ${dateLabel(r.date)}</span></span>
+            <span style="color:var(--grn);font-weight:700;">₱${fmt(amt)}</span>
+          </div>`;
+        });
+        h += `</div>`;
+      }
+
+      h += `</div>`;
+    }
+
     // Group by date then by tech
     const byDate = {};
     records.forEach(r => {
@@ -954,28 +995,41 @@ async function drawAtt() {
       byDate[r.date].push(r);
     });
 
-    let h = '';
     Object.keys(byDate).sort((a,b)=>b.localeCompare(a)).forEach(d => {
       h += `<div class="dh" style="margin-top:4px;"><span>${dateLabel(d)}</span></div>`;
       h += `<div class="att-row header">
         <div>Tech</div><div>Time In</div><div>Time Out</div><div>Status</div>
       </div>`;
       byDate[d].forEach(rec => {
-        const submitted = rec.submitted;
+        const done = rec.submitted;
+
+        // Commission badge
+        let commBadge = '';
+        if (done && rec.commissionStatus === 'released') {
+          commBadge = `<span class="bdg" style="background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3);">💸 Released</span>`;
+        } else if (done && rec.commissionStatus === 'remitted') {
+          commBadge = `<span class="bdg" style="background:rgba(96,165,250,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);">🏦 Remitted</span>`;
+        } else if (done) {
+          commBadge = `<span class="bdg" style="background:rgba(148,163,184,0.12);color:var(--mut);border:1px solid var(--bdr);">— No record</span>`;
+        }
+
+        const commAmt = rec.commissionAmount || rec.totalEarnings || 0;
+
         h += `
           <div class="att-row">
             <div style="font-weight:700;">${rec.techName}</div>
             <div>${rec.timeIn ? fmtTime(rec.timeIn) : '—'}</div>
-            <div>${rec.timeOut ? fmtTime(rec.timeOut) : submitted?'?':'⏳'}</div>
-            <div>${submitted
+            <div>${rec.timeOut ? fmtTime(rec.timeOut) : done?'?':'⏳'}</div>
+            <div>${done
               ? `<span class="bdg bdg-paid">Done</span>`
               : `<span class="bdg bdg-pend">Active</span>`}
             </div>
           </div>
-          ${submitted && rec.repairCount>0?`
-          <div style="font-size:11px;color:var(--mut);padding:4px 0 8px;">
-            ${rec.repairCount} repairs · ₱${fmt(rec.totalCharged)} charged · Kita: ₱${fmt(rec.totalEarnings)}
-          </div>`:''}`;
+          ${done && rec.repairCount > 0 ? `
+          <div style="font-size:11px;padding:5px 0 10px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:var(--mut);">${rec.repairCount} repairs · ₱${fmt(rec.totalCharged)} charged · ₱${fmt(commAmt)} komisyon</span>
+            ${commBadge}
+          </div>` : ''}`;
       });
       h += `<hr class="hr" style="margin:6px 0;">`;
     });
