@@ -201,19 +201,10 @@
           </div>
         </div>
       </div>
-      <!-- Image preview (hidden until attached) -->
-      <div id="ai-img-preview-area" style="display:none;padding:8px 12px 0;background:#0d0920;">
-        <div style="position:relative;display:inline-block;">
-          <img id="ai-img-thumb" src="" style="height:60px;border-radius:8px;border:1px solid #7c3aed;display:block;">
-          <button onclick="removeAiImage()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;background:var(--red);border-radius:50%;font-size:10px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;line-height:1;">✕</button>
-        </div>
-      </div>
       <div class="ai-input-row">
-        <button id="ai-img-btn" onclick="document.getElementById('ai-img-file').click()" title="Attach image/screenshot" style="align-self:flex-end;background:#1a0a2e;border:1px solid #4c1d95;border-radius:8px;padding:9px 11px;font-size:17px;cursor:pointer;flex-shrink:0;transition:border-color .15s;">📷</button>
         <textarea id="ai-input" placeholder="Magtanong tungkol sa iyong finances… (Enter = send, Shift+Enter = new line)" onkeydown="aiKeydown(event)"></textarea>
         <button class="ai-send-btn" id="ai-send" onclick="sendAI()">▶</button>
       </div>
-      <input type="file" id="ai-img-file" accept="image/*" style="display:none" onchange="attachAiImage(event)">
     </div>
 
   </div>
@@ -1247,47 +1238,18 @@ window.delExp = async id => {
 const AI_FIN_KEY = 'shoplog_findata_v1';
 let aiMsgs    = [];      // conversation history
 let aiActive  = false;   // is a request in-flight?
-let aiAttachedImage = null; // base64 data URL for image attachment
 let aiAbortCtrl = null;  // AbortController for current request
-
-window.attachAiImage = function(evt) {
-  const file = evt.target.files[0];
-  if (!file) return;
-  evt.target.value = '';
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 800;
-      let w = img.width, h = img.height;
-      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-      const c = document.createElement('canvas');
-      c.width = w; c.height = h;
-      c.getContext('2d').drawImage(img, 0, 0, w, h);
-      aiAttachedImage = c.toDataURL('image/jpeg', 0.82);
-      document.getElementById('ai-img-thumb').src = aiAttachedImage;
-      document.getElementById('ai-img-preview-area').style.display = 'block';
-      document.getElementById('ai-img-btn').style.borderColor = '#7c3aed';
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-};
-
-window.removeAiImage = function() {
-  aiAttachedImage = null;
-  document.getElementById('ai-img-preview-area').style.display = 'none';
-  document.getElementById('ai-img-btn').style.borderColor = '#4c1d95';
-  document.getElementById('ai-img-thumb').src = '';
-};
 
 const finCollapsed = new Set();
 
 const defFin = () => ({
   loans:    [],
   cards:    [],
-  expenses: { rent:0, electric:0, water:0, internet:0, food:0, transport:0, other:0 },
-  savings:  { cash:0, bank:0 },
+  expenses: {
+    shop:  { rent:0, electric:0, water:0, internet:0, other:0 },
+    house: { rent:0, electric:0, water:0, internet:0, food:0, transport:0, other:0 }
+  },
+  savings:  { cash:0, bank:0, gcash:0 },
   notes:    ''
 });
 
@@ -1376,28 +1338,50 @@ window.removeCard = i => {
 
 // ── Render expenses & savings ──
 function renderExpenses() {
-  const e = finData.expenses;
+  // Migrate old flat structure to new shop/house nested structure
+  if (finData.expenses && !finData.expenses.shop) {
+    finData.expenses = defFin().expenses;
+  }
+  const sh = finData.expenses.shop;
+  const ho = finData.expenses.house;
   document.getElementById('fin-expenses').innerHTML = `
+    <div style="font-size:12px;font-weight:700;color:#aaa;letter-spacing:1px;margin:0 0 6px;">🏪 SHOP</div>
     <div class="r2">
-      <div class="fg" style="margin:0 0 8px;"><label>Rent / Amortization (₱)</label>
-        <input type="number" value="${e.rent||0}" onchange="finData.expenses.rent=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Rent / Space (₱)</label>
+        <input type="number" value="${sh.rent||0}" onchange="finData.expenses.shop.rent=+this.value" min="0"></div>
       <div class="fg" style="margin:0 0 8px;"><label>Electric Bill (₱)</label>
-        <input type="number" value="${e.electric||0}" onchange="finData.expenses.electric=+this.value" min="0"></div>
+        <input type="number" value="${sh.electric||0}" onchange="finData.expenses.shop.electric=+this.value" min="0"></div>
     </div>
     <div class="r2">
       <div class="fg" style="margin:0 0 8px;"><label>Water Bill (₱)</label>
-        <input type="number" value="${e.water||0}" onchange="finData.expenses.water=+this.value" min="0"></div>
-      <div class="fg" style="margin:0 0 8px;"><label>Phone &amp; Internet (₱)</label>
-        <input type="number" value="${e.internet||0}" onchange="finData.expenses.internet=+this.value" min="0"></div>
+        <input type="number" value="${sh.water||0}" onchange="finData.expenses.shop.water=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Internet (₱)</label>
+        <input type="number" value="${sh.internet||0}" onchange="finData.expenses.shop.internet=+this.value" min="0"></div>
+    </div>
+    <div class="fg" style="margin:0 0 14px;"><label>Other Shop Expenses (₱)</label>
+      <input type="number" value="${sh.other||0}" onchange="finData.expenses.shop.other=+this.value" min="0"></div>
+
+    <div style="font-size:12px;font-weight:700;color:#aaa;letter-spacing:1px;margin:0 0 6px;">🏠 HOUSE</div>
+    <div class="r2">
+      <div class="fg" style="margin:0 0 8px;"><label>Rent / Mortgage (₱)</label>
+        <input type="number" value="${ho.rent||0}" onchange="finData.expenses.house.rent=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Electric Bill (₱)</label>
+        <input type="number" value="${ho.electric||0}" onchange="finData.expenses.house.electric=+this.value" min="0"></div>
+    </div>
+    <div class="r2">
+      <div class="fg" style="margin:0 0 8px;"><label>Water Bill (₱)</label>
+        <input type="number" value="${ho.water||0}" onchange="finData.expenses.house.water=+this.value" min="0"></div>
+      <div class="fg" style="margin:0 0 8px;"><label>Internet (₱)</label>
+        <input type="number" value="${ho.internet||0}" onchange="finData.expenses.house.internet=+this.value" min="0"></div>
     </div>
     <div class="r2">
       <div class="fg" style="margin:0 0 8px;"><label>Food / Groceries (₱)</label>
-        <input type="number" value="${e.food||0}" onchange="finData.expenses.food=+this.value" min="0"></div>
+        <input type="number" value="${ho.food||0}" onchange="finData.expenses.house.food=+this.value" min="0"></div>
       <div class="fg" style="margin:0 0 8px;"><label>Transportation (₱)</label>
-        <input type="number" value="${e.transport||0}" onchange="finData.expenses.transport=+this.value" min="0"></div>
+        <input type="number" value="${ho.transport||0}" onchange="finData.expenses.house.transport=+this.value" min="0"></div>
     </div>
-    <div class="fg"><label>Other Monthly (₱)</label>
-      <input type="number" value="${e.other||0}" onchange="finData.expenses.other=+this.value" min="0"></div>`;
+    <div class="fg"><label>Other House Expenses (₱)</label>
+      <input type="number" value="${ho.other||0}" onchange="finData.expenses.house.other=+this.value" min="0"></div>`;
 }
 
 function renderSavings() {
@@ -1409,6 +1393,8 @@ function renderSavings() {
       <div class="fg" style="margin:0 0 8px;"><label>Bank Savings (₱)</label>
         <input type="number" value="${s.bank||0}" onchange="finData.savings.bank=+this.value" min="0"></div>
     </div>
+    <div class="fg" style="margin:0 0 8px;"><label>GCash (₱)</label>
+      <input type="number" value="${s.gcash||0}" onchange="finData.savings.gcash=+this.value" min="0"></div>
     <div class="fg"><label>Notes / Context (optional)</label>
       <textarea onchange="finData.notes=this.value" style="min-height:54px;" placeholder="e.g. Expected big expense, business goals, context about a loan...">${finData.notes||''}</textarea></div>`;
 }
@@ -1433,14 +1419,14 @@ function buildSystemPrompt() {
   const S_month = calcStats(repairs.filter(r=>dateOf(r).startsWith(mon)));
   const S_all   = calcStats(repairs);
 
-  const totalExpenses     = Object.values(finData.expenses).reduce((s,v)=>s+(+v||0),0);
+  const totalExpenses     = [...Object.values(finData.expenses.shop||{}), ...Object.values(finData.expenses.house||{})].reduce((s,v)=>s+(+v||0),0);
   const totalLoanPayments = finData.loans.reduce((s,l)=>s+(+l.monthly||0),0);
   const totalCardMin      = finData.cards.reduce((s,c)=>s+(+c.minPayment||0),0);
   const totalDebtPayments = totalLoanPayments + totalCardMin;
   const totalLoanBalance  = finData.loans.reduce((s,l)=>s+(+l.balance||0),0);
   const totalCardBalance  = finData.cards.reduce((s,c)=>s+(+c.balance||0),0);
   const totalDebt         = totalLoanBalance + totalCardBalance;
-  const totalSavings      = (+finData.savings.cash||0) + (+finData.savings.bank||0);
+  const totalSavings      = (+finData.savings.cash||0) + (+finData.savings.bank||0) + (+finData.savings.gcash||0);
   const monthlyIncome     = S_month.jayGrand;
   const netAfterAll       = monthlyIncome - totalExpenses - totalDebtPayments;
   const dti               = monthlyIncome > 0 ? Math.round(totalDebtPayments/monthlyIncome*100) : 0;
@@ -1575,27 +1561,11 @@ window.sendAI = async () => {
   const input  = document.getElementById('ai-input');
   const sendBtn= document.getElementById('ai-send');
   const text   = input.value.trim();
-  const hasImg = !!aiAttachedImage;
-  if (!text && !hasImg || aiActive) return;
+  if (!text || aiActive) return;
   input.value = ''; aiActive = true; sendBtn.disabled = true;
 
-  const dispText = text || '(image attached)';
-
-  // Show user bubble with thumbnail if image
-  if (hasImg) {
-    appendMsg('user', `<img src="${aiAttachedImage}" style="max-width:160px;border-radius:8px;display:block;margin-bottom:4px;">${escHtml(text).replace(/\n/g,'<br>')}`);
-  } else {
-    appendMsg('user', escHtml(text).replace(/\n/g,'<br>'));
-  }
-
-  // Build user content (multimodal if image)
-  const userContent = hasImg
-    ? [{ type:'text', text: text || 'Analyze this image and provide financial insights based on what you see.' },
-       { type:'image_url', image_url:{ url: aiAttachedImage } }]
-    : text;
-
-  aiMsgs.push({ role:'user', content: hasImg ? dispText + ' [+image]' : text });
-  if (hasImg) removeAiImage();
+  appendMsg('user', escHtml(text).replace(/\n/g,'<br>'));
+  aiMsgs.push({ role:'user', content: text });
 
   const ph = appendMsg('asst', '', true);
   const url = (document.getElementById('ai-url').value.trim() || 'http://127.0.0.1:8080').replace(/\/+$/,'');
@@ -1610,11 +1580,11 @@ window.sendAI = async () => {
       headers: { 'Content-Type':'application/json' },
       signal: aiAbortCtrl.signal,
       body: JSON.stringify({
-        messages: [{ role:'system', content: buildSystemPrompt() }, ...aiMsgs.slice(-12, -1), { role:'user', content: userContent }],
+        messages: [{ role:'system', content: buildSystemPrompt() }, ...aiMsgs.slice(-12, -1), { role:'user', content: text }],
         stream: true,
         temperature: 0.72,
         max_tokens: 2048,
-        stop: ['<end_of_turn>','<|end|>','</s>','<eos>']
+        stop: ['<end_of_turn>', '<eos>']
       })
     });
 
@@ -1623,14 +1593,12 @@ window.sendAI = async () => {
       throw new Error(`HTTP ${resp.status}${errText?' — '+errText.slice(0,120):''}`);
     }
 
-    // Connected — update thinking text but keep spinner until first token
+    // Connected — update thinking text until first token
     const thinkSpan = ph.querySelector('.bubble-content');
-    if (thinkSpan) thinkSpan.innerHTML = hasImg
-      ? '<em style="color:var(--mut);font-size:12px;">Encoding image…</em>'
-      : '<em style="color:var(--mut);font-size:12px;">Connected…</em>';
+    if (thinkSpan) thinkSpan.innerHTML = '<em style="color:var(--mut);font-size:12px;">Connected…</em>';
 
-    // Idle timeout — abort if 90 s of silence after connection
-    let idleTimer = setTimeout(() => aiAbortCtrl.abort(), 90000);
+    // Idle timeout — 30 s silence → abort
+    let idleTimer = setTimeout(() => aiAbortCtrl.abort(), 30000);
 
     const bubble = ph.querySelector('.bubble-content');
     let fullText = '';
@@ -1643,9 +1611,8 @@ window.sendAI = async () => {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      // Reset idle timer on every data chunk
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => aiAbortCtrl.abort(), 90000);
+      idleTimer = setTimeout(() => aiAbortCtrl.abort(), 30000);
 
       buf += dec.decode(value, { stream:true });
       const lines = buf.split('\n');
@@ -1676,7 +1643,7 @@ window.sendAI = async () => {
     ph.classList.remove('thinking');
     if (e.name === 'AbortError') {
       ph.querySelector('.bubble-content').innerHTML =
-        `<span style="color:var(--amber);">⏱ Walang response — masyado matagal ang model.<br><span style="font-size:12px;">Subukan muna ng text-only bago mag-image. Kung naka-image, mag-antay ng 60–90s para ma-encode.</span></span>`;
+        `<span style="color:var(--amber);">⏱ Walang response — tiyaking naka-load ang Gemma 2 sa Termux.</span>`;
     } else {
       ph.querySelector('.bubble-content').innerHTML =
         `<span style="color:var(--red);">❌ ${escHtml(e.message)}</span><br><span style="font-size:12px;color:var(--mut);">Tiyaking naka-on ang LLM server sa Termux at tama ang URL:port.</span>`;

@@ -894,26 +894,13 @@
     <!-- Chat -->
     <div class="chat-box" id="ai-chat"></div>
 
-    <!-- Image preview -->
-    <div id="img-preview-area" style="display:none;margin-bottom:6px">
-      <div class="img-preview-wrap">
-        <img id="img-preview-thumb" src="" alt="screenshot">
-        <button class="img-remove" onclick="removeImage()">✕</button>
-      </div>
-    </div>
-
     <div class="chat-input-row">
-      <div style="display:flex;gap:8px;align-items:flex-end">
-        <button class="img-attach-btn" id="img-attach-btn" onclick="document.getElementById('img-file-input').click()" title="Attach screenshot">📷</button>
-        <textarea id="ai-input" rows="2" placeholder="Ask Gemma anything... (Shift+Enter for new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI();}"></textarea>
-      </div>
+      <textarea id="ai-input" rows="2" placeholder="Ask Gemma anything... (Shift+Enter for new line)" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAI();}"></textarea>
       <button class="chat-send-btn" onclick="sendAI()">⚡ SEND TO GEMMA</button>
     </div>
-    <input type="file" id="img-file-input" accept="image/*" style="display:none" onchange="attachImage(event)">
 
     <div class="tip-box" style="margin-top:10px">
       <strong>💡 Tips</strong>
-      📷 Attach a chart screenshot for visual analysis (requires vision model like LLaVA or Gemma 3).<br>
       Say "save trade: SOLUSDT short entry 83.50 SL 86.50 TP 81.00 PNL +5%" to log via chat.
     </div>
   </div>
@@ -1566,43 +1553,7 @@ function addMsg(role, text, thinking = false) {
 }
 
 let chatHistory = [];
-let attachedImage = null; // base64 data URL
-let aiAbort = null;       // AbortController for cancelling in-flight request
-
-// ─ Image attachment ──────────────────────────
-function attachImage(evt) {
-  const file = evt.target.files[0];
-  if (!file) return;
-  // Reset input so same file can be re-selected
-  evt.target.value = '';
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    // Compress to max 800px wide via canvas before sending
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 800;
-      let w = img.width, h = img.height;
-      if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-      attachedImage = canvas.toDataURL('image/jpeg', 0.82);
-      document.getElementById('img-preview-thumb').src = attachedImage;
-      document.getElementById('img-preview-area').style.display = 'block';
-      document.getElementById('img-attach-btn').classList.add('has-img');
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function removeImage() {
-  attachedImage = null;
-  document.getElementById('img-preview-area').style.display = 'none';
-  document.getElementById('img-attach-btn').classList.remove('has-img');
-  document.getElementById('img-preview-thumb').src = '';
-}
+let aiAbort = null; // AbortController for cancelling in-flight request
 
 // ─ Chat persistence ──────────────────────────
 function saveChatHistory() {
@@ -1632,24 +1583,11 @@ function clearChat() {
 async function sendAI() {
   const input = document.getElementById('ai-input');
   const msg = input.value.trim();
-  const hasImg = !!attachedImage;
-  if (!msg && !hasImg) return;
+  if (!msg) return;
   input.value = '';
 
-  // ── Show user bubble ──
-  const dispMsg = msg || '(screenshot)';
   const chat = document.getElementById('ai-chat');
-  if (hasImg) {
-    const div = document.createElement('div');
-    div.className = 'msg msg-user';
-    div.innerHTML = `<div class="bubble bubble-user" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
-      <img src="${attachedImage}" style="max-width:140px;border-radius:8px;display:block">
-      ${msg ? `<span>${msg}</span>` : ''}
-    </div>`;
-    chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
-  } else {
-    addMsg('user', msg);
-  }
+  addMsg('user', msg);
 
   // ── Thinking bubble with elapsed timer ──
   const thinkDiv = document.createElement('div');
@@ -1663,20 +1601,13 @@ async function sendAI() {
     if (el) el.textContent = secs + 's';
   }, 1000);
 
-  // ── Build payload ──
-  const userContent = hasImg
-    ? [{ type:'text', text: msg || 'Analyze this chart screenshot and give me a trade analysis.' },
-       { type:'image_url', image_url:{ url: attachedImage } }]
-    : msg;
-
-  chatHistory.push({ role:'user', content: hasImg ? dispMsg + ' [+image]' : msg });
+  chatHistory.push({ role:'user', content: msg });
   if (chatHistory.length > 10) chatHistory = chatHistory.slice(-10);
-  if (hasImg) removeImage();
 
   // ── Offline fallback ──
   if (!state.gemmaOnline) {
     clearInterval(timerInt); thinkDiv.remove();
-    const fb = getFallbackResponse(dispMsg);
+    const fb = getFallbackResponse(msg);
     addMsg('ai', fb);
     chatHistory.push({ role:'assistant', content: fb });
     saveChatHistory();
@@ -1694,11 +1625,11 @@ async function sendAI() {
       repeat_penalty: 1.1,
       max_tokens: 400,
       n_predict: 400,
-      stop: ['</s>', '<end_of_turn>', '<eos>', 'User:', 'Human:'],
+      stop: ['<end_of_turn>', '<eos>'],
       messages: [
         { role:'system', content: buildSystemPrompt() },
         ...chatHistory.slice(0, -1),
-        { role:'user', content: userContent }
+        { role:'user', content: msg }
       ]
     };
 
@@ -1714,14 +1645,12 @@ async function sendAI() {
       throw new Error(`HTTP ${resp.status}${err ? ' — '+err.slice(0,100) : ''}`);
     }
 
-    // ── Connected — update status but keep thinking bubble until first token ──
+    // ── Connected — update thinking label until first token ──
     const thinkLabel = thinkDiv.querySelector('.typing-dots');
-    if (thinkLabel) thinkLabel.textContent = hasImg ? 'Encoding image' : 'Connected';
+    if (thinkLabel) thinkLabel.textContent = 'Connected';
 
-    // ── Idle timeout — abort if no token arrives within 90 s of connection ──
-    let idleTimer = setTimeout(() => {
-      aiAbort.abort();
-    }, 90000);
+    // ── Idle timeout — 30 s silence → abort ──
+    let idleTimer = setTimeout(() => aiAbort.abort(), 30000);
 
     const reader = resp.body.getReader();
     const dec = new TextDecoder();
@@ -1732,9 +1661,8 @@ async function sendAI() {
       const { done, value } = await reader.read();
       if (done) break;
 
-      // Reset idle timeout on every chunk of data
       clearTimeout(idleTimer);
-      idleTimer = setTimeout(() => aiAbort.abort(), 90000);
+      idleTimer = setTimeout(() => aiAbort.abort(), 30000);
 
       buf += dec.decode(value, { stream:true });
       const lines = buf.split('\n'); buf = lines.pop();
@@ -1746,7 +1674,6 @@ async function sendAI() {
           const j = JSON.parse(d);
           const chunk = j.choices?.[0]?.delta?.content ?? j.choices?.[0]?.text ?? '';
           if (chunk) {
-            // ── First token: swap thinking bubble → streaming bubble ──
             if (!firstToken) {
               firstToken = true;
               clearInterval(timerInt); clearTimeout(idleTimer);
@@ -1766,7 +1693,7 @@ async function sendAI() {
     }
     clearTimeout(idleTimer);
 
-    if (!reply) reply = '(no response — check that the model is fully loaded in Termux)';
+    if (!reply) reply = '(no response — check that Gemma 2 is loaded in Termux)';
     reply = reply.trim()
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/\*([^*]+)\*/g, '$1')
@@ -1797,10 +1724,9 @@ async function sendAI() {
     clearInterval(timerInt);
     if (document.contains(thinkDiv)) thinkDiv.remove();
     if (e.name === 'AbortError') {
-      // Could be ✕ Stop (manual) or idle timeout — distinguish by secs
       if (secs > 5) {
-        addMsg('ai', `⏱ No response after ${secs}s — model may still be loading or encoding the image.<br>` +
-          `<span style="font-size:12px;color:var(--muted)">Try a text-only message first to confirm the server is ready, then retry with image.</span>`);
+        addMsg('ai', `⏱ No response after ${secs}s — model may still be loading.<br>` +
+          `<span style="font-size:12px;color:var(--muted)">Tap RE-CHECK CONNECTION then try again.</span>`);
       }
       return;
     }
@@ -1808,7 +1734,7 @@ async function sendAI() {
     addMsg('ai', `⚠️ <strong>${errMsg}</strong><br><br>` +
       `Start server with:<br>` +
       `<code style="font-size:11px;background:rgba(0,0,0,0.4);padding:3px 8px;border-radius:6px;display:block;margin:6px 0">` +
-      `./llama-server -m llava.gguf --mmproj mmproj.gguf --port 8080 --host 0.0.0.0 -c 4096 -ngl 0</code>` +
+      `./llama-server -m gemma-2-2b-it-Q4_K_M.gguf --port 8080 --host 0.0.0.0 -c 4096 -ngl 0</code>` +
       `Then tap <strong>RE-CHECK CONNECTION</strong> above.`);
   }
 }
