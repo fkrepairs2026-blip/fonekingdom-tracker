@@ -964,9 +964,18 @@ async function drawAtt() {
           <div style="font-size:11px;color:#60a5fa;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🏦 Remitted to Shop — ₱${fmt(totalRemit)}</div>`;
         remitted.forEach(r => {
           const amt = r.commissionAmount || r.totalEarnings || 0;
-          h += `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;">
-            <span style="color:var(--fg);">${r.techName} <span style="color:var(--mut);">· ${dateLabel(r.date)}</span></span>
-            <span style="color:#60a5fa;font-weight:700;">₱${fmt(amt)}</span>
+          h += `<div style="font-size:12px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div>
+              <span style="color:var(--fg);font-weight:600;">${r.techName}</span>
+              <span style="color:var(--mut);"> · ${dateLabel(r.date)}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
+              <span style="color:#60a5fa;font-weight:700;">₱${fmt(amt)}</span>
+              <button onclick="payCommission('${r.id}','${r.techName}',${amt})"
+                style="font-size:11px;padding:4px 10px;background:rgba(34,197,94,0.15);color:#4ade80;border:1px solid rgba(34,197,94,0.3);border-radius:6px;cursor:pointer;font-family:inherit;white-space:nowrap;">
+                💸 Bayad Na
+              </button>
+            </div>
           </div>`;
         });
         h += `</div>`;
@@ -1038,6 +1047,22 @@ async function drawAtt() {
     box.innerHTML = `<div class="empty" style="color:var(--red);">Error loading attendance: ${e.message}</div>`;
   }
 }
+
+// ── Pay commission to tech ────────────────
+window.payCommission = async (attId, techName, amt) => {
+  if (!confirm(`I-release ang komisyon ni ${techName}?\n\n₱${Math.round(amt).toLocaleString('en-PH')}\n\nMag-record ito bilang "Released".`)) return;
+  load(true);
+  try {
+    await updateDoc(doc(db, COL_ATTENDANCE, attId), {
+      commissionStatus:  'released',
+      paymentReleasedAt: serverTimestamp(),
+      paidByAdmin:       me.uid
+    });
+    toast(`✅ Nai-release na ang komisyon ni ${techName}!`);
+    drawAtt();
+  } catch(e) { toast('❌ ' + e.message); }
+  finally { load(false); }
+};
 
 // ── REPAIR FORM ───────────────────────────
 window.openNew = () => {
