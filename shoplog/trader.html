@@ -782,6 +782,9 @@
     <div id="screener-loading" style="text-align:center;padding:30px;color:var(--muted);font-size:13px">
       <span class="spin">⏳</span> Loading market data...
     </div>
+    <div style="text-align:right;margin-bottom:4px">
+      <button class="btn-sm btn-ghost" style="font-size:11px;padding:5px 10px" onclick="state.screenerData=[];loadScreener()">🔄 Refresh</button>
+    </div>
 
     <div id="screener-table-wrap" style="display:none">
       <table class="screener-table">
@@ -1135,23 +1138,94 @@ function saveJournal() {
 }
 
 // ==============================
-// PRICE FETCHING
+// MULTI-SOURCE PRICE FETCHING
 // ==============================
+// Binance mirrors (many ISPs block api.binance.com; mirrors are often accessible)
+const BINANCE_HOSTS = [
+  'https://api.binance.com',
+  'https://api1.binance.com',
+  'https://api2.binance.com',
+  'https://api3.binance.com',
+];
+
+// CoinGecko IDs for each USDT symbol (fallback when all Binance mirrors blocked)
+const CG_IDS = {
+  SOLUSDT:'solana', BTCUSDT:'bitcoin', ETHUSDT:'ethereum', BNBUSDT:'binancecoin',
+  ADAUSDT:'cardano', XRPUSDT:'ripple', DOGEUSDT:'dogecoin', AVAXUSDT:'avalanche-2',
+  DOTUSDT:'polkadot', LINKUSDT:'chainlink', MATICUSDT:'matic-network', NEARUSDT:'near',
+  APTUSDT:'aptos', SUIUSDT:'sui', INJUSDT:'injective-protocol', TIAUSDT:'celestia',
+  SEIUSDT:'sei-network', WIFUSDT:'dogwifcoin', BONKUSDT:'bonk', JUPUSDT:'jupiter-exchange-solana'
+};
+const CG_SYM = Object.fromEntries(Object.entries(CG_IDS).map(([s,id])=>[id,s]));
+
+function tFetch(url, ms = 7000) {
+  return fetch(url, { signal: AbortSignal.timeout(ms) });
+}
+
+// Try each Binance mirror; returns parsed JSON or null
+async function binanceTicker(sym) {
+  for (const host of BINANCE_HOSTS) {
+    try {
+      const r = await tFetch(`${host}/api/v3/ticker/24hr?symbol=${sym}`, 7000);
+      if (r.ok) return r.json();
+    } catch {}
+  }
+  return null;
+}
+
+// Fetch 24h data for a list of symbols from CoinGecko markets endpoint
+async function coingeckoMarkets(syms) {
+  const ids = [...new Set(syms.map(s => CG_IDS[s]).filter(Boolean))].join(',');
+  const r = await tFetch(
+    `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${ids}&order=market_cap_desc&per_page=50&sparkline=false&price_change_percentage=24h`,
+    12000
+  );
+  if (!r.ok) throw new Error('CoinGecko HTTP ' + r.status);
+  return r.json(); // [{id, current_price, price_change_percentage_24h, total_volume, high_24h, low_24h}]
+}
+
+function setSourceBadge(src) {
+  let el = document.getElementById('data-source-badge');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'data-source-badge';
+    el.style.cssText = 'font-size:9px;color:var(--muted);text-align:right;padding:2px 4px;letter-spacing:.5px;';
+    const row = document.getElementById('ticker-row');
+    if (row) row.insertAdjacentElement('afterend', el);
+  }
+  el.textContent = src === 'cg' ? '📡 CoinGecko' : '📡 Binance';
+}
+
 async function fetchPrices() {
+  const syms = ['SOLUSDT','BTCUSDT','ETHUSDT','BNBUSDT'];
   try {
-    const syms = ['SOLUSDT','BTCUSDT','ETHUSDT','BNBUSDT'];
-    const res = await Promise.all(syms.map(s =>
-      fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${s}`).then(r => r.json())
-    ));
-    res.forEach(d => {
-      state.prices[d.symbol] = { price: parseFloat(d.lastPrice), pct: parseFloat(d.priceChangePercent), vol: parseFloat(d.volume) };
-    });
+    const results = await Promise.all(syms.map(s => binanceTicker(s)));
+    const gotAny = results.some(Boolean);
+
+    if (gotAny) {
+      results.forEach(d => {
+        if (d) state.prices[d.symbol] = {
+          price: parseFloat(d.lastPrice), pct: parseFloat(d.priceChangePercent), vol: parseFloat(d.volume)
+        };
+      });
+      setSourceBadge('bn');
+    } else {
+      // All Binance mirrors blocked — use CoinGecko
+      const cgData = await coingeckoMarkets(syms);
+      cgData.forEach(c => {
+        const sym = CG_SYM[c.id];
+        if (sym) state.prices[sym] = {
+          price: c.current_price, pct: c.price_change_percentage_24h || 0, vol: c.total_volume || 0
+        };
+      });
+      setSourceBadge('cg');
+    }
     renderTickers();
     updateDashboardSetup();
   } catch(e) {
-    console.warn('Price fetch failed', e);
+    console.warn('Price fetch failed (all sources):', e);
   }
-  setTimeout(fetchPrices, 15000);
+  setTimeout(fetchPrices, 20000);
 }
 
 function renderTickers() {
@@ -1763,49 +1837,66 @@ function getFallbackResponse(msg) {
 // SCREENER
 // ==============================
 async function loadScreener() {
-  document.getElementById('screener-loading').style.display = 'block';
+  const loadEl = document.getElementById('screener-loading');
+  loadEl.style.display = 'block';
+  loadEl.innerHTML = '<span class="spin">⏳</span> Loading market data...';
   document.getElementById('screener-table-wrap').style.display = 'none';
 
   try {
-    const results = await Promise.all(TOKENS.map(async sym => {
-      try {
-        const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`);
-        const d = await r.json();
-        return {
-          sym,
-          price: parseFloat(d.lastPrice),
-          pct24h: parseFloat(d.priceChangePercent),
-          vol: parseFloat(d.quoteVolume),
-          high: parseFloat(d.highPrice),
-          low: parseFloat(d.lowPrice)
-        };
-      } catch(e) { return null; }
-    }));
+    // Try one Binance mirror for the first token as a quick probe
+    const probe = await binanceTicker('BTCUSDT');
+    let rawData;
 
-    state.screenerData = results.filter(Boolean).map(d => {
+    if (probe) {
+      // Binance is accessible — fetch all 20 tokens
+      const results = await Promise.all(TOKENS.map(async sym => {
+        for (const host of BINANCE_HOSTS) {
+          try {
+            const r = await tFetch(`${host}/api/v3/ticker/24hr?symbol=${sym}`, 7000);
+            if (r.ok) {
+              const d = await r.json();
+              return { sym, price: parseFloat(d.lastPrice), pct24h: parseFloat(d.priceChangePercent),
+                        vol: parseFloat(d.quoteVolume), high: parseFloat(d.highPrice), low: parseFloat(d.lowPrice) };
+            }
+          } catch {}
+        }
+        return null;
+      }));
+      rawData = results.filter(Boolean);
+      setSourceBadge('bn');
+    } else {
+      // Binance blocked — load all from CoinGecko in one call
+      loadEl.innerHTML = '<span class="spin">⏳</span> Binance blocked, trying CoinGecko...';
+      const cgData = await coingeckoMarkets(TOKENS);
+      rawData = cgData.map(c => {
+        const sym = CG_SYM[c.id];
+        if (!sym) return null;
+        return { sym, price: c.current_price || 0, pct24h: c.price_change_percentage_24h || 0,
+                 vol: c.total_volume || 0, high: c.high_24h || c.current_price, low: c.low_24h || c.current_price };
+      }).filter(Boolean);
+      setSourceBadge('cg');
+    }
+
+    state.screenerData = rawData.map(d => {
       let score = 0;
       const criteria = [];
-
-      if (d.price > 0.001) { score++; criteria.push(true); } else criteria.push(false);
-      if (d.vol > 1_000_000) { score++; criteria.push(true); } else criteria.push(false);
-      if (d.vol > 5_000_000) { score++; criteria.push(true); } else criteria.push(false);
+      if (d.price > 0.001)     { score++; criteria.push(true); } else criteria.push(false);
+      if (d.vol > 1_000_000)   { score++; criteria.push(true); } else criteria.push(false);
+      if (d.vol > 5_000_000)   { score++; criteria.push(true); } else criteria.push(false);
       if (Math.abs(d.pct24h) > 1.5) { score++; criteria.push(true); } else criteria.push(false);
-
       const range = d.high - d.low;
       const rsiProxy = range > 0 ? ((d.price - d.low) / range) * 100 : 50;
       d.rsiProxy = rsiProxy;
-      const rsiOk = rsiProxy > 60 || rsiProxy < 40;
-      if (rsiOk) { score++; criteria.push(true); } else criteria.push(false);
-
+      if (rsiProxy > 60 || rsiProxy < 40) { score++; criteria.push(true); } else criteria.push(false);
       const bias = d.pct24h > 1 ? 'long' : d.pct24h < -1 ? 'short' : 'neutral';
       return { ...d, score, criteria, bias };
     }).sort((a, b) => b.score - a.score);
 
-    document.getElementById('screener-loading').style.display = 'none';
+    loadEl.style.display = 'none';
     document.getElementById('screener-table-wrap').style.display = 'block';
     renderScreener();
   } catch(e) {
-    document.getElementById('screener-loading').innerHTML = '⚠️ Failed to load. Check internet connection.';
+    loadEl.innerHTML = `⚠️ All data sources failed.<br><span style="font-size:11px;color:var(--muted)">Binance and CoinGecko both unreachable. Check your internet connection.</span>`;
   }
 }
 
